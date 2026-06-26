@@ -9,6 +9,7 @@ Keep committed source assets and their Godot `.import` metadata together.
 - `branding/`: project logos and brand marks for lobby, menu, splash, and related UI surfaces.
 - `characters/student/`: student character sprite sheets for movement and dialogue test scenes.
 - `sprites/player/`: player sprite sheets and frame resources.
+- `ui/buttons/lobby/`: title lobby button textures and state variants.
 - `ui/minimap/`: compact minimap room icons and related UI markers.
 
 ## Naming

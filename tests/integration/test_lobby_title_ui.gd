@@ -25,6 +25,11 @@ func test_lobby_title_scene_uses_title_assets_and_menu_contract() -> void:
 	_runner.assert_eq(title_logo.texture.resource_path, "res://assets/branding/title_logo.png", "lobby uses official title logo")
 	_runner.assert_eq(start_button.text, "게임 시작", "start button is localized")
 	_runner.assert_eq(settings_button.text, "설정", "settings button is localized")
+	_runner.assert_eq(start_button.focus_mode, Control.FOCUS_NONE, "mobile lobby start button does not render focus chrome")
+	_runner.assert_eq(settings_button.focus_mode, Control.FOCUS_NONE, "mobile lobby settings button does not render focus chrome")
+	_assert_lobby_button_style(start_button, "start")
+	_assert_lobby_button_style(settings_button, "settings")
+	_assert_lobby_button_texture(settings_button.get_theme_stylebox("disabled"), "res://assets/ui/buttons/lobby/lobby_button_normal.png", "settings disabled button keeps lobby button texture")
 	_runner.assert_eq(start_button.get_meta("uat_action"), "lobby.start", "start uat action is stable")
 	_runner.assert_true(settings_button.disabled, "settings stays visible but disabled until the settings flow exists")
 	_runner.assert_false(settings_button.has_meta("uat_action"), "disabled settings button does not expose a dead UAT action")
@@ -70,3 +75,21 @@ func _is_signal_connected_to_method(signal_ref: Signal, target: Object, method_n
 		if callable.get_object() == target and callable.get_method() == method_name:
 			return true
 	return false
+
+
+func _assert_lobby_button_style(button: Button, label: String) -> void:
+	_assert_lobby_button_texture(button.get_theme_stylebox("normal"), "res://assets/ui/buttons/lobby/lobby_button_normal.png", "%s normal button texture" % label)
+	_assert_lobby_button_texture(button.get_theme_stylebox("hover"), "res://assets/ui/buttons/lobby/lobby_button_normal.png", "%s hover button texture" % label)
+	_assert_lobby_button_texture(button.get_theme_stylebox("pressed"), "res://assets/ui/buttons/lobby/lobby_button_pressed.png", "%s pressed button texture" % label)
+
+
+func _assert_lobby_button_texture(style: StyleBox, texture_path: String, message: String) -> void:
+	var texture_style := style as StyleBoxTexture
+	_runner.assert_not_null(texture_style, "%s uses a texture stylebox" % message)
+	if texture_style == null:
+		return
+	_runner.assert_eq(texture_style.texture.resource_path, texture_path, message)
+	_runner.assert_eq(texture_style.texture_margin_left, 60.0, "%s left 9-slice margin" % message)
+	_runner.assert_eq(texture_style.texture_margin_right, 60.0, "%s right 9-slice margin" % message)
+	_runner.assert_eq(texture_style.texture_margin_top, 12.0, "%s top 9-slice margin" % message)
+	_runner.assert_eq(texture_style.texture_margin_bottom, 12.0, "%s bottom 9-slice margin" % message)

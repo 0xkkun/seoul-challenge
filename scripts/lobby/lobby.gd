@@ -20,12 +20,12 @@ func _ready() -> void:
 	_fit_background_to_viewport()
 	start_button.set_meta("uat_action", "lobby.start")
 	start_button.pressed.connect(_on_start_pressed)
+	start_button.focus_mode = Control.FOCUS_NONE
 	settings_button.set_meta("test_id", "lobby.settings_button")
 	settings_button.disabled = true
 	settings_button.focus_mode = Control.FOCUS_NONE
 	status_label.text = ""
 	status_label.visible = false
-	start_button.grab_focus()
 
 
 func is_quit_confirm_visible() -> bool:
