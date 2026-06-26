@@ -43,6 +43,7 @@ const ACTION_DIALOGUE_CLOSE := "day_corridor.dialogue.close"
 @onready var _touch_controls: Node = %TouchControls
 @onready var _camera: Camera2D = %Camera2D
 @onready var _talk_target: Node2D = %TalkTarget
+@onready var _day_character_root: Node2D = %DayCharacterRoot
 @onready var _character_sprite: Sprite2D = %CharacterSprite
 @onready var _interaction_prompt: Label = %InteractionPrompt
 @onready var _talk_button_label: Label = %TalkButtonLabel
@@ -60,7 +61,7 @@ var _is_room_transitioning := false
 
 func _ready() -> void:
 	_disable_combat_output()
-	_hide_player_placeholder()
+	_hide_player_default_visuals()
 	_apply_nearest_texture_filter()
 	_fit_character_to_asset_scale()
 	_apply_room_state()
@@ -265,10 +266,13 @@ func _disable_combat_output() -> void:
 		launcher.queue_free()
 
 
-func _hide_player_placeholder() -> void:
-	var placeholder := _player.get_node_or_null("Placeholder")
-	if placeholder != null:
-		placeholder.visible = false
+func _hide_player_default_visuals() -> void:
+	for child: Node in _player.get_children():
+		if child == _day_character_root or child is CollisionShape2D:
+			continue
+		var item := child as CanvasItem
+		if item != null:
+			item.visible = false
 
 
 func _apply_nearest_texture_filter() -> void:
