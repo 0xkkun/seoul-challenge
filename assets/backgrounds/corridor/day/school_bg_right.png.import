@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dxwb8iiop10tm"
-path="res://.godot/imported/corridor_day_02.png-c8e9fc1ef2441a3ca4e36db7c8db0b3e.ctex"
+uid="uid://bwocqwbcl07bi"
+path="res://.godot/imported/school_bg_right.png-4b54b1ce1db613819b672cb0e677c715.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/backgrounds/corridor/day/corridor_day_02.png"
-dest_files=["res://.godot/imported/corridor_day_02.png-c8e9fc1ef2441a3ca4e36db7c8db0b3e.ctex"]
+source_file="res://assets/backgrounds/corridor/day/school_bg_right.png"
+dest_files=["res://.godot/imported/school_bg_right.png-4b54b1ce1db613819b672cb0e677c715.ctex"]
 
 [params]
 
