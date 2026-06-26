@@ -52,6 +52,10 @@ func test_lobby_background_cover_crops_from_bottom() -> void:
 	lobby.queue_free()
 
 
+func test_mobile_touch_events_press_gui_buttons() -> void:
+	_runner.assert_true(ProjectSettings.get_setting("input_devices/pointing/emulate_mouse_from_touch"), "mobile touch input is mapped to GUI button clicks")
+
+
 func test_project_app_icon_uses_title_logo_variant() -> void:
 	_runner.assert_eq(ProjectSettings.get_setting("application/config/icon"), "res://icon.png", "project icon uses generated title icon")
 	_runner.assert_true(ResourceLoader.exists("res://icon.png"), "project icon resource exists")
