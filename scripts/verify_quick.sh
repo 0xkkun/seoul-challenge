@@ -5,7 +5,9 @@ ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 cd "$ROOT"
 
 GODOT="${GODOT_BIN:-godot}"
-EXPECTED_GODOT_VERSION="4.6.3.stable.official.7d41c59c4"
+# 로컬은 4.6 마이너 라인(4.6.x) 허용 — 4.6.2/4.6.3 혼용 가능. CI는 RECOMMENDED로 고정.
+EXPECTED_GODOT_MINOR="4.6"
+RECOMMENDED_GODOT_VERSION="4.6.3.stable.official.7d41c59c4"
 PYTHON="${PYTHON_BIN:-python3}"
 GODOT_USER_HOME="${GODOT_USER_HOME:-$ROOT/test-results/godot-user-home}"
 
@@ -35,8 +37,10 @@ print("[verify_quick] OK: python", sys.version.split()[0])
 PY
 
 godot_version="$("$GODOT" --version 2>/dev/null | head -n 1 | tr -d '\r')"
-[ "$godot_version" = "$EXPECTED_GODOT_VERSION" ] || fail "expected Godot $EXPECTED_GODOT_VERSION, got '$godot_version'. Set GODOT_BIN if needed."
-ok "Godot $godot_version"
+case "$godot_version" in
+  "$EXPECTED_GODOT_MINOR".*) ok "Godot $godot_version (line $EXPECTED_GODOT_MINOR)" ;;
+  *) fail "expected Godot $EXPECTED_GODOT_MINOR.x (recommended $RECOMMENDED_GODOT_VERSION), got '$godot_version'. Set GODOT_BIN if needed." ;;
+esac
 
 echo "== static contract =="
 "$PYTHON" scripts/verify_project_contract.py
