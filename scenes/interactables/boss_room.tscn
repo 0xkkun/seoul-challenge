@@ -1,0 +1,13 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/interactables/boss_room.gd" id="1_boss_room"]
+
+[node name="BossRoom" type="Node2D"]
+script = ExtResource("1_boss_room")
+room_id = &"final_1"
+room_type = &"final"
+door_dirs = Array[StringName]([])
+
+[node name="Floor" type="ColorRect" parent="."]
+
+[node name="BossSpawnAnchor" type="Node2D" parent="."]
