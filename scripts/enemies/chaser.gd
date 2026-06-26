@@ -14,6 +14,7 @@ signal defeated(enemy)
 
 var _hp: int = 0
 var _contact_timer: float = 0.0
+var _dead: bool = false
 
 
 func _ready() -> void:
@@ -47,12 +48,17 @@ func is_dead(hp: int) -> bool:
 
 ## 정화탄 등이 호출한다(계약). HP 감소 → 0 이하면 처치.
 func take_damage(amount: int) -> void:
+	if _dead:
+		return
 	_hp -= amount
 	if is_dead(_hp):
 		_die()
 
 
 func _die() -> void:
+	if _dead:
+		return
+	_dead = true
 	defeated.emit(self)
 	queue_free()
 

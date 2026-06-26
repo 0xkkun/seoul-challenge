@@ -35,3 +35,13 @@ func test_dies_after_max_hp_damage() -> void:
 	_runner.assert_false(hit["defeated"], "2대로는 안 죽음")
 	e.take_damage(1)
 	_runner.assert_true(hit["defeated"], "max_hp(3)만큼 맞으면 defeated 방출")
+
+
+func test_death_is_idempotent() -> void:
+	var e = ChaserScene.instantiate()
+	add_child(e)  # _ready → _hp = max_hp
+	var count := {"n": 0}
+	e.defeated.connect(func(_enemy): count["n"] += 1)
+	e.take_damage(e.max_hp)   # 즉사
+	e.take_damage(e.max_hp)   # 사망 후 같은 프레임 추가 피격 시나리오
+	_runner.assert_eq(count["n"], 1, "사망 후 추가 피격해도 defeated 는 한 번만")
