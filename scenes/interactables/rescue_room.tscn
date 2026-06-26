@@ -1,0 +1,38 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/interactables/event_room.gd" id="1_event_room"]
+[ext_resource type="Script" path="res://scripts/systems/room_door.gd" id="2_door"]
+
+[node name="RescueRoom" type="Node2D"]
+script = ExtResource("1_event_room")
+room_id = &"rescue_room"
+room_type = &"event"
+door_dirs = Array[StringName]([&"N", &"S"])
+
+[node name="Floor" type="ColorRect" parent="."]
+
+[node name="Students" type="Node2D" parent="."]
+
+[node name="Doors" type="Node2D" parent="."]
+
+[node name="NorthDoor" type="Node2D" parent="Doors"]
+script = ExtResource("2_door")
+door_dir = &"N"
+
+[node name="DoorVisual" type="ColorRect" parent="Doors/NorthDoor"]
+
+[node name="TransitionArea" type="Area2D" parent="Doors/NorthDoor"]
+collision_layer = 0
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Doors/NorthDoor/TransitionArea"]
+
+[node name="SouthDoor" type="Node2D" parent="Doors"]
+script = ExtResource("2_door")
+door_dir = &"S"
+
+[node name="DoorVisual" type="ColorRect" parent="Doors/SouthDoor"]
+
+[node name="TransitionArea" type="Area2D" parent="Doors/SouthDoor"]
+collision_layer = 0
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Doors/SouthDoor/TransitionArea"]
