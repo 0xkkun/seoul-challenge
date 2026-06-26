@@ -4,6 +4,17 @@ extends CanvasLayer
 
 @onready var _joystick: Control = $Joystick
 @onready var _attack: Control = $AttackButton
+@onready var _skill: Control = $SkillButton
+
+
+func _ready() -> void:
+	if has_node("/root/EventBus") and not EventBus.special_skill_state_changed.is_connected(set_skill_state):
+		EventBus.special_skill_state_changed.connect(set_skill_state)
+
+
+func _exit_tree() -> void:
+	if has_node("/root/EventBus") and EventBus.special_skill_state_changed.is_connected(set_skill_state):
+		EventBus.special_skill_state_changed.disconnect(set_skill_state)
 
 
 func get_move() -> Vector2:
@@ -12,3 +23,12 @@ func get_move() -> Vector2:
 
 func is_attack_pressed() -> bool:
 	return _attack.is_held()
+
+
+func is_skill_pressed() -> bool:
+	return _skill.is_held()
+
+
+func set_skill_state(payload: Dictionary) -> void:
+	if _skill.has_method("set_skill_state"):
+		_skill.call("set_skill_state", payload)

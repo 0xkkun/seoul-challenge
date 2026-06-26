@@ -9,6 +9,7 @@ signal student_rescued(payload: Dictionary)
 signal friend_purified(payload: Dictionary)
 signal boss_defeated(payload: Dictionary)
 signal currency_changed(payload: Dictionary)
+signal special_skill_state_changed(payload: Dictionary)
 signal settings_changed(settings: Dictionary)
 ## #19 밤 전투 계약: 플레이어 체력 변화 — payload {"current": int, "max": int}.
 ## 전투 트랙은 emit_player_health_changed() 로 발신, HUD(#13) 등은 구독만 한다.
@@ -52,6 +53,10 @@ func emit_boss_defeated(payload: Dictionary) -> void:
 
 func emit_currency_changed(payload: Dictionary) -> void:
 	currency_changed.emit(payload.duplicate(true))
+
+
+func emit_special_skill_state_changed(payload: Dictionary) -> void:
+	special_skill_state_changed.emit(payload.duplicate(true))
 
 
 func emit_settings_changed(settings: Dictionary) -> void:

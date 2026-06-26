@@ -1,8 +1,9 @@
-[gd_scene load_steps=4 format=3]
+[gd_scene load_steps=5 format=3]
 
 [ext_resource type="Script" path="res://scripts/ui/touch_controls.gd" id="1_tc"]
 [ext_resource type="PackedScene" path="res://scenes/ui/virtual_joystick.tscn" id="2_vj"]
 [ext_resource type="Script" path="res://scripts/ui/attack_button.gd" id="3_ab"]
+[ext_resource type="Script" path="res://scripts/ui/skill_button.gd" id="4_skill"]
 
 [node name="TouchControls" type="CanvasLayer"]
 script = ExtResource("1_tc")
@@ -25,3 +26,14 @@ offset_top = -200.0
 offset_right = -40.0
 offset_bottom = -40.0
 script = ExtResource("3_ab")
+
+[node name="SkillButton" type="Control" parent="."]
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -350.0
+offset_top = -170.0
+offset_right = -230.0
+offset_bottom = -50.0
+script = ExtResource("4_skill")

@@ -37,6 +37,7 @@ func test_room_event_bus_surface_uses_payload_wrappers() -> void:
 		"friend_purified",
 		"boss_defeated",
 		"currency_changed",
+		"special_skill_state_changed",
 	]
 	for event_name: String in event_names:
 		_runner.assert_true(

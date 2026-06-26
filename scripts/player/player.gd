@@ -9,6 +9,8 @@ extends CharacterBody2D
 signal fired(muzzle_position: Vector2, direction: Vector2)
 ## 무기 변경 — 맨손 → 야구배트 등. UI 표시용.
 signal weapon_changed(weapon_name: String)
+## 특수 스킬 상태 변경 — HUD 표시용.
+signal special_skill_state_changed(payload: Dictionary)
 
 @export var move_speed: float = 220.0      ## 최고 속도 (px/s)
 @export var acceleration: float = 2200.0   ## 가속 (px/s^2)
@@ -30,11 +32,22 @@ signal weapon_changed(weapon_name: String)
 @export var swing_visual_time: float = 0.12  ## 휘두르기 시각 표시 시간 (s)
 @export var max_health: int = 5            ## 최대 체력(하트)
 @export var invuln_time: float = 0.5       ## 피격 후 무적 시간 (s) — 보스 탄막 원샷 방지
+@export var special_skill_id: StringName = &"emergency_dodge"
+@export_range(0, 9, 1) var special_skill_max_uses := 3
+@export_range(0, 9, 1) var special_skill_uses_remaining := 3
+@export var special_skill_cooldown: float = 1.4
+@export var dodge_duration: float = 0.14
+@export var dodge_speed: float = 520.0
+@export var dodge_invuln_time: float = 0.24
 @export var touch_controls_path: NodePath  ## 비우면 키보드 폴백
 
 var _fire_timer: float = 0.0
 var _attack_timer: float = 0.0
 var _swing_timer: float = 0.0
+var _special_cooldown_timer: float = 0.0
+var _dodge_timer: float = 0.0
+var _dodge_direction: Vector2 = Vector2.ZERO
+var _was_special_pressed := false
 var _has_bat: bool = false   ## 야구배트 장착 여부(맵 클리어 보상). 기본 맨손.
 var _facing: Vector2 = Vector2.DOWN
 var _health: int = 0
@@ -51,15 +64,21 @@ func _ready() -> void:
 		_touch = get_node_or_null(touch_controls_path)
 	# HUD·죽음 컨트롤러가 연결된 뒤 초기 체력을 알리도록 지연 발신.
 	_broadcast_health.call_deferred()
+	_broadcast_special_skill_state.call_deferred()
 
 
 func _physics_process(delta: float) -> void:
 	_invuln_timer = maxf(0.0, _invuln_timer - delta)
 	var move := read_input_vector()
 	_facing = update_facing(_facing, move)
-	# 벨트 원근감: 깊이(상하) 이동을 좌우보다 느리게 한다.
-	move.y *= vertical_speed_factor
-	velocity = step_velocity(velocity, move, delta)
+	_process_special_skill(delta, move)
+	if _dodge_timer > 0.0:
+		_dodge_timer = maxf(0.0, _dodge_timer - delta)
+		velocity = dodge_velocity(_dodge_direction, dodge_speed)
+	else:
+		# 벨트 원근감: 깊이(상하) 이동을 좌우보다 느리게 한다.
+		move.y *= vertical_speed_factor
+		velocity = step_velocity(velocity, move, delta)
 	move_and_slide()
 	_process_attack(delta)
 
@@ -95,6 +114,32 @@ func aim_direction_to(from: Vector2, to: Vector2) -> Vector2:
 ## 쿨다운 타이머를 delta만큼 감소(0 클램프).
 func step_fire_cooldown(timer: float, delta: float) -> float:
 	return maxf(0.0, timer - delta)
+
+
+func step_special_cooldown(timer: float, delta: float) -> float:
+	return maxf(0.0, timer - delta)
+
+
+func can_use_special_skill(uses_remaining: int, cooldown_remaining: float, is_active: bool) -> bool:
+	return uses_remaining > 0 and cooldown_remaining <= 0.0 and not is_active
+
+
+func consume_special_use(uses_remaining: int) -> int:
+	return maxi(0, uses_remaining - 1)
+
+
+func choose_dodge_direction(move_input: Vector2, facing: Vector2) -> Vector2:
+	if move_input.length() > 0.01:
+		return move_input.normalized()
+	if facing.length() > 0.01:
+		return facing.normalized()
+	return Vector2.DOWN
+
+
+func dodge_velocity(direction: Vector2, speed: float) -> Vector2:
+	if direction.length() < 0.001:
+		return Vector2.ZERO
+	return direction.normalized() * speed
 
 
 ## 발사 반동 속도(조준 반대 방향).
@@ -143,6 +188,18 @@ func _broadcast_health() -> void:
 		EventBus.emit_player_health_changed({"current": _health, "max": max_health})
 
 
+func get_invuln_remaining() -> float:
+	return _invuln_timer
+
+
+func get_special_cooldown_remaining() -> float:
+	return _special_cooldown_timer
+
+
+func is_dodging() -> bool:
+	return _dodge_timer > 0.0
+
+
 # --- 입력 I/O (단위 테스트 제외) ---
 
 ## 이동 입력: 터치 조이스틱 우선, 없거나 0이면 키보드.
@@ -183,6 +240,65 @@ func is_firing() -> bool:
 	if _touch != null and _touch.is_attack_pressed():
 		return true
 	return Input.is_key_pressed(KEY_SPACE) or Input.get_joy_axis(0, JOY_AXIS_TRIGGER_RIGHT) > 0.3
+
+
+func is_special_pressed() -> bool:
+	if _touch != null and _touch.has_method("is_skill_pressed") and _touch.call("is_skill_pressed"):
+		return true
+	return (
+		Input.is_physical_key_pressed(KEY_SHIFT)
+		or Input.is_physical_key_pressed(KEY_E)
+		or Input.get_joy_axis(0, JOY_AXIS_TRIGGER_LEFT) > 0.3
+	)
+
+
+func try_start_special_skill(input_vector: Vector2 = Vector2.ZERO) -> bool:
+	if special_skill_id != &"emergency_dodge":
+		return false
+	if not can_use_special_skill(special_skill_uses_remaining, _special_cooldown_timer, is_dodging()):
+		return false
+	_dodge_direction = choose_dodge_direction(input_vector, _facing)
+	_dodge_timer = dodge_duration
+	_invuln_timer = maxf(_invuln_timer, dodge_invuln_time)
+	special_skill_uses_remaining = consume_special_use(special_skill_uses_remaining)
+	_special_cooldown_timer = special_skill_cooldown
+	_broadcast_special_skill_state()
+	return true
+
+
+func equip_special_skill(skill_id: StringName, max_uses: int = 3, cooldown: float = 1.4) -> void:
+	special_skill_id = skill_id
+	special_skill_max_uses = maxi(0, max_uses)
+	special_skill_uses_remaining = special_skill_max_uses
+	special_skill_cooldown = maxf(0.0, cooldown)
+	_special_cooldown_timer = 0.0
+	_dodge_timer = 0.0
+	_broadcast_special_skill_state()
+
+
+func _process_special_skill(delta: float, move_input: Vector2) -> void:
+	var previous_cooldown := _special_cooldown_timer
+	_special_cooldown_timer = step_special_cooldown(_special_cooldown_timer, delta)
+	var pressed := is_special_pressed()
+	if pressed and not _was_special_pressed:
+		try_start_special_skill(move_input)
+	_was_special_pressed = pressed
+	if not is_equal_approx(previous_cooldown, _special_cooldown_timer):
+		_broadcast_special_skill_state()
+
+
+func _broadcast_special_skill_state() -> void:
+	var payload := {
+		"skill_id": special_skill_id,
+		"uses_remaining": special_skill_uses_remaining,
+		"max_uses": special_skill_max_uses,
+		"cooldown_remaining": _special_cooldown_timer,
+		"cooldown": special_skill_cooldown,
+		"active": is_dodging(),
+	}
+	special_skill_state_changed.emit(payload.duplicate(true))
+	if has_node("/root/EventBus"):
+		EventBus.emit_special_skill_state_changed(payload)
 
 
 ## 공격 입력/쿨다운 처리. 기본은 근접(휘두르기), ranged_enabled 면 원거리(야구공) 발사.

@@ -8,10 +8,12 @@ const HEART_FILLED_COLOR := Color(0.86, 0.22, 0.27)
 const HEART_EMPTY_COLOR := Color(0.25, 0.25, 0.28)
 const HEART_SIZE := Vector2(22, 22)
 const WEAPON_SLOT_STUB_TEXT := "무기: -"
+const SKILL_SLOT_STUB_TEXT := "스킬: -"
 const CURRENCY_SLOT_STUB_TEXT := "0"
 
 @onready var _hearts: HBoxContainer = %Hearts
 @onready var _weapon_slot: Label = %WeaponSlot
+@onready var _skill_slot: Label = %SkillSlot
 @onready var _currency_slot: Label = %CurrencySlot
 
 var _current_health := 0
@@ -21,8 +23,10 @@ var _max_health := 0
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	_weapon_slot.text = WEAPON_SLOT_STUB_TEXT
+	_skill_slot.text = SKILL_SLOT_STUB_TEXT
 	_currency_slot.text = CURRENCY_SLOT_STUB_TEXT
 	EventBus.player_health_changed.connect(_on_player_health_changed)
+	EventBus.special_skill_state_changed.connect(_on_special_skill_state_changed)
 	_render_hearts()
 
 
@@ -49,10 +53,31 @@ func get_filled_heart_count() -> int:
 	return filled
 
 
+func set_skill_state(payload: Dictionary) -> void:
+	var skill_id: StringName = payload.get("skill_id", &"")
+	var max_uses := int(payload.get("max_uses", 0))
+	if skill_id == &"" or max_uses <= 0:
+		_skill_slot.text = SKILL_SLOT_STUB_TEXT
+		return
+	var uses_remaining := clampi(int(payload.get("uses_remaining", 0)), 0, max_uses)
+	var cooldown_remaining := maxf(0.0, float(payload.get("cooldown_remaining", 0.0)))
+	_skill_slot.text = "스킬: %s %d/%d" % [_skill_display_name(skill_id), uses_remaining, max_uses]
+	if cooldown_remaining > 0.05:
+		_skill_slot.text += " %.1fs" % cooldown_remaining
+
+
+func get_skill_text() -> String:
+	return _skill_slot.text
+
+
 func _on_player_health_changed(payload: Dictionary) -> void:
 	var current := int(payload.get("current", _current_health))
 	var max_health := int(payload.get("max", _max_health))
 	set_health(current, max_health)
+
+
+func _on_special_skill_state_changed(payload: Dictionary) -> void:
+	set_skill_state(payload)
 
 
 func _render_hearts() -> void:
@@ -67,3 +92,10 @@ func _render_hearts() -> void:
 	for index in _hearts.get_child_count():
 		var heart := _hearts.get_child(index) as ColorRect
 		heart.color = HEART_FILLED_COLOR if index < _current_health else HEART_EMPTY_COLOR
+
+
+func _skill_display_name(skill_id: StringName) -> String:
+	match skill_id:
+		&"emergency_dodge":
+			return "회피"
+	return String(skill_id)
