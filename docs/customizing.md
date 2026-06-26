@@ -119,7 +119,7 @@ Persistence:
 
 Platform services:
 
-- Add an adapter behind a neutral interface.
+- Add an adapter behind a project-owned interface.
 - Keep live service keys out of the repository.
 - Document setup in `config/README.md` or a dedicated doc.
 

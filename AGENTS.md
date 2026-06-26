@@ -9,7 +9,8 @@ them.
 
 - Use Seoul Challenge vocabulary in game-specific scenes, scripts, assets, and
   tests.
-- Keep generic harness, autoload, pooling, and interaction contracts neutral.
+- Keep generic harness, autoload, pooling, and interaction contracts stable unless
+  a project change intentionally redesigns them.
 - Keep local config, credentials, generated caches, and export outputs untracked.
 
 ## Baseline
@@ -104,7 +105,7 @@ in-process Godot contracts, not Android view IDs.
 
 ## Naming Rules
 
-- Use neutral names such as `session_root`, `sample_actor`, `sample_interactable`, `InteractionSystem`, and `SessionSummaryUI`.
+- Use shared names such as `session_root`, `sample_actor`, `sample_interactable`, `InteractionSystem`, and `SessionSummaryUI`.
 - Do not copy private project references, store identifiers, real service keys, or sample-specific vocabulary into reusable template files.
 - Keep external SDK integrations disabled by default. Add adapter slots and examples instead of live integrations.
 

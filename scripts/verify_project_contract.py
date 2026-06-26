@@ -28,6 +28,8 @@ REQUIRED_FILES = [
     "scripts/godot_headless.sh",
     "scripts/verify_quick.sh",
     "scripts/verify_full.sh",
+    "scripts/constants/render_layers.gd",
+    "scripts/constants/render_layers.gd.uid",
     "scenes/lobby/lobby.tscn",
     "scenes/session/session_root.tscn",
     "scenes/dev/main_dev.tscn",
@@ -92,6 +94,7 @@ def verify_docs_match() -> None:
     readme = read("README.md")
     agents = read("AGENTS.md")
     env = read("docs/environment.md")
+    architecture = read("docs/architecture.md")
     for label, text in {
         "README.md": readme,
         "AGENTS.md": agents,
@@ -101,6 +104,11 @@ def verify_docs_match() -> None:
             fail(f"{label} must mention {EXPECTED_GODOT_VERSION}")
         if "scripts/verify_quick.sh" not in text:
             fail(f"{label} must mention scripts/verify_quick.sh")
+
+    if "scripts/constants/render_layers.gd" not in architecture:
+        fail("docs/architecture.md must describe the render layer contract")
+    if "WORLD_BACKGROUND_Z" not in architecture or "UI_SESSION_LAYER" not in architecture:
+        fail("docs/architecture.md must list world and UI render layer constants")
 
 
 def main() -> None:

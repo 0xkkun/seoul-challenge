@@ -1,5 +1,7 @@
 extends CanvasLayer
 
+const RenderLayers = preload("res://scripts/constants/render_layers.gd")
+
 signal pause_requested
 signal resume_requested
 signal finish_requested
@@ -26,6 +28,7 @@ const DEFAULT_MEMORY_REWARD_PER_ROOM := 1
 
 
 func _ready() -> void:
+	layer = RenderLayers.UI_SESSION_LAYER
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	pause_button.set_meta("test_id", "session.pause_button")
 	pause_button.set_meta("uat_action", "session.pause")
