@@ -1,0 +1,15 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/interactables/combat_room.gd" id="1_combat_room"]
+
+[node name="CombatRoom" type="Node2D"]
+script = ExtResource("1_combat_room")
+room_id = &"combat_room"
+room_type = &"combat"
+door_dirs = Array[StringName]([&"W", &"E"])
+
+[node name="Floor" type="ColorRect" parent="."]
+
+[node name="Enemies" type="Node2D" parent="."]
+
+[node name="Doors" type="Node2D" parent="."]

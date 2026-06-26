@@ -85,6 +85,8 @@ func enter_room(room_id: StringName) -> bool:
 	current_room = instance as Node2D
 	current_room_def = room_def
 	current_room_id = room_def.room_id
+	# 문 방향을 레이아웃 연결(grid 인접)에서 도출해 미니맵 배치와 항상 일치시킨다.
+	current_room.set("door_dirs", _door_dirs_for_room(room_def))
 	container.add_child(current_room)
 	_apply_room_def(current_room, room_def)
 	_configure_actor(current_room)
@@ -158,6 +160,29 @@ func _resolve_layout() -> RoomLayout:
 func _apply_room_def(room: Node2D, room_def: RoomDef) -> void:
 	room.set("room_id", room_def.room_id)
 	room.set("room_type", room_def.room_type)
+
+
+## 연결된 방의 grid 위치 차이로 문 방향(N/S/E/W)을 도출한다.
+## validate_layout이 연결=인접(거리 1)을 강제하므로 델타는 항상 단위 방향이다.
+## 결과적으로 문은 미니맵의 연결 엣지와 정확히 일치한다(상하 연결이면 N/S 문이 생김).
+func _door_dirs_for_room(room_def: RoomDef) -> Array[StringName]:
+	var dirs: Array[StringName] = []
+	if layout == null:
+		return dirs
+	for connected_id: StringName in room_def.connections:
+		var connected := layout.get_room(connected_id)
+		if connected == null:
+			continue
+		var delta := connected.grid_pos - room_def.grid_pos
+		if delta.x > 0:
+			dirs.append(&"E")
+		elif delta.x < 0:
+			dirs.append(&"W")
+		elif delta.y > 0:
+			dirs.append(&"S")
+		elif delta.y < 0:
+			dirs.append(&"N")
+	return dirs
 
 
 func _configure_actor(room: Node2D) -> void:

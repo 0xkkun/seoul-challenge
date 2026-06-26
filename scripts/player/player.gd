@@ -13,6 +13,7 @@ signal weapon_changed(weapon_name: String)
 @export var move_speed: float = 220.0      ## 최고 속도 (px/s)
 @export var acceleration: float = 2200.0   ## 가속 (px/s^2)
 @export var friction: float = 2600.0       ## 감속 (px/s^2)
+@export var vertical_speed_factor: float = 0.6  ## 깊이(상하) 이동을 좌우보다 느리게 — 벨트 원근감
 @export var stick_deadzone: float = 0.2    ## 게임패드 스틱 데드존
 @export var fire_cooldown: float = 0.22    ## 연사 간격 (s)
 @export var muzzle_offset: float = 18.0    ## 발사 지점 오프셋 (px)
@@ -56,6 +57,8 @@ func _physics_process(delta: float) -> void:
 	_invuln_timer = maxf(0.0, _invuln_timer - delta)
 	var move := read_input_vector()
 	_facing = update_facing(_facing, move)
+	# 벨트 원근감: 깊이(상하) 이동을 좌우보다 느리게 한다.
+	move.y *= vertical_speed_factor
 	velocity = step_velocity(velocity, move, delta)
 	move_and_slide()
 	_process_attack(delta)

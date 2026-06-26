@@ -59,6 +59,7 @@ func test_run_controller_drives_layout_to_completion() -> void:
 	while not controller.is_completed():
 		guard += 1
 		_runner.assert_true(guard <= 8, "run completion guard")
+		_clear_room(controller.get_current_room())
 		var advanced := controller.advance_room()
 		if not controller.is_completed():
 			_runner.assert_true(advanced, "run advances before completion")
@@ -115,6 +116,7 @@ func test_run_flow_demo_scene_executes_to_completion() -> void:
 	while not controller.is_completed():
 		guard += 1
 		_runner.assert_true(guard <= 8, "demo completion guard")
+		_clear_room(controller.get_current_room())
 		var advanced := controller.advance_room()
 		if not controller.is_completed():
 			_runner.assert_true(advanced, "demo advances before completion")
@@ -123,11 +125,18 @@ func test_run_flow_demo_scene_executes_to_completion() -> void:
 	_runner.assert_eq(controller.visited_room_ids.size(), 5, "demo visits fixed layout rooms")
 
 
+## 전투/이벤트/보스 방은 입장만으로 자동 클리어되지 않으므로, 목표 달성을 모사해 진행시킨다.
+func _clear_room(room: Node) -> void:
+	if room != null and room.has_method("mark_cleared"):
+		room.mark_cleared()
+
+
 func _advance_until_completed(controller: RunController, guard_message: String) -> void:
 	var guard := 0
 	while not controller.is_completed():
 		guard += 1
 		_runner.assert_true(guard <= 8, guard_message)
+		_clear_room(controller.get_current_room())
 		var advanced := controller.advance_room()
 		if not controller.is_completed():
 			_runner.assert_true(advanced, "run advances before completion")

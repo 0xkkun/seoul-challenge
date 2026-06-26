@@ -58,12 +58,14 @@ func test_room_manager_runs_layout_with_placeholder_rooms() -> void:
 	for expected_room_id: StringName in [&"combat_1", &"combat_2", &"event_1"]:
 		_runner.assert_true(manager.request_next_room(), "manager advances to %s" % expected_room_id)
 		_runner.assert_eq(manager.current_room_id, expected_room_id)
-		_runner.assert_true(manager.has_cleared_room(expected_room_id), "%s clears on entry" % expected_room_id)
+		_clear_room(manager.current_room)
+		_runner.assert_true(manager.has_cleared_room(expected_room_id), "%s clears after objective" % expected_room_id)
 
 	_runner.assert_eq(manager.get_visible_room_defs().size(), 5, "final room is visible after required rooms clear")
 	_runner.assert_true(manager.request_next_room(), "manager advances to final room")
 	_runner.assert_eq(manager.current_room_id, &"final_1")
-	_runner.assert_true(manager.has_cleared_room(&"final_1"), "final room clears on entry")
+	_clear_room(manager.current_room)
+	_runner.assert_true(manager.has_cleared_room(&"final_1"), "final room clears after boss")
 	_runner.assert_false(manager.request_next_room(), "route has no room after final")
 	_runner.assert_eq(entered_rooms, [&"start", &"combat_1", &"combat_2", &"event_1", &"final_1"])
 
@@ -92,6 +94,12 @@ func test_session_root_mounts_room_manager() -> void:
 	_runner.assert_eq(entered_payloads.size(), 2, "room enter events fire for mounted rooms")
 
 	EventBus.room_entered.disconnect(on_room_entered)
+
+
+## 전투/이벤트/보스 방은 입장만으로 자동 클리어되지 않으므로, 목표 달성을 모사해 진행시킨다.
+func _clear_room(room: Node) -> void:
+	if room != null and room.has_method("mark_cleared"):
+		room.mark_cleared()
 
 
 func _assert_grid_connections_are_adjacent(layout: RoomLayout) -> void:
