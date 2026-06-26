@@ -242,6 +242,7 @@ func _finish_room_transition(target_room_id: StringName) -> void:
 	_character_sprite.flip_h = _faces_left
 	_character_sprite.frame = 0
 	_sync_camera()
+	_camera.reset_smoothing()
 
 
 func _fit_camera_to_corridor_height() -> void:
