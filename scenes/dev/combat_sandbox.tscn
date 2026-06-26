@@ -1,4 +1,4 @@
-[gd_scene load_steps=8 format=3]
+[gd_scene load_steps=9 format=3]
 
 [ext_resource type="PackedScene" path="res://scenes/player/player.tscn" id="1_player"]
 [ext_resource type="PackedScene" path="res://scenes/ui/touch_controls.tscn" id="2_touch"]
@@ -6,6 +6,7 @@
 [ext_resource type="PackedScene" path="res://scenes/enemies/yokai_friend.tscn" id="4_friend"]
 [ext_resource type="PackedScene" path="res://scenes/enemies/boss.tscn" id="5_boss"]
 [ext_resource type="PackedScene" path="res://scenes/enemies/ranged_shooter.tscn" id="6_ranged"]
+[ext_resource type="PackedScene" path="res://scenes/items/bat_pickup.tscn" id="7_bat"]
 
 [sub_resource type="RectangleShape2D" id="wall_shape"]
 size = Vector2(120, 120)
@@ -42,3 +43,6 @@ position = Vector2(720, 270)
 
 [node name="RangedShooter" parent="." instance=ExtResource("6_ranged")]
 position = Vector2(160, 480)
+
+[node name="BatPickup" parent="." instance=ExtResource("7_bat")]
+position = Vector2(420, 300)

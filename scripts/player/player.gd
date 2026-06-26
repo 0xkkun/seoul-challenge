@@ -7,6 +7,8 @@ extends CharacterBody2D
 
 ## 발사 순간의 발사 지점(global)과 방향. #10 정화탄이 이 시그널을 받아 스폰한다.
 signal fired(muzzle_position: Vector2, direction: Vector2)
+## 무기 변경 — 맨손 → 야구배트 등. UI 표시용.
+signal weapon_changed(weapon_name: String)
 
 @export var move_speed: float = 220.0      ## 최고 속도 (px/s)
 @export var acceleration: float = 2200.0   ## 가속 (px/s^2)
@@ -17,9 +19,13 @@ signal fired(muzzle_position: Vector2, direction: Vector2)
 @export var recoil_strength: float = 55.0  ## 발사 반동(조준 반대 방향 킥) (px/s)
 @export var ranged_enabled: bool = false   ## 원거리(야구공) 무기 — 기본 OFF(처음엔 근접). 언락 시 ON.
 @export var attack_cooldown: float = 0.35  ## 근접 공격 간격 (s)
-@export var melee_damage: int = 1          ## 근접 피해
-@export var melee_range: float = 40.0      ## 근접 사거리 (px)
-@export var melee_arc: float = 1.6         ## 근접 타격 각 (rad, 앞쪽 부채꼴)
+@export var melee_damage: int = 1          ## 맨손 피해
+@export var melee_range: float = 34.0      ## 맨손 사거리 (px) — 짧은 펀치
+@export var melee_arc: float = 1.4         ## 맨손 타격 각 (rad)
+@export var bat_damage: int = 2            ## 배트 피해(보상 무기)
+@export var bat_range: float = 56.0        ## 배트 사거리 (px) — 더 길게 휘두름
+@export var bat_arc: float = 1.9           ## 배트 타격 각 (rad)
+@export var bat_knockback: float = 64.0    ## 배트 넉백 거리 (px)
 @export var swing_visual_time: float = 0.12  ## 휘두르기 시각 표시 시간 (s)
 @export var max_health: int = 5            ## 최대 체력(하트)
 @export var invuln_time: float = 0.5       ## 피격 후 무적 시간 (s) — 보스 탄막 원샷 방지
@@ -28,6 +34,7 @@ signal fired(muzzle_position: Vector2, direction: Vector2)
 var _fire_timer: float = 0.0
 var _attack_timer: float = 0.0
 var _swing_timer: float = 0.0
+var _has_bat: bool = false   ## 야구배트 장착 여부(맵 클리어 보상). 기본 맨손.
 var _facing: Vector2 = Vector2.DOWN
 var _health: int = 0
 var _invuln_timer: float = 0.0
@@ -99,6 +106,12 @@ func in_melee_arc(facing: Vector2, to: Vector2, arc: float) -> bool:
 	if to.length() < 0.001 or facing.length() < 0.001:
 		return false
 	return absf(facing.angle_to(to)) <= arc * 0.5
+
+
+## 넉백 벡터 — from→to 방향으로 distance만큼 밀어낸다. 순수 함수(테스트 대상).
+func knockback_vector(from: Vector2, to: Vector2, distance: float) -> Vector2:
+	var d := to - from
+	return d.normalized() * distance if d.length() > 0.001 else Vector2.ZERO
 
 
 ## 피해 적용 후 체력(0 클램프). 순수 함수(테스트 대상).
@@ -188,16 +201,23 @@ func _process_attack(delta: float) -> void:
 		_attack_timer = attack_cooldown
 
 
-## 근접 휘두르기 — 앞쪽 부채꼴(melee_arc) 안의 enemy 그룹을 타격.
+## 근접 휘두르기 — 무기(맨손/배트)에 따라 사거리·각·피해가 다르다. 배트면 넉백 + 적탄 일부 지움.
 func _attack_melee(dir: Vector2) -> void:
+	var dmg := bat_damage if _has_bat else melee_damage
+	var rng := bat_range if _has_bat else melee_range
+	var arc := bat_arc if _has_bat else melee_arc
 	for enemy: Node in get_tree().get_nodes_in_group(&"enemy"):
 		var e := enemy as Node2D
 		if e == null or not is_instance_valid(e):
 			continue
 		var to := e.global_position - global_position
-		if to.length() <= melee_range and in_melee_arc(dir, to, melee_arc):
+		if to.length() <= rng and in_melee_arc(dir, to, arc):
 			if enemy.has_method("take_damage"):
-				enemy.call("take_damage", melee_damage)
+				enemy.call("take_damage", dmg)
+			if _has_bat:
+				e.global_position += knockback_vector(global_position, e.global_position, bat_knockback)
+	if _has_bat:
+		_erase_bullets_in_arc(dir, rng, arc)
 	_show_swing(dir)
 
 
@@ -214,3 +234,27 @@ func _show_swing(dir: Vector2) -> void:
 	_swing_visual.rotation = dir.angle()
 	_swing_visual.visible = true
 	_swing_timer = swing_visual_time
+
+
+## 야구배트 장착(맵 클리어 보상). 통합 단계에서 보상 지급 시 호출.
+func equip_bat() -> void:
+	if _has_bat:
+		return
+	_has_bat = true
+	weapon_changed.emit(current_weapon_name())
+
+
+## 현재 무기 이름(UI용).
+func current_weapon_name() -> String:
+	return "야구배트" if _has_bat else "맨손"
+
+
+## 앞쪽 부채꼴 안의 적 투사체(enemy_projectile)를 지운다. (배트 전용)
+func _erase_bullets_in_arc(dir: Vector2, rng: float, arc: float) -> void:
+	for b: Node in get_tree().get_nodes_in_group(&"enemy_projectile"):
+		var node := b as Node2D
+		if node == null or not is_instance_valid(node):
+			continue
+		var to := node.global_position - global_position
+		if to.length() <= rng and in_melee_arc(dir, to, arc):
+			node.queue_free()
