@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dxwb8iiop10tm"
-path="res://.godot/imported/corridor_day_02.png-c8e9fc1ef2441a3ca4e36db7c8db0b3e.ctex"
+uid="uid://bsjekfn6xw0uj"
+path="res://.godot/imported/walking.png-0f492f7dc8acdfe37fb5985b360f7d95.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/backgrounds/corridor/day/corridor_day_02.png"
-dest_files=["res://.godot/imported/corridor_day_02.png-c8e9fc1ef2441a3ca4e36db7c8db0b3e.ctex"]
+source_file="res://assets/characters/student/walking.png"
+dest_files=["res://.godot/imported/walking.png-0f492f7dc8acdfe37fb5985b360f7d95.ctex"]
 
 [params]
 
