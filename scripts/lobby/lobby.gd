@@ -5,6 +5,7 @@ extends Control
 
 
 func _ready() -> void:
+	start_button.set_meta("test_id", "lobby.start_button")
 	start_button.set_meta("uat_action", "lobby.start")
 	start_button.pressed.connect(_on_start_pressed)
 	status_label.text = "Ready"

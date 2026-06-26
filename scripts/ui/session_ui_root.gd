@@ -27,10 +27,15 @@ const DEFAULT_MEMORY_REWARD_PER_ROOM := 1
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	pause_button.set_meta("test_id", "session.pause_button")
 	pause_button.set_meta("uat_action", "session.pause")
+	resume_button.set_meta("test_id", "session.resume_button")
 	resume_button.set_meta("uat_action", "session.resume")
+	finish_button.set_meta("test_id", "session.finish_button")
 	finish_button.set_meta("uat_action", "session.finish")
+	return_button.set_meta("test_id", "session.return_button")
 	return_button.set_meta("uat_action", "session.return_to_school")
+	retry_button.set_meta("test_id", "session.retry_button")
 	retry_button.set_meta("uat_action", "session.retry")
 	pause_button.pressed.connect(_on_pause_button_pressed)
 	resume_button.pressed.connect(_on_resume_button_pressed)

@@ -10,6 +10,7 @@ const REFERENCE_SIZE := Vector2(844.0, 390.0)
 const DIALOGUE_BAR_HEIGHT := 152.0
 const UNLOCK_POPUP_SIZE := Vector2(338.0, 148.0)
 const UNLOCK_POPUP_CENTER_OFFSET := Vector2(0.0, -58.0)
+const CONTINUE_HINT_TOUCH := "▼ 탭하여 계속 ▼"
 const CHOICE_ASK := &"ask"
 const CHOICE_ACCEPT := &"accept"
 const STAGE_STATE_COMPLETED := "completed"
@@ -36,9 +37,11 @@ const UNLOCK_BORDER_COLOR := Color(0.84, 0.68, 0.28)
 const DEFAULT_BALL_COLOR := Color(0.9, 0.88, 0.8)
 const DEFAULT_BAT_COLOR := Color(0.54, 0.55, 0.6)
 
+@onready var _dialogue_dimmer: ColorRect = %DialogueDimmer
 @onready var _portrait_panel: ColorRect = %PortraitPanel
 @onready var _portrait_accent: ColorRect = %PortraitAccent
 @onready var _dialogue_bar: PanelContainer = %DialogueBar
+@onready var _dialogue_top_rule: ColorRect = %DialogueTopRule
 @onready var _name_label: Label = %NameLabel
 @onready var _stage_row: HBoxContainer = %StageRow
 @onready var _dialogue_label: Label = %DialogueLabel
@@ -63,6 +66,9 @@ var _unlock_items: Array[Dictionary] = []
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	_dialogue_dimmer.set_meta("test_id", "hub_dialogue.overlay")
+	_dialogue_bar.set_meta("test_id", "hub_dialogue.bar")
+	_choice_row.set_meta("test_id", "hub_dialogue.choice_row")
 	_apply_static_styles()
 	set_dialogue("야구부 주장", "\"스윙은 겁먹으면 늦어. 밤의 궁에선 더 그렇겠지.\"", "기억: 손바닥의 희미한 배트 자국")
 	set_stage(2)
@@ -84,6 +90,14 @@ func get_dialogue_bar_reference_rect() -> Rect2:
 func get_unlock_popup_reference_rect() -> Rect2:
 	var center := REFERENCE_SIZE * 0.5 + UNLOCK_POPUP_CENTER_OFFSET
 	return Rect2(center - UNLOCK_POPUP_SIZE * 0.5, UNLOCK_POPUP_SIZE)
+
+
+func is_dialogue_overlay_visible() -> bool:
+	return _dialogue_dimmer.visible and _dialogue_dimmer.color.a > 0.0
+
+
+func is_dialogue_overlay_modal() -> bool:
+	return _dialogue_dimmer.mouse_filter == Control.MOUSE_FILTER_STOP
 
 
 func set_dialogue(next_speaker_name: String, next_dialogue_text: String, next_memory_text := "", portrait_color := PORTRAIT_COLOR) -> void:
@@ -132,6 +146,14 @@ func get_stage_labels() -> Array[String]:
 	return _stage_labels.duplicate()
 
 
+func set_stage_row_visible(should_show: bool) -> void:
+	_stage_row.visible = should_show
+
+
+func is_stage_row_visible() -> bool:
+	return _stage_row.visible
+
+
 func set_choices(next_choices: Array[Dictionary]) -> void:
 	_choice_models.clear()
 	for choice: Dictionary in next_choices:
@@ -144,6 +166,10 @@ func get_choice_ids() -> Array[StringName]:
 	for choice: Dictionary in _choice_models:
 		ids.append(StringName(choice.get("id", &"")))
 	return ids
+
+
+func is_tap_to_continue_active() -> bool:
+	return _tap_to_continue_choice_id() != &""
 
 
 func get_choice_texts() -> Array[String]:
@@ -191,6 +217,22 @@ func get_unlock_items() -> Array[Dictionary]:
 	return _unlock_items.duplicate(true)
 
 
+func _input(event: InputEvent) -> void:
+	if not visible or is_unlock_visible():
+		return
+	if not _is_advance_tap_event(event):
+		return
+
+	var choice_id := _tap_to_continue_choice_id()
+	if choice_id == &"":
+		return
+
+	var viewport := get_viewport()
+	if viewport != null:
+		viewport.set_input_as_handled()
+	select_choice(choice_id)
+
+
 func _render_stages() -> void:
 	_clear_children(_stage_row)
 	_stage_states.clear()
@@ -220,14 +262,23 @@ func _render_choices() -> void:
 	_clear_children(_choice_row)
 	for choice: Dictionary in _choice_models:
 		var choice_id := StringName(choice.get("id", &""))
+		var test_id := String(choice.get("test_id", "hub_dialogue.choice.%s" % String(choice_id)))
+		var action_name := String(choice.get("uat_action", "hub_dialogue.choice.%s" % String(choice_id)))
+		var is_tap_continue := bool(choice.get("tap_to_continue", false))
 		var button := Button.new()
 		button.text = String(choice.get("text", ""))
-		button.custom_minimum_size = Vector2(106.0, 42.0)
-		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		button.custom_minimum_size = Vector2(170.0, 28.0) if is_tap_continue else Vector2(112.0, 44.0)
+		button.size_flags_horizontal = Control.SIZE_SHRINK_END
 		button.focus_mode = Control.FOCUS_NONE
+		button.mouse_filter = Control.MOUSE_FILTER_IGNORE if is_tap_continue else Control.MOUSE_FILTER_STOP
+		button.set_meta("test_id", test_id)
+		button.set_meta("uat_action", action_name)
 		button.set_meta("choice_id", choice_id)
 		button.pressed.connect(_on_choice_pressed.bind(choice_id))
-		_apply_button_style(button, bool(choice.get("emphasized", false)))
+		if is_tap_continue:
+			_apply_continue_hint_style(button)
+		else:
+			_apply_button_style(button, bool(choice.get("emphasized", false)))
 		_choice_row.add_child(button)
 
 
@@ -263,15 +314,37 @@ func _on_choice_pressed(choice_id: StringName) -> void:
 	select_choice(choice_id)
 
 
+func _tap_to_continue_choice_id() -> StringName:
+	if _choice_models.size() != 1:
+		return &""
+	var choice := _choice_models[0]
+	if not bool(choice.get("tap_to_continue", false)):
+		return &""
+	return StringName(choice.get("id", &""))
+
+
+func _is_advance_tap_event(event: InputEvent) -> bool:
+	var mouse := event as InputEventMouseButton
+	if mouse != null:
+		return mouse.pressed and mouse.button_index == MOUSE_BUTTON_LEFT
+	var touch := event as InputEventScreenTouch
+	if touch != null:
+		return touch.pressed
+	return false
+
+
 func _apply_static_styles() -> void:
-	_dialogue_bar.add_theme_stylebox_override("panel", _make_panel_style(PANEL_COLOR, PANEL_BORDER_COLOR, 3))
+	_dialogue_bar.add_theme_stylebox_override("panel", _make_panel_style(PANEL_COLOR, PANEL_COLOR, 0))
+	_dialogue_top_rule.color = PANEL_BORDER_COLOR
 	_name_label.add_theme_color_override("font_color", NAMEPLATE_TEXT_COLOR)
+	_name_label.add_theme_font_size_override("font_size", 16)
 	_name_label.add_theme_stylebox_override("normal", _make_panel_style(NAMEPLATE_COLOR, Color(0.07, 0.08, 0.1), 2))
 	_dialogue_label.add_theme_color_override("font_color", Color.WHITE)
-	_dialogue_label.add_theme_font_size_override("font_size", 14)
+	_dialogue_label.add_theme_font_size_override("font_size", 18)
 	_memory_label.add_theme_color_override("font_color", MEMORY_TEXT_COLOR)
-	_memory_label.add_theme_font_size_override("font_size", 11)
+	_memory_label.add_theme_font_size_override("font_size", 13)
 	_choice_row.add_theme_constant_override("separation", 8)
+	_choice_row.alignment = BoxContainer.ALIGNMENT_END
 	_stage_row.add_theme_constant_override("separation", 4)
 	_unlock_popup.add_theme_stylebox_override("panel", _make_panel_style(UNLOCK_COLOR, UNLOCK_BORDER_COLOR, 4))
 	_unlock_title_label.add_theme_color_override("font_color", Color(0.08, 0.08, 0.1))
@@ -284,9 +357,21 @@ func _apply_button_style(button: Button, emphasized: bool) -> void:
 	var fill := NAMEPLATE_COLOR if emphasized else Color(0.18, 0.23, 0.31)
 	var text_color := NAMEPLATE_TEXT_COLOR if emphasized else Color(0.95, 0.94, 0.87)
 	button.add_theme_color_override("font_color", text_color)
+	button.add_theme_font_size_override("font_size", 14)
 	button.add_theme_stylebox_override("normal", _make_panel_style(fill, Color(0.45, 0.5, 0.59), 2))
 	button.add_theme_stylebox_override("hover", _make_panel_style(fill.lightened(0.08), Color(0.64, 0.69, 0.78), 2))
 	button.add_theme_stylebox_override("pressed", _make_panel_style(fill.darkened(0.08), Color(0.07, 0.08, 0.1), 2))
+
+
+func _apply_continue_hint_style(button: Button) -> void:
+	button.flat = true
+	button.add_theme_color_override("font_color", MEMORY_TEXT_COLOR)
+	button.add_theme_color_override("font_hover_color", MEMORY_TEXT_COLOR)
+	button.add_theme_color_override("font_pressed_color", MEMORY_TEXT_COLOR)
+	button.add_theme_font_size_override("font_size", 13)
+	button.add_theme_stylebox_override("normal", StyleBoxEmpty.new())
+	button.add_theme_stylebox_override("hover", StyleBoxEmpty.new())
+	button.add_theme_stylebox_override("pressed", StyleBoxEmpty.new())
 
 
 func _stage_color(state: String) -> Color:
@@ -319,4 +404,4 @@ func _make_panel_style(fill: Color, border: Color, border_width: int) -> StyleBo
 func _clear_children(parent: Node) -> void:
 	for child: Node in parent.get_children():
 		parent.remove_child(child)
-		child.free()
+		child.queue_free()

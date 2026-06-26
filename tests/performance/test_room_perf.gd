@@ -53,6 +53,7 @@ func test_layout_connectivity_validation_stays_under_budget() -> void:
 
 func test_room_manager_request_next_room_stays_under_budget() -> void:
 	var layout := _load_layout()
+	_warm_room_scene_resources(layout)
 	var container := Node2D.new()
 	var actor := Node2D.new()
 	var manager := RoomManager.new()
@@ -105,6 +106,13 @@ func _load_layout() -> RoomLayout:
 	var layout := load(LAYOUT_PATH) as RoomLayout
 	_runner.assert_not_null(layout, "layout resource loads")
 	return layout
+
+
+func _warm_room_scene_resources(layout: RoomLayout) -> void:
+	for room_def: RoomDef in layout.room_defs:
+		if room_def == null:
+			continue
+		_runner.assert_not_null(load(room_def.scene_path), "room scene resource warms: %s" % room_def.scene_path)
 
 
 func _resolve_current_room(manager: RoomManager, actor: Node2D) -> void:
