@@ -1,8 +1,10 @@
-[gd_scene load_steps=5 format=3]
+[gd_scene load_steps=7 format=3]
 
 [ext_resource type="PackedScene" path="res://scenes/player/player.tscn" id="1_player"]
 [ext_resource type="PackedScene" path="res://scenes/ui/touch_controls.tscn" id="2_touch"]
 [ext_resource type="PackedScene" path="res://scenes/enemies/chaser.tscn" id="3_chaser"]
+[ext_resource type="PackedScene" path="res://scenes/enemies/yokai_friend.tscn" id="4_friend"]
+[ext_resource type="PackedScene" path="res://scenes/enemies/boss.tscn" id="5_boss"]
 
 [sub_resource type="RectangleShape2D" id="wall_shape"]
 size = Vector2(120, 120)
@@ -30,3 +32,9 @@ position = Vector2(820, 160)
 
 [node name="Chaser2" parent="." instance=ExtResource("3_chaser")]
 position = Vector2(820, 420)
+
+[node name="YokaiFriend" parent="." instance=ExtResource("4_friend")]
+position = Vector2(480, 90)
+
+[node name="Boss" parent="." instance=ExtResource("5_boss")]
+position = Vector2(720, 270)
