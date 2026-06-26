@@ -14,6 +14,12 @@ const _OPEN_DURATION := 0.14
 const _CLOSE_DURATION := 0.1
 const _TOGGLE_DURATION := 0.08
 const _TOGGLE_MIN_SIZE := Vector2(104.0, 46.0)
+const _ICON_SIZE := Vector2(32.0, 32.0)
+
+const _SOUND_ON_ICON := preload("res://assets/ui/icons/settings/sound.png")
+const _SOUND_OFF_ICON := preload("res://assets/ui/icons/settings/sound_off.png")
+const _HAPTIC_ON_ICON := preload("res://assets/ui/icons/settings/haptic.png")
+const _HAPTIC_OFF_ICON := preload("res://assets/ui/icons/settings/haptic_off.png")
 
 @onready var _root: Control = $Root
 @onready var _backdrop: ColorRect = $Root/Backdrop
@@ -105,7 +111,8 @@ func is_closing() -> bool:
 
 
 func get_toggle_text(key: String) -> String:
-	var button := _toggle_buttons.get(key) as Button
+	var state := _toggle_buttons.get(key, {}) as Dictionary
+	var button := state.get("button") as Button
 	if button == null:
 		return ""
 	return button.text
@@ -157,6 +164,16 @@ func _make_toggle_row(row: Dictionary) -> Control:
 	hbox.alignment = BoxContainer.ALIGNMENT_CENTER
 	margin.add_child(hbox)
 
+	var icon := TextureRect.new()
+	icon.name = "Icon"
+	icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	icon.custom_minimum_size = _ICON_SIZE
+	icon.size = _ICON_SIZE
+	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hbox.add_child(icon)
+
 	var label := Label.new()
 	label.text = String(row["label"])
 	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -172,7 +189,12 @@ func _make_toggle_row(row: Dictionary) -> Control:
 	button.set_meta("uat_action", String(row["action"]))
 	button.pressed.connect(_on_toggle_pressed.bind(String(row["key"])))
 	hbox.add_child(button)
-	_toggle_buttons[String(row["key"])] = button
+	_toggle_buttons[String(row["key"])] = {
+		"button": button,
+		"icon": icon,
+		"icon_on": row["icon_on"],
+		"icon_off": row["icon_off"],
+	}
 	_sync_toggle_button(String(row["key"]))
 	return container
 
@@ -189,18 +211,24 @@ func _on_toggle_pressed(key: String) -> void:
 		_:
 			Settings.set_value(key, next_value)
 	_sync_toggle_button(key)
-	_animate_toggle_button(_toggle_buttons.get(key) as Button)
+	var state := _toggle_buttons.get(key, {}) as Dictionary
+	_animate_toggle_button(state.get("button") as Button)
 	Settings.try_vibrate(24)
 
 
 func _sync_toggle_button(key: String) -> void:
-	var button := _toggle_buttons.get(key) as Button
+	var state := _toggle_buttons.get(key, {}) as Dictionary
+	var button := state.get("button") as Button
 	if button == null:
 		return
 	var enabled := bool(Settings.get_value(key, true))
 	button.text = "ON" if enabled else "OFF"
 	var variant := PixelButtonStyle.VARIANT_PRIMARY if enabled else PixelButtonStyle.VARIANT_SECONDARY
 	PixelButtonStyle.apply(button, variant, _TOGGLE_MIN_SIZE)
+	var icon := state.get("icon") as TextureRect
+	if icon != null:
+		var icon_texture: Texture2D = (state.get("icon_on") if enabled else state.get("icon_off")) as Texture2D
+		icon.texture = icon_texture
 
 
 func _refresh_all() -> void:
@@ -215,18 +243,24 @@ func _toggle_rows() -> Array[Dictionary]:
 			"label": "배경음",
 			"test_id": TEST_ID_BGM_TOGGLE,
 			"action": ACTION_BGM_TOGGLE,
+			"icon_on": _SOUND_ON_ICON,
+			"icon_off": _SOUND_OFF_ICON,
 		},
 		{
 			"key": Settings.KEY_SFX_ENABLED,
 			"label": "효과음",
 			"test_id": TEST_ID_SFX_TOGGLE,
 			"action": ACTION_SFX_TOGGLE,
+			"icon_on": _SOUND_ON_ICON,
+			"icon_off": _SOUND_OFF_ICON,
 		},
 		{
 			"key": Settings.KEY_HAPTIC_ENABLED,
 			"label": "진동",
 			"test_id": TEST_ID_HAPTIC_TOGGLE,
 			"action": ACTION_HAPTIC_TOGGLE,
+			"icon_on": _HAPTIC_ON_ICON,
+			"icon_off": _HAPTIC_OFF_ICON,
 		},
 	]
 
@@ -251,6 +285,14 @@ func _animate_toggle_button(button: Button) -> void:
 func _on_close_pressed() -> void:
 	Settings.try_vibrate(18)
 	close()
+
+
+func get_toggle_icon_path(key: String) -> String:
+	var state := _toggle_buttons.get(key, {}) as Dictionary
+	var icon := state.get("icon") as TextureRect
+	if icon == null or icon.texture == null:
+		return ""
+	return icon.texture.resource_path
 
 
 func _on_backdrop_gui_input(event: InputEvent) -> void:
