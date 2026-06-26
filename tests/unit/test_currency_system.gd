@@ -79,6 +79,13 @@ func test_reload_profile_restores_permanent_without_ingame() -> void:
 	_runner.assert_eq(CurrencySystem.get_permanent(), 11, "permanent currency reloads from profile")
 
 
+func test_student_rescue_without_reward_amount_does_not_guess_reward() -> void:
+	EventBus.emit_student_rescued({"student_id": &"student"})
+
+	_runner.assert_eq(CurrencySystem.get_permanent(), 0, "student rescue reward requires an explicit amount")
+	_runner.assert_eq(_system_payloads.size(), 0, "missing reward amount does not emit a guessed reward")
+
+
 func _record_currency_payload(payload: Dictionary) -> void:
 	if payload.get("source", "") == SYSTEM_EVENT_SOURCE:
 		_system_payloads.append(payload.duplicate(true))
