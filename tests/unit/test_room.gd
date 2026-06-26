@@ -124,6 +124,16 @@ func test_room_without_doors_builds_four_solid_walls() -> void:
 	_runner.assert_eq(room.call("get_wall_segments").size(), 4, "sealed room has one wall per side")
 
 
+func test_room_generated_background_uses_nearest_filtering() -> void:
+	var room := _create_room(&"background_unit", &"combat", [])
+	var background := room.get_node_or_null("Background") as Sprite2D
+
+	_runner.assert_not_null(background, "room creates a night palace background sprite")
+	if background == null:
+		return
+	_runner.assert_eq(background.texture_filter, CanvasItem.TEXTURE_FILTER_NEAREST, "generated room background keeps pixel filtering")
+
+
 func test_room_palette_exposes_play_area_and_camera_limits() -> void:
 	var room_bounds: Rect2 = RoomPalette.get_room_bounds()
 	var wall_bounds: Rect2 = RoomPalette.get_wall_bounds()

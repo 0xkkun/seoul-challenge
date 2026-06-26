@@ -47,6 +47,7 @@ echo "== static contract =="
 "$PYTHON" scripts/verify_import_metadata.py
 "$PYTHON" scripts/verify_secret_hygiene.py
 "$PYTHON" scripts/verify_ui_automation_contract.py
+"$PYTHON" scripts/verify_pixel_texture_filters.py
 
 echo "== editor load =="
 mkdir -p test-results

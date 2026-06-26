@@ -32,6 +32,8 @@ func test_day_corridor_scene_uses_mobile_landscape_plate() -> void:
 	_runner.assert_true(is_equal_approx(scene.get_background_asset_scale(), 1.0), "final background is authored at runtime scale")
 	_runner.assert_true(is_equal_approx(scene.get_character_asset_scale(), 2.0), "student sprite is scaled up for corridor readability")
 	_runner.assert_true(scene.are_runtime_sprites_nearest_filtered(), "runtime sprites use nearest filtering")
+	_runner.assert_eq(scene.get_background_game_tint(), Color(0.94, 0.92, 0.88, 1), "day corridor uses an in-game background tint")
+	_runner.assert_true(is_equal_approx(scene.get_background_wash_alpha(), 0.06), "day corridor applies a light focus wash before dialogue")
 	_runner.assert_not_null(scene.get_node("%Player"), "placeholder player is mounted")
 	_runner.assert_not_null(scene.get_node("%DayCharacterRoot"), "day-only character visual root is mounted")
 	_runner.assert_not_null(scene.get_node("%CharacterSprite"), "student character sprite is mounted")

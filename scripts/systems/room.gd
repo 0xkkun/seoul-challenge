@@ -296,6 +296,7 @@ func _build_background() -> void:
 		return
 	var bg := Sprite2D.new()
 	bg.name = "Background"
+	bg.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	bg.texture = BACKGROUND_TEXTURE
 	bg.z_index = -10
 	var tex_size := BACKGROUND_TEXTURE.get_size()

@@ -43,6 +43,7 @@ const QUIT_GAME_MESSAGE := "게임을 종료할까요?"
 @onready var _background: Node2D = %Background
 @onready var _school_bg_left: Sprite2D = %SchoolBgLeft
 @onready var _school_bg_right: Sprite2D = %SchoolBgRight
+@onready var _background_wash: Polygon2D = %BackgroundWash
 @onready var _player: CharacterBody2D = %Player
 @onready var _touch_controls: Node = %TouchControls
 @onready var _camera: Camera2D = %Camera2D
@@ -151,6 +152,14 @@ func get_character_asset_scale() -> float:
 	return character_asset_scale
 
 
+func get_background_game_tint() -> Color:
+	return _school_bg_left.self_modulate
+
+
+func get_background_wash_alpha() -> float:
+	return _background_wash.color.a
+
+
 func get_character_frame_count() -> int:
 	return _get_character_frame_count()
 
@@ -167,8 +176,8 @@ func are_runtime_sprites_nearest_filtered() -> bool:
 	if _character_sprite.texture_filter != CanvasItem.TEXTURE_FILTER_NEAREST:
 		return false
 	for child: Node in _background.get_children():
-		var item := child as CanvasItem
-		if item != null and item.texture_filter != CanvasItem.TEXTURE_FILTER_NEAREST:
+		var sprite := child as Sprite2D
+		if sprite != null and sprite.texture != null and sprite.texture_filter != CanvasItem.TEXTURE_FILTER_NEAREST:
 			return false
 	return true
 
