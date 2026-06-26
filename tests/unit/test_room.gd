@@ -96,6 +96,34 @@ func test_room_forwards_door_transition_with_room_id() -> void:
 		_runner.assert_eq(transitions[0]["door_dir"], &"E", "transition includes door direction")
 
 
+func test_room_builds_perimeter_walls_with_gap_for_authored_door() -> void:
+	var room := _create_room(&"wall_unit", &"combat", [&"N"])
+	_runner.assert_true(room.has_method("get_wall_segments"), "room exposes generated wall segments")
+	if not room.has_method("get_wall_segments"):
+		return
+	var wall_segments: Array = room.call("get_wall_segments")
+	var north_door := room.get_door(&"N")
+
+	_runner.assert_eq(wall_segments.size(), 5, "single north door splits only the north wall")
+	_runner.assert_true(north_door.has_method("is_blocking_body_enabled"), "door exposes locked blocker state")
+	if not north_door.has_method("is_blocking_body_enabled"):
+		return
+	_runner.assert_true(north_door.is_blocking_body_enabled(), "locked door blocks the wall gap")
+
+	room.mark_cleared()
+
+	_runner.assert_false(north_door.is_blocking_body_enabled(), "open door releases the wall gap blocker")
+
+
+func test_room_without_doors_builds_four_solid_walls() -> void:
+	var room := _create_room(&"sealed_unit", &"final", [])
+
+	_runner.assert_true(room.has_method("get_wall_segments"), "room exposes generated wall segments")
+	if not room.has_method("get_wall_segments"):
+		return
+	_runner.assert_eq(room.call("get_wall_segments").size(), 4, "sealed room has one wall per side")
+
+
 func _create_room(room_id: StringName, room_type: StringName, door_dirs: Array[StringName]) -> Room:
 	var room := Room.new()
 	room.name = String(room_id)

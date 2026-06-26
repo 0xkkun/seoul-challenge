@@ -37,6 +37,7 @@ func _run_demo() -> void:
 			_fail_demo("run guard exceeded")
 			return
 		var before_room_id := run_controller.get_current_room_id()
+		resolve_current_room_for_demo()
 		var advanced := run_controller.advance_room()
 		print("[run_flow_demo] advance from %s advanced=%s completed=%s" % [
 			before_room_id,
@@ -62,6 +63,24 @@ func _on_room_changed(room_id: StringName, room_type: StringName) -> void:
 	if current_room != null:
 		actor.global_position = current_room.global_position
 	print("[run_flow_demo] room_changed %s type=%s" % [room_id, room_type])
+
+
+func resolve_current_room_for_demo() -> void:
+	var current_room := run_controller.get_current_room()
+	if current_room == null:
+		return
+	if run_controller.room_manager != null and run_controller.room_manager.is_current_room_cleared():
+		return
+	if current_room.has_method("get_active_enemies"):
+		for enemy: Node in current_room.call("get_active_enemies"):
+			if enemy.has_method("take_damage"):
+				enemy.call("take_damage", 99)
+	elif current_room.has_method("get_active_students"):
+		for student: Node in current_room.call("get_active_students"):
+			if student.has_method("rescue"):
+				student.call("rescue", actor)
+	elif current_room.has_method("complete_boss_encounter"):
+		current_room.call("complete_boss_encounter")
 
 
 func _on_run_completed(result: Dictionary) -> void:
