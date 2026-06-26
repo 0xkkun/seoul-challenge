@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>방과후 요괴뎐 · 게임 플로우</title>
+<style>
+  :root{
+    --cream:#f4ecd6; --cream-2:#e9ddbf; --sage:#7f9c7c; --sage-d:#5f7d5d;
+    --wood:#b5895a; --ink:#2b2622;
+    --night:#13313a; --night-2:#0d2329; --gold:#d8b25a; --red:#a8413c; --teal:#2c6b73;
+    --loop:#8a6fc0; --line:#cdbf9e;
+    --ok:#3f8f5a; --bad:#b8473f;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; font-family:'Pretendard','Apple SD Gothic Neo','Malgun Gothic',sans-serif;
+    color:var(--ink); background:#efe7d2;
+    background-image:linear-gradient(180deg,#f4ecd6 0%,#ece2c8 100%);
+    line-height:1.6;
+  }
+  .wrap{max-width:1080px; margin:0 auto; padding:32px 20px 80px}
+
+  /* HERO */
+  .hero{
+    border-radius:20px; overflow:hidden; position:relative;
+    background:linear-gradient(120deg,#163742 0%,#1f4d54 45%,#3a2230 100%);
+    color:#f6efdd; padding:38px 34px; box-shadow:0 14px 40px rgba(20,30,30,.28);
+    border:1px solid rgba(216,178,90,.35);
+  }
+  .hero::after{content:"☾"; position:absolute; right:34px; top:24px; font-size:46px; color:var(--gold); opacity:.85}
+  .hero h1{margin:0 0 6px; font-size:34px; letter-spacing:1px}
+  .hero .sub{font-size:15px; color:var(--gold); margin-bottom:14px; letter-spacing:.5px}
+  .hero .concept{font-size:15.5px; max-width:760px; color:#e9e0cb}
+  .tags{margin-top:18px; display:flex; gap:8px; flex-wrap:wrap}
+  .tag{font-size:12.5px; padding:5px 12px; border-radius:999px; background:rgba(246,239,221,.12);
+       border:1px solid rgba(216,178,90,.4); color:#f1e7cf}
+
+  /* LEGEND */
+  .legend{display:flex; gap:18px; flex-wrap:wrap; margin:22px 2px 8px; font-size:12.5px; color:#6a6052}
+  .legend span{display:inline-flex; align-items:center; gap:6px}
+  .dot{width:12px;height:12px;border-radius:3px;display:inline-block}
+
+  /* SECTION TITLE */
+  h2.sec{font-size:19px; margin:38px 0 16px; padding-left:12px; border-left:5px solid var(--wood)}
+
+  /* PIPELINE */
+  .pipe{display:flex; flex-direction:column; gap:0}
+  .step{
+    position:relative; border-radius:16px; padding:18px 20px 18px 64px;
+    box-shadow:0 4px 16px rgba(60,50,30,.10); border:1px solid var(--line);
+    background:#fbf6e7;
+  }
+  .step .num{
+    position:absolute; left:16px; top:18px; width:34px; height:34px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center; font-weight:700; font-size:15px;
+    color:#fff; background:var(--sage-d); box-shadow:0 2px 6px rgba(0,0,0,.18);
+  }
+  .step h3{margin:0 0 6px; font-size:16.5px; display:flex; align-items:center; gap:8px}
+  .step .meta{font-size:12px; font-weight:700; padding:2px 9px; border-radius:6px; letter-spacing:.3px}
+  .step ul{margin:8px 0 0; padding-left:18px; font-size:13.5px; color:#433c33}
+  .step ul li{margin:3px 0}
+  .step .key{color:var(--red); font-weight:700}
+
+  /* day / night theming */
+  .day .num{background:var(--sage-d)}
+  .day .meta{background:#e7f0e2; color:var(--sage-d)}
+  .night{background:linear-gradient(160deg,#15333c,#102a31); border-color:#21525a; color:#ece3cb}
+  .night h3{color:#f4ecd0}
+  .night .num{background:var(--gold); color:#27201a}
+  .night .meta{background:rgba(216,178,90,.18); color:var(--gold)}
+  .night ul{color:#d8cdaf}
+  .night .key{color:#f0a59a}
+  .transition{background:linear-gradient(110deg,#e9ddbf 0%,#9fae93 40%,#2c6b73 100%); color:#22201c; border-color:#9c8a63}
+  .transition .num{background:var(--loop)}
+  .transition .meta{background:rgba(255,255,255,.45); color:#3a3322}
+
+  .connector{display:flex; flex-direction:column; align-items:center; padding:6px 0}
+  .connector .arrow{color:var(--wood); font-size:20px; line-height:1}
+  .connector .lbl{font-size:11.5px; color:#8a7e66; margin-top:1px}
+
+  /* BRANCH */
+  .branch{display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:8px}
+  .out{border-radius:14px; padding:16px 18px; border:1px solid var(--line); background:#fbf6e7}
+  .out.ok{border-left:6px solid var(--ok)}
+  .out.bad{border-left:6px solid var(--bad)}
+  .out h4{margin:0 0 6px; font-size:15px}
+  .out.ok h4{color:var(--ok)} .out.bad h4{color:var(--bad)}
+  .out p{margin:0; font-size:13px; color:#494135}
+  .out .next{margin-top:10px; font-size:12.5px; font-weight:700}
+  .out.ok .next{color:var(--ok)} .out.bad .next{color:var(--bad)}
+
+  .loopnote{
+    margin-top:14px; text-align:center; font-size:13px; color:#6a5fa0;
+    background:rgba(138,111,192,.10); border:1px dashed var(--loop); border-radius:12px; padding:10px 14px
+  }
+
+  /* SYSTEM CARDS */
+  .grid4{display:grid; grid-template-columns:repeat(2,1fr); gap:16px}
+  .card{border-radius:16px; padding:18px 20px; background:#fbf6e7; border:1px solid var(--line);
+        box-shadow:0 4px 14px rgba(60,50,30,.08)}
+  .card h3{margin:0 0 8px; font-size:16px; display:flex; align-items:center; gap:8px}
+  .card p, .card ul{font-size:13.5px; color:#473f34; margin:6px 0 0}
+  .card ul{padding-left:18px}
+  .pill{display:inline-block;font-size:11.5px;padding:2px 8px;border-radius:6px;background:#efe6cd;color:#7a6a44;margin:2px 4px 2px 0}
+
+  /* matching grid demo */
+  table.mg{border-collapse:collapse; margin-top:10px; font-size:12.5px}
+  table.mg th, table.mg td{border:1px solid var(--line); padding:4px 9px; text-align:center}
+  table.mg th{background:#efe6cd}
+  .yes{color:var(--ok); font-weight:700} .no{color:#bbb099} .q{color:var(--wood); font-weight:700}
+  .susp{color:var(--red); font-weight:700}
+
+  /* triggers */
+  .trig{display:flex; gap:14px; flex-wrap:wrap; margin-top:6px}
+  .trigbox{flex:1; min-width:220px; border-radius:12px; padding:14px 16px; background:#fff7e6; border:1px solid var(--line)}
+  .trigbox b{display:block; font-size:13px; color:var(--wood); margin-bottom:3px}
+  .trigbox span{font-size:13px; color:#4a4236}
+
+  footer{margin-top:46px; font-size:12.5px; color:#8a7e66; text-align:center; border-top:1px solid var(--line); padding-top:18px}
+  .wip{display:inline-block; background:#fbe7c8; color:#8a6a1f; border:1px solid #e0c47e; border-radius:8px; padding:8px 14px; font-size:12.5px; margin-top:6px}
+  @media(max-width:720px){ .grid4,.branch{grid-template-columns:1fr} .hero h1{font-size:27px} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- HERO -->
+  <div class="hero">
+    <h1>방과후 요괴뎐</h1>
+    <div class="sub">궁(宮)에 갇힌 하루 · After-School Yokai Tale</div>
+    <div class="concept">
+      헐린 옛 궁궐 터 위에 선 학교. <b>낮</b>엔 평범한 여고생으로 학교를 조사해
+      반 친구(동아리원) 중 누가 요괴인지 추리하고, <b>밤</b>엔 같은 공간이 되비친 궁궐에서
+      요괴를 정화한다. 틀리면 하루가 <b>되감기</b>지만 단서·도감·동아리는 남는다 — <b>갇힌 하루를 풀어야 탈출.</b>
+    </div>
+    <div class="tags">
+      <span class="tag">🏫 학교 · 낮 추리</span>
+      <span class="tag">🏯 고궁 · 밤 던전</span>
+      <span class="tag">🔁 반복 · 타임루프</span>
+      <span class="tag">🎒 동아리 · 동료 해금</span>
+    </div>
+  </div>
+
+  <div class="legend">
+    <span><i class="dot" style="background:var(--sage)"></i> 낮 / 학교 (현실)</span>
+    <span><i class="dot" style="background:var(--loop)"></i> 전환 연출</span>
+    <span><i class="dot" style="background:var(--night)"></i> 밤 / 궁궐 (던전)</span>
+    <span><i class="dot" style="background:var(--ok)"></i> 성공</span>
+    <span><i class="dot" style="background:var(--bad)"></i> 실패 → 루프</span>
+  </div>
+
+  <!-- PIPELINE -->
+  <h2 class="sec">전체 게임 플로우 — 하루(DAY) 1루프</h2>
+  <div class="pipe">
+
+    <div class="step day">
+      <div class="num">0</div>
+      <h3>타이틀 화면 <span class="meta">메뉴</span></h3>
+      <ul>
+        <li><span class="key">새 게임 / 이어하기</span> 버튼 = <b>게임 실행 트리거</b> → DAY 1 시작</li>
+      </ul>
+    </div>
+    <div class="connector"><div class="arrow">↓</div></div>
+
+    <div class="step day">
+      <div class="num">1</div>
+      <h3>☀️ 학교 허브 <span class="meta">타이머 없음 · 준비/관리</span></h3>
+      <ul>
+        <li>자유 이동, <b>시간 압박 없음</b> — 계획 세우는 공간</li>
+        <li><b>동아리실</b>: 해금한 정화 도구·버프 장착, 구출한 조력자 확인</li>
+        <li><b>인벤토리 · 요괴 도감</b>: 이전 루프에서 누적된 단서 복습</li>
+        <li>준비되면 → <span class="key">'조사 시작' 트리거</span></li>
+      </ul>
+    </div>
+    <div class="connector"><div class="arrow">↓</div><div class="lbl">'조사 시작' 클릭</div></div>
+
+    <div class="step day">
+      <div class="num">2</div>
+      <h3>📌 조사 시작 <span class="meta">트리거 · 타이머 ON</span></h3>
+      <ul>
+        <li>동아리실 게시판 <b>'오늘의 의뢰'</b> / 책상 <b>사건 수첩</b> 클릭</li>
+        <li>수호 정령 <b>해치</b> 브리핑: <span class="key">오늘의 요괴 + 약점(tell) 공개</span></li>
+        <li>이 순간부터 <b>타이머 작동</b></li>
+      </ul>
+    </div>
+    <div class="connector"><div class="arrow">↓</div></div>
+
+    <div class="step day">
+      <div class="num">3</div>
+      <h3>🔍 조사 페이즈 <span class="meta">타이머 작동 중</span></h3>
+      <ul>
+        <li><b>관찰</b> = 하드 tell (항상 진실) / <b>대화</b> = 리드·소문 (거짓 섞임)</li>
+        <li>획득 단서 → <b>요괴 도감 매칭 그리드</b>에 자동 기록 (용의자 좁힘)</li>
+        <li>조사 횟수/시간 제한 → <b>한 루프에 다 못 캠</b> (= 루프 정당화)</li>
+        <li>종료: <span class="key">종(타임아웃, 강제)</span> 또는 <span class="key">'퇴치하러 가기'(자발)</span></li>
+      </ul>
+    </div>
+    <div class="connector"><div class="arrow">↓</div><div class="lbl">🔔 종소리</div></div>
+
+    <div class="step transition">
+      <div class="num">4</div>
+      <h3>🌀 전환 연출 <span class="meta">학교 → 궁궐</span></h3>
+      <ul>
+        <li>복도가 허물어지듯 옛 궁궐로 변형 (칠판→단청 벽, 사물함→석물)</li>
+        <li>교복 → 한복. <b>같은 공간, 다른 층위</b> (이동 아님 · 랜드마크 거울링)</li>
+      </ul>
+    </div>
+    <div class="connector"><div class="arrow">↓</div></div>
+
+    <div class="step night">
+      <div class="num">5</div>
+      <h3>🌙 던전 — 요괴퇴치 맵 <span class="meta">아이작형 탑다운</span></h3>
+      <ul>
+        <li><b>방 = 용의자.</b> 낮에 거른 용의자 방 = 봉인(회색) / 남은 방 = 활성</li>
+        <li><b>지목 = 그 방에 들어가 정화 도구 사용</b> (메뉴 아닌 플레이로 지목)</li>
+        <li>진짜 요괴 + <span class="key">맞는 약점 도구(동아리 무기)</span> → 보스전 → 정화</li>
+        <li>붓/먹 + 부적 · <b>약점 도구로만 데미지</b> (추리 ↔ 전투 한 몸)</li>
+      </ul>
+    </div>
+    <div class="connector"><div class="arrow">↓</div><div class="lbl">전투 결과</div></div>
+
+    <!-- BRANCH -->
+    <div class="branch">
+      <div class="out ok">
+        <h4>✔ 정답 + 승리</h4>
+        <p>요괴 정화 → 씐 친구를 <b>구출</b> → <b>동아리 해금</b>(정화 도구 + 낮 버프 + 조력자 패시브)</p>
+        <div class="next">→ DAY N+1 (새 요괴) · 다시 학교 허브부터</div>
+      </div>
+      <div class="out bad">
+        <h4>✗ 오답 / 패배</h4>
+        <p>의식 깨짐 → 하루가 <b>되감김(루프백)</b>. 진행은 잃지만…</p>
+        <div class="next">→ 같은 DAY 재시작 (단서·도감·동아리 누적 유지)</div>
+      </div>
+    </div>
+
+    <div class="loopnote">
+      🔁 <b>타임루프:</b> 루프를 넘어 <b>단서 · 요괴 도감 · 동아리 · 도구</b>가 영구 누적 → 매 루프 더 쉬워짐.
+      동아리 해금은 <b>선형 체인</b>이라 도구 부족으로 막히는 데드락 없음.
+    </div>
+  </div>
+
+  <!-- SYSTEMS -->
+  <h2 class="sec">핵심 시스템</h2>
+  <div class="grid4">
+
+    <div class="card">
+      <h3>🔍 추리 — 도감 특징 매칭</h3>
+      <p>요괴 = <b>tell 2~3개의 조합</b>. 용의자는 red herring으로 일부 tell이 겹침 →
+         <b>진짜만 풀셋을 충족</b>. 충분히 모아야 1명으로 좁혀짐.</p>
+      <table class="mg">
+        <tr><th></th><th>그림자</th><th>발소리</th><th>팥</th></tr>
+        <tr><th>친구 A</th><td class="yes">✔</td><td class="q">?</td><td class="no">✗</td></tr>
+        <tr><th class="susp">친구 C</th><td class="yes">✔</td><td class="yes">✔</td><td class="q">?</td></tr>
+        <tr><th>친구 E</th><td class="no">✗</td><td class="no">✗</td><td class="no">✗</td></tr>
+      </table>
+    </div>
+
+    <div class="card">
+      <h3>🎒 동아리 — 동료 해금</h3>
+      <p>용의자 = 동아리원. 정화 → <b>친구 구출</b> → 동아리 해금:</p>
+      <span class="pill">정화 도구(약점 카운터)</span>
+      <span class="pill">낮 버프(+조사 등)</span>
+      <span class="pill">조력자 패시브</span>
+      <ul>
+        <li><b>선형 체인</b>: 이전 도구가 다음 요괴의 열쇠</li>
+        <li>구출한 친구들이 모여 → <b>'방과후 궁궐 클럽'</b> (제목의 의미)</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h3>🔁 타임루프 — 반복</h3>
+      <ul>
+        <li>오답/패배 = 되감김 (디제틱: 의식 실패)</li>
+        <li>누적: <b>단서 · 도감 · 동아리 · 도구</b></li>
+        <li>리셋: 그날의 조사 진행도</li>
+        <li>막힘 없음 — 선형 해금이 보장</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h3>🏯 고궁 — 한 장소, 두 층위</h3>
+      <ul>
+        <li>학교는 헐린 옛 궁궐 터 위에 섰다</li>
+        <li>밤 = 같은 공간이 궁궐로 <b>리스킨</b></li>
+        <li>연결: <b>전환 연출 + 랜드마크 거울링</b> (교실문↔전각문, 사물함↔석물)</li>
+        <li>"뜬금없이 고궁 감" 없음 — 이동이 아닌 변형</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- TRIGGERS -->
+  <h2 class="sec">트리거 정리 (딱 3개)</h2>
+  <div class="trig">
+    <div class="trigbox"><b>① 게임 실행</b><span>타이틀 '새 게임' → 하루(DAY) 시작</span></div>
+    <div class="trigbox"><b>② 조사 시작 (타이머 ON)</b><span>허브의 '조사 시작' 오브젝트 클릭</span></div>
+    <div class="trigbox"><b>③ 던전 진입</b><span>종(타임아웃, 강제) 또는 '퇴치하러 가기'(자발)</span></div>
+  </div>
+
+  <footer>
+    방과후 요괴뎐 · 게임 플로우 시안 (동료 공유용) · 2026-06-26<br>
+    <span class="wip">⚠ 검토 중: 게임성 차별화 훅(① 증거=전투력 / ② 적대적 루프 / ③ 틀리면 친구를 잃는다) · 부제 확정</span>
+  </footer>
+
+</div>
+</body>
+</html>
