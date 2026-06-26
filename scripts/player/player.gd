@@ -88,6 +88,9 @@ func _physics_process(delta: float) -> void:
 	if _dodge_timer > 0.0:
 		_dodge_timer = maxf(0.0, _dodge_timer - delta)
 		velocity = dodge_velocity(_dodge_direction, dodge_speed)
+	elif _is_attacking:
+		# 공격 중엔 이동 정지 — 입력을 무시하고 감속한다(이동하며 공격 불가).
+		velocity = step_velocity(velocity, Vector2.ZERO, delta)
 	else:
 		# 벨트 원근감: 깊이(상하) 이동을 좌우보다 느리게 한다.
 		move.y *= vertical_speed_factor
