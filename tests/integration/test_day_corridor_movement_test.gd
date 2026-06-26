@@ -84,7 +84,8 @@ func test_day_corridor_character_animates_and_flips_with_side_movement() -> void
 	var player: CharacterBody2D = scene.get_node("%Player")
 	var sprite: Sprite2D = scene.get_node("%CharacterSprite")
 
-	_runner.assert_eq(scene.get_character_frame_count(), 8, "4x2 walking sheet uses all eight frames")
+	_runner.assert_eq(scene.get_character_frame_count(), 8, "walking sheet uses all eight frames")
+	_runner.assert_true(scene.get_character_idle_frame_count() > 1, "idle has a visible frame loop")
 
 	player.velocity.x = 80.0
 	scene.call("_update_character_sprite", 0.2)
@@ -98,8 +99,12 @@ func test_day_corridor_character_animates_and_flips_with_side_movement() -> void
 	_runner.assert_true(sprite.flip_h, "left movement flips the sprite")
 
 	player.velocity.x = 0.0
-	scene.call("_update_character_sprite", 0.2)
-	_runner.assert_eq(sprite.frame, 0, "idle resets to the first frame")
+	scene.call("_update_character_sprite", 0.0)
+	var idle_start_frame := sprite.frame
+	var idle_start_y := sprite.position.y
+	scene.call("_update_character_sprite", 0.7)
+	_runner.assert_true(sprite.frame != idle_start_frame, "idle advances beyond the first frame")
+	_runner.assert_true(sprite.position.y != idle_start_y, "idle applies a small vertical motion")
 
 
 func test_day_corridor_internal_edges_fade_between_corridor_rooms() -> void:
