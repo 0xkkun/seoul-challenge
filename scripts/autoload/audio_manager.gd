@@ -14,18 +14,32 @@ var _current_bgm_path := ""
 var _bgm_player: AudioStreamPlayer
 
 
+func _ready() -> void:
+	process_mode = Node.PROCESS_MODE_ALWAYS
+	if has_node("/root/EventBus") and not EventBus.settings_changed.is_connected(_on_settings_changed):
+		EventBus.settings_changed.connect(_on_settings_changed)
+
+
 func play_sfx(id: StringName) -> void:
+	if not _is_sfx_enabled():
+		return
 	_played_sfx.append(id)
 
 
 func play_bgm(id: StringName) -> void:
 	var stream_path := get_bgm_stream_path(id)
-	var player := _ensure_bgm_player()
-	if _current_bgm == id and _current_bgm_path == stream_path and player.playing:
-		return
-
+	var same_bgm := _current_bgm == id and _current_bgm_path == stream_path
 	_current_bgm = id
 	_current_bgm_path = stream_path
+	if not _is_bgm_enabled():
+		if _bgm_player != null:
+			_bgm_player.stop()
+		return
+
+	var player := _ensure_bgm_player()
+	if same_bgm and player.playing:
+		return
+
 	if stream_path == "":
 		player.stop()
 		player.stream = null
@@ -95,3 +109,20 @@ func _prepare_bgm_stream(stream: AudioStream) -> AudioStream:
 	var looped_stream := wav_stream.duplicate() as AudioStreamWAV
 	looped_stream.loop_mode = AudioStreamWAV.LOOP_FORWARD
 	return looped_stream
+
+
+func _on_settings_changed(settings: Dictionary) -> void:
+	if not bool(settings.get(Settings.KEY_BGM_ENABLED, true)):
+		if _bgm_player != null:
+			_bgm_player.stop()
+		return
+	if _current_bgm != &"" and _current_bgm_path != "" and not is_bgm_playing():
+		play_bgm(_current_bgm)
+
+
+func _is_bgm_enabled() -> bool:
+	return not has_node("/root/Settings") or Settings.is_bgm_enabled()
+
+
+func _is_sfx_enabled() -> bool:
+	return not has_node("/root/Settings") or Settings.is_sfx_enabled()

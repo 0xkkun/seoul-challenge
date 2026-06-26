@@ -11,6 +11,7 @@ Keep committed source assets and their Godot `.import` metadata together.
 - `characters/student/`: student character sprite sheets for movement and dialogue test scenes.
 - `sprites/player/`: player sprite sheets and frame resources.
 - `ui/buttons/lobby/`: title lobby button textures and state variants.
+- `ui/icons/settings/`: compact settings popup toggle icons.
 - `ui/minimap/`: compact minimap room icons and related UI markers.
 
 ## Naming

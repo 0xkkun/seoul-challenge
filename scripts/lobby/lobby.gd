@@ -7,6 +7,7 @@ const BACKGROUND_CROP_ANCHOR := Vector2(0.5, 0.0)
 @onready var settings_button: Button = %SettingsButton
 @onready var status_label: Label = %StatusLabel
 @onready var _confirm_modal: ConfirmModal = %ConfirmModal
+@onready var _settings_ui: SettingsUI = %SettingsUI
 
 var quit_game_callable: Callable
 
@@ -23,7 +24,9 @@ func _ready() -> void:
 	start_button.pressed.connect(_on_start_pressed)
 	start_button.focus_mode = Control.FOCUS_NONE
 	settings_button.set_meta("test_id", "lobby.settings_button")
-	settings_button.disabled = true
+	settings_button.set_meta("uat_action", "lobby.settings")
+	settings_button.pressed.connect(_on_settings_pressed)
+	settings_button.disabled = false
 	settings_button.focus_mode = Control.FOCUS_NONE
 	status_label.text = ""
 	status_label.visible = false
@@ -35,6 +38,10 @@ func is_quit_confirm_visible() -> bool:
 
 func get_quit_confirm_message() -> String:
 	return _confirm_modal.get_message_text()
+
+
+func is_settings_open() -> bool:
+	return _settings_ui.is_open()
 
 
 func _on_start_pressed() -> void:
@@ -54,15 +61,25 @@ func _go_to_day_lobby() -> void:
 	push_error("Failed to open day lobby scene: %s" % result)
 
 
+func _on_settings_pressed() -> void:
+	Settings.try_vibrate(18)
+	_settings_ui.open()
+
+
 func _notification(what: int) -> void:
 	match what:
 		NOTIFICATION_WM_CLOSE_REQUEST, NOTIFICATION_WM_GO_BACK_REQUEST:
+			if _settings_ui.is_open():
+				_settings_ui.close()
+				return
 			_request_quit_game()
 		NOTIFICATION_APPLICATION_PAUSED:
 			SceneTransition.save_profile_snapshot()
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if _settings_ui.is_open():
+		return
 	if _confirm_modal.is_open():
 		return
 	if event.is_action_pressed(&"ui_cancel") or _is_escape_key(event):
