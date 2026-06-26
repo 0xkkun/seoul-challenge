@@ -26,12 +26,16 @@ func test_minimap_marks_current_cleared_adjacent_unknown_and_hidden_rooms() -> v
 	_runner.assert_true(entries[&"start"]["current"], "current room is highlighted")
 	_runner.assert_true(entries[&"start"]["cleared"], "cleared room is marked")
 	_runner.assert_false(entries[&"combat_1"]["visited"], "uncleared adjacent room starts unvisited")
-	_runner.assert_true(entries[&"combat_1"]["visible"], "adjacent room reveals its type")
-	_runner.assert_eq(entries[&"combat_1"]["label"], "C", "adjacent combat room uses combat label")
+	_runner.assert_false(entries[&"combat_1"]["visible"], "adjacent room stays fogged until visited")
+	_runner.assert_eq(entries[&"combat_1"]["minimap_type"], &"unknown", "fogged adjacent room hides its type")
+	_runner.assert_eq(entries[&"combat_1"]["actual_minimap_type"], &"combat", "draw entry keeps source type for diagnostics")
+	_runner.assert_eq(entries[&"combat_1"]["label"], "?", "fogged adjacent room uses unknown label")
 	_runner.assert_false(entries[&"treasure_1"]["visible"], "non-adjacent treasure starts unknown")
+	_runner.assert_eq(entries[&"treasure_1"]["minimap_type"], &"unknown", "non-adjacent treasure hides its type")
 	_runner.assert_eq(entries[&"treasure_1"]["label"], "?", "unknown room uses question label")
 	_runner.assert_false(entries[&"final_1"]["visible"], "hidden boss starts hidden")
-	_runner.assert_eq(entries[&"final_1"]["minimap_type"], &"boss", "minimap consumes boss type from minimap data")
+	_runner.assert_eq(entries[&"final_1"]["minimap_type"], &"unknown", "hidden boss hides its type")
+	_runner.assert_eq(entries[&"final_1"]["actual_minimap_type"], &"boss", "source boss type remains available for diagnostics")
 	_runner.assert_eq(entries[&"final_1"]["label"], "?", "hidden boss uses unknown label")
 
 
@@ -58,6 +62,7 @@ func test_minimap_keeps_boss_unknown_until_explicit_reveal() -> void:
 	minimap.set_reveal_hidden_rooms(true)
 	entries = _entries_by_room_id(minimap.get_room_draw_entries())
 	_runner.assert_true(entries[&"final_1"]["visible"], "explicit reveal shows boss room")
+	_runner.assert_eq(entries[&"final_1"]["minimap_type"], &"boss", "revealed boss exposes boss type")
 	_runner.assert_eq(entries[&"final_1"]["label"], "B", "revealed boss uses boss label")
 
 
@@ -66,16 +71,16 @@ func test_minimap_uses_minimap_data_types_for_special_rooms() -> void:
 	var layout := _create_shop_layout()
 	add_child(minimap)
 
-	minimap.set_layout(layout, &"start")
+	minimap.set_layout(layout, &"shop_1", {&"start": true, &"treasure_1": true})
 
 	var entries := _entries_by_room_id(minimap.get_room_draw_entries())
-	_runner.assert_true(entries[&"treasure_1"]["visible"], "adjacent treasure room is visible on minimap")
+	_runner.assert_true(entries[&"treasure_1"]["visible"], "cleared treasure room is visible on minimap")
 	_runner.assert_eq(entries[&"treasure_1"]["minimap_type"], &"treasure", "treasure minimap type is preserved")
 	_runner.assert_eq(entries[&"treasure_1"]["label"], "T", "treasure room uses treasure label")
-	_runner.assert_true(entries[&"shop_1"]["visible"], "shop room is visible through fog")
+	_runner.assert_true(entries[&"shop_1"]["visible"], "current shop room is visible on minimap")
 	_runner.assert_eq(entries[&"shop_1"]["minimap_type"], &"shop", "shop minimap type is preserved")
 	_runner.assert_eq(entries[&"shop_1"]["label"], "$", "shop room uses shop label")
-	_runner.assert_eq(entries[&"final_1"]["minimap_type"], &"boss", "final room uses boss minimap type")
+	_runner.assert_eq(entries[&"final_1"]["minimap_type"], &"unknown", "unvisited final room hides boss type")
 	_runner.assert_false(entries[&"final_1"]["visible"], "hidden boss stays hidden")
 	_runner.assert_eq(entries[&"final_1"]["label"], "?", "hidden boss remains unknown")
 
@@ -104,9 +109,10 @@ func test_minimap_frontier_ping_tracks_current_and_cleared_connections() -> void
 
 	var entries := _entries_by_room_id(minimap.get_room_draw_entries())
 	_runner.assert_true(entries[&"treasure_1"]["frontier"], "frontier room draw entry is marked")
-	var expected_treasure_color := RoomPalette.REWARD_ROOM_FLOOR_COLOR.darkened(0.42)
-	expected_treasure_color.a = 0.82
-	_runner.assert_eq(entries[&"treasure_1"]["fill_color"], expected_treasure_color, "frontier keeps room palette")
+	_runner.assert_false(entries[&"treasure_1"]["visible"], "frontier treasure stays fogged before visit")
+	_runner.assert_eq(entries[&"treasure_1"]["minimap_type"], &"unknown", "frontier treasure hides its type")
+	_runner.assert_eq(entries[&"treasure_1"]["label"], "?", "frontier treasure uses unknown label")
+	_runner.assert_eq(entries[&"treasure_1"]["fill_color"], Minimap.UNKNOWN_ROOM_COLOR, "frontier uses fog palette")
 
 
 func test_minimap_updates_from_event_bus_room_events() -> void:
@@ -184,6 +190,40 @@ func test_minimap_uses_room_grid_positions_without_overlap() -> void:
 		var same_x := is_equal_approx(from_position.x, to_position.x)
 		var same_y := is_equal_approx(from_position.y, to_position.y)
 		_runner.assert_true(same_x != same_y, "grid connections render as straight orthogonal lines")
+
+
+func test_minimap_handles_fifteen_room_generated_layout() -> void:
+	var minimap := Minimap.new()
+	var generator := RoomLayoutGenerator.new()
+	var layout := generator.generate(40, {"room_count": 15})
+	add_child(minimap)
+	minimap.custom_minimum_size = Vector2(520.0, 420.0)
+	minimap.set_layout(layout, layout.start_room_id, {layout.start_room_id: true})
+
+	var entries := minimap.get_room_draw_entries()
+	_runner.assert_eq(entries.size(), 15, "minimap draws every generated room")
+	_runner.assert_true(minimap.get_frontier_draw_entries().size() > 0, "large generated layout exposes frontier pings")
+
+	var occupied := {}
+	var fogged_count := 0
+	for entry: Dictionary in entries:
+		var grid_pos: Vector2i = entry["grid_pos"]
+		_runner.assert_false(occupied.has(grid_pos), "generated minimap grid position is unique")
+		occupied[grid_pos] = entry["room_id"]
+		if not entry["visited"]:
+			fogged_count += 1
+			_runner.assert_false(entry["visible"], "unvisited generated room stays fogged")
+			_runner.assert_eq(entry["minimap_type"], &"unknown", "unvisited generated room hides its type")
+			_runner.assert_eq(entry["label"], "?", "unvisited generated room uses unknown label")
+
+	_runner.assert_eq(fogged_count, 14, "only the start room is known initially")
+
+	for connection: Dictionary in minimap.get_connection_draw_entries():
+		var from_position: Vector2 = connection["from_position"]
+		var to_position: Vector2 = connection["to_position"]
+		var same_x := is_equal_approx(from_position.x, to_position.x)
+		var same_y := is_equal_approx(from_position.y, to_position.y)
+		_runner.assert_true(same_x != same_y, "large generated layout connections remain orthogonal")
 
 
 func _entries_by_room_id(entries: Array[Dictionary]) -> Dictionary:

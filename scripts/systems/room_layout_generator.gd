@@ -28,9 +28,14 @@ func generate(layout_seed: int, params: Dictionary = {}) -> RoomLayout:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = layout_seed
 
-	var target_count := maxi(5, int(params.get("room_count", params.get("target_room_count", default_room_count))))
-	var width := maxi(3, int(params.get("grid_width", grid_width)))
-	var height := maxi(3, int(params.get("grid_height", grid_height)))
+	var target_count := clampi(
+		int(params.get("room_count", params.get("target_room_count", default_room_count))),
+		RoomLayout.MIN_ROOM_COUNT,
+		RoomLayout.MAX_ROOM_COUNT
+	)
+	var min_dimension := _minimum_grid_dimension_for_count(target_count)
+	var width := maxi(maxi(3, int(params.get("grid_width", grid_width))), min_dimension)
+	var height := maxi(maxi(3, int(params.get("grid_height", grid_height))), min_dimension)
 	var chance := clampf(float(params.get("branch_chance", branch_chance)), 0.0, 1.0)
 	var scene_paths: Variant = params.get("scene_paths", {})
 
@@ -57,6 +62,10 @@ func generate(layout_seed: int, params: Dictionary = {}) -> RoomLayout:
 		layout.room_defs.append(room_def)
 
 	return layout
+
+
+func _minimum_grid_dimension_for_count(target_count: int) -> int:
+	return maxi(3, int(ceil(sqrt(float(target_count)))) * 2)
 
 
 func _generate_cells(

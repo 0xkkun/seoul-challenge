@@ -1,10 +1,10 @@
 extends Control
 
-const MINIMAP_SCENE = preload("res://scenes/ui/minimap.tscn")
 const AUTHORED_LAYOUT_PATH := "res://resources/layouts/gyeongbokgung.tres"
 
 @export var use_generated_layout := true
 @export var layout_seed := 40
+@export_range(5, 64) var generated_room_count := 15
 @export var auto_run := true
 @export var quit_on_complete := false
 @export var screenshot_path := "res://test-results/map-inspector.png"
@@ -13,11 +13,14 @@ var _minimap: Minimap
 var _status_label: Label
 var _generated_toggle: CheckButton
 var _seed_spin: SpinBox
+var _room_count_spin: SpinBox
 var _reveal_toggle: CheckBox
 var _layout: RoomLayout
 
 
 func _ready() -> void:
+	if DisplayServer.get_name() != "headless":
+		DisplayServer.window_set_size(Vector2i(400, 854))
 	_build_ui()
 	_load_layout()
 	if auto_run:
@@ -57,6 +60,19 @@ func _build_ui() -> void:
 	_seed_spin.value_changed.connect(_on_seed_changed)
 	toolbar.add_child(_seed_spin)
 
+	var room_count_label := Label.new()
+	room_count_label.text = "Rooms"
+	toolbar.add_child(room_count_label)
+
+	_room_count_spin = SpinBox.new()
+	_room_count_spin.min_value = RoomLayout.MIN_ROOM_COUNT
+	_room_count_spin.max_value = RoomLayout.MAX_ROOM_COUNT
+	_room_count_spin.step = 1.0
+	_room_count_spin.value = generated_room_count
+	_room_count_spin.custom_minimum_size = Vector2(72.0, 0.0)
+	_room_count_spin.value_changed.connect(_on_room_count_changed)
+	toolbar.add_child(_room_count_spin)
+
 	var regenerate_button := Button.new()
 	regenerate_button.text = "Regenerate"
 	regenerate_button.pressed.connect(_load_layout)
@@ -74,22 +90,29 @@ func _build_ui() -> void:
 
 	var legend_label := Label.new()
 	legend_label.name = "LegendLabel"
-	legend_label.text = "S start | C combat | E event | T treasure | $ shop | ? unknown | cyan ping = reachable exit"
+	legend_label.text = "S start | C combat | E event | T treasure | $ shop | ? fogged unexplored | cyan ping = reachable exit"
 	legend_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	root.add_child(legend_label)
 
-	_minimap = MINIMAP_SCENE.instantiate() as Minimap
+	_minimap = Minimap.new()
 	_minimap.name = "Minimap"
-	_minimap.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_minimap.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	_minimap.offset_left = 0.0
+	_minimap.offset_top = 0.0
+	_minimap.offset_right = 0.0
+	_minimap.offset_bottom = 0.0
+	_minimap.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	_minimap.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_minimap.custom_minimum_size = Vector2(360.0, 680.0)
 	root.add_child(_minimap)
+	_minimap.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	_minimap.custom_minimum_size = Vector2(360.0, 680.0)
 
 
 func _load_layout() -> void:
 	if use_generated_layout:
 		var generator := RoomLayoutGenerator.new()
-		_layout = generator.generate(layout_seed)
+		_layout = generator.generate(layout_seed, {"room_count": generated_room_count})
 	else:
 		_layout = load(AUTHORED_LAYOUT_PATH) as RoomLayout
 
@@ -126,7 +149,8 @@ func _run_runtime_check() -> void:
 		return
 	for next_seed: int in [layout_seed, layout_seed + 1, layout_seed + 2]:
 		var generator := RoomLayoutGenerator.new()
-		if not _assert_layout_inspectable(generator.generate(next_seed), "generated_%d" % next_seed):
+		var generated := generator.generate(next_seed, {"room_count": generated_room_count})
+		if not _assert_layout_inspectable(generated, "generated_%d_%d_rooms" % [next_seed, generated_room_count]):
 			return
 	print("[map_inspector] OK: authored and generated layouts inspectable")
 	await get_tree().process_frame
@@ -198,6 +222,12 @@ func _on_generated_toggled(pressed: bool) -> void:
 
 func _on_seed_changed(value: float) -> void:
 	layout_seed = int(value)
+	if use_generated_layout:
+		_load_layout()
+
+
+func _on_room_count_changed(value: float) -> void:
+	generated_room_count = int(value)
 	if use_generated_layout:
 		_load_layout()
 
