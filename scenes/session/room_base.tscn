@@ -1,0 +1,40 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/systems/room.gd" id="1_room"]
+[ext_resource type="Script" path="res://scripts/systems/room_door.gd" id="2_door"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_north_door"]
+size = Vector2(32, 28)
+
+[node name="RoomBase" type="Node2D"]
+script = ExtResource("1_room")
+room_id = &"room_base"
+room_type = &"start"
+door_dirs = Array[StringName]([&"N"])
+
+[node name="Floor" type="ColorRect" parent="."]
+offset_left = -128.0
+offset_top = -96.0
+offset_right = 128.0
+offset_bottom = 96.0
+color = Color(0.12, 0.13, 0.16, 1)
+
+[node name="Doors" type="Node2D" parent="."]
+
+[node name="NorthDoor" type="Node2D" parent="Doors"]
+position = Vector2(0, -96)
+script = ExtResource("2_door")
+door_dir = &"N"
+
+[node name="DoorVisual" type="ColorRect" parent="Doors/NorthDoor"]
+offset_left = -18.0
+offset_top = -8.0
+offset_right = 18.0
+offset_bottom = 8.0
+color = Color(1, 1, 1, 1)
+
+[node name="TransitionArea" type="Area2D" parent="Doors/NorthDoor"]
+collision_layer = 0
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Doors/NorthDoor/TransitionArea"]
+shape = SubResource("RectangleShape2D_north_door")

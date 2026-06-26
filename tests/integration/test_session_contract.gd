@@ -65,3 +65,56 @@ func test_session_ui_can_resume_while_tree_is_paused() -> void:
 	_runner.assert_false(get_tree().paused, "resume request unpauses scene tree")
 
 	session.queue_free()
+
+
+func test_room_base_lifecycle_opens_door_and_requests_transition() -> void:
+	var packed := load("res://scenes/session/room_base.tscn") as PackedScene
+	var room := packed.instantiate() as Room
+	var entered_payloads: Array[Dictionary] = []
+	var cleared_payloads: Array[Dictionary] = []
+	var cleared_rooms: Array[StringName] = []
+	var transitions: Array[Dictionary] = []
+	var on_room_entered := func(payload: Dictionary) -> void:
+		entered_payloads.append(payload)
+	var on_room_cleared := func(payload: Dictionary) -> void:
+		cleared_payloads.append(payload)
+	var on_cleared := func(room_id: StringName) -> void:
+		cleared_rooms.append(room_id)
+	var on_transition_requested := func(room_id: StringName, door_dir: StringName) -> void:
+		transitions.append({"room_id": room_id, "door_dir": door_dir})
+
+	EventBus.room_entered.connect(on_room_entered)
+	EventBus.room_cleared.connect(on_room_cleared)
+	room.cleared.connect(on_cleared)
+	room.transition_requested.connect(on_transition_requested)
+	add_child(room)
+
+	var north_door := room.get_door(&"N")
+	_runner.assert_not_null(north_door, "base room exposes north door")
+	_runner.assert_true(north_door.is_locked(), "door starts locked")
+
+	room.enter()
+
+	_runner.assert_true(room.has_entered(), "enter records lifecycle state")
+	_runner.assert_true(room.has_been_cleared(), "default base room clears on enter")
+	_runner.assert_eq(cleared_rooms.size(), 1, "room emits cleared once")
+	_runner.assert_eq(entered_payloads.size(), 1, "room entered event emitted")
+	_runner.assert_eq(cleared_payloads.size(), 1, "room cleared event emitted")
+	_runner.assert_true(north_door.is_open(), "door opens after clear")
+
+	if entered_payloads.size() == 1:
+		_runner.assert_eq(entered_payloads[0]["room_id"], &"room_base", "entered payload has room id")
+		_runner.assert_eq(entered_payloads[0]["room_type"], &"start", "entered payload has room type")
+	if cleared_payloads.size() == 1:
+		_runner.assert_eq(cleared_payloads[0]["door_dirs"][0], &"N", "cleared payload has door dir")
+
+	var did_request_transition := north_door.request_transition()
+	_runner.assert_true(did_request_transition, "open door accepts transition requests")
+	_runner.assert_eq(transitions.size(), 1, "room forwards door transition request")
+	if transitions.size() == 1:
+		_runner.assert_eq(transitions[0]["room_id"], &"room_base", "transition includes room id")
+		_runner.assert_eq(transitions[0]["door_dir"], &"N", "transition includes door dir")
+
+	EventBus.room_entered.disconnect(on_room_entered)
+	EventBus.room_cleared.disconnect(on_room_cleared)
+	room.queue_free()
