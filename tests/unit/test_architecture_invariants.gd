@@ -50,3 +50,17 @@ func test_room_event_bus_surface_uses_payload_wrappers() -> void:
 			source.contains("%s.emit(payload.duplicate(true))" % event_name),
 			"%s wrapper duplicates payload" % event_name
 		)
+
+
+func test_room_palette_centralizes_placeholder_values() -> void:
+	var source := FileAccess.get_file_as_string("res://scripts/constants/room_palette.gd")
+	var room_source := FileAccess.get_file_as_string("res://scripts/systems/room.gd")
+	var door_source := FileAccess.get_file_as_string("res://scripts/systems/room_door.gd")
+
+	_runner.assert_true(source.contains("const ROOM_SIZE"), "room palette defines room size")
+	_runner.assert_true(source.contains("const DOOR_SIZE"), "room palette defines door size")
+	_runner.assert_true(source.contains("const DOOR_LOCKED_COLOR"), "room palette defines locked door color")
+	_runner.assert_true(source.contains("const DOOR_OPEN_COLOR"), "room palette defines open door color")
+	_runner.assert_true(source.contains("const STUDENT_MARKER_COLOR"), "room palette defines student marker color")
+	_runner.assert_true(room_source.contains("RoomPalette"), "room script reads room palette")
+	_runner.assert_true(door_source.contains("RoomPalette"), "door script reads room palette")

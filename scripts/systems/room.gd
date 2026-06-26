@@ -1,23 +1,29 @@
 class_name Room
 extends Node2D
 
+const RoomPalette = preload("res://scripts/constants/room_palette.gd")
+
 signal cleared(room_id: StringName)
 signal transition_requested(room_id: StringName, door_dir: StringName)
 
 @export var room_id: StringName = &"room"
 @export var room_type: StringName = &"start"
 @export var door_dirs: Array[StringName] = []
+@export var floor_path: NodePath
 
 var _entered := false
 var _cleared := false
 var _doors: Array[RoomDoor] = []
+var _floor: ColorRect
 
 
 func _ready() -> void:
+	_floor = _resolve_floor()
 	_cache_doors()
 	if door_dirs.is_empty():
 		for door: RoomDoor in _doors:
 			door_dirs.append(door.door_dir)
+	_apply_room_visuals()
 	_apply_door_state()
 
 
@@ -87,6 +93,20 @@ func _apply_door_state() -> void:
 			door.open()
 		else:
 			door.lock()
+
+
+func _apply_room_visuals() -> void:
+	if _floor == null:
+		return
+	_floor.size = RoomPalette.ROOM_SIZE
+	_floor.position = -RoomPalette.ROOM_HALF_SIZE
+	_floor.color = RoomPalette.get_room_floor_color(room_type)
+
+
+func _resolve_floor() -> ColorRect:
+	if not floor_path.is_empty():
+		return get_node_or_null(floor_path) as ColorRect
+	return find_child("Floor", true, false) as ColorRect
 
 
 func _build_payload() -> Dictionary:

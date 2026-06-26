@@ -1,5 +1,7 @@
 extends Node
 
+const RoomPalette = preload("res://scripts/constants/room_palette.gd")
+
 var _runner: Node
 
 
@@ -90,8 +92,20 @@ func test_room_base_lifecycle_opens_door_and_requests_transition() -> void:
 	add_child(room)
 
 	var north_door := room.get_door(&"N")
+	var floor := room.get_node("Floor") as ColorRect
+	var door_visual := north_door.get_node("DoorVisual") as ColorRect
+	var door_shape := north_door.get_node("TransitionArea/CollisionShape2D") as CollisionShape2D
+	var door_rectangle := door_shape.shape as RectangleShape2D
+
 	_runner.assert_not_null(north_door, "base room exposes north door")
+	_runner.assert_not_null(door_rectangle, "base room door configures collision shape")
+	_runner.assert_eq(floor.size, RoomPalette.ROOM_SIZE, "room floor uses palette size")
+	_runner.assert_eq(floor.color, RoomPalette.START_ROOM_FLOOR_COLOR, "room floor uses palette color")
+	_runner.assert_eq(north_door.position, RoomPalette.NORTH_DOOR_POSITION, "door uses palette position")
+	_runner.assert_eq(door_visual.size, RoomPalette.DOOR_SIZE, "door visual uses palette size")
+	_runner.assert_eq(door_rectangle.size, RoomPalette.DOOR_TRIGGER_SIZE, "door trigger uses palette size")
 	_runner.assert_true(north_door.is_locked(), "door starts locked")
+	_runner.assert_eq(door_visual.color, RoomPalette.DOOR_LOCKED_COLOR, "door starts with locked palette color")
 
 	room.enter()
 
@@ -101,6 +115,7 @@ func test_room_base_lifecycle_opens_door_and_requests_transition() -> void:
 	_runner.assert_eq(entered_payloads.size(), 1, "room entered event emitted")
 	_runner.assert_eq(cleared_payloads.size(), 1, "room cleared event emitted")
 	_runner.assert_true(north_door.is_open(), "door opens after clear")
+	_runner.assert_eq(door_visual.color, RoomPalette.DOOR_OPEN_COLOR, "open door uses palette color")
 
 	if entered_payloads.size() == 1:
 		_runner.assert_eq(entered_payloads[0]["room_id"], &"room_base", "entered payload has room id")
