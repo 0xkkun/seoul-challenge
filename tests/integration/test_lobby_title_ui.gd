@@ -1,5 +1,7 @@
 extends Node
 
+const UiTestHarness := preload("res://tests/support/ui_test_harness.gd")
+
 var _runner: Node
 
 
@@ -25,6 +27,7 @@ func test_lobby_title_scene_uses_title_assets_and_menu_contract() -> void:
 	var title_logo := lobby.get_node("LogoPane/TitleLogo") as TextureRect
 	var start_button := lobby.get_node("%StartButton") as Button
 	var settings_button := lobby.get_node("%SettingsButton") as Button
+	var settings_ui := lobby.get_node("%SettingsUI") as SettingsUI
 	var status_label := lobby.get_node("%StatusLabel") as Label
 
 	_runner.assert_eq(background.texture.resource_path, "res://assets/backgrounds/lobby/title_lobby_bg.png", "lobby background uses title art")
@@ -44,8 +47,10 @@ func test_lobby_title_scene_uses_title_assets_and_menu_contract() -> void:
 	_assert_lobby_button_style(settings_button, "settings")
 	_assert_lobby_button_texture(settings_button.get_theme_stylebox("disabled"), "res://assets/ui/buttons/lobby/lobby_button_normal.png", "settings disabled button keeps lobby button texture")
 	_runner.assert_eq(start_button.get_meta("uat_action"), "lobby.start", "start uat action is stable")
-	_runner.assert_true(settings_button.disabled, "settings stays visible but disabled until the settings flow exists")
-	_runner.assert_false(settings_button.has_meta("uat_action"), "disabled settings button does not expose a dead UAT action")
+	_runner.assert_false(settings_button.disabled, "settings is available from the lobby")
+	_runner.assert_eq(settings_button.get_meta("uat_action"), "lobby.settings", "settings exposes a stable action")
+	_runner.assert_false(settings_ui.is_open(), "settings popup starts closed")
+	_runner.assert_true(_is_signal_connected_to_method(settings_button.pressed, lobby, "_on_settings_pressed"), "settings button is wired to popup handler")
 	_runner.assert_true(_is_signal_connected_to_method(start_button.pressed, lobby, "_on_start_pressed"), "start button is wired to title start handler")
 	_runner.assert_true(lobby.has_method("_go_to_day_lobby"), "start transition is deferred for touch input")
 	_runner.assert_eq(SceneTransition.get_day_lobby_scene_path(), "res://scenes/dev/day_corridor_movement_test.tscn", "start destination is the day lobby")
@@ -57,6 +62,20 @@ func test_lobby_title_scene_uses_title_assets_and_menu_contract() -> void:
 	_runner.assert_false(status_label.visible, "status copy is hidden on title screen")
 	_runner.assert_false(lobby.has_node("LogoPane/TaglineLabel"), "tagline copy is removed")
 	_runner.assert_false(lobby.has_node("MenuPane/FocusHint"), "input hint copy is removed")
+
+	lobby.queue_free()
+
+
+func test_lobby_settings_button_opens_settings_popup() -> void:
+	var packed := load("res://scenes/lobby/lobby.tscn") as PackedScene
+	var lobby := packed.instantiate()
+	add_child(lobby)
+
+	var settings_ui := lobby.get_node("%SettingsUI") as SettingsUI
+
+	_runner.assert_true(UiTestHarness.press_by_uat_action(lobby, "lobby.settings"), "settings action opens popup")
+	_runner.assert_true(lobby.is_settings_open(), "lobby reports settings popup open")
+	_runner.assert_true(settings_ui.is_open(), "settings popup is visible")
 
 	lobby.queue_free()
 

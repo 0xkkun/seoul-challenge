@@ -14,7 +14,8 @@ The template is intentionally small. Shared runtime behavior sits behind narrow 
 - `EventBus`: typed signal spine.
 - `SceneTransition`: scene navigation.
 - `SaveManager`: local persistence stub.
-- `Settings`: user settings stub.
+- `Settings`: user settings facade for BGM, SFX, haptic feedback, and future
+  user preferences.
 - `AudioManager`: BGM/SFX facade. It tracks the current BGM id, owns the
   runtime `AudioStreamPlayer`, and keeps scene code behind `play_bgm(id)`.
 - `PoolManager`: reusable object lifecycle.
