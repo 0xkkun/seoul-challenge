@@ -59,7 +59,7 @@ func test_run_controller_drives_layout_to_completion() -> void:
 	while not controller.is_completed():
 		guard += 1
 		_runner.assert_true(guard <= 8, "run completion guard")
-		_clear_room(controller.get_current_room())
+		_resolve_current_room(controller, actor)
 		var advanced := controller.advance_room()
 		if not controller.is_completed():
 			_runner.assert_true(advanced, "run advances before completion")
@@ -90,7 +90,7 @@ func test_run_controller_finishes_active_game_manager_session() -> void:
 	controller.configure(layout, room_container, actor)
 
 	_runner.assert_true(controller.start_run(), "run starts with active GameManager session")
-	_advance_until_completed(controller, "active session run completion guard")
+	_advance_until_completed(controller, actor, "active session run completion guard")
 
 	var profile: Dictionary = SaveManager.load_profile()
 	var saved_results: Array = profile.get("session_results", [])
@@ -111,12 +111,15 @@ func test_run_flow_demo_scene_executes_to_completion() -> void:
 	add_child(demo)
 
 	var controller := demo.get_node("%RunController") as RunController
+	_runner.assert_true(demo.has_method("resolve_current_room_for_demo"), "demo resolves interactive room objectives")
+	if not demo.has_method("resolve_current_room_for_demo"):
+		return
 	_runner.assert_true(controller.start_run(), "demo controller starts")
 	var guard := 0
 	while not controller.is_completed():
 		guard += 1
 		_runner.assert_true(guard <= 8, "demo completion guard")
-		_clear_room(controller.get_current_room())
+		demo.call("resolve_current_room_for_demo")
 		var advanced := controller.advance_room()
 		if not controller.is_completed():
 			_runner.assert_true(advanced, "demo advances before completion")
@@ -125,18 +128,30 @@ func test_run_flow_demo_scene_executes_to_completion() -> void:
 	_runner.assert_eq(controller.visited_room_ids.size(), 5, "demo visits fixed layout rooms")
 
 
-## 전투/이벤트/보스 방은 입장만으로 자동 클리어되지 않으므로, 목표 달성을 모사해 진행시킨다.
-func _clear_room(room: Node) -> void:
-	if room != null and room.has_method("mark_cleared"):
-		room.mark_cleared()
-
-
-func _advance_until_completed(controller: RunController, guard_message: String) -> void:
+func _advance_until_completed(controller: RunController, actor: Node2D, guard_message: String) -> void:
 	var guard := 0
 	while not controller.is_completed():
 		guard += 1
 		_runner.assert_true(guard <= 8, guard_message)
-		_clear_room(controller.get_current_room())
+		_resolve_current_room(controller, actor)
 		var advanced := controller.advance_room()
 		if not controller.is_completed():
 			_runner.assert_true(advanced, "run advances before completion")
+
+
+func _resolve_current_room(controller: RunController, actor: Node2D) -> void:
+	var room := controller.get_current_room()
+	if room == null:
+		return
+	if controller.room_manager != null and controller.room_manager.is_current_room_cleared():
+		return
+	if room.has_method("get_active_enemies"):
+		for enemy: Node in room.call("get_active_enemies"):
+			if enemy.has_method("take_damage"):
+				enemy.call("take_damage", 99)
+	elif room.has_method("get_active_students"):
+		for student: Node in room.call("get_active_students"):
+			if student.has_method("rescue"):
+				student.call("rescue", actor)
+	elif room.has_method("complete_boss_encounter"):
+		room.call("complete_boss_encounter")

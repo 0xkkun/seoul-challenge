@@ -77,17 +77,8 @@ func get_active_count(pool_id: StringName) -> int:
 
 
 func clear_all() -> void:
-	# 풀 노드가 외부에서 free될 수 있으므로(예: 방이 queue_free되며 자식 풀 노드도 해제)
-	# 타입 지정 루프 변수(`node: Node`)에 freed 인스턴스를 대입하면 is_instance_valid 검사
-	# 전에 에러가 난다. 언타입 변수로 받아 가드가 먼저 동작하게 한다.
-	for node_list: Array in _available.values():
-		for node in node_list:
-			if is_instance_valid(node):
-				node.free()
-	for node_list: Array in _active.values():
-		for node in node_list:
-			if is_instance_valid(node):
-				node.free()
+	_free_node_lists(_available.values())
+	_free_node_lists(_active.values())
 	_pool_scenes.clear()
 	_available.clear()
 	_active.clear()
@@ -100,6 +91,16 @@ func _instantiate(pool_id: StringName) -> Node:
 	node.set_meta("pool_id", pool_id)
 	node.add_to_group(TemplateGroups.POOLED_OBJECT)
 	return node
+
+
+func _free_node_lists(node_lists: Array) -> void:
+	for node_list: Array in node_lists:
+		for value: Variant in node_list:
+			if not is_instance_valid(value):
+				continue
+			var node := value as Node
+			if node != null:
+				node.free()
 
 
 func _activate(node: Node) -> void:

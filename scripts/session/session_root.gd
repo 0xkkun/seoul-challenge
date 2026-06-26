@@ -3,6 +3,7 @@ extends Node2D
 const POOLED_MARKER_SCENE = preload("res://scenes/interactables/sample_pooled_marker.tscn")
 const GYEONGBOKGUNG_LAYOUT = preload("res://resources/layouts/gyeongbokgung.tres")
 const BOSS_SCENE = preload("res://scenes/enemies/boss.tscn")
+const RoomPalette = preload("res://scripts/constants/room_palette.gd")
 
 @onready var actor: Node2D = %Player
 @onready var room_layer: Node = %RoomLayer
@@ -12,6 +13,7 @@ const BOSS_SCENE = preload("res://scenes/enemies/boss.tscn")
 @onready var interaction_system: Node = %InteractionSystem
 @onready var room_manager: RoomManager = %RoomManager
 @onready var session_ui_root: CanvasLayer = %SessionUIRoot
+@onready var player_camera: Camera2D = %PlayerCamera
 @onready var _fade_rect: ColorRect = $FadeLayer/FadeRect
 @onready var _minimap: Control = $MinimapLayer/Minimap
 
@@ -19,6 +21,7 @@ var completed_interactions := 0
 var return_to_school_callable: Callable
 var retry_session_callable: Callable
 var _handoff_session_on_exit := false
+var _active_boss: Node = null
 var _minimap_full := false
 
 
@@ -27,6 +30,7 @@ func _ready() -> void:
 		GameManager.start_session({"source": "session_root"})
 	PoolManager.register_scene(&"sample_marker", POOLED_MARKER_SCENE, 1, pooled_object_layer)
 	interaction_system.configure(actor, interactable_layer)
+	_configure_player_camera()
 	room_manager.room_changed.connect(_on_room_changed)
 	room_manager.configure(GYEONGBOKGUNG_LAYOUT, room_layer, actor)
 	room_manager.start_layout()
@@ -123,6 +127,60 @@ func _on_retry_requested() -> void:
 		_handoff_session_on_exit = false
 
 
+func _configure_player_camera() -> void:
+	if player_camera == null:
+		return
+	var half := RoomPalette.ROOM_HALF_SIZE
+	var wall: float = RoomPalette.WALL_THICKNESS
+	player_camera.limit_left = int(floor(-half.x - wall))
+	player_camera.limit_top = int(floor(-half.y - wall))
+	player_camera.limit_right = int(ceil(half.x + wall))
+	player_camera.limit_bottom = int(ceil(half.y + wall))
+	player_camera.make_current()
+
+
+func _on_room_changed(_room_id: StringName, _room_type: StringName) -> void:
+	_play_room_fade()
+	var current_room := room_manager.current_room
+	if current_room != null and actor != null:
+		actor.global_position = current_room.global_position + Vector2(-RoomPalette.ROOM_HALF_SIZE.x + 140.0, 0.0)
+	_connect_boss_room(current_room)
+
+
+func _connect_boss_room(room: Node) -> void:
+	if room == null or not room.has_signal("boss_spawn_requested"):
+		return
+	var callback := Callable(self, "_on_boss_spawn_requested")
+	if not room.is_connected("boss_spawn_requested", callback):
+		room.connect("boss_spawn_requested", callback)
+
+
+func _on_boss_spawn_requested(room_id: StringName, boss_id: StringName, spawn_position: Vector2) -> void:
+	if room_id != room_manager.current_room_id:
+		return
+	if _active_boss != null and is_instance_valid(_active_boss):
+		_active_boss.queue_free()
+	var boss := BOSS_SCENE.instantiate()
+	boss.name = String(boss_id)
+	var parent := room_manager.current_room
+	if parent == null:
+		boss.queue_free()
+		return
+	parent.add_child(boss)
+	if boss is Node2D:
+		(boss as Node2D).global_position = spawn_position
+	_active_boss = boss
+	if boss.has_signal("defeated"):
+		boss.connect("defeated", Callable(self, "_on_boss_defeated").bind(parent))
+
+
+func _on_boss_defeated(_boss: Node, room: Node) -> void:
+	if _active_boss == _boss:
+		_active_boss = null
+	if room != null and is_instance_valid(room) and room.has_method("complete_boss_encounter"):
+		room.call("complete_boss_encounter")
+
+
 func _is_layout_complete() -> bool:
 	if room_manager.layout == null or room_manager.current_room_id == &"":
 		return false
@@ -131,39 +189,6 @@ func _is_layout_complete() -> bool:
 	return room_manager.layout.get_next_room_id(room_manager.current_room_id, room_manager.cleared_room_ids) == &""
 
 
-## 보스 방에 들어가면 boss_spawn_requested 를 연결한다(enter() 가 곧 발신).
-func _on_room_changed(_room_id: StringName, _room_type: StringName) -> void:
-	_play_room_fade()
-	# 벨트 진행: 새 섹션의 왼쪽 입구에서 시작해 오른쪽으로 전진한다.
-	if actor != null:
-		actor.global_position = Vector2(-820.0, 0.0)
-	var room := room_manager.current_room
-	if room == null:
-		return
-	if room.has_signal("boss_spawn_requested") and not room.is_connected("boss_spawn_requested", _on_boss_spawn_requested):
-		room.connect("boss_spawn_requested", _on_boss_spawn_requested)
-
-
-## 보스 방이 요청한 위치에 보스를 스폰하고, 처치되면 방을 클리어(=런 종료)한다.
-func _on_boss_spawn_requested(_room_id: StringName, _boss_id: StringName, spawn_position: Vector2) -> void:
-	var boss_room := room_manager.current_room
-	if boss_room == null:
-		return
-	var boss := BOSS_SCENE.instantiate()
-	boss_room.add_child(boss)
-	if boss is Node2D:
-		(boss as Node2D).global_position = spawn_position
-	if boss.has_signal("defeated"):
-		boss.connect("defeated", _on_boss_defeated.bind(boss_room))
-
-
-func _on_boss_defeated(_boss: Node, boss_room: Node) -> void:
-	if is_instance_valid(boss_room) and boss_room.has_method("complete_boss_encounter"):
-		boss_room.complete_boss_encounter()
-
-
-## 미니맵 탭 → 코너 위젯 ↔ 풀화면 인스펙터 토글.
-## GUI 레이어 간섭을 피하려 raw 터치로 처리한다. (emulate_touch_from_mouse 로 데스크탑 마우스도 터치로 들어옴)
 func _input(event: InputEvent) -> void:
 	if not (event is InputEventScreenTouch and (event as InputEventScreenTouch).pressed):
 		return
@@ -202,7 +227,6 @@ func _apply_minimap_layout() -> void:
 	_minimap.queue_redraw()
 
 
-## 방 전환 시 검정에서 페이드 인 (검정 → 방이 다시 켜짐).
 func _play_room_fade() -> void:
 	if _fade_rect == null:
 		return

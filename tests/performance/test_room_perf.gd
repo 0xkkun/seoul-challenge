@@ -94,7 +94,7 @@ func test_room_manager_runtime_walks_fixed_route() -> void:
 	for expected_room_id: StringName in [&"combat_1", &"combat_2", &"event_1", &"final_1"]:
 		_runner.assert_true(manager.request_next_room(), "runtime advances to %s" % expected_room_id)
 		_runner.assert_eq(manager.current_room_id, expected_room_id)
-		_clear_room(manager.current_room)
+		_resolve_current_room(manager, actor)
 
 	_runner.assert_false(manager.request_next_room(), "runtime reports route completion after final")
 	_runner.assert_eq(completed_layouts, [&"gyeongbokgung"], "runtime emits layout completion")
@@ -107,6 +107,17 @@ func _load_layout() -> RoomLayout:
 	return layout
 
 
-func _clear_room(room: Node) -> void:
-	if room != null and room.has_method("mark_cleared"):
-		room.mark_cleared()
+func _resolve_current_room(manager: RoomManager, actor: Node2D) -> void:
+	var room := manager.current_room
+	if room == null or manager.is_current_room_cleared():
+		return
+	if room.has_method("get_active_enemies"):
+		for enemy: Node in room.call("get_active_enemies"):
+			if enemy.has_method("take_damage"):
+				enemy.call("take_damage", 99)
+	elif room.has_method("get_active_students"):
+		for student: Node in room.call("get_active_students"):
+			if student.has_method("rescue"):
+				student.call("rescue", actor)
+	elif room.has_method("complete_boss_encounter"):
+		room.call("complete_boss_encounter")

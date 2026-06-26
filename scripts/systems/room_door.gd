@@ -22,6 +22,8 @@ var state := DoorState.LOCKED
 var _trigger_area: Area2D
 var _visual: CanvasItem
 var _collision_shape: CollisionShape2D
+var _blocker_body: StaticBody2D
+var _blocker_shape: CollisionShape2D
 var _actor: Node2D
 var _ping_marker: Label
 var _was_actor_overlapping := false
@@ -31,6 +33,8 @@ func _ready() -> void:
 	_trigger_area = _resolve_trigger_area()
 	_visual = _resolve_visual()
 	_collision_shape = _resolve_collision_shape()
+	_blocker_body = _resolve_blocker_body()
+	_blocker_shape = _resolve_blocker_shape()
 	_actor = _resolve_actor()
 	_ping_marker = _resolve_ping_marker()
 	if position == Vector2.ZERO:
@@ -42,6 +46,7 @@ func _ready() -> void:
 	_apply_visual_layout()
 	_apply_ping_marker_layout()
 	_apply_collision_shape()
+	_apply_blocker_shape()
 	_apply_state()
 	set_process(_ping_marker != null)
 	set_physics_process(_actor != null)
@@ -61,6 +66,10 @@ func is_open() -> bool:
 
 func is_locked() -> bool:
 	return state == DoorState.LOCKED
+
+
+func is_blocking_body_enabled() -> bool:
+	return _blocker_shape != null and not _blocker_shape.disabled
 
 
 func configure_actor(actor: Node2D) -> void:
@@ -128,6 +137,8 @@ func _apply_state() -> void:
 			_visual.modulate = RoomPalette.DOOR_OPEN_COLOR if is_open() else RoomPalette.DOOR_LOCKED_COLOR
 	if _ping_marker != null:
 		_ping_marker.visible = is_open()
+	if _blocker_shape != null:
+		_blocker_shape.disabled = is_open()
 
 
 func _apply_visual_layout() -> void:
@@ -161,6 +172,21 @@ func _apply_collision_shape() -> void:
 	rectangle.size = RoomPalette.DOOR_TRIGGER_SIZE
 
 
+func _apply_blocker_shape() -> void:
+	if _blocker_shape == null:
+		return
+	var rectangle := _blocker_shape.shape as RectangleShape2D
+	if rectangle == null:
+		rectangle = RectangleShape2D.new()
+		_blocker_shape.shape = rectangle
+	var gap_length := RoomPalette.DOOR_SIZE.x + RoomPalette.WALL_DOOR_GAP_PADDING * 2.0
+	match door_dir:
+		&"E", &"W":
+			rectangle.size = Vector2(RoomPalette.WALL_THICKNESS, gap_length)
+		_:
+			rectangle.size = Vector2(gap_length, RoomPalette.WALL_THICKNESS)
+
+
 func _resolve_trigger_area() -> Area2D:
 	if not trigger_area_path.is_empty():
 		return get_node_or_null(trigger_area_path) as Area2D
@@ -177,6 +203,30 @@ func _resolve_collision_shape() -> CollisionShape2D:
 	if not collision_shape_path.is_empty():
 		return get_node_or_null(collision_shape_path) as CollisionShape2D
 	return find_child("CollisionShape2D", true, false) as CollisionShape2D
+
+
+func _resolve_blocker_body() -> StaticBody2D:
+	var body := get_node_or_null("DoorBlocker") as StaticBody2D
+	if body != null:
+		return body
+	body = StaticBody2D.new()
+	body.name = "DoorBlocker"
+	body.collision_layer = 1
+	body.collision_mask = 1
+	add_child(body)
+	return body
+
+
+func _resolve_blocker_shape() -> CollisionShape2D:
+	if _blocker_body == null:
+		return null
+	var shape := _blocker_body.get_node_or_null("DoorBlockShape") as CollisionShape2D
+	if shape != null:
+		return shape
+	shape = CollisionShape2D.new()
+	shape.name = "DoorBlockShape"
+	_blocker_body.add_child(shape)
+	return shape
 
 
 func _resolve_ping_marker() -> Label:
