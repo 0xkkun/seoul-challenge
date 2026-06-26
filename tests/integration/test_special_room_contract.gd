@@ -12,10 +12,14 @@ func _set_runner(runner: Node) -> void:
 
 func before_each() -> void:
 	GameManager.reset_session()
+	SaveManager.reset_profile()
+	CurrencySystem.reset_for_tests()
 
 
 func after_each() -> void:
 	GameManager.reset_session()
+	SaveManager.reset_profile()
+	CurrencySystem.reset_for_tests()
 	for child: Node in get_children():
 		child.queue_free()
 
@@ -138,6 +142,66 @@ func test_treasure_room_pickup_marks_room_cleared() -> void:
 	EventBus.interaction_completed.disconnect(on_interaction_completed)
 
 
+func test_shop_room_bat_purchase_spends_ingame_and_equips_player() -> void:
+	var room := _instantiate_shop_room()
+	if room == null:
+		return
+	var player := _instantiate_player()
+	if player == null:
+		return
+	add_child(room)
+	add_child(player)
+	room.enter()
+	EventBus.emit_currency_changed({"kind": "ingame", "amount": 6})
+
+	_runner.assert_true(room.call("purchase_offer", &"bat", player), "bat offer can be purchased with enough ingame currency")
+
+	_runner.assert_eq(CurrencySystem.get_ingame(), 2, "bat purchase spends its ingame cost")
+	_runner.assert_eq(player.call("current_weapon_name"), "야구배트", "bat purchase equips the stronger melee item")
+	_runner.assert_true(room.call("is_offer_sold", &"bat"), "bat offer is marked sold")
+	_runner.assert_true(String(room.call("get_offer_text", &"bat")).contains("구매 완료"), "shop label shows sold state")
+
+
+func test_shop_room_dodge_refill_purchase_spends_ingame_and_upgrades_special() -> void:
+	var room := _instantiate_shop_room()
+	if room == null:
+		return
+	var player := _instantiate_player()
+	if player == null:
+		return
+	add_child(room)
+	add_child(player)
+	room.enter()
+	EventBus.emit_currency_changed({"kind": "ingame", "amount": 5})
+
+	_runner.assert_true(room.call("purchase_offer", &"dodge_refill", player), "dodge refill can be purchased with enough ingame currency")
+
+	_runner.assert_eq(CurrencySystem.get_ingame(), 2, "dodge refill spends its ingame cost")
+	_runner.assert_eq(player.get("special_skill_id"), &"emergency_dodge", "purchase keeps emergency dodge equipped")
+	_runner.assert_eq(player.get("special_skill_max_uses"), 5, "purchase raises dodge charges")
+	_runner.assert_true(is_equal_approx(float(player.get("special_skill_cooldown")), 1.0), "purchase lowers dodge cooldown")
+	_runner.assert_true(room.call("is_offer_sold", &"dodge_refill"), "dodge refill offer is marked sold")
+
+
+func test_shop_room_rejects_purchase_without_enough_ingame_currency() -> void:
+	var room := _instantiate_shop_room()
+	if room == null:
+		return
+	var player := _instantiate_player()
+	if player == null:
+		return
+	add_child(room)
+	add_child(player)
+	room.enter()
+	EventBus.emit_currency_changed({"kind": "ingame", "amount": 2})
+
+	_runner.assert_false(room.call("purchase_offer", &"bat", player), "shop rejects unaffordable offer")
+
+	_runner.assert_eq(CurrencySystem.get_ingame(), 2, "failed purchase keeps ingame balance")
+	_runner.assert_eq(player.call("current_weapon_name"), "맨손", "failed purchase does not equip item")
+	_runner.assert_false(room.call("is_offer_sold", &"bat"), "failed purchase does not mark offer sold")
+
+
 func test_minimap_data_marks_current_visible_and_boss_hidden() -> void:
 	var layout := load("res://resources/layouts/gyeongbokgung.tres") as RoomLayout
 	var data: Dictionary = MinimapDataScript.build_from_layout(layout, &"combat_1", {})
@@ -206,3 +270,32 @@ func _make_room_def(room_id: StringName, room_type: StringName) -> RoomDef:
 	room_def.room_type = room_type
 	room_def.scene_path = "res://scenes/session/room_base.tscn"
 	return room_def
+
+
+func _instantiate_shop_room() -> Node:
+	_runner.assert_true(ResourceLoader.exists("res://scenes/interactables/shop_room.tscn"), "shop room scene exists")
+	if not ResourceLoader.exists("res://scenes/interactables/shop_room.tscn"):
+		return null
+	var packed := load("res://scenes/interactables/shop_room.tscn") as PackedScene
+	_runner.assert_not_null(packed, "shop room scene loads")
+	if packed == null:
+		return null
+	var room := packed.instantiate()
+	_runner.assert_true(room.has_method("purchase_offer"), "shop room exposes purchase API")
+	_runner.assert_true(room.has_method("is_offer_sold"), "shop room exposes sold-state API")
+	_runner.assert_true(room.has_method("get_offer_text"), "shop room exposes offer UI text for tests")
+	return room
+
+
+func _instantiate_player() -> Node:
+	_runner.assert_true(ResourceLoader.exists("res://scenes/player/player.tscn"), "player scene exists")
+	if not ResourceLoader.exists("res://scenes/player/player.tscn"):
+		return null
+	var packed := load("res://scenes/player/player.tscn") as PackedScene
+	_runner.assert_not_null(packed, "player scene loads")
+	if packed == null:
+		return null
+	var player := packed.instantiate()
+	_runner.assert_true(player.has_method("equip_bat"), "player exposes bat upgrade")
+	_runner.assert_true(player.has_method("equip_special_skill"), "player exposes special skill upgrade")
+	return player

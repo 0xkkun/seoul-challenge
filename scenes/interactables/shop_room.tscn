@@ -1,0 +1,41 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/interactables/shop_room.gd" id="1_shop_room"]
+
+[node name="ShopRoom" type="Node2D"]
+script = ExtResource("1_shop_room")
+room_id = &"shop_room"
+room_type = &"shop"
+door_dirs = Array[StringName]([&"N", &"E"])
+
+[node name="Floor" type="ColorRect" parent="."]
+
+[node name="Offers" type="Node2D" parent="."]
+
+[node name="BatOffer" type="Node2D" parent="Offers"]
+position = Vector2(-92, -18)
+
+[node name="Pad" type="ColorRect" parent="Offers/BatOffer"]
+
+[node name="Label" type="Label" parent="Offers/BatOffer"]
+offset_left = -66.0
+offset_top = -12.0
+offset_right = 66.0
+offset_bottom = 12.0
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="DodgeOffer" type="Node2D" parent="Offers"]
+position = Vector2(92, -18)
+
+[node name="Pad" type="ColorRect" parent="Offers/DodgeOffer"]
+
+[node name="Label" type="Label" parent="Offers/DodgeOffer"]
+offset_left = -66.0
+offset_top = -12.0
+offset_right = 66.0
+offset_bottom = 12.0
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Doors" type="Node2D" parent="."]

@@ -7,9 +7,16 @@ func _set_runner(runner: Node) -> void:
 	_runner = runner
 
 
+func before_each() -> void:
+	SaveManager.reset_profile()
+	CurrencySystem.reset_for_tests()
+
+
 func after_each() -> void:
 	for child: Node in get_children():
 		child.queue_free()
+	SaveManager.reset_profile()
+	CurrencySystem.reset_for_tests()
 
 
 func test_combat_room_spawns_enemies_and_clears_after_defeats() -> void:
@@ -53,6 +60,21 @@ func test_combat_room_with_no_spawn_budget_clears_on_enter() -> void:
 
 	_runner.assert_true(room.call("is_cleared"), "empty combat room resolves immediately")
 	_runner.assert_eq(room.call("get_remaining_enemy_count"), 0, "empty combat room has no active enemies")
+
+
+func test_combat_room_emits_ingame_rewards_for_enemy_defeats_and_clear() -> void:
+	var room := _instantiate_combat_room()
+	if room == null:
+		return
+	add_child(room)
+
+	room.enter()
+	for enemy: Node in room.call("get_active_enemies"):
+		if enemy.has_method("take_damage"):
+			enemy.call("take_damage", 99)
+
+	_runner.assert_true(room.call("is_cleared"), "combat room clears after reward source defeats")
+	_runner.assert_eq(CurrencySystem.get_ingame(), 6, "three enemy defeats plus combat clear reward ingame currency")
 
 
 func _instantiate_combat_room() -> Node:

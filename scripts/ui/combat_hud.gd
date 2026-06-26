@@ -9,7 +9,7 @@ const HEART_EMPTY_COLOR := Color(0.25, 0.25, 0.28)
 const HEART_SIZE := Vector2(22, 22)
 const WEAPON_SLOT_STUB_TEXT := "무기: -"
 const SKILL_SLOT_STUB_TEXT := "스킬: -"
-const CURRENCY_SLOT_STUB_TEXT := "0"
+const CURRENCY_SLOT_STUB_TEXT := "엽전: 0"
 
 @onready var _hearts: HBoxContainer = %Hearts
 @onready var _weapon_slot: Label = %WeaponSlot
@@ -27,7 +27,20 @@ func _ready() -> void:
 	_currency_slot.text = CURRENCY_SLOT_STUB_TEXT
 	EventBus.player_health_changed.connect(_on_player_health_changed)
 	EventBus.special_skill_state_changed.connect(_on_special_skill_state_changed)
+	EventBus.currency_changed.connect(_on_currency_changed)
+	if has_node("/root/CurrencySystem"):
+		set_currency_state({"ingame": CurrencySystem.get_ingame()})
 	_render_hearts()
+
+
+func _exit_tree() -> void:
+	if has_node("/root/EventBus"):
+		if EventBus.player_health_changed.is_connected(_on_player_health_changed):
+			EventBus.player_health_changed.disconnect(_on_player_health_changed)
+		if EventBus.special_skill_state_changed.is_connected(_on_special_skill_state_changed):
+			EventBus.special_skill_state_changed.disconnect(_on_special_skill_state_changed)
+		if EventBus.currency_changed.is_connected(_on_currency_changed):
+			EventBus.currency_changed.disconnect(_on_currency_changed)
 
 
 ## 체력을 직접 지정한다. (전투 미연동 상태에서의 stub/테스트 진입점)
@@ -70,6 +83,17 @@ func get_skill_text() -> String:
 	return _skill_slot.text
 
 
+func set_currency_state(payload: Dictionary) -> void:
+	if not payload.has("ingame"):
+		return
+	var ingame := maxi(0, int(payload.get("ingame", 0)))
+	_currency_slot.text = "엽전: %d" % ingame
+
+
+func get_currency_text() -> String:
+	return _currency_slot.text
+
+
 func _on_player_health_changed(payload: Dictionary) -> void:
 	var current := int(payload.get("current", _current_health))
 	var max_health := int(payload.get("max", _max_health))
@@ -78,6 +102,10 @@ func _on_player_health_changed(payload: Dictionary) -> void:
 
 func _on_special_skill_state_changed(payload: Dictionary) -> void:
 	set_skill_state(payload)
+
+
+func _on_currency_changed(payload: Dictionary) -> void:
+	set_currency_state(payload)
 
 
 func _render_hearts() -> void:

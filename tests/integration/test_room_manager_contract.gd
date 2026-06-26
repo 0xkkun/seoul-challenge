@@ -154,6 +154,11 @@ func test_session_root_mounts_room_manager() -> void:
 	_runner.assert_eq(manager.current_room_id, &"start", "session starts run layout")
 	_runner.assert_eq(manager.layout.room_defs.size(), 15, "session uses the branching run map room count")
 	_runner.assert_true(manager.layout.required_clears_for_hidden_reveal > 0, "session run map uses explicit boss reveal threshold")
+	var shop_room := _first_room_of_type(manager.layout, RoomLayout.TYPE_SHOP)
+	_runner.assert_not_null(shop_room, "session run map contains one shop room")
+	if shop_room != null:
+		_runner.assert_eq(shop_room.scene_path, "res://scenes/interactables/shop_room.tscn", "session shop room uses shop scene")
+		_runner.assert_false(shop_room.hidden, "session shop room starts visible")
 	_runner.assert_true(_junction_count(manager.layout) >= 2, "session run map has multiple branching junctions")
 	_runner.assert_true(
 		_undirected_edge_count(manager.layout) >= manager.layout.room_defs.size(),
@@ -268,6 +273,13 @@ func _first_connected_combat_room_id(layout: RoomLayout, room_id: StringName) ->
 		if connected != null and connected.room_type == RoomLayout.TYPE_COMBAT:
 			return connected_id
 	return &""
+
+
+func _first_room_of_type(layout: RoomLayout, room_type: StringName) -> RoomDef:
+	for room_def: RoomDef in layout.room_defs:
+		if room_def.room_type == room_type:
+			return room_def
+	return null
 
 
 func _non_final_leaf_room(layout: RoomLayout) -> RoomDef:

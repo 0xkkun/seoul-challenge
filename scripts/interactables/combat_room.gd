@@ -24,6 +24,8 @@ signal enemy_count_changed(remaining_count: int)
 @export var ranged_scene: PackedScene = RANGED_SHOOTER_SCENE
 @export_range(0, 12, 1) var chaser_count := 2
 @export_range(0, 12, 1) var ranged_count := 1
+@export_range(0, 99, 1) var enemy_defeat_ingame_reward := 1
+@export_range(0, 99, 1) var combat_clear_ingame_reward := 3
 
 var _combat_started := false
 var _combat_resolved := false
@@ -57,6 +59,7 @@ func resolve_combat() -> void:
 	if _combat_resolved:
 		return
 	_combat_resolved = true
+	_emit_ingame_reward(combat_clear_ingame_reward, "combat_clear")
 	combat_resolved.emit(room_id)
 	combat_cleared.emit(room_id)
 	enemy_count_changed.emit(0)
@@ -116,6 +119,7 @@ func _connect_enemy(enemy: Node) -> void:
 
 func _on_enemy_defeated(enemy: Node) -> void:
 	_active_enemies.erase(enemy)
+	_emit_ingame_reward(enemy_defeat_ingame_reward, "enemy_defeated")
 	var remaining := get_remaining_enemy_count()
 	enemy_count_changed.emit(remaining)
 	if remaining == 0:
@@ -137,3 +141,15 @@ func _resolve_enemy_layer() -> Node2D:
 	layer.name = "Enemies"
 	add_child(layer)
 	return layer
+
+
+func _emit_ingame_reward(amount: int, reason: String) -> void:
+	if amount <= 0 or not has_node("/root/EventBus"):
+		return
+	EventBus.emit_currency_changed({
+		"kind": "ingame",
+		"amount": amount,
+		"reason": reason,
+		"room_id": room_id,
+		"room_type": room_type,
+	})

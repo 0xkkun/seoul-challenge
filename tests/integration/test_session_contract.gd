@@ -13,12 +13,16 @@ func _set_runner(runner: Node) -> void:
 func before_each() -> void:
 	PoolManager.clear_all()
 	GameManager.reset_session()
+	SaveManager.reset_profile()
+	CurrencySystem.reset_for_tests()
 
 
 func after_each() -> void:
 	get_tree().paused = false
 	PoolManager.clear_all()
 	GameManager.reset_session()
+	SaveManager.reset_profile()
+	CurrencySystem.reset_for_tests()
 
 
 func test_session_interaction_and_summary() -> void:
@@ -37,6 +41,32 @@ func test_session_interaction_and_summary() -> void:
 	_runner.assert_eq(result["memory_reward"], 1, "session summary includes permanent reward delta")
 	_runner.assert_eq(result["current_room_id"], &"start", "session summary includes current room")
 	_runner.assert_false(GameManager.is_session_active(), "session is no longer active")
+
+	session.queue_free()
+
+
+func test_session_interaction_scope_reaches_current_shop_room() -> void:
+	var packed := load("res://scenes/session/session_root.tscn") as PackedScene
+	var session := packed.instantiate()
+	add_child(session)
+
+	var manager := session.get_node("%RoomManager") as RoomManager
+	var actor := session.get_node("%Player") as Node2D
+	var shop_room_def := _first_room_of_type(manager.layout, RoomLayout.TYPE_SHOP)
+	_runner.assert_not_null(shop_room_def, "session run layout includes shop room")
+	if shop_room_def == null:
+		return
+	_runner.assert_true(manager.enter_room(shop_room_def.room_id), "test enters shop room directly")
+	_runner.assert_true(manager.current_room.has_method("get_offer_position"), "shop room exposes offer position")
+	if not manager.current_room.has_method("get_offer_position"):
+		return
+	actor.global_position = manager.current_room.call("get_offer_position", &"bat")
+	EventBus.emit_currency_changed({"kind": "ingame", "amount": 6})
+
+	session.trigger_sample_interaction()
+
+	_runner.assert_eq(CurrencySystem.get_ingame(), 2, "session interaction can purchase from current shop room")
+	_runner.assert_eq(actor.call("current_weapon_name"), "야구배트", "session shop interaction equips purchased item")
 
 	session.queue_free()
 
@@ -198,3 +228,10 @@ func test_room_base_lifecycle_opens_door_and_requests_transition() -> void:
 	EventBus.room_cleared.disconnect(on_room_cleared)
 	actor.queue_free()
 	room.queue_free()
+
+
+func _first_room_of_type(layout: RoomLayout, room_type: StringName) -> RoomDef:
+	for room_def: RoomDef in layout.room_defs:
+		if room_def.room_type == room_type:
+			return room_def
+	return null

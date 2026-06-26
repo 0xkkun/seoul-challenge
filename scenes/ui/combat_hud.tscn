@@ -52,4 +52,4 @@ text = "스킬: -"
 [node name="CurrencySlot" type="Label" parent="Root/StubPanel"]
 unique_name_in_owner = true
 layout_mode = 2
-text = "0"
+text = "엽전: 0"
