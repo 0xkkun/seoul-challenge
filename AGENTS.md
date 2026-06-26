@@ -1,17 +1,15 @@
-# Agent Guide
+# Seoul Challenge Agent Guide
 
-This repository is a Godot template. Keep reusable code, scenes, docs, and filenames neutral so downstream games can replace the sample content without inheriting a sample domain.
+This repository is the Seoul Challenge Godot project. It was created from the
+pixel-godot-template baseline, so keep the shared harness, autoload, pooling, and
+interaction contracts stable unless a project change intentionally redesigns
+them.
 
-## Downstream Projects
+## Project Vocabulary
 
-After creating a project from this template, update this file before assigning broad
-work to an agent:
-
-- Replace "Godot template" language with the new project's actual purpose.
-- Keep generic harness, autoload, pooling, and interaction contracts neutral unless
-  you intentionally redesign them.
-- Allow domain vocabulary in game-specific scenes, scripts, assets, and tests that
-  no longer need to be reusable template surface.
+- Use Seoul Challenge vocabulary in game-specific scenes, scripts, assets, and
+  tests.
+- Keep generic harness, autoload, pooling, and interaction contracts neutral.
 - Keep local config, credentials, generated caches, and export outputs untracked.
 
 ## Baseline

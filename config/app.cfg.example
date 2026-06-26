@@ -1,6 +1,6 @@
 [app]
-project_id="com.example.pixel_template"
-display_name="Pixel Godot Template"
+project_id="com.0xkkun.seoul_challenge"
+display_name="Seoul Challenge"
 
 [services]
 analytics_enabled=false

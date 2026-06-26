@@ -1,30 +1,14 @@
-# Pixel Godot Template
+# Seoul Challenge
 
-A Godot 4.6.3 template for pixel-art 2D projects, built around an AI-agent-friendly verification harness.
+Seoul Challenge is a Godot 4.6.3 pixel-art 2D project created from
+`0xkkun/pixel-godot-template`. It keeps the template's AI-agent-friendly
+verification harness as the project baseline.
 
 ## Quickstart
 
-Preferred path:
-
-1. Click **Use this template** on GitHub.
-2. Create a new repository under your own account or organization.
-3. Clone your new repository, not this template repository.
-
-With GitHub CLI:
-
 ```sh
-gh repo create my-game --template 0xkkun/pixel-godot-template --private --clone
-cd my-game
-```
-
-Use `--public` instead of `--private` when the new project should be public.
-
-Clone-only fallback:
-
-```sh
-git clone https://github.com/0xkkun/pixel-godot-template.git my-game
-cd my-game
-git remote set-url origin https://github.com/YOUR_ORG_OR_USER/my-game.git
+git clone https://github.com/0xkkun/seoul-challenge.git
+cd seoul-challenge
 godot --path .
 bash scripts/verify_quick.sh
 ```
@@ -48,5 +32,3 @@ Use `GODOT_BIN=/path/to/godot` if the `godot` executable is not on `PATH`.
 - Ask coding agents to follow [AGENTS.md](AGENTS.md).
 - Run `bash scripts/verify_quick.sh` before every PR.
 - Run `bash scripts/verify_full.sh` before merging larger changes.
-
-The reusable template surface uses neutral names so it can become many different games without carrying a sample game's vocabulary into the final project.

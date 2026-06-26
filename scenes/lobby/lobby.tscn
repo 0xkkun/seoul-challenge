@@ -37,7 +37,7 @@ theme_override_constants/separation = 16
 
 [node name="TitleLabel" type="Label" parent="Content"]
 layout_mode = 2
-text = "Pixel Godot Template"
+text = "Seoul Challenge"
 horizontal_alignment = 1
 
 [node name="StatusLabel" type="Label" parent="Content"]
