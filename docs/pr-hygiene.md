@@ -42,7 +42,7 @@ Set these before asking for review:
 - Milestone: the current delivery slice
 - Priority label: `p0`, `p1`, or `p2`
 - Area label: at least one `area:*` label
-- Optional labels: `agent-ready`, `domain-neutrality`, or standard GitHub labels
+- Optional labels: `agent-ready` or standard GitHub labels
 
 ## Body
 
@@ -53,10 +53,9 @@ The PR body should include:
 - verification commands and results
 - known limitations or follow-up issues
 
-For template work, also confirm:
+Also confirm:
 
-- reusable names remain domain-neutral
-- no private project references are copied
+- no private project references from the upstream template are copied
 - no generated caches, local config, or credentials are tracked
 - README, `docs/customizing.md`, `docs/pr-hygiene.md`, and `AGENTS.md` still agree
   with the commands and workflow in the repo

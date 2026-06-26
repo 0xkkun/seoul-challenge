@@ -13,7 +13,6 @@ Quick verification covers:
 
 - environment and Godot version
 - static project contract
-- domain-neutral reusable surface
 - import metadata hygiene
 - secret hygiene
 - headless editor load
