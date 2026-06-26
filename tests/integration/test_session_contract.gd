@@ -32,6 +32,9 @@ func test_session_interaction_and_summary() -> void:
 
 	var result: Dictionary = session.finish_session()
 	_runner.assert_eq(result["interactions"], 1)
+	_runner.assert_eq(result["rooms_cleared"], 1, "session summary includes cleared rooms")
+	_runner.assert_eq(result["memory_reward"], 1, "session summary includes permanent reward delta")
+	_runner.assert_eq(result["current_room_id"], &"start", "session summary includes current room")
 	_runner.assert_false(GameManager.is_session_active(), "session is no longer active")
 
 	session.queue_free()
@@ -65,6 +68,38 @@ func test_session_ui_can_resume_while_tree_is_paused() -> void:
 
 	session._on_resume_requested()
 	_runner.assert_false(get_tree().paused, "resume request unpauses scene tree")
+
+	session.queue_free()
+
+
+func test_session_result_actions_unpause_and_preserve_retry_config() -> void:
+	var packed := load("res://scenes/session/session_root.tscn") as PackedScene
+	var session := packed.instantiate()
+	add_child(session)
+
+	var action_counts := {"returned": 0}
+	var retry_configs: Array[Dictionary] = []
+	session.return_to_school_callable = func() -> void:
+		action_counts["returned"] += 1
+	session.retry_session_callable = func(config: Dictionary) -> Error:
+		retry_configs.append(config.duplicate(true))
+		GameManager.start_session(config)
+		return OK
+
+	session._on_pause_requested()
+	session.finish_session()
+	session._on_return_requested()
+	_runner.assert_false(get_tree().paused, "return action unpauses before transition")
+	_runner.assert_eq(action_counts["returned"], 1, "return action calls injected transition")
+
+	session._on_pause_requested()
+	session._on_retry_requested()
+	_runner.assert_false(get_tree().paused, "retry action unpauses before transition")
+	_runner.assert_eq(retry_configs.size(), 1, "retry action starts a new session once")
+	_runner.assert_eq(retry_configs[0]["source"], "session_result_retry", "retry uses result retry source")
+	session._exit_tree()
+	_runner.assert_true(GameManager.is_session_active(), "retry handoff is not reset by old session exit")
+	_runner.assert_eq(GameManager.get_active_config()["source"], "session_result_retry", "retry config survives old session exit")
 
 	session.queue_free()
 

@@ -13,6 +13,9 @@ const GYEONGBOKGUNG_LAYOUT = preload("res://resources/layouts/gyeongbokgung.tres
 @onready var session_ui_root: CanvasLayer = %SessionUIRoot
 
 var completed_interactions := 0
+var return_to_school_callable: Callable
+var retry_session_callable: Callable
+var _handoff_session_on_exit := false
 
 
 func _ready() -> void:
@@ -26,12 +29,14 @@ func _ready() -> void:
 	session_ui_root.pause_requested.connect(_on_pause_requested)
 	session_ui_root.resume_requested.connect(_on_resume_requested)
 	session_ui_root.finish_requested.connect(_on_finish_requested)
+	session_ui_root.return_requested.connect(_on_return_requested)
+	session_ui_root.retry_requested.connect(_on_retry_requested)
 
 
 func _exit_tree() -> void:
 	if has_node("/root/PoolManager"):
 		PoolManager.clear_all()
-	if has_node("/root/GameManager") and GameManager.is_session_active():
+	if not _handoff_session_on_exit and has_node("/root/GameManager") and GameManager.is_session_active():
 		GameManager.reset_session()
 
 
@@ -51,9 +56,18 @@ func advance_room(preferred_room_id: StringName = &"") -> bool:
 
 
 func finish_session() -> Dictionary:
+	var cleared_room_ids := room_manager.cleared_room_ids.keys()
+	var rooms_cleared := cleared_room_ids.size()
 	var result := {
 		"interactions": completed_interactions,
 		"active_markers": PoolManager.get_active_count(&"sample_marker"),
+		"completed": _is_layout_complete(),
+		"current_room_id": room_manager.current_room_id,
+		"cleared_room_ids": cleared_room_ids,
+		"rooms_cleared": rooms_cleared,
+		"memory_reward": rooms_cleared,
+		"students_rescued": 0,
+		"friends_purified": 0,
 	}
 	GameManager.finish_session(result)
 	session_ui_root.show_summary(result)
@@ -80,3 +94,32 @@ func _on_resume_requested() -> void:
 
 func _on_finish_requested() -> void:
 	finish_session()
+
+
+func _on_return_requested() -> void:
+	get_tree().paused = false
+	if return_to_school_callable.is_valid():
+		return_to_school_callable.call()
+	else:
+		SceneTransition.go_to_lobby()
+
+
+func _on_retry_requested() -> void:
+	get_tree().paused = false
+	_handoff_session_on_exit = true
+	var config := {"source": "session_result_retry"}
+	var result: Variant = OK
+	if retry_session_callable.is_valid():
+		result = retry_session_callable.call(config)
+	else:
+		result = SceneTransition.start_session(config)
+	if result is int and result != OK:
+		_handoff_session_on_exit = false
+
+
+func _is_layout_complete() -> bool:
+	if room_manager.layout == null or room_manager.current_room_id == &"":
+		return false
+	if not room_manager.is_current_room_cleared():
+		return false
+	return room_manager.layout.get_next_room_id(room_manager.current_room_id, room_manager.cleared_room_ids) == &""
