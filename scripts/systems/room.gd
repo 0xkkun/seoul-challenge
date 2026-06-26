@@ -15,6 +15,7 @@ var _entered := false
 var _cleared := false
 var _doors: Array[RoomDoor] = []
 var _floor: ColorRect
+var _actor: Node2D
 
 
 func _ready() -> void:
@@ -41,6 +42,22 @@ func is_cleared() -> bool:
 
 func get_minimap_type() -> StringName:
 	return room_type
+
+
+func configure_actor(actor: Node2D) -> void:
+	_actor = actor
+	for door: RoomDoor in _doors:
+		door.configure_actor(actor)
+
+
+func check_actor_transitions() -> int:
+	if _actor == null:
+		return 0
+	var transition_count := 0
+	for door: RoomDoor in _doors:
+		if door.check_transition_for_actor(_actor):
+			transition_count += 1
+	return transition_count
 
 
 func mark_cleared() -> void:
@@ -78,6 +95,8 @@ func _cache_doors() -> void:
 	for door: RoomDoor in _doors:
 		if not door.transition_requested.is_connected(_on_door_transition_requested):
 			door.transition_requested.connect(_on_door_transition_requested)
+		if _actor != null:
+			door.configure_actor(_actor)
 
 
 func _collect_doors(parent: Node) -> void:

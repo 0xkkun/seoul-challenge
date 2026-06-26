@@ -90,6 +90,8 @@ func test_room_base_lifecycle_opens_door_and_requests_transition() -> void:
 	room.cleared.connect(on_cleared)
 	room.transition_requested.connect(on_transition_requested)
 	add_child(room)
+	var actor := (load("res://scenes/actors/sample_actor.tscn") as PackedScene).instantiate() as Node2D
+	add_child(actor)
 
 	var north_door := room.get_door(&"N")
 	var floor := room.get_node("Floor") as ColorRect
@@ -106,6 +108,9 @@ func test_room_base_lifecycle_opens_door_and_requests_transition() -> void:
 	_runner.assert_eq(door_rectangle.size, RoomPalette.DOOR_TRIGGER_SIZE, "door trigger uses palette size")
 	_runner.assert_true(north_door.is_locked(), "door starts locked")
 	_runner.assert_eq(door_visual.color, RoomPalette.DOOR_LOCKED_COLOR, "door starts with locked palette color")
+	room.configure_actor(actor)
+	actor.global_position = north_door.global_position
+	_runner.assert_eq(room.check_actor_transitions(), 0, "locked door ignores actor overlap")
 
 	room.enter()
 
@@ -123,13 +128,15 @@ func test_room_base_lifecycle_opens_door_and_requests_transition() -> void:
 	if cleared_payloads.size() == 1:
 		_runner.assert_eq(cleared_payloads[0]["door_dirs"][0], &"N", "cleared payload has door dir")
 
-	var did_request_transition := north_door.request_transition()
-	_runner.assert_true(did_request_transition, "open door accepts transition requests")
+	var did_request_transition := room.check_actor_transitions()
+	_runner.assert_eq(did_request_transition, 1, "open door accepts actor overlap transition")
 	_runner.assert_eq(transitions.size(), 1, "room forwards door transition request")
 	if transitions.size() == 1:
 		_runner.assert_eq(transitions[0]["room_id"], &"room_base", "transition includes room id")
 		_runner.assert_eq(transitions[0]["door_dir"], &"N", "transition includes door dir")
+	_runner.assert_eq(room.check_actor_transitions(), 0, "door overlap transition emits once per entry")
 
 	EventBus.room_entered.disconnect(on_room_entered)
 	EventBus.room_cleared.disconnect(on_room_cleared)
+	actor.queue_free()
 	room.queue_free()
