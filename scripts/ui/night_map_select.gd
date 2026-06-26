@@ -5,6 +5,7 @@ signal return_requested
 signal stage_selected(stage_id: StringName)
 
 const DungeonTheme := preload("res://scripts/ui/dungeon_ui_theme.gd")
+const PixelButton := preload("res://scripts/ui/pixel_button_style.gd")
 
 const STAGE_GYEONGBOKGUNG := &"gyeongbokgung"
 const ACTION_RETURN := "night_map_select.return"
@@ -135,8 +136,9 @@ func _make_action_button(node_name: String, text: String, relative_rect: Rect2, 
 	button.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	button.alignment = HORIZONTAL_ALIGNMENT_CENTER
 	button.add_theme_font_size_override("font_size", 22)
-	var variant := DungeonTheme.VARIANT_PRIMARY if action == ACTION_SELECT_GYEONGBOKGUNG else DungeonTheme.VARIANT_SECONDARY
-	DungeonTheme.apply_button(button, variant, Vector2(0.0, 64.0))
+	button.focus_mode = Control.FOCUS_NONE
+	var variant := PixelButton.VARIANT_PRIMARY if action == ACTION_SELECT_GYEONGBOKGUNG else PixelButton.VARIANT_SECONDARY
+	PixelButton.apply(button, variant, Vector2(0.0, 64.0))
 	button.set_meta("test_id", action.replace(".", "_"))
 	button.set_meta("uat_action", action)
 	return button

@@ -6,10 +6,10 @@ signal weapon_changed(weapon_id: StringName)
 signal map_requested
 
 const DungeonTheme := preload("res://scripts/ui/dungeon_ui_theme.gd")
+const PixelButton := preload("res://scripts/ui/pixel_button_style.gd")
 
 const WEAPON_BASEBALL := &"baseball"
 const WEAPON_BAT := &"bat"
-const WEAPON_STUDENT_ID := &"student_id"
 
 const ACTION_RETURN := "locker_maintenance.return"
 const ACTION_SELECT_BASEBALL := "locker_maintenance.weapon.baseball"
@@ -23,7 +23,6 @@ var _selected_weapon_id := WEAPON_BASEBALL
 var _weapon_status_label: Label
 var _baseball_card: Button
 var _bat_card: Button
-var _student_id_card: Button
 var _loadout_panel: PanelContainer
 var _weapon_button: Button
 var _map_button: Button
@@ -166,7 +165,7 @@ func _build_weapon_cards() -> void:
 	_baseball_card = _make_weapon_card(
 		"BaseballCard",
 		"낡은 야구공\n\n원거리 / 빠른 연사\n위력  ■■■□□\n속도  ■■■■□\n\n작은 충격파",
-		Rect2(0.05, 0.32, 0.205, 0.36),
+		Rect2(0.06, 0.32, 0.265, 0.36),
 		ACTION_SELECT_BASEBALL
 	)
 	add_child(_baseball_card)
@@ -174,26 +173,17 @@ func _build_weapon_cards() -> void:
 	_bat_card = _make_weapon_card(
 		"BatCard",
 		"금 간 배트\n\n근거리 / 큰 반동\n위력  ■■■■□\n속도  ■□□□□\n\n적 밀쳐냄",
-		Rect2(0.285, 0.32, 0.205, 0.36),
+		Rect2(0.365, 0.32, 0.265, 0.36),
 		ACTION_SELECT_BAT
 	)
 	add_child(_bat_card)
 
-	_student_id_card = _make_weapon_card(
-		"StudentIdCard",
-		"학생증\n\n보조 슬롯\n준비 중\n\n피해 감소",
-		Rect2(0.52, 0.32, 0.205, 0.36),
-		""
-	)
-	_student_id_card.disabled = true
-	add_child(_student_id_card)
-
 	_loadout_panel = PanelContainer.new()
 	_loadout_panel.name = "LoadoutSummaryPanel"
-	_loadout_panel.anchor_left = 0.76
-	_loadout_panel.anchor_top = 0.32
+	_loadout_panel.anchor_left = 0.68
+	_loadout_panel.anchor_top = 0.30
 	_loadout_panel.anchor_right = 0.94
-	_loadout_panel.anchor_bottom = 0.68
+	_loadout_panel.anchor_bottom = 0.70
 	_loadout_panel.add_theme_stylebox_override(
 		"panel",
 		DungeonTheme.panel_style(DungeonTheme.COLOR_PANEL, DungeonTheme.COLOR_GOLD_DIM, 2, 14.0, 12.0)
@@ -218,7 +208,7 @@ func _build_action_bar() -> void:
 	_weapon_button = _make_action_button("WeaponButton", "무기\n전환", Rect2(0.36, 0.82, 0.24, 0.13), ACTION_CYCLE_WEAPON)
 	add_child(_weapon_button)
 
-	_map_button = _make_action_button("MapButton", "지도\n경복궁 선택", Rect2(0.66, 0.82, 0.28, 0.13), ACTION_OPEN_MAP)
+	_map_button = _make_action_button("MapButton", "지도\n열기", Rect2(0.66, 0.82, 0.28, 0.13), ACTION_OPEN_MAP)
 	add_child(_map_button)
 
 	_return_button.pressed.connect(_on_return_pressed)
@@ -265,8 +255,9 @@ func _make_action_button(node_name: String, text: String, relative_rect: Rect2, 
 	button.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	button.alignment = HORIZONTAL_ALIGNMENT_CENTER
 	button.add_theme_font_size_override("font_size", 21)
-	var variant := DungeonTheme.VARIANT_PRIMARY if action == ACTION_OPEN_MAP else DungeonTheme.VARIANT_SECONDARY
-	DungeonTheme.apply_button(button, variant, Vector2(0.0, 64.0))
+	button.focus_mode = Control.FOCUS_NONE
+	var variant := PixelButton.VARIANT_PRIMARY if action == ACTION_OPEN_MAP else PixelButton.VARIANT_SECONDARY
+	PixelButton.apply(button, variant, Vector2(0.0, 64.0))
 	_set_button_meta(button, action.replace(".", "_"), action)
 	return button
 

@@ -1,11 +1,14 @@
 class_name ConfirmModal
 extends CanvasLayer
 
+const DungeonTheme := preload("res://scripts/ui/dungeon_ui_theme.gd")
+
 const TEST_ID_YES := "confirm_modal.yes_button"
 const TEST_ID_NO := "confirm_modal.no_button"
 const ACTION_YES := "confirm_modal.yes"
 const ACTION_NO := "confirm_modal.no"
 
+@onready var _panel: PanelContainer = $Root/Panel
 @onready var _message_label: Label = %MessageLabel
 @onready var _yes_button: Button = %YesButton
 @onready var _no_button: Button = %NoButton
@@ -24,6 +27,10 @@ func _ready() -> void:
 	_no_button.set_meta("uat_action", ACTION_NO)
 	_yes_button.pressed.connect(confirm_yes)
 	_no_button.pressed.connect(confirm_no)
+	_panel.add_theme_stylebox_override(
+		"panel",
+		DungeonTheme.panel_style(DungeonTheme.COLOR_PANEL, DungeonTheme.COLOR_CYAN, 2, 24.0, 20.0)
+	)
 	_apply_button_styles(false)
 
 
