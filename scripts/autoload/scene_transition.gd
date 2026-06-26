@@ -1,6 +1,7 @@
 extends Node
 
 const LOBBY_SCENE := "res://scenes/lobby/lobby.tscn"
+const DAY_LOBBY_SCENE := "res://scenes/dev/day_corridor_movement_test.tscn"
 const SESSION_SCENE := "res://scenes/session/session_root.tscn"
 
 var last_requested_scene := ""
@@ -9,6 +10,11 @@ var last_requested_scene := ""
 func go_to_lobby() -> Error:
 	last_requested_scene = LOBBY_SCENE
 	return _change_scene(LOBBY_SCENE)
+
+
+func go_to_day_lobby() -> Error:
+	last_requested_scene = DAY_LOBBY_SCENE
+	return _change_scene(DAY_LOBBY_SCENE)
 
 
 func start_session(config: Dictionary = {}) -> Error:
@@ -20,6 +26,10 @@ func start_session(config: Dictionary = {}) -> Error:
 
 func get_lobby_scene_path() -> String:
 	return LOBBY_SCENE
+
+
+func get_day_lobby_scene_path() -> String:
+	return DAY_LOBBY_SCENE
 
 
 func get_session_scene_path() -> String:

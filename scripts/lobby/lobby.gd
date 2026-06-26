@@ -17,7 +17,7 @@ func _ready() -> void:
 
 
 func _on_start_pressed() -> void:
-	SceneTransition.start_session({"source": "lobby"})
+	SceneTransition.go_to_day_lobby()
 
 
 func _on_settings_pressed() -> void:
