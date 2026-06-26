@@ -60,6 +60,7 @@ func test_minimap_keeps_boss_unknown_until_explicit_reveal() -> void:
 	var frontier := _frontier_by_room_id(minimap.get_frontier_draw_entries())
 	_runner.assert_true(frontier.has(&"final_1"), "reachable hidden boss is still pinged")
 	_runner.assert_eq(frontier[&"final_1"]["from_room_id"], &"event_1", "boss ping points from the open exit")
+	_runner.assert_false(frontier[&"final_1"].has("arrow"), "boss ping does not expose arrow text")
 
 	minimap.set_reveal_hidden_rooms(true)
 	entries = _entries_by_room_id(minimap.get_room_draw_entries())
@@ -94,20 +95,29 @@ func test_minimap_uses_minimap_data_types_for_special_rooms() -> void:
 	_runner.assert_eq(entries[&"final_1"]["icon_path"], "", "hidden boss does not expose its boss icon")
 
 
-func test_minimap_frontier_ping_tracks_current_and_cleared_connections() -> void:
+func test_minimap_frontier_ping_waits_for_current_room_clear() -> void:
 	var minimap := Minimap.new()
 	var layout := _create_layout()
 	add_child(minimap)
 
-	minimap.set_layout(layout, &"start", {&"start": true})
+	minimap.set_layout(layout, &"start")
 
 	var frontier := _frontier_by_room_id(minimap.get_frontier_draw_entries())
+	_runner.assert_eq(frontier.size(), 0, "frontier stays hidden until the current room clears")
+
+	minimap.set_cleared_rooms({&"start": true})
+	frontier = _frontier_by_room_id(minimap.get_frontier_draw_entries())
 	_runner.assert_eq(frontier.size(), 1, "only the start exit is initially pinged")
 	_runner.assert_eq(frontier[&"combat_1"]["from_room_id"], &"start", "ping starts from current room")
 	_runner.assert_eq(frontier[&"combat_1"]["direction"], &"E", "ping keeps grid direction")
-	_runner.assert_eq(frontier[&"combat_1"]["arrow"], ">", "east ping uses arrow")
+	_runner.assert_false(frontier[&"combat_1"].has("arrow"), "frontier ping does not expose arrow text")
 
 	minimap.set_current_room(&"combat_1")
+	minimap.set_cleared_rooms({&"start": true})
+
+	frontier = _frontier_by_room_id(minimap.get_frontier_draw_entries())
+	_runner.assert_eq(frontier.size(), 0, "new current room does not ping exits before it clears")
+
 	minimap.set_cleared_rooms({&"start": true, &"combat_1": true})
 
 	frontier = _frontier_by_room_id(minimap.get_frontier_draw_entries())
@@ -122,6 +132,23 @@ func test_minimap_frontier_ping_tracks_current_and_cleared_connections() -> void
 	_runner.assert_eq(entries[&"treasure_1"]["minimap_type"], &"unknown", "frontier treasure hides its type")
 	_runner.assert_eq(entries[&"treasure_1"]["label"], "?", "frontier treasure uses unknown label")
 	_runner.assert_eq(entries[&"treasure_1"]["fill_color"], Minimap.UNKNOWN_ROOM_COLOR, "frontier uses fog palette")
+
+
+func test_minimap_frontier_ping_ignores_stale_cleared_room_connections() -> void:
+	var minimap := Minimap.new()
+	var layout := _create_layout()
+	add_child(minimap)
+
+	minimap.set_layout(layout, &"event_1", {
+		&"start": true,
+		&"combat_1": true,
+		&"event_1": true,
+	})
+
+	var frontier := _frontier_by_room_id(minimap.get_frontier_draw_entries())
+	_runner.assert_eq(frontier.size(), 0, "only exits reachable from the current room can ping")
+	_runner.assert_false(frontier.has(&"treasure_1"), "stale cleared room branches are not pinged")
+	_runner.assert_false(frontier.has(&"final_1"), "hidden boss does not ping before its reveal condition")
 
 
 func test_minimap_updates_from_event_bus_room_events() -> void:
