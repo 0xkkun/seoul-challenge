@@ -69,6 +69,12 @@ func complete_boss_encounter() -> bool:
 	return true
 
 
+func restore_cleared_state() -> void:
+	_spawn_requested = true
+	_boss_resolved = true
+	super.restore_cleared_state()
+
+
 func has_requested_spawn() -> bool:
 	return _spawn_requested
 

@@ -14,6 +14,7 @@ const MAX_ROOM_COUNT := 64
 @export var layout_id: StringName = &"layout"
 @export var start_room_id: StringName = TYPE_START
 @export var room_defs: Array[RoomDef] = []
+@export var required_clears_for_hidden_reveal := 0
 
 
 func get_room(room_id: StringName) -> RoomDef:
@@ -64,6 +65,8 @@ func is_room_visible(room_id: StringName, cleared_room_ids: Dictionary = {}) -> 
 
 
 func can_reveal_hidden_rooms(cleared_room_ids: Dictionary = {}) -> bool:
+	if required_clears_for_hidden_reveal > 0:
+		return _cleared_non_hidden_room_count(cleared_room_ids) >= required_clears_for_hidden_reveal
 	for room_def: RoomDef in room_defs:
 		if room_def == null or room_def.hidden:
 			continue
@@ -181,3 +184,13 @@ func _can_enter_room(room_id: StringName, cleared_room_ids: Dictionary) -> bool:
 
 func _has_cleared_room(cleared_room_ids: Dictionary, room_id: StringName) -> bool:
 	return bool(cleared_room_ids.get(room_id, false))
+
+
+func _cleared_non_hidden_room_count(cleared_room_ids: Dictionary) -> int:
+	var count := 0
+	for room_def: RoomDef in room_defs:
+		if room_def == null or room_def.hidden:
+			continue
+		if _has_cleared_room(cleared_room_ids, room_def.room_id):
+			count += 1
+	return count

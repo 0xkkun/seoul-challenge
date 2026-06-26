@@ -111,6 +111,32 @@ func test_room_manager_uses_door_direction_for_transition_target() -> void:
 	_runner.assert_eq(manager.current_room_id, &"start", "west door returns to connected start room")
 
 
+func test_room_manager_restores_cleared_room_state_on_revisit() -> void:
+	var generator := RoomLayoutGenerator.new()
+	generator.start_scene_path = "res://scenes/interactables/start_room.tscn"
+	generator.combat_scene_path = "res://scenes/interactables/combat_room.tscn"
+	generator.event_scene_path = "res://scenes/interactables/rescue_room.tscn"
+	generator.final_scene_path = "res://scenes/interactables/boss_room.tscn"
+	var layout := generator.generate(40, {"room_count": 15})
+	var container := Node2D.new()
+	var actor := (load("res://scenes/actors/sample_actor.tscn") as PackedScene).instantiate() as Node2D
+	var manager := RoomManager.new()
+	add_child(container)
+	add_child(actor)
+	add_child(manager)
+	manager.configure(layout, container, actor)
+
+	_runner.assert_true(manager.start_layout(), "manager starts generated layout")
+	var first_combat_id := _first_connected_combat_room_id(layout, layout.start_room_id)
+	_runner.assert_true(manager.request_next_room(first_combat_id), "manager enters first combat branch")
+	_resolve_current_room(manager, actor)
+	_runner.assert_true(manager.has_cleared_room(first_combat_id), "first combat clears")
+	_runner.assert_true(manager.request_next_room(layout.start_room_id), "manager returns to start")
+	_runner.assert_true(manager.request_next_room(first_combat_id), "manager revisits cleared combat")
+	_runner.assert_true(manager.current_room.has_been_cleared(), "revisited room restores local cleared state")
+	_runner.assert_eq(manager.current_room.call("get_remaining_enemy_count"), 0, "revisited combat does not respawn enemies")
+
+
 func test_session_root_mounts_room_manager() -> void:
 	var packed := load("res://scenes/session/session_root.tscn") as PackedScene
 	var entered_payloads: Array[Dictionary] = []
@@ -125,11 +151,18 @@ func test_session_root_mounts_room_manager() -> void:
 	var manager := session.get_node("%RoomManager") as RoomManager
 	var room_layer := session.get_node("%RoomLayer")
 	_runner.assert_not_null(manager, "session root owns room manager")
-	_runner.assert_eq(manager.current_room_id, &"start", "session starts fixed layout")
+	_runner.assert_eq(manager.current_room_id, &"start", "session starts run layout")
+	_runner.assert_eq(manager.layout.room_defs.size(), 15, "session uses the branching run map room count")
+	_runner.assert_true(manager.layout.required_clears_for_hidden_reveal > 0, "session run map uses explicit boss reveal threshold")
+	_runner.assert_true(_junction_count(manager.layout) >= 2, "session run map has multiple branching junctions")
+	_runner.assert_true(
+		_undirected_edge_count(manager.layout) >= manager.layout.room_defs.size(),
+		"session run map includes an alternate route beyond a pure tree"
+	)
 	_runner.assert_eq(manager.current_room.get_parent(), room_layer, "room manager mounts rooms under room layer")
-	_runner.assert_true(manager.has_cleared_room(&"start"), "placeholder start room clears")
+	_runner.assert_true(manager.has_cleared_room(&"start"), "start room clears")
 	_runner.assert_true(session.advance_room(), "session can advance through room manager")
-	_runner.assert_eq(manager.current_room_id, &"combat_1", "session advances to first combat room")
+	_runner.assert_eq(manager.current_room_def.room_type, RoomLayout.TYPE_COMBAT, "session advances to first combat room")
 	_runner.assert_true(manager.current_room.has_method("get_remaining_enemy_count"), "session mounts combat room implementation")
 	_runner.assert_not_null(session.get_node_or_null("%CombatHud"), "session mounts combat HUD")
 	_runner.assert_not_null(session.get_node_or_null("%TouchControls"), "session mounts touch controls")
@@ -138,6 +171,28 @@ func test_session_root_mounts_room_manager() -> void:
 	_runner.assert_eq(entered_payloads.size(), 2, "room enter events fire for mounted rooms")
 
 	EventBus.room_entered.disconnect(on_room_entered)
+
+
+func test_session_root_finish_requires_final_room_clear_on_branching_map() -> void:
+	var packed := load("res://scenes/session/session_root.tscn") as PackedScene
+	var session := packed.instantiate()
+	add_child(session)
+
+	var manager := session.get_node("%RoomManager") as RoomManager
+	var actor := session.get_node("%Player") as Node2D
+	var branch_tip := _non_final_leaf_room(manager.layout)
+	_runner.assert_not_null(branch_tip, "generated layout has a non-final branch tip")
+	if branch_tip == null:
+		return
+	var path := _path_between(manager.layout, manager.current_room_id, branch_tip.room_id)
+	_runner.assert_true(path.size() > 1, "branch tip is reachable from current room")
+	for index: int in range(1, path.size()):
+		_resolve_current_room(manager, actor)
+		_runner.assert_true(manager.request_next_room(path[index]), "manager walks to %s" % path[index])
+	_resolve_current_room(manager, actor)
+
+	var result: Dictionary = session.finish_session()
+	_runner.assert_false(result["completed"], "cleared non-final branch tip does not complete the run")
 
 
 func _resolve_current_room(manager: RoomManager, actor: Node2D) -> void:
@@ -179,3 +234,71 @@ func _assert_grid_connections_are_adjacent(layout: RoomLayout) -> void:
 				1,
 				"%s connects to grid-adjacent %s" % [room_def.room_id, connected_room_id]
 			)
+
+
+func _junction_count(layout: RoomLayout) -> int:
+	var count := 0
+	for room_def: RoomDef in layout.room_defs:
+		if room_def.connections.size() >= 3:
+			count += 1
+	return count
+
+
+func _undirected_edge_count(layout: RoomLayout) -> int:
+	var seen := {}
+	var count := 0
+	for room_def: RoomDef in layout.room_defs:
+		for connected_room_id: StringName in room_def.connections:
+			var left := String(room_def.room_id)
+			var right := String(connected_room_id)
+			var edge_key := "%s|%s" % [left, right] if left < right else "%s|%s" % [right, left]
+			if seen.has(edge_key):
+				continue
+			seen[edge_key] = true
+			count += 1
+	return count
+
+
+func _first_connected_combat_room_id(layout: RoomLayout, room_id: StringName) -> StringName:
+	var room := layout.get_room(room_id)
+	if room == null:
+		return &""
+	for connected_id: StringName in room.connections:
+		var connected := layout.get_room(connected_id)
+		if connected != null and connected.room_type == RoomLayout.TYPE_COMBAT:
+			return connected_id
+	return &""
+
+
+func _non_final_leaf_room(layout: RoomLayout) -> RoomDef:
+	for room_def: RoomDef in layout.room_defs:
+		if room_def.room_type != RoomLayout.TYPE_FINAL and room_def.room_id != layout.start_room_id and room_def.connections.size() == 1:
+			return room_def
+	return null
+
+
+func _path_between(layout: RoomLayout, start_room_id: StringName, target_room_id: StringName) -> Array[StringName]:
+	var queue: Array[StringName] = [start_room_id]
+	var parent := {start_room_id: &""}
+	var cursor := 0
+
+	while cursor < queue.size():
+		var current_room_id := queue[cursor]
+		cursor += 1
+		if current_room_id == target_room_id:
+			break
+		var current_room := layout.get_room(current_room_id)
+		if current_room == null:
+			continue
+		for connected_room_id: StringName in current_room.connections:
+			if parent.has(connected_room_id):
+				continue
+			parent[connected_room_id] = current_room_id
+			queue.append(connected_room_id)
+
+	var path: Array[StringName] = []
+	var current := target_room_id
+	while current != &"":
+		path.push_front(current)
+		current = parent.get(current, &"")
+	return path

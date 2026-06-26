@@ -18,7 +18,7 @@ func test_same_seed_generates_identical_layout() -> void:
 	var second := generator.generate(734)
 
 	_runner.assert_eq(_layout_signature(first), _layout_signature(second), "same seed is deterministic")
-	_assert_layout_invariants(first, 5)
+	_assert_layout_invariants(first, 15)
 
 
 func test_generated_layout_consumes_room_manager_to_final_room() -> void:
@@ -59,6 +59,45 @@ func test_fifteen_room_layout_preserves_generation_contracts() -> void:
 	_assert_layout_invariants(layout, 15)
 
 
+func test_fifteen_room_layout_has_branching_boss_route() -> void:
+	var generator := RoomLayoutGenerator.new()
+	var layout := generator.generate(40, {"room_count": 15})
+	var final_room := _final_room(layout)
+	_runner.assert_not_null(final_room, "generated layout has a final room")
+	if final_room == null:
+		return
+
+	_runner.assert_true(
+		_shortest_path_length(layout, layout.start_room_id, final_room.room_id) >= 6,
+		"boss route is long enough to avoid a trivial beeline"
+	)
+	_runner.assert_true(_junction_count(layout) >= 2, "layout has at least two branching junctions")
+	_runner.assert_true(
+		_undirected_edge_count(layout) >= layout.room_defs.size(),
+		"layout has an alternate route beyond a pure tree"
+	)
+
+
+func test_generated_layout_reveals_boss_before_full_clear() -> void:
+	var generator := RoomLayoutGenerator.new()
+	var layout := generator.generate(40, {"room_count": 15})
+	var final_room := _final_room(layout)
+	_runner.assert_not_null(final_room, "generated layout has a final room")
+	if final_room == null:
+		return
+	var non_final_count := layout.room_defs.size() - 1
+	var reveal_value: Variant = layout.get("required_clears_for_hidden_reveal")
+	var required_clears := 0
+	if reveal_value is int:
+		required_clears = reveal_value
+	var cleared := _cleared_non_final_rooms(layout, required_clears)
+
+	_runner.assert_true(required_clears > 0, "generated layout sets an explicit boss reveal threshold")
+	_runner.assert_true(required_clears < non_final_count, "boss reveal does not require every non-final room")
+	_runner.assert_false(layout.is_room_visible(final_room.room_id), "boss stays hidden at run start")
+	_runner.assert_true(layout.is_room_visible(final_room.room_id, cleared), "boss reveals after threshold clears")
+
+
 func test_sixty_four_room_layout_preserves_requested_count() -> void:
 	var generator := RoomLayoutGenerator.new()
 	var layout := generator.generate(40, {"room_count": 64})
@@ -70,7 +109,7 @@ func test_two_hundred_seed_fuzz_preserves_layout_invariants() -> void:
 	var generator := RoomLayoutGenerator.new()
 	for layout_seed: int in range(200):
 		var layout := generator.generate(layout_seed)
-		_assert_layout_invariants(layout, 5)
+		_assert_layout_invariants(layout, 15)
 
 
 func test_fifty_seed_fuzz_preserves_fifteen_room_layout_invariants() -> void:
@@ -272,3 +311,44 @@ func _final_room(layout: RoomLayout) -> RoomDef:
 		if room_def.room_type == RoomLayout.TYPE_FINAL:
 			return room_def
 	return null
+
+
+func _shortest_path_length(layout: RoomLayout, start_room_id: StringName, target_room_id: StringName) -> int:
+	var path := _path_between(layout, start_room_id, target_room_id)
+	if path.is_empty():
+		return -1
+	return path.size() - 1
+
+
+func _junction_count(layout: RoomLayout) -> int:
+	var count := 0
+	for room_def: RoomDef in layout.room_defs:
+		if room_def.connections.size() >= 3:
+			count += 1
+	return count
+
+
+func _undirected_edge_count(layout: RoomLayout) -> int:
+	var seen := {}
+	var count := 0
+	for room_def: RoomDef in layout.room_defs:
+		for connected_room_id: StringName in room_def.connections:
+			var left := String(room_def.room_id)
+			var right := String(connected_room_id)
+			var edge_key := "%s|%s" % [left, right] if left < right else "%s|%s" % [right, left]
+			if seen.has(edge_key):
+				continue
+			seen[edge_key] = true
+			count += 1
+	return count
+
+
+func _cleared_non_final_rooms(layout: RoomLayout, clear_count: int) -> Dictionary:
+	var cleared := {}
+	for room_def: RoomDef in layout.room_defs:
+		if cleared.size() >= clear_count:
+			break
+		if room_def.room_type == RoomLayout.TYPE_FINAL:
+			continue
+		cleared[room_def.room_id] = true
+	return cleared

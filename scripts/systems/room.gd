@@ -75,6 +75,11 @@ func mark_cleared() -> void:
 		EventBus.emit_room_cleared(_build_payload())
 
 
+func restore_cleared_state() -> void:
+	_cleared = true
+	_apply_door_state()
+
+
 func has_entered() -> bool:
 	return _entered
 

@@ -2,9 +2,15 @@ extends Node2D
 
 const RenderLayers = preload("res://scripts/constants/render_layers.gd")
 const POOLED_MARKER_SCENE = preload("res://scenes/interactables/sample_pooled_marker.tscn")
-const GYEONGBOKGUNG_LAYOUT = preload("res://resources/layouts/gyeongbokgung.tres")
 const BOSS_SCENE = preload("res://scenes/enemies/boss.tscn")
 const RoomPalette = preload("res://scripts/constants/room_palette.gd")
+
+const RUN_LAYOUT_SEED := 40
+const RUN_LAYOUT_ROOM_COUNT := 15
+const START_ROOM_SCENE_PATH := "res://scenes/interactables/start_room.tscn"
+const COMBAT_ROOM_SCENE_PATH := "res://scenes/interactables/combat_room.tscn"
+const EVENT_ROOM_SCENE_PATH := "res://scenes/interactables/rescue_room.tscn"
+const FINAL_ROOM_SCENE_PATH := "res://scenes/interactables/boss_room.tscn"
 
 @onready var world_layer: Node2D = $WorldLayer
 @onready var room_layer: Node2D = %RoomLayer
@@ -36,7 +42,7 @@ func _ready() -> void:
 	interaction_system.configure(actor, interactable_layer)
 	_configure_player_camera()
 	room_manager.room_changed.connect(_on_room_changed)
-	room_manager.configure(GYEONGBOKGUNG_LAYOUT, room_layer, actor)
+	room_manager.configure(_build_run_layout(), room_layer, actor)
 	room_manager.start_layout()
 	_minimap.configure_from_manager(room_manager)
 	sample_interactable.interaction_triggered.connect(_on_interaction_triggered)
@@ -75,6 +81,15 @@ func spawn_sample_marker() -> Node:
 
 func advance_room(preferred_room_id: StringName = &"") -> bool:
 	return room_manager.request_next_room(preferred_room_id)
+
+
+func _build_run_layout() -> RoomLayout:
+	var generator := RoomLayoutGenerator.new()
+	generator.start_scene_path = START_ROOM_SCENE_PATH
+	generator.combat_scene_path = COMBAT_ROOM_SCENE_PATH
+	generator.event_scene_path = EVENT_ROOM_SCENE_PATH
+	generator.final_scene_path = FINAL_ROOM_SCENE_PATH
+	return generator.generate(RUN_LAYOUT_SEED, {"room_count": RUN_LAYOUT_ROOM_COUNT})
 
 
 func finish_session() -> Dictionary:
@@ -195,9 +210,17 @@ func _on_boss_defeated(_boss: Node, room: Node) -> void:
 func _is_layout_complete() -> bool:
 	if room_manager.layout == null or room_manager.current_room_id == &"":
 		return false
-	if not room_manager.is_current_room_cleared():
+	var final_room_id := _final_room_id()
+	if final_room_id == &"":
 		return false
-	return room_manager.layout.get_next_room_id(room_manager.current_room_id, room_manager.cleared_room_ids) == &""
+	return room_manager.has_cleared_room(final_room_id)
+
+
+func _final_room_id() -> StringName:
+	for room_def: RoomDef in room_manager.layout.room_defs:
+		if room_def != null and room_def.room_type == RoomLayout.TYPE_FINAL:
+			return room_def.room_id
+	return &""
 
 
 func _input(event: InputEvent) -> void:
