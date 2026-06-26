@@ -20,6 +20,9 @@ func test_gyeongbokgung_layout_validates_fixed_route() -> void:
 	_runner.assert_eq(errors.size(), 0, "layout passes its own rules")
 	_runner.assert_eq(layout.get_room_ids(), [&"start", &"combat_1", &"combat_2", &"event_1", &"final_1"])
 	_runner.assert_eq(layout.get_connected_room_ids(&"start"), [&"combat_1"])
+	_runner.assert_eq(layout.get_room(&"start").grid_pos, Vector2i.ZERO, "authored start grid position is normalized")
+	_runner.assert_eq(layout.get_room(&"final_1").grid_pos, Vector2i(4, 0), "authored final grid position is stable")
+	_assert_grid_connections_are_adjacent(layout)
 
 	var cleared := {}
 	var initially_visible := layout.get_visible_room_defs(cleared)
@@ -89,3 +92,24 @@ func test_session_root_mounts_room_manager() -> void:
 	_runner.assert_eq(entered_payloads.size(), 2, "room enter events fire for mounted rooms")
 
 	EventBus.room_entered.disconnect(on_room_entered)
+
+
+func _assert_grid_connections_are_adjacent(layout: RoomLayout) -> void:
+	var occupied := {}
+	for room_def: RoomDef in layout.room_defs:
+		_runner.assert_false(occupied.has(room_def.grid_pos), "%s grid position is unique" % room_def.room_id)
+		occupied[room_def.grid_pos] = room_def.room_id
+		for connected_room_id: StringName in room_def.connections:
+			var connected_room := layout.get_room(connected_room_id)
+			_runner.assert_not_null(connected_room, "connection target exists")
+			if connected_room == null:
+				continue
+			var grid_distance := (
+				absi(room_def.grid_pos.x - connected_room.grid_pos.x)
+				+ absi(room_def.grid_pos.y - connected_room.grid_pos.y)
+			)
+			_runner.assert_eq(
+				grid_distance,
+				1,
+				"%s connects to grid-adjacent %s" % [room_def.room_id, connected_room_id]
+			)

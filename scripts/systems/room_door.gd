@@ -23,6 +23,7 @@ var _trigger_area: Area2D
 var _visual: CanvasItem
 var _collision_shape: CollisionShape2D
 var _actor: Node2D
+var _ping_marker: Label
 var _was_actor_overlapping := false
 
 
@@ -31,6 +32,7 @@ func _ready() -> void:
 	_visual = _resolve_visual()
 	_collision_shape = _resolve_collision_shape()
 	_actor = _resolve_actor()
+	_ping_marker = _resolve_ping_marker()
 	if position == Vector2.ZERO:
 		position = RoomPalette.get_door_position(door_dir)
 	if _trigger_area != null and not _trigger_area.body_entered.is_connected(_on_body_entered):
@@ -38,8 +40,10 @@ func _ready() -> void:
 	if _trigger_area != null and not _trigger_area.area_entered.is_connected(_on_area_entered):
 		_trigger_area.area_entered.connect(_on_area_entered)
 	_apply_visual_layout()
+	_apply_ping_marker_layout()
 	_apply_collision_shape()
 	_apply_state()
+	set_process(_ping_marker != null)
 	set_physics_process(_actor != null)
 
 
@@ -105,6 +109,14 @@ func _physics_process(_delta: float) -> void:
 	check_transition_for_actor(_actor)
 
 
+func _process(_delta: float) -> void:
+	if _ping_marker == null or not _ping_marker.visible:
+		return
+	var marker_color := RoomPalette.MINIMAP_PING_COLOR
+	marker_color.a = 0.62 + sin(float(Time.get_ticks_msec()) / 160.0) * 0.22
+	_ping_marker.modulate = marker_color
+
+
 func _apply_state() -> void:
 	if _trigger_area != null:
 		_trigger_area.monitoring = is_open()
@@ -114,6 +126,8 @@ func _apply_state() -> void:
 			(_visual as ColorRect).color = RoomPalette.DOOR_OPEN_COLOR if is_open() else RoomPalette.DOOR_LOCKED_COLOR
 		else:
 			_visual.modulate = RoomPalette.DOOR_OPEN_COLOR if is_open() else RoomPalette.DOOR_LOCKED_COLOR
+	if _ping_marker != null:
+		_ping_marker.visible = is_open()
 
 
 func _apply_visual_layout() -> void:
@@ -122,6 +136,19 @@ func _apply_visual_layout() -> void:
 	var visual_rect := _visual as ColorRect
 	visual_rect.size = RoomPalette.DOOR_SIZE
 	visual_rect.position = -RoomPalette.DOOR_SIZE * 0.5
+
+
+func _apply_ping_marker_layout() -> void:
+	if _ping_marker == null:
+		return
+	_ping_marker.text = _ping_arrow_for_door_dir(door_dir)
+	_ping_marker.custom_minimum_size = Vector2(20.0, 20.0)
+	_ping_marker.size = Vector2(20.0, 20.0)
+	_ping_marker.position = _ping_marker_position_for_door_dir(door_dir)
+	_ping_marker.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_ping_marker.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_ping_marker.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_ping_marker.z_index = 20
 
 
 func _apply_collision_shape() -> void:
@@ -152,6 +179,16 @@ func _resolve_collision_shape() -> CollisionShape2D:
 	return find_child("CollisionShape2D", true, false) as CollisionShape2D
 
 
+func _resolve_ping_marker() -> Label:
+	var marker := find_child("PingMarker", false, false) as Label
+	if marker != null:
+		return marker
+	marker = Label.new()
+	marker.name = "PingMarker"
+	add_child(marker)
+	return marker
+
+
 func _resolve_actor() -> Node2D:
 	if not actor_path.is_empty():
 		return get_node_or_null(actor_path) as Node2D
@@ -167,6 +204,32 @@ func _contains_global_point(global_point: Vector2) -> bool:
 	var local_point := _collision_shape.to_local(global_point)
 	var half_size := rectangle.size * 0.5
 	return absf(local_point.x) <= half_size.x and absf(local_point.y) <= half_size.y
+
+
+func _ping_arrow_for_door_dir(next_door_dir: StringName) -> String:
+	match next_door_dir:
+		&"N":
+			return "^"
+		&"S":
+			return "v"
+		&"E":
+			return ">"
+		&"W":
+			return "<"
+	return "."
+
+
+func _ping_marker_position_for_door_dir(next_door_dir: StringName) -> Vector2:
+	match next_door_dir:
+		&"N":
+			return Vector2(-10.0, -38.0)
+		&"S":
+			return Vector2(-10.0, 18.0)
+		&"E":
+			return Vector2(22.0, -10.0)
+		&"W":
+			return Vector2(-42.0, -10.0)
+	return Vector2(-10.0, -10.0)
 
 
 func _on_body_entered(_body: Node2D) -> void:
