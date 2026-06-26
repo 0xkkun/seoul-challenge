@@ -7,6 +7,14 @@ func _set_runner(runner: Node) -> void:
 	_runner = runner
 
 
+func before_each() -> void:
+	AudioManager.reset()
+
+
+func after_each() -> void:
+	AudioManager.reset()
+
+
 func test_lobby_title_scene_uses_title_assets_and_menu_contract() -> void:
 	var packed := load("res://scenes/lobby/lobby.tscn") as PackedScene
 	var lobby := packed.instantiate()
@@ -27,6 +35,11 @@ func test_lobby_title_scene_uses_title_assets_and_menu_contract() -> void:
 	_runner.assert_eq(settings_button.text, "설정", "settings button is localized")
 	_runner.assert_eq(start_button.focus_mode, Control.FOCUS_NONE, "mobile lobby start button does not render focus chrome")
 	_runner.assert_eq(settings_button.focus_mode, Control.FOCUS_NONE, "mobile lobby settings button does not render focus chrome")
+	_runner.assert_eq(AudioManager.get_current_bgm(), AudioManager.LOBBY_BGM_DEFAULT, "lobby starts the default BGM")
+	_runner.assert_eq(AudioManager.get_current_bgm_path(), "res://assets/audio/bgm/lobby_bgm_default.wav", "lobby default BGM path is stable")
+	_runner.assert_true(AudioManager.has_bgm(AudioManager.LOBBY_BGM_ALTERNATE), "alternate lobby BGM is registered")
+	_runner.assert_true(ResourceLoader.exists(AudioManager.get_bgm_stream_path(AudioManager.LOBBY_BGM_DEFAULT)), "default lobby BGM resource exists")
+	_runner.assert_true(ResourceLoader.exists(AudioManager.get_bgm_stream_path(AudioManager.LOBBY_BGM_ALTERNATE)), "alternate lobby BGM resource exists")
 	_assert_lobby_button_style(start_button, "start")
 	_assert_lobby_button_style(settings_button, "settings")
 	_assert_lobby_button_texture(settings_button.get_theme_stylebox("disabled"), "res://assets/ui/buttons/lobby/lobby_button_normal.png", "settings disabled button keeps lobby button texture")
