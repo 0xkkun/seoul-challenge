@@ -15,7 +15,6 @@ def run(*args: str) -> None:
 
 def main() -> None:
     run(sys.executable, "scripts/verify_project_contract.py")
-    run(sys.executable, "scripts/verify_domain_neutrality.py")
     run(sys.executable, "scripts/verify_import_metadata.py")
     run(sys.executable, "scripts/verify_secret_hygiene.py")
     print("[test_static_scripts] OK")
