@@ -58,6 +58,9 @@ func step_position(pos: Vector2, direction: Vector2, spd: float, delta: float) -
 
 
 func _on_hit(other: Node) -> void:
+	# deflect 후엔 적을 타격하는데, 마지막 적 처치가 body_entered(물리 플러시) 중
+	# CombatRoom 클리어 → 문 monitoring/collision 변경을 유발할 수 있다(신호 중 차단 위험).
+	# purify_bullet 과 동일하게 피해 적용을 deferred 로 미뤄 idle 에서 일어나게 한다.
 	if other != null and other.has_method("take_damage"):
-		other.call("take_damage", damage)
+		other.call_deferred("take_damage", damage)
 	queue_free()
