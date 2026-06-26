@@ -1,4 +1,4 @@
-[gd_scene load_steps=7 format=3]
+[gd_scene load_steps=8 format=3]
 
 [ext_resource type="Script" path="res://scripts/dev/day_corridor_movement_test.gd" id="1_demo"]
 [ext_resource type="Texture2D" path="res://assets/backgrounds/corridor/day/corridor_day_01.png" id="2_bg1"]
@@ -6,6 +6,7 @@
 [ext_resource type="PackedScene" path="res://scenes/player/player.tscn" id="4_player"]
 [ext_resource type="PackedScene" path="res://scenes/ui/touch_controls.tscn" id="5_touch"]
 [ext_resource type="Script" path="res://scripts/dev/day_corridor_touch_proxy.gd" id="6_proxy"]
+[ext_resource type="Texture2D" path="res://assets/characters/student/student_walk_sheet.png" id="7_student"]
 
 [node name="DayCorridorMovementTest" type="Node2D"]
 script = ExtResource("1_demo")
@@ -39,6 +40,13 @@ unique_name_in_owner = true
 position = Vector2(240, 514)
 z_index = 10
 touch_controls_path = NodePath("../MoveOnlyTouchProxy")
+
+[node name="CharacterSprite" type="Sprite2D" parent="Player"]
+unique_name_in_owner = true
+position = Vector2(0, -64)
+texture = ExtResource("7_student")
+hframes = 4
+vframes = 2
 
 [node name="MoveOnlyTouchProxy" type="Node" parent="."]
 unique_name_in_owner = true

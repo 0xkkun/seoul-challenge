@@ -27,8 +27,10 @@ var _was_dialogue_pressed := false
 
 func _ready() -> void:
 	_disable_combat_output()
+	_hide_player_placeholder()
 	_dialogue_state.visible = false
 	_interaction_prompt.visible = false
+	_fit_camera_to_corridor_height()
 	_clamp_player_to_corridor()
 	_sync_camera()
 
@@ -50,6 +52,13 @@ func get_corridor_bounds() -> Rect2:
 
 func get_floor_y() -> float:
 	return floor_y
+
+
+func get_reference_visible_world_size() -> Vector2:
+	return Vector2(
+		REFERENCE_VIEWPORT_SIZE.x / _camera.zoom.x,
+		REFERENCE_VIEWPORT_SIZE.y / _camera.zoom.y
+	)
 
 
 func get_dialogue_count() -> int:
@@ -91,6 +100,19 @@ func _disable_combat_output() -> void:
 		launcher.queue_free()
 
 
+func _hide_player_placeholder() -> void:
+	var placeholder := _player.get_node_or_null("Placeholder")
+	if placeholder != null:
+		placeholder.visible = false
+
+
+func _fit_camera_to_corridor_height() -> void:
+	if corridor_size.y <= 0.0:
+		return
+	var zoom := REFERENCE_VIEWPORT_SIZE.y / corridor_size.y
+	_camera.zoom = Vector2(zoom, zoom)
+
+
 func _clamp_player_to_corridor() -> void:
 	var previous_x := _player.global_position.x
 	_player.global_position = Vector2(
@@ -103,11 +125,27 @@ func _clamp_player_to_corridor() -> void:
 
 
 func _sync_camera() -> void:
-	var half_view := REFERENCE_VIEWPORT_SIZE * 0.5
+	var half_view := _get_visible_world_size() * 0.5
 	_camera.global_position = Vector2(
-		clampf(_player.global_position.x, half_view.x, corridor_size.x - half_view.x),
-		clampf(corridor_size.y * 0.5, half_view.y, corridor_size.y - half_view.y)
+		_center_or_clamp(_player.global_position.x, half_view.x, corridor_size.x),
+		_center_or_clamp(corridor_size.y * 0.5, half_view.y, corridor_size.y)
 	)
+
+
+func _get_visible_world_size() -> Vector2:
+	var viewport_size := get_viewport_rect().size
+	if viewport_size.x <= 0.0 or viewport_size.y <= 0.0:
+		viewport_size = REFERENCE_VIEWPORT_SIZE
+	return Vector2(
+		viewport_size.x / _camera.zoom.x,
+		viewport_size.y / _camera.zoom.y
+	)
+
+
+func _center_or_clamp(value: float, half_view: float, world_size: float) -> float:
+	if world_size <= half_view * 2.0:
+		return world_size * 0.5
+	return clampf(value, half_view, world_size - half_view)
 
 
 func _update_interaction_prompt() -> void:

@@ -26,7 +26,9 @@ func test_day_corridor_scene_uses_mobile_landscape_plate() -> void:
 	_runner.assert_eq(bounds.size, Vector2(4352.0, 720.0), "two corridor plates form the side-view hallway")
 	_runner.assert_true(bounds.size.x > viewport_size.x * 4.0, "hallway is wider than one landscape screen")
 	_runner.assert_eq(scene.get_floor_y(), 514.0, "player is pinned to the corridor floor line")
+	_runner.assert_true(is_equal_approx(scene.get_reference_visible_world_size().y, bounds.size.y), "camera shows the full corridor plate height")
 	_runner.assert_not_null(scene.get_node("%Player"), "placeholder player is mounted")
+	_runner.assert_not_null(scene.get_node("%CharacterSprite"), "student character sprite is mounted")
 	_runner.assert_not_null(scene.get_node("%TouchControls"), "touch controls are mounted")
 
 
