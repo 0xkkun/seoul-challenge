@@ -23,7 +23,7 @@ them.
 
 ## Workflow
 
-1. Pick one GitHub issue and create a branch for that issue.
+1. For that issue, create a git worktree — never `checkout -b` in the main checkout. See `## Worktree` below.
 2. Keep the PR focused on one verifiable contract.
 3. Use the PR title format in `docs/pr-hygiene.md`, such as `[UI] Add session controls`.
 4. Set assignee, milestone, priority label, and at least one `area:*` label before review.
@@ -31,6 +31,26 @@ them.
 6. Fall back to CLI checks when MCP is unavailable.
 7. Run `bash scripts/verify_quick.sh` before opening or updating a PR.
 8. Run `bash scripts/verify_full.sh` before merging broad changes.
+
+## Worktree
+
+Multiple agent sessions share this repository, so every code task MUST run in
+its own git worktree. Working directly in the main checkout (`checkout -b`,
+editing files, committing there) clobbers other sessions and is not allowed.
+
+1. Create a worktree per issue, branched from `origin/main`:
+   ```sh
+   git fetch origin main
+   git worktree add ../seoul-challenge-<issue> -b <branch> origin/main
+   ```
+2. Edit, run, verify, and commit ONLY inside that worktree directory.
+3. Deliver results as branch commits / a PR — never copy files into the main checkout.
+4. Never `checkout` another session's branch in the main checkout.
+5. Branch and worktree deletion is the human's job — do not run `branch -D` or
+   `git worktree remove` yourself.
+
+Allowed in the main checkout without a worktree: read-only inspection
+(`git log`, reading files), shared-config edits, and merges the user requested.
 
 ## Godot MCP Checks
 
