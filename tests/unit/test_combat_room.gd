@@ -77,6 +77,31 @@ func test_combat_room_emits_ingame_rewards_for_enemy_defeats_and_clear() -> void
 	_runner.assert_eq(CurrencySystem.get_ingame(), 6, "three enemy defeats plus combat clear reward ingame currency")
 
 
+func test_combat_room_ignores_duplicate_defeat_reward_for_same_enemy() -> void:
+	var room := _instantiate_combat_room()
+	if room == null:
+		return
+	room.chaser_count = 1
+	room.ranged_count = 0
+	add_child(room)
+
+	room.enter()
+	var enemies: Array = room.call("get_active_enemies")
+	_runner.assert_eq(enemies.size(), 1, "test room starts with one tracked enemy")
+	if enemies.is_empty():
+		return
+	var enemy := enemies[0] as Node
+	_runner.assert_not_null(enemy, "test enemy exists")
+	if enemy == null:
+		return
+
+	enemy.emit_signal("defeated", enemy)
+	enemy.emit_signal("defeated", enemy)
+
+	_runner.assert_true(room.call("is_cleared"), "first defeat clears the one-enemy combat")
+	_runner.assert_eq(CurrencySystem.get_ingame(), 4, "duplicate defeat signal does not pay a second enemy reward")
+
+
 func test_combat_room_applies_room_config_and_elite_variants() -> void:
 	var room := _instantiate_combat_room()
 	if room == null:

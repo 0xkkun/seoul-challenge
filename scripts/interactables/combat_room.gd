@@ -174,6 +174,8 @@ func _connect_enemy(enemy: Node) -> void:
 
 
 func _on_enemy_defeated(enemy: Node) -> void:
+	if not _active_enemies.has(enemy):
+		return
 	_active_enemies.erase(enemy)
 	_emit_ingame_reward(enemy_defeat_ingame_reward, "enemy_defeated")
 	var remaining := get_remaining_enemy_count()
