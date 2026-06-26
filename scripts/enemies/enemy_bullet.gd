@@ -11,6 +11,7 @@ var _life: float = 0.0
 
 
 func _ready() -> void:
+	add_to_group(&"enemy_projectile")  ## 배트가 부채꼴 안에서 지울 수 있게(#24)
 	body_entered.connect(_on_hit)
 	area_entered.connect(_on_hit)
 
