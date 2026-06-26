@@ -9,6 +9,9 @@ signal student_rescued(payload: Dictionary)
 signal friend_purified(payload: Dictionary)
 signal currency_changed(payload: Dictionary)
 signal settings_changed(settings: Dictionary)
+## #19 밤 전투 계약: 플레이어 체력 변화 — payload {"current": int, "max": int}.
+## 전투 트랙은 emit_player_health_changed() 로 발신, HUD(#13) 등은 구독만 한다.
+signal player_health_changed(payload: Dictionary)
 
 
 func emit_session_started(config: Dictionary) -> void:
@@ -45,3 +48,7 @@ func emit_currency_changed(payload: Dictionary) -> void:
 
 func emit_settings_changed(settings: Dictionary) -> void:
 	settings_changed.emit(settings.duplicate(true))
+
+
+func emit_player_health_changed(payload: Dictionary) -> void:
+	player_health_changed.emit(payload.duplicate(true))
