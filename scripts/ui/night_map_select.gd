@@ -4,6 +4,8 @@ extends Control
 signal return_requested
 signal stage_selected(stage_id: StringName)
 
+const DungeonTheme := preload("res://scripts/ui/dungeon_ui_theme.gd")
+
 const STAGE_GYEONGBOKGUNG := &"gyeongbokgung"
 const ACTION_RETURN := "night_map_select.return"
 const ACTION_SELECT_GYEONGBOKGUNG := "night_map_select.gyeongbokgung"
@@ -13,6 +15,7 @@ const ACTION_SELECT_GYEONGBOKGUNG := "night_map_select.gyeongbokgung"
 var _selected_stage_id := STAGE_GYEONGBOKGUNG
 var _is_departure_requested := false
 var _depart_button: Button
+var _route_label: Label
 
 
 func _ready() -> void:
@@ -42,62 +45,80 @@ func _build_ui() -> void:
 	var background := ColorRect.new()
 	background.name = "Background"
 	background.set_anchors_preset(Control.PRESET_FULL_RECT)
-	background.color = Color(0.027451, 0.035294, 0.047059, 1.0)
+	background.color = DungeonTheme.COLOR_BACKDROP
 	add_child(background)
 
 	var title := Label.new()
 	title.name = "TitleLabel"
 	title.anchor_left = 0.05
-	title.anchor_top = 0.06
+	title.anchor_top = 0.055
 	title.anchor_right = 0.48
-	title.anchor_bottom = 0.15
-	title.text = "지도 선택"
-	title.add_theme_font_size_override("font_size", 42)
-	title.add_theme_color_override("font_color", Color(0.941176, 0.811765, 0.392157, 1.0))
+	title.anchor_bottom = 0.14
+	title.text = "야간 지도"
+	title.add_theme_font_size_override("font_size", 40)
+	title.add_theme_color_override("font_color", DungeonTheme.COLOR_GOLD)
 	add_child(title)
 
+	var subtitle := Label.new()
+	subtitle.name = "SubtitleLabel"
+	subtitle.anchor_left = 0.05
+	subtitle.anchor_top = 0.145
+	subtitle.anchor_right = 0.74
+	subtitle.anchor_bottom = 0.20
+	subtitle.text = "정비한 장비로 진입할 밤런 경로를 고른다."
+	subtitle.add_theme_font_size_override("font_size", 18)
+	subtitle.add_theme_color_override("font_color", DungeonTheme.COLOR_MUTED_TEXT)
+	add_child(subtitle)
+
 	var map_panel := PanelContainer.new()
-	map_panel.name = "ExteriorMapPanel"
-	map_panel.anchor_left = 0.12
-	map_panel.anchor_top = 0.22
-	map_panel.anchor_right = 0.70
+	map_panel.name = "RouteMapPanel"
+	map_panel.anchor_left = 0.07
+	map_panel.anchor_top = 0.24
+	map_panel.anchor_right = 0.64
 	map_panel.anchor_bottom = 0.72
-	map_panel.add_theme_stylebox_override("panel", _make_panel_style(Color(0.705882, 0.635294, 0.431373, 1.0), Color(0.321569, 0.266667, 0.172549, 1.0), 3))
+	map_panel.add_theme_stylebox_override(
+		"panel",
+		DungeonTheme.panel_style(DungeonTheme.COLOR_PANEL_RAISED, DungeonTheme.COLOR_STEEL_BRIGHT, 2, 22.0, 18.0)
+	)
 	add_child(map_panel)
 
-	var map_label := Label.new()
-	map_label.name = "MapLabel"
-	map_label.text = "서울 외곽 궁궐 지도\n\n창덕궁          경복궁\n\n      덕수궁          종묘"
-	map_label.add_theme_font_size_override("font_size", 27)
-	map_label.add_theme_color_override("font_color", Color(0.101961, 0.12549, 0.156863, 1.0))
-	map_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	map_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	map_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	map_panel.add_child(map_label)
+	_route_label = Label.new()
+	_route_label.name = "MapLabel"
+	_route_label.text = "출입 가능 경로\n\n학교 정비실\n광화문 앞 봉인문\n경복궁 서쪽 담장\n\n봉인됨: 창덕궁 · 덕수궁 · 종묘"
+	_route_label.add_theme_font_size_override("font_size", 24)
+	_route_label.add_theme_color_override("font_color", DungeonTheme.COLOR_TEXT)
+	_route_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_route_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_route_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	map_panel.add_child(_route_label)
 
 	var info_panel := PanelContainer.new()
 	info_panel.name = "DestinationPanel"
-	info_panel.anchor_left = 0.73
-	info_panel.anchor_top = 0.22
+	info_panel.anchor_left = 0.68
+	info_panel.anchor_top = 0.24
 	info_panel.anchor_right = 0.94
 	info_panel.anchor_bottom = 0.72
-	info_panel.add_theme_stylebox_override("panel", _make_panel_style(Color(0.039216, 0.062745, 0.086275, 0.96), Color(0.784314, 0.631373, 0.227451, 1.0), 2))
+	info_panel.add_theme_stylebox_override(
+		"panel",
+		DungeonTheme.panel_style(DungeonTheme.COLOR_PANEL, DungeonTheme.COLOR_GOLD, 3, 18.0, 14.0)
+	)
 	add_child(info_panel)
 
 	var destination := Label.new()
 	destination.name = "DestinationLabel"
-	destination.text = "경복궁\n\n출몰 시간  야간\n위험도      보통\n권장 무기  기억 무기"
+	destination.text = "선택됨\n경복궁\n\n시간  야간\n위험도  보통\n장비  기억 무기"
 	destination.add_theme_font_size_override("font_size", 22)
-	destination.add_theme_color_override("font_color", Color(0.909804, 0.92549, 0.956863, 1.0))
+	destination.add_theme_color_override("font_color", DungeonTheme.COLOR_TEXT)
 	destination.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	destination.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	destination.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	info_panel.add_child(destination)
 
-	var return_button := _make_action_button("ReturnButton", "정비로", Rect2(0.06, 0.82, 0.24, 0.13), ACTION_RETURN)
+	var return_button := _make_action_button("ReturnButton", "정비\n돌아가기", Rect2(0.06, 0.82, 0.24, 0.13), ACTION_RETURN)
 	add_child(return_button)
 	return_button.pressed.connect(_on_return_pressed)
 
-	_depart_button = _make_action_button("GyeongbokgungButton", "경복궁으로", Rect2(0.66, 0.82, 0.28, 0.13), ACTION_SELECT_GYEONGBOKGUNG)
+	_depart_button = _make_action_button("GyeongbokgungButton", "경복궁\n진입", Rect2(0.66, 0.82, 0.28, 0.13), ACTION_SELECT_GYEONGBOKGUNG)
 	add_child(_depart_button)
 	_depart_button.pressed.connect(_on_gyeongbokgung_pressed)
 
@@ -111,32 +132,14 @@ func _make_action_button(node_name: String, text: String, relative_rect: Rect2, 
 	button.anchor_right = relative_rect.position.x + relative_rect.size.x
 	button.anchor_bottom = relative_rect.position.y + relative_rect.size.y
 	button.text = text
-	button.add_theme_font_size_override("font_size", 24)
-	button.add_theme_color_override("font_color", Color(0.937255, 0.960784, 0.988235, 1.0))
-	button.add_theme_stylebox_override("normal", _make_panel_style(Color(0.047059, 0.070588, 0.098039, 0.96), Color(0.403922, 0.909804, 0.976471, 0.86), 2))
-	button.add_theme_stylebox_override("hover", _make_panel_style(Color(0.066667, 0.105882, 0.145098, 1.0), Color(0.403922, 0.909804, 0.976471, 1.0), 3))
+	button.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	button.alignment = HORIZONTAL_ALIGNMENT_CENTER
+	button.add_theme_font_size_override("font_size", 22)
+	var variant := DungeonTheme.VARIANT_PRIMARY if action == ACTION_SELECT_GYEONGBOKGUNG else DungeonTheme.VARIANT_SECONDARY
+	DungeonTheme.apply_button(button, variant, Vector2(0.0, 64.0))
 	button.set_meta("test_id", action.replace(".", "_"))
 	button.set_meta("uat_action", action)
 	return button
-
-
-func _make_panel_style(bg_color: Color, border_color: Color, border_width: int) -> StyleBoxFlat:
-	var style := StyleBoxFlat.new()
-	style.bg_color = bg_color
-	style.border_color = border_color
-	style.border_width_left = border_width
-	style.border_width_top = border_width
-	style.border_width_right = border_width
-	style.border_width_bottom = border_width
-	style.corner_radius_top_left = 4
-	style.corner_radius_top_right = 4
-	style.corner_radius_bottom_right = 4
-	style.corner_radius_bottom_left = 4
-	style.content_margin_left = 16
-	style.content_margin_top = 14
-	style.content_margin_right = 16
-	style.content_margin_bottom = 14
-	return style
 
 
 func _count_action_entries(node: Node, action: String) -> int:
