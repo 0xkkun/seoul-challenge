@@ -11,6 +11,7 @@ extends Area2D
 
 var _direction: Vector2 = Vector2.RIGHT
 var _life: float = 0.0
+var _shooter: Node = null
 
 
 func _ready() -> void:
@@ -19,11 +20,12 @@ func _ready() -> void:
 
 
 ## 풀에서 꺼내 발사 지점/방향으로 활성화한다.
-func activate(spawn_position: Vector2, direction: Vector2) -> void:
+func activate(spawn_position: Vector2, direction: Vector2, shooter: Node = null) -> void:
 	global_position = spawn_position
 	_direction = direction.normalized() if direction.length() > 0.001 else Vector2.RIGHT
 	rotation = _direction.angle()
 	_life = lifetime
+	_shooter = shooter
 
 
 func _physics_process(delta: float) -> void:
@@ -47,15 +49,23 @@ func is_expired(life: float) -> bool:
 	return life <= 0.0
 
 
+## 차단성 충돌 판정 — 발사자 자신/null 은 무시한다 (스폰 시 겹침으로 인한 자기 회수 방지).
+func is_blocking_hit(other: Node) -> bool:
+	return other != null and other != _shooter
+
+
 # --- 풀 훅 / 충돌 ---
 
 func reset_for_pool() -> void:
 	_life = 0.0
 	_direction = Vector2.RIGHT
+	_shooter = null
 
 
 func _on_hit(other: Node) -> void:
-	if other != null and other.has_method("take_damage"):
+	if not is_blocking_hit(other):
+		return
+	if other.has_method("take_damage"):
 		other.call("take_damage", damage)
 	call_deferred("_release")
 

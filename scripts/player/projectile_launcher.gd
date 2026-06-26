@@ -18,7 +18,7 @@ func _ready() -> void:
 func _on_fired(muzzle_position: Vector2, direction: Vector2) -> void:
 	var bullet := PoolManager.acquire(POOL_ID, _spawn_parent())
 	if bullet != null and bullet.has_method("activate"):
-		bullet.call("activate", muzzle_position, direction)
+		bullet.call("activate", muzzle_position, direction, get_parent())
 
 
 ## 정화탄을 붙일 부모: 플레이어의 부모(월드) → 현재 씬 → self 순으로 폴백.
