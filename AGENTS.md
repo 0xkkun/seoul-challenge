@@ -31,6 +31,8 @@ them.
 6. Fall back to CLI checks when MCP is unavailable.
 7. Run `bash scripts/verify_quick.sh` before opening or updating a PR.
 8. Run `bash scripts/verify_full.sh` before merging broad changes.
+9. When addressing GitHub review comments, reply with the change or rationale and
+   resolve the review thread after the reply.
 
 ## Worktree
 
