@@ -73,10 +73,9 @@ MANIFEST = [
     },
     {
         "id": "run_controller",
-        "script": "scripts/systems/run_controller.gd",
-        "tests": [],
-        "enabled": False,
-        "reason": "Enable after the run controller lands.",
+        "script": "scripts/session/run_controller.gd",
+        "tests": ["tests/integration/test_run_flow.gd"],
+        "enabled": True,
     },
 ]
 
@@ -84,7 +83,7 @@ MONITORED_EXACT_PATHS = {
     "scripts/autoload/currency_system.gd",
     "scripts/interactables/event_room.gd",
     "scripts/interactables/rescue_student.gd",
-    "scripts/systems/run_controller.gd",
+    "scripts/session/run_controller.gd",
 }
 
 MONITORED_GLOBS = [
