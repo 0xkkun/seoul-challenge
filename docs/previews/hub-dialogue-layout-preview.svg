@@ -1,0 +1,101 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="844" height="390" viewBox="0 0 844 390" role="img" aria-label="Landscape hub dialogue UI preview">
+  <defs>
+    <style>
+      text { font-family: Apple SD Gothic Neo, Malgun Gothic, Arial, sans-serif; font-weight: 800; letter-spacing: 0; }
+      .small { font-size: 11px; }
+      .label { font-size: 12px; }
+      .body { font-size: 14px; }
+      .title { font-size: 17px; }
+      .white { fill: #f3f0e6; }
+      .muted { fill: #aeb7c8; }
+      .ink { fill: #11141d; }
+      .memory { fill: #b9c8ff; }
+    </style>
+  </defs>
+
+  <rect width="844" height="390" fill="#151923"/>
+  <rect x="0" y="0" width="844" height="55" fill="#61785f"/>
+  <rect x="0" y="55" width="844" height="142" fill="#38594c"/>
+  <rect x="0" y="197" width="844" height="58" fill="#263b36"/>
+  <rect x="0" y="255" width="844" height="135" fill="#252d35"/>
+  <g opacity="0.22">
+    <path d="M0 255H844M43 255V390M86 255V390M129 255V390M172 255V390M215 255V390M258 255V390M301 255V390M344 255V390M387 255V390M430 255V390M473 255V390M516 255V390M559 255V390M602 255V390M645 255V390M688 255V390M731 255V390M774 255V390M817 255V390" stroke="#0e1118" stroke-width="2"/>
+  </g>
+
+  <text x="14" y="23" class="small white">낮 학교 · 동아리실 앞</text>
+  <text x="810" y="23" class="small white">15:42</text>
+
+  <g>
+    <rect x="62" y="56" width="76" height="62" fill="#9ebcbc" stroke="#20312f" stroke-width="5"/>
+    <rect x="235" y="56" width="76" height="62" fill="#9ebcbc" stroke="#20312f" stroke-width="5"/>
+    <rect x="706" y="56" width="76" height="62" fill="#9ebcbc" stroke="#20312f" stroke-width="5"/>
+    <rect x="376" y="76" width="168" height="70" fill="#274336" stroke="#17231f" stroke-width="5"/>
+    <text x="430" y="118" class="label" fill="#b7d5b3">야구부 모집</text>
+    <rect x="728" y="90" width="45" height="62" fill="#554e79" opacity="0.58" stroke="#847eb4" stroke-width="3"/>
+    <rect x="742" y="116" width="6" height="6" fill="#ece7ff"/>
+    <rect x="759" y="116" width="6" height="6" fill="#ece7ff"/>
+  </g>
+
+  <g>
+    <ellipse cx="204" cy="272" rx="31" ry="8" fill="#000" opacity="0.34"/>
+    <rect x="188" y="170" width="34" height="70" fill="#466e91" stroke="#171920" stroke-width="3"/>
+    <rect x="188" y="154" width="34" height="16" fill="#211c23"/>
+    <ellipse cx="607" cy="272" rx="31" ry="8" fill="#000" opacity="0.34"/>
+    <rect x="590" y="170" width="34" height="70" fill="#873944" stroke="#171920" stroke-width="3"/>
+    <rect x="590" y="152" width="34" height="18" fill="#2b2220"/>
+    <rect x="584" y="123" width="46" height="23" fill="#222733" stroke="#60687b" stroke-width="2"/>
+    <text x="595" y="140" class="small" fill="#f6e7b1">주장</text>
+  </g>
+
+  <g>
+    <rect x="54" y="107" width="136" height="196" fill="#8b3d43" stroke="#11141d" stroke-width="4"/>
+    <path d="M190 107V303H54Z" fill="#2f3a58"/>
+    <rect x="105" y="172" width="38" height="34" fill="#f0d1a7"/>
+    <rect x="77" y="198" width="28" height="28" fill="#f0d1a7"/>
+    <rect x="143" y="198" width="28" height="28" fill="#f0d1a7"/>
+    <rect x="78" y="264" width="86" height="14" fill="#d8b15c"/>
+    <rect x="78" y="285" width="86" height="14" fill="#22283a"/>
+  </g>
+
+  <rect x="0" y="238" width="844" height="152" fill="#0f1118" opacity="0.98"/>
+  <line x1="0" y1="238" x2="844" y2="238" stroke="#f5eed8" stroke-width="4"/>
+
+  <rect x="190" y="252" width="102" height="26" fill="#f0e8cc" stroke="#11141d" stroke-width="2"/>
+  <text x="210" y="270" class="label ink">야구부 주장</text>
+
+  <rect x="302" y="252" width="124" height="34" fill="#83b082" stroke="#bfe4b7" stroke-width="2"/>
+  <text x="347" y="267" class="small ink">STAGE 1</text>
+  <text x="351" y="280" class="small ink">첫만남</text>
+  <rect x="430" y="252" width="124" height="34" fill="#d3ad4c" stroke="#f7df74" stroke-width="2"/>
+  <text x="475" y="267" class="small ink">STAGE 2</text>
+  <text x="478" y="280" class="small ink">훈련후</text>
+  <rect x="558" y="252" width="124" height="34" fill="#252b38" stroke="#59606c" stroke-width="2"/>
+  <text x="603" y="267" class="small muted">STAGE 3</text>
+  <text x="606" y="280" class="small muted">정화후</text>
+
+  <text x="190" y="314" class="body white">"스윙은 겁먹으면 늦어. 밤의 궁에선 더 그렇겠지."</text>
+  <text x="190" y="338" class="small memory">기억: 손바닥의 희미한 배트 자국</text>
+
+  <rect x="646" y="324" width="106" height="42" fill="#2e3a4e" stroke="#737d93" stroke-width="2"/>
+  <text x="677" y="350" class="label white">물어본다</text>
+  <rect x="760" y="324" width="66" height="42" fill="#f0e8cc" stroke="#fff2ac" stroke-width="2"/>
+  <text x="780" y="350" class="label ink">받는다</text>
+
+  <rect width="844" height="390" fill="#080a0f" opacity="0.28"/>
+  <g>
+    <rect x="253" y="92" width="338" height="148" fill="#f0e8cc" stroke="#d6ad48" stroke-width="5"/>
+    <rect x="258" y="97" width="328" height="138" fill="none" stroke="#11141d" stroke-width="4"/>
+    <rect x="281" y="116" width="46" height="30" fill="#a54841" transform="rotate(-4 304 131)"/>
+    <text x="289" y="137" class="title white">해금</text>
+    <text x="348" y="137" class="title ink">아이템을 얻었다</text>
+    <text x="506" y="137" class="small" fill="#7a4d19">STAGE 2 보상</text>
+    <rect x="280" y="160" width="140" height="56" fill="#fff6d9" stroke="#11141d" stroke-width="2"/>
+    <circle cx="307" cy="188" r="12" fill="#e6e0ce" stroke="#15171d" stroke-width="3"/>
+    <text x="332" y="184" class="label ink">낡은 야구공</text>
+    <text x="332" y="200" class="small ink">투척 무기</text>
+    <rect x="434" y="160" width="140" height="56" fill="#fff6d9" stroke="#11141d" stroke-width="2"/>
+    <rect x="458" y="176" width="24" height="24" fill="#8a8c96" stroke="#15171d" stroke-width="3"/>
+    <text x="491" y="184" class="label ink">금 간 배트</text>
+    <text x="491" y="200" class="small ink">근접 무기</text>
+  </g>
+</svg>

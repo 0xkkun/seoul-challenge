@@ -1,0 +1,172 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/hub_dialogue_ui.gd" id="1_dialogue"]
+
+[node name="HubDialogueUi" type="CanvasLayer"]
+script = ExtResource("1_dialogue")
+
+[node name="Root" type="Control" parent="."]
+unique_name_in_owner = true
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="PortraitPanel" type="ColorRect" parent="Root"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 54.0
+offset_top = -283.0
+offset_right = 190.0
+offset_bottom = -87.0
+grow_vertical = 0
+
+[node name="PortraitAccent" type="ColorRect" parent="Root/PortraitPanel"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = -76.0
+grow_horizontal = 2
+grow_vertical = 0
+
+[node name="DialogueBar" type="PanelContainer" parent="Root"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = -152.0
+grow_horizontal = 2
+grow_vertical = 0
+
+[node name="DialogueContent" type="Control" parent="Root/DialogueBar"]
+layout_mode = 2
+custom_minimum_size = Vector2(844, 152)
+
+[node name="NameLabel" type="Label" parent="Root/DialogueBar/DialogueContent"]
+unique_name_in_owner = true
+layout_mode = 1
+offset_left = 190.0
+offset_top = 14.0
+offset_right = 292.0
+offset_bottom = 40.0
+text = "야구부 주장"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="StageRow" type="HBoxContainer" parent="Root/DialogueBar/DialogueContent"]
+unique_name_in_owner = true
+layout_mode = 1
+offset_left = 302.0
+offset_top = 14.0
+offset_right = 580.0
+offset_bottom = 48.0
+theme_override_constants/separation = 4
+
+[node name="DialogueLabel" type="Label" parent="Root/DialogueBar/DialogueContent"]
+unique_name_in_owner = true
+layout_mode = 1
+offset_left = 190.0
+offset_top = 54.0
+offset_right = 606.0
+offset_bottom = 86.0
+text = "\"스윙은 겁먹으면 늦어. 밤의 궁에선 더 그렇겠지.\""
+autowrap_mode = 3
+
+[node name="MemoryLabel" type="Label" parent="Root/DialogueBar/DialogueContent"]
+unique_name_in_owner = true
+layout_mode = 1
+offset_left = 190.0
+offset_top = 88.0
+offset_right = 606.0
+offset_bottom = 116.0
+text = "기억: 손바닥의 희미한 배트 자국"
+autowrap_mode = 3
+
+[node name="ChoiceRow" type="HBoxContainer" parent="Root/DialogueBar/DialogueContent"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 3
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -242.0
+offset_top = 94.0
+offset_right = -18.0
+offset_bottom = 136.0
+grow_horizontal = 0
+theme_override_constants/separation = 8
+
+[node name="UnlockOverlay" type="Control" parent="Root"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Dimmer" type="ColorRect" parent="Root/UnlockOverlay"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.03, 0.04, 0.06, 0.28)
+
+[node name="UnlockPopup" type="PanelContainer" parent="Root/UnlockOverlay"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -169.0
+offset_top = -74.0
+offset_right = 169.0
+offset_bottom = 74.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="PopupMargin" type="MarginContainer" parent="Root/UnlockOverlay/UnlockPopup"]
+layout_mode = 2
+theme_override_constants/margin_left = 14
+theme_override_constants/margin_top = 12
+theme_override_constants/margin_right = 14
+theme_override_constants/margin_bottom = 12
+
+[node name="PopupStack" type="VBoxContainer" parent="Root/UnlockOverlay/UnlockPopup/PopupMargin"]
+layout_mode = 2
+theme_override_constants/separation = 9
+
+[node name="TitleRow" type="HBoxContainer" parent="Root/UnlockOverlay/UnlockPopup/PopupMargin/PopupStack"]
+layout_mode = 2
+theme_override_constants/separation = 9
+
+[node name="UnlockTitleLabel" type="Label" parent="Root/UnlockOverlay/UnlockPopup/PopupMargin/PopupStack/TitleRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "아이템을 얻었다"
+
+[node name="UnlockSubtitleLabel" type="Label" parent="Root/UnlockOverlay/UnlockPopup/PopupMargin/PopupStack/TitleRow"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "STAGE 2 보상"
+horizontal_alignment = 2
+
+[node name="UnlockItemGrid" type="GridContainer" parent="Root/UnlockOverlay/UnlockPopup/PopupMargin/PopupStack"]
+unique_name_in_owner = true
+layout_mode = 2
+columns = 2
