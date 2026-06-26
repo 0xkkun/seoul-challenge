@@ -18,5 +18,10 @@ shape = SubResource("CircleShape2D_player")
 color = Color(0.36, 0.66, 0.95, 1)
 polygon = PackedVector2Array(-14, -14, 14, -14, 14, 14, -14, 14)
 
+[node name="MeleeSwing" type="Polygon2D" parent="."]
+visible = false
+color = Color(1, 1, 1, 0.45)
+polygon = PackedVector2Array(8, -22, 44, -10, 48, 0, 44, 10, 8, 22)
+
 [node name="ProjectileLauncher" type="Node" parent="."]
 script = ExtResource("2_launcher")

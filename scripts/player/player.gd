@@ -15,15 +15,25 @@ signal fired(muzzle_position: Vector2, direction: Vector2)
 @export var fire_cooldown: float = 0.22    ## 연사 간격 (s)
 @export var muzzle_offset: float = 18.0    ## 발사 지점 오프셋 (px)
 @export var recoil_strength: float = 55.0  ## 발사 반동(조준 반대 방향 킥) (px/s)
+@export var ranged_enabled: bool = false   ## 원거리(야구공) 무기 — 기본 OFF(처음엔 근접). 언락 시 ON.
+@export var attack_cooldown: float = 0.35  ## 근접 공격 간격 (s)
+@export var melee_damage: int = 1          ## 근접 피해
+@export var melee_range: float = 40.0      ## 근접 사거리 (px)
+@export var melee_arc: float = 1.6         ## 근접 타격 각 (rad, 앞쪽 부채꼴)
+@export var swing_visual_time: float = 0.12  ## 휘두르기 시각 표시 시간 (s)
 @export var max_health: int = 5            ## 최대 체력(하트)
 @export var invuln_time: float = 0.5       ## 피격 후 무적 시간 (s) — 보스 탄막 원샷 방지
 @export var touch_controls_path: NodePath  ## 비우면 키보드 폴백
 
 var _fire_timer: float = 0.0
+var _attack_timer: float = 0.0
+var _swing_timer: float = 0.0
 var _facing: Vector2 = Vector2.DOWN
 var _health: int = 0
 var _invuln_timer: float = 0.0
 var _touch: Node = null
+
+@onready var _swing_visual: Node2D = get_node_or_null(^"MeleeSwing")
 
 
 func _ready() -> void:
@@ -41,7 +51,7 @@ func _physics_process(delta: float) -> void:
 	_facing = update_facing(_facing, move)
 	velocity = step_velocity(velocity, move, delta)
 	move_and_slide()
-	_process_firing(delta)
+	_process_attack(delta)
 
 
 # --- 이동/조준/사격 수학 (순수 함수, 테스트 대상) ---
@@ -82,6 +92,13 @@ func recoil_velocity(aim_dir: Vector2, strength: float) -> Vector2:
 	if aim_dir.length() < 0.001:
 		return Vector2.ZERO
 	return -aim_dir.normalized() * strength
+
+
+## 근접 타격 부채꼴 판정 — facing 기준 ±arc/2 안에 to 방향이 들면 true. 순수 함수(테스트 대상).
+func in_melee_arc(facing: Vector2, to: Vector2, arc: float) -> bool:
+	if to.length() < 0.001 or facing.length() < 0.001:
+		return false
+	return absf(facing.angle_to(to)) <= arc * 0.5
 
 
 ## 피해 적용 후 체력(0 클램프). 순수 함수(테스트 대상).
@@ -152,14 +169,48 @@ func is_firing() -> bool:
 	return Input.is_key_pressed(KEY_SPACE) or Input.get_joy_axis(0, JOY_AXIS_TRIGGER_RIGHT) > 0.3
 
 
-## 발사 입력/쿨다운 처리 → 준비되고 입력이 있으면 fired 방출 + 반동.
-func _process_firing(delta: float) -> void:
-	_fire_timer = step_fire_cooldown(_fire_timer, delta)
-	if _fire_timer > 0.0 or not is_firing():
+## 공격 입력/쿨다운 처리. 기본은 근접(휘두르기), ranged_enabled 면 원거리(야구공) 발사.
+func _process_attack(delta: float) -> void:
+	_attack_timer = step_fire_cooldown(_attack_timer, delta)
+	_swing_timer = maxf(0.0, _swing_timer - delta)
+	if _swing_timer <= 0.0 and _swing_visual != null:
+		_swing_visual.visible = false
+	if _attack_timer > 0.0 or not is_firing():
 		return
 	var dir := aim_direction()
 	if dir == Vector2.ZERO:
 		return
+	if ranged_enabled:
+		_attack_ranged(dir)
+		_attack_timer = fire_cooldown
+	else:
+		_attack_melee(dir)
+		_attack_timer = attack_cooldown
+
+
+## 근접 휘두르기 — 앞쪽 부채꼴(melee_arc) 안의 enemy 그룹을 타격.
+func _attack_melee(dir: Vector2) -> void:
+	for enemy: Node in get_tree().get_nodes_in_group(&"enemy"):
+		var e := enemy as Node2D
+		if e == null or not is_instance_valid(e):
+			continue
+		var to := e.global_position - global_position
+		if to.length() <= melee_range and in_melee_arc(dir, to, melee_arc):
+			if enemy.has_method("take_damage"):
+				enemy.call("take_damage", melee_damage)
+	_show_swing(dir)
+
+
+## 원거리 발사(야구공) — 보존된 무기. ranged_enabled 일 때만 사용. fired → ProjectileLauncher 가 스폰.
+func _attack_ranged(dir: Vector2) -> void:
 	fired.emit(global_position + dir * muzzle_offset, dir)
 	velocity += recoil_velocity(dir, recoil_strength)
-	_fire_timer = fire_cooldown
+
+
+## 휘두르기 시각 표시(플레이스홀더 웨지) — facing 방향으로 잠깐 보임.
+func _show_swing(dir: Vector2) -> void:
+	if _swing_visual == null:
+		return
+	_swing_visual.rotation = dir.angle()
+	_swing_visual.visible = true
+	_swing_timer = swing_visual_time
