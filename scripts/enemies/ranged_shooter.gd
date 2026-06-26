@@ -5,8 +5,10 @@ extends CharacterBody2D
 
 ## 처치됨 — RoomManager/전투방이 듣는다(계약 #19).
 signal defeated(enemy)
-## 발사 — origin 에서 direction 으로 발사 의도. 발사체 스폰은 통합 레이어가 소비한다.
+## 발사 — origin 에서 direction 으로 발사. 자기 자신이 받아 enemy_bullet 을 스폰한다.
 signal fired(origin: Vector2, direction: Vector2)
+
+const ENEMY_BULLET := preload("res://scenes/enemies/enemy_bullet.tscn")
 
 @export var max_hp: int = 2
 @export var move_speed: float = 70.0          ## 카이팅 이동 속도 (px/s)
@@ -23,6 +25,7 @@ func _ready() -> void:
 	_hp = max_hp
 	_fire_timer = fire_interval
 	add_to_group(&"enemy")
+	fired.connect(_spawn_bullet)
 
 
 func _physics_process(delta: float) -> void:
@@ -95,3 +98,13 @@ func _die() -> void:
 
 func _find_target() -> Node2D:
 	return get_tree().get_first_node_in_group(target_group) as Node2D
+
+
+## fired 를 받아 적 투사체(enemy_bullet)를 실제로 스폰한다. (#16 완성 — #17의 enemy_bullet 재사용)
+func _spawn_bullet(origin: Vector2, direction: Vector2) -> void:
+	var parent := get_parent()
+	if parent == null:
+		return
+	var bullet := ENEMY_BULLET.instantiate()
+	parent.add_child(bullet)
+	bullet.call("launch", origin, direction)
