@@ -135,6 +135,9 @@ func _on_room_manager_layout_completed(layout_id: StringName) -> void:
 		"visited_room_ids": visited_room_ids.duplicate(),
 		"cleared_room_ids": room_manager.cleared_room_ids.keys(),
 	}
-	if emit_session_finished_event and has_node("/root/EventBus"):
-		EventBus.emit_session_finished(result)
+	if emit_session_finished_event:
+		if has_node("/root/GameManager") and GameManager.is_session_active():
+			GameManager.finish_session(result)
+		elif has_node("/root/EventBus"):
+			EventBus.emit_session_finished(result)
 	run_completed.emit(result.duplicate(true))
