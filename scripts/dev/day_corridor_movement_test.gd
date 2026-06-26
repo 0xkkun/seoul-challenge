@@ -87,6 +87,7 @@ func _ready() -> void:
 	_hub_dialogue_ui.choice_selected.connect(_on_hub_dialogue_choice_selected)
 	_interaction_prompt.visible = false
 	_apply_ui_automation_metadata()
+	PixelButtonStyle.apply(_exit_button, PixelButtonStyle.VARIANT_PRIMARY, Vector2(144.0, 50.0))
 	_exit_button.pressed.connect(_request_return_to_lobby)
 	_fit_camera_to_corridor_height()
 	_clamp_player_to_corridor()

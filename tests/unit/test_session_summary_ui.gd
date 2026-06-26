@@ -107,9 +107,33 @@ func test_summary_actions_emit_distinct_flow_signals() -> void:
 	_runner.assert_eq(counts["retry"], 1, "retry button emits retry flow")
 
 
+func test_action_buttons_use_pixel_button_skin() -> void:
+	_assert_pixel_button_style(_ui.get_node("%PauseButton") as Button, "pause")
+	_assert_pixel_button_style(_ui.get_node("%ResumeButton") as Button, "resume")
+	_assert_pixel_button_style(_ui.get_node("%FinishButton") as Button, "finish")
+	_assert_pixel_button_style(_ui.get_node("%ReturnButton") as Button, "return")
+	_assert_pixel_button_style(_ui.get_node("%RetryButton") as Button, "retry")
+
+
 func _assert_no_explainer_copy(snapshot: Dictionary) -> void:
 	for value: Variant in snapshot.values():
 		var text := str(value)
 		_runner.assert_false(text.contains("보존"), "summary does not explain preserved currency")
 		_runner.assert_false(text.contains("소멸"), "summary does not mention expiring currency")
 		_runner.assert_false(text.contains("저장 완료"), "summary does not show save-complete footer")
+
+
+func _assert_pixel_button_style(button: Button, label: String) -> void:
+	_assert_pixel_button_texture(button.get_theme_stylebox("normal"), PixelButtonStyle.NORMAL_TEXTURE_PATH, "%s normal" % label)
+	_assert_pixel_button_texture(button.get_theme_stylebox("hover"), PixelButtonStyle.NORMAL_TEXTURE_PATH, "%s hover" % label)
+	_assert_pixel_button_texture(button.get_theme_stylebox("pressed"), PixelButtonStyle.PRESSED_TEXTURE_PATH, "%s pressed" % label)
+
+
+func _assert_pixel_button_texture(style: StyleBox, texture_path: String, message: String) -> void:
+	var texture_style := style as StyleBoxTexture
+	_runner.assert_not_null(texture_style, "%s uses pixel button texture style" % message)
+	if texture_style == null:
+		return
+	_runner.assert_eq(texture_style.texture.resource_path, texture_path, message)
+	_runner.assert_eq(texture_style.texture_margin_left, 60.0, "%s left 9-slice margin" % message)
+	_runner.assert_eq(texture_style.texture_margin_bottom, 12.0, "%s bottom 9-slice margin" % message)
