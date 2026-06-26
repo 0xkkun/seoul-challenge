@@ -49,6 +49,7 @@ func test_room_count_param_expands_connected_layout() -> void:
 	var layout := generator.generate(91, {"room_count": 8})
 	_runner.assert_eq(layout.room_defs.size(), 8, "room count param expands layout")
 	_assert_reachable_and_bidirectional(layout)
+	_assert_grid_positions_unique_and_adjacent(layout)
 
 
 func test_two_hundred_seed_fuzz_preserves_layout_invariants() -> void:
@@ -69,6 +70,8 @@ func _assert_layout_invariants(layout: RoomLayout, expected_count: int) -> void:
 		RoomLayout.TYPE_COMBAT: 0,
 		RoomLayout.TYPE_EVENT: 0,
 		RoomLayout.TYPE_FINAL: 0,
+		RoomLayout.TYPE_TREASURE: 0,
+		RoomLayout.TYPE_SHOP: 0,
 	}
 	var final_rooms: Array[RoomDef] = []
 
@@ -81,6 +84,7 @@ func _assert_layout_invariants(layout: RoomLayout, expected_count: int) -> void:
 			final_rooms.append(room_def)
 
 	_assert_reachable_and_bidirectional(layout)
+	_assert_grid_positions_unique_and_adjacent(layout)
 
 	_runner.assert_eq(type_counts[RoomLayout.TYPE_START], 1, "one start room")
 	_runner.assert_true(type_counts[RoomLayout.TYPE_COMBAT] >= 2, "at least two combat rooms")
@@ -121,16 +125,45 @@ func _assert_reachable_and_bidirectional(layout: RoomLayout) -> void:
 	_runner.assert_eq(reachable.size(), layout.room_defs.size(), "all rooms reachable from start")
 
 
+func _assert_grid_positions_unique_and_adjacent(layout: RoomLayout) -> void:
+	var positions := {}
+	var start_room := layout.get_start_room()
+	_runner.assert_not_null(start_room, "start room exists")
+	if start_room != null:
+		_runner.assert_eq(start_room.grid_pos, Vector2i.ZERO, "generated start grid position is normalized")
+
+	for room_def: RoomDef in layout.room_defs:
+		_runner.assert_false(positions.has(room_def.grid_pos), "%s grid position is unique" % room_def.room_id)
+		positions[room_def.grid_pos] = room_def.room_id
+
+	for room_def: RoomDef in layout.room_defs:
+		for connected_room_id: StringName in room_def.connections:
+			var connected_room := layout.get_room(connected_room_id)
+			_runner.assert_not_null(connected_room, "connection target exists for grid check")
+			if connected_room == null:
+				continue
+			var grid_distance := (
+				absi(room_def.grid_pos.x - connected_room.grid_pos.x)
+				+ absi(room_def.grid_pos.y - connected_room.grid_pos.y)
+			)
+			_runner.assert_eq(
+				grid_distance,
+				1,
+				"%s connects to grid-adjacent %s" % [room_def.room_id, connected_room_id]
+			)
+
+
 func _layout_signature(layout: RoomLayout) -> PackedStringArray:
 	var lines := PackedStringArray()
 	lines.append("%s|%s" % [layout.layout_id, layout.start_room_id])
 	for room_def: RoomDef in layout.room_defs:
 		lines.append(
-			"%s|%s|%s|%s|%s" % [
+			"%s|%s|%s|%s|%s|%s" % [
 				room_def.room_id,
 				room_def.room_type,
 				room_def.scene_path,
 				str(room_def.hidden),
+				str(room_def.grid_pos),
 				",".join(room_def.connections),
 			]
 		)

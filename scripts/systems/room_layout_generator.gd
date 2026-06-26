@@ -53,6 +53,7 @@ func generate(layout_seed: int, params: Dictionary = {}) -> RoomLayout:
 		room_def.scene_path = _scene_path_for_type(room_def.room_type, scene_paths)
 		room_def.hidden = index == final_index
 		room_def.connections = _connection_ids_for_index(index, cells, adjacency, room_ids)
+		room_def.grid_pos = cells[index] - cells[0]
 		layout.room_defs.append(room_def)
 
 	return layout

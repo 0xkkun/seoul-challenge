@@ -10,9 +10,15 @@ const GRAPH_DIRECTIONS: Array[Vector2i] = [
 	Vector2i(-1, 0),
 	Vector2i(0, -1),
 ]
+const PANEL_COLOR := Color(0.035294, 0.047059, 0.070588, 0.78)
+const PANEL_BORDER_COLOR := Color(0.145098, 0.172549, 0.219608, 0.9)
+const UNKNOWN_ROOM_COLOR := Color(0.12549, 0.145098, 0.180392, 0.92)
+const UNKNOWN_TEXT_COLOR := Color(0.564706, 0.615686, 0.694118, 1.0)
+const CONNECTION_COLOR := Color(0.266667, 0.305882, 0.364706, 0.78)
 
-@export var room_size := Vector2(34.0, 26.0)
-@export var cell_spacing := Vector2(64.0, 48.0)
+@export var room_size := Vector2(34.0, 34.0)
+@export var cell_spacing := Vector2(44.0, 44.0)
+@export var panel_padding := 12.0
 @export var show_hidden_as_unknown := true
 
 var layout: RoomLayout
@@ -30,10 +36,16 @@ var _minimap_rooms_by_id := {}
 
 
 func _ready() -> void:
-	custom_minimum_size = Vector2(300.0, 220.0)
+	custom_minimum_size = Vector2(196.0, 144.0)
 	_connect_event_bus()
+	set_process(true)
 	if room_manager != null:
 		configure_from_manager(room_manager)
+
+
+func _process(_delta: float) -> void:
+	if not _build_frontier_entries().is_empty():
+		queue_redraw()
 
 
 func _exit_tree() -> void:
@@ -106,6 +118,10 @@ func get_connection_draw_entries() -> Array[Dictionary]:
 	return _build_connection_entries()
 
 
+func get_frontier_draw_entries() -> Array[Dictionary]:
+	return _build_frontier_entries()
+
+
 func get_room_position(room_id: StringName) -> Vector2:
 	if not _room_positions.has(room_id):
 		return Vector2.ZERO
@@ -113,29 +129,50 @@ func get_room_position(room_id: StringName) -> Vector2:
 
 
 func _draw() -> void:
+	var canvas_size := _canvas_size()
+	draw_rect(Rect2(Vector2.ZERO, canvas_size), PANEL_COLOR, true)
+	draw_rect(Rect2(Vector2.ZERO, canvas_size), PANEL_BORDER_COLOR, false, 1.0)
+
 	for connection: Dictionary in _build_connection_entries():
-		var color := RoomPalette.DOOR_OPEN_COLOR if connection["in_path"] else RoomPalette.DOOR_LOCKED_COLOR
+		var color := RoomPalette.MINIMAP_PING_COLOR if connection["frontier"] else CONNECTION_COLOR
+		if connection["in_path"]:
+			color = RoomPalette.DOOR_OPEN_COLOR
 		if not connection["visible"]:
-			color.a = 0.45
-		draw_line(connection["from_position"], connection["to_position"], color, 3.0 if connection["in_path"] else 2.0)
+			color.a = 0.34
+		draw_line(connection["from_position"], connection["to_position"], color, 3.0 if connection["frontier"] else 2.0)
 
 	var font := get_theme_default_font()
 	var font_size := get_theme_default_font_size()
 	for entry: Dictionary in _build_room_entries():
-		var center: Vector2 = entry["position"]
-		var rect := Rect2(center - room_size * 0.5, room_size)
+		var rect: Rect2 = entry["rect"]
+		if entry["frontier"]:
+			var pulse := 0.55 + sin(float(Time.get_ticks_msec()) / 150.0) * 0.25
+			var ping_color := RoomPalette.MINIMAP_PING_COLOR
+			ping_color.a = pulse
+			draw_rect(rect.grow(4.0), ping_color, false, 2.0)
 		draw_rect(rect, entry["fill_color"], true)
 		draw_rect(rect, entry["border_color"], false, entry["border_width"])
 		if entry["label"] != "":
 			draw_string(
 				font,
-				Vector2(rect.position.x, rect.position.y + room_size.y * 0.68),
+				Vector2(rect.position.x, rect.position.y + room_size.y * 0.64),
 				entry["label"],
 				HORIZONTAL_ALIGNMENT_CENTER,
 				room_size.x,
 				font_size,
 				entry["text_color"]
 			)
+
+	for frontier: Dictionary in _build_frontier_entries():
+		draw_string(
+			font,
+			frontier["arrow_position"] + Vector2(-7.0, 6.0),
+			frontier["arrow"],
+			HORIZONTAL_ALIGNMENT_CENTER,
+			14.0,
+			font_size,
+			RoomPalette.MINIMAP_PING_COLOR
+		)
 
 
 func _build_room_entries() -> Array[Dictionary]:
@@ -152,6 +189,9 @@ func _build_room_entries() -> Array[Dictionary]:
 		var is_cleared := bool(cleared_room_ids.get(room_id, false))
 		var is_visited := bool(visited_room_ids.get(room_id, false)) or is_cleared or is_current
 		var is_problem := bool(problem_room_ids.get(room_id, false))
+		var is_frontier := _is_frontier_room(room_id)
+		var center := get_room_position(room_id)
+		var rect := Rect2(center - room_size * 0.5, room_size)
 		var fill_color := _fill_color_for_room(room_def, room_visible, is_visited)
 		var border_color := _border_color_for_room(is_current, is_cleared, is_problem)
 		var label := _label_for_room(room_def, room_visible)
@@ -165,14 +205,18 @@ func _build_room_entries() -> Array[Dictionary]:
 			"current": is_current,
 			"cleared": is_cleared,
 			"visited": is_visited,
+			"frontier": is_frontier,
+			"ping": is_frontier,
 			"problem": is_problem,
 			"in_path": path_room_ids.has(room_id),
-			"position": get_room_position(room_id),
+			"grid_pos": _room_positions.get(room_id, Vector2i.ZERO),
+			"position": center,
+			"rect": rect,
 			"label": label,
 			"fill_color": fill_color,
 			"border_color": border_color,
 			"border_width": 4.0 if is_current or is_problem else 2.0,
-			"text_color": Color.WHITE if room_visible else RoomPalette.REWARD_ROOM_FLOOR_COLOR,
+			"text_color": Color.WHITE if room_visible else UNKNOWN_TEXT_COLOR,
 		})
 	return entries
 
@@ -194,14 +238,42 @@ func _build_connection_entries() -> Array[Dictionary]:
 			if seen.has(key):
 				continue
 			seen[key] = true
+			var frontier := _is_frontier_connection(room_def.room_id, target_room_id)
 			entries.append({
 				"from_room_id": room_def.room_id,
 				"to_room_id": target_room_id,
 				"from_position": get_room_position(room_def.room_id),
 				"to_position": get_room_position(target_room_id),
-				"visible": _is_room_visible(room_def) or _is_room_visible(target_room),
+				"visible": _should_show_connection(room_def, target_room),
+				"frontier": frontier,
 				"in_path": _path_has_connection(room_def.room_id, target_room_id),
 			})
+	return entries
+
+
+func _build_frontier_entries() -> Array[Dictionary]:
+	var entries: Array[Dictionary] = []
+	if layout == null:
+		return entries
+	for room_def: RoomDef in layout.room_defs:
+		if room_def == null:
+			continue
+		var source_room_id := _frontier_source_for_room(room_def.room_id)
+		if source_room_id == &"":
+			continue
+		var direction := _direction_between(source_room_id, room_def.room_id)
+		var source_position := get_room_position(source_room_id)
+		var target_position := get_room_position(room_def.room_id)
+		entries.append({
+			"room_id": room_def.room_id,
+			"from_room_id": source_room_id,
+			"direction": direction,
+			"arrow": _arrow_for_direction(direction),
+			"position": target_position,
+			"from_position": source_position,
+			"arrow_position": source_position.lerp(target_position, 0.5),
+			"color": RoomPalette.MINIMAP_PING_COLOR,
+		})
 	return entries
 
 
@@ -264,16 +336,97 @@ func _is_room_visible(room_def: RoomDef) -> bool:
 		return false
 	if reveal_hidden_rooms:
 		return true
-	return _is_layout_visible(room_def)
+	if _is_always_visible_room(room_def):
+		return true
+	if _is_known_room(room_def.room_id):
+		return true
+	if room_def.hidden:
+		return false
+	return _is_adjacent_to_known_room(room_def.room_id)
 
 
 func _is_layout_visible(room_def: RoomDef) -> bool:
-	var room_entry: Dictionary = _minimap_rooms_by_id.get(room_def.room_id, {})
-	if not room_entry.is_empty():
-		return bool(room_entry.get("visible", false))
 	if layout == null:
 		return false
 	return layout.is_room_visible(room_def.room_id, cleared_room_ids)
+
+
+func _is_known_room(room_id: StringName) -> bool:
+	if room_id == &"":
+		return false
+	if room_id == current_room_id:
+		return true
+	if bool(visited_room_ids.get(room_id, false)):
+		return true
+	if bool(cleared_room_ids.get(room_id, false)):
+		return true
+	return layout != null and room_id == layout.start_room_id
+
+
+func _is_adjacent_to_known_room(room_id: StringName) -> bool:
+	if layout == null:
+		return false
+	var room_def := layout.get_room(room_id)
+	if room_def == null:
+		return false
+	for connected_room_id: StringName in room_def.connections:
+		if _is_known_room(connected_room_id):
+			return true
+	for other_room_def: RoomDef in layout.room_defs:
+		if other_room_def == null:
+			continue
+		if other_room_def.connections.has(room_id) and _is_known_room(other_room_def.room_id):
+			return true
+	return false
+
+
+func _is_always_visible_room(room_def: RoomDef) -> bool:
+	return _minimap_type_for_room(room_def) == RoomLayout.TYPE_SHOP
+
+
+func _is_frontier_room(room_id: StringName) -> bool:
+	return _frontier_source_for_room(room_id) != &""
+
+
+func _frontier_source_for_room(room_id: StringName) -> StringName:
+	if layout == null or _is_known_room(room_id):
+		return &""
+	var room_def := layout.get_room(room_id)
+	if room_def == null:
+		return &""
+	for source_room_id: StringName in _frontier_source_room_ids():
+		var source_room := layout.get_room(source_room_id)
+		if source_room == null:
+			continue
+		if source_room.connections.has(room_id) or room_def.connections.has(source_room_id):
+			return source_room_id
+	return &""
+
+
+func _frontier_source_room_ids() -> Array[StringName]:
+	var room_ids: Array[StringName] = []
+	if current_room_id != &"":
+		room_ids.append(current_room_id)
+	for room_id: Variant in cleared_room_ids.keys():
+		var typed_room_id := StringName(room_id)
+		if not room_ids.has(typed_room_id):
+			room_ids.append(typed_room_id)
+	return room_ids
+
+
+func _is_frontier_connection(first_room_id: StringName, second_room_id: StringName) -> bool:
+	return (
+		_frontier_source_for_room(first_room_id) == second_room_id
+		or _frontier_source_for_room(second_room_id) == first_room_id
+	)
+
+
+func _should_show_connection(first_room: RoomDef, second_room: RoomDef) -> bool:
+	return (
+		_is_room_visible(first_room)
+		or _is_room_visible(second_room)
+		or _is_frontier_connection(first_room.room_id, second_room.room_id)
+	)
 
 
 func _minimap_type_for_room(room_def: RoomDef) -> StringName:
@@ -286,13 +439,12 @@ func _minimap_type_for_room(room_def: RoomDef) -> StringName:
 
 
 func _fill_color_for_room(room_def: RoomDef, room_visible: bool, is_visited: bool) -> Color:
-	var color := RoomPalette.DOOR_LOCKED_COLOR if not room_visible else _color_for_minimap_type(_minimap_type_for_room(room_def))
 	if not room_visible:
-		color.a = 0.9
-		return color
+		return UNKNOWN_ROOM_COLOR
+	var color := _color_for_minimap_type(_minimap_type_for_room(room_def))
 	if not is_visited:
-		color = color.darkened(0.45)
-		color.a = 0.65
+		color = color.darkened(0.42)
+		color.a = 0.82
 	return color
 
 
@@ -300,13 +452,15 @@ func _border_color_for_room(is_current: bool, is_cleared: bool, is_problem: bool
 	if is_problem:
 		return RoomPalette.ACTIVITY_ROOM_FLOOR_COLOR
 	if is_current:
-		return RoomPalette.DOOR_OPEN_COLOR
+		return Color.WHITE
 	if is_cleared:
 		return RoomPalette.STUDENT_MARKER_COLOR
-	return RoomPalette.DOOR_LOCKED_COLOR
+	return Color(0.247059, 0.286275, 0.34902, 1.0)
 
 
 func _label_for_room(room_def: RoomDef, room_visible: bool) -> String:
+	if room_def.hidden and not reveal_hidden_rooms and not _is_known_room(room_def.room_id):
+		return "?"
 	if show_hidden_as_unknown and not room_visible:
 		return "?"
 	match _minimap_type_for_room(room_def):
@@ -318,22 +472,57 @@ func _label_for_room(room_def: RoomDef, room_visible: bool) -> String:
 			return "E"
 		&"boss":
 			return "B"
-		&"treasure":
+		RoomLayout.TYPE_TREASURE:
 			return "T"
-		&"shop":
+		RoomLayout.TYPE_SHOP:
 			return "$"
 	return ""
 
 
 func _color_for_minimap_type(minimap_type: StringName) -> Color:
-	if minimap_type == &"shop":
-		return RoomPalette.REWARD_ROOM_FLOOR_COLOR.lightened(0.18)
 	if minimap_type == &"boss":
 		return RoomPalette.FINAL_ROOM_FLOOR_COLOR
 	return RoomPalette.get_room_floor_color(minimap_type)
 
 
 func _derive_room_positions() -> Dictionary:
+	var grid_positions := _positions_from_room_grid()
+	if not grid_positions.is_empty():
+		return grid_positions
+	return _derive_graph_positions()
+
+
+func _positions_from_room_grid() -> Dictionary:
+	var positions := {}
+	if layout == null or layout.get_start_room() == null:
+		return positions
+	var occupied := {}
+	for room_def: RoomDef in layout.room_defs:
+		if room_def == null:
+			continue
+		if occupied.has(room_def.grid_pos):
+			return {}
+		positions[room_def.room_id] = room_def.grid_pos
+		occupied[room_def.grid_pos] = room_def.room_id
+	if positions.size() != layout.room_defs.size():
+		return {}
+	for room_def: RoomDef in layout.room_defs:
+		if room_def == null:
+			continue
+		for connected_room_id: StringName in room_def.connections:
+			if not positions.has(connected_room_id):
+				return {}
+			var connected_position: Vector2i = positions[connected_room_id]
+			var grid_distance := (
+				absi(room_def.grid_pos.x - connected_position.x)
+				+ absi(room_def.grid_pos.y - connected_position.y)
+			)
+			if grid_distance != 1:
+				return {}
+	return positions
+
+
+func _derive_graph_positions() -> Dictionary:
 	var positions := {}
 	if layout == null or layout.get_start_room() == null:
 		return positions
@@ -361,7 +550,6 @@ func _derive_room_positions() -> Dictionary:
 			positions[connected_room_id] = target_position
 			occupied[target_position] = connected_room_id
 			queue.append(connected_room_id)
-
 	return positions
 
 
@@ -384,13 +572,19 @@ func _grid_to_canvas(grid_position: Vector2i) -> Vector2:
 	var min_position: Vector2i = bounds["min"]
 	var max_position: Vector2i = bounds["max"]
 	var grid_size := Vector2(max_position - min_position + Vector2i.ONE)
+	var available := _canvas_size() - Vector2(panel_padding * 2.0, panel_padding * 2.0)
+	var step := cell_spacing
+	if grid_size.x > 1.0:
+		step.x = minf(cell_spacing.x, maxf(room_size.x + 8.0, (available.x - room_size.x) / (grid_size.x - 1.0)))
+	if grid_size.y > 1.0:
+		step.y = minf(cell_spacing.y, maxf(room_size.y + 8.0, (available.y - room_size.y) / (grid_size.y - 1.0)))
 	var map_size := Vector2(
-		maxf(grid_size.x * cell_spacing.x, room_size.x),
-		maxf(grid_size.y * cell_spacing.y, room_size.y)
+		(grid_size.x - 1.0) * step.x + room_size.x,
+		(grid_size.y - 1.0) * step.y + room_size.y
 	)
-	var origin := (size - map_size) * 0.5 + room_size
+	var origin := (_canvas_size() - map_size) * 0.5 + room_size * 0.5
 	var relative := Vector2(grid_position - min_position)
-	return origin + relative * cell_spacing
+	return origin + relative * step
 
 
 func _grid_bounds() -> Dictionary:
@@ -408,6 +602,40 @@ func _grid_bounds() -> Dictionary:
 			max_position.x = maxi(max_position.x, grid_position.x)
 			max_position.y = maxi(max_position.y, grid_position.y)
 	return {"min": min_position, "max": max_position}
+
+
+func _canvas_size() -> Vector2:
+	if size.x > 0.0 and size.y > 0.0:
+		return size
+	return custom_minimum_size
+
+
+func _direction_between(from_room_id: StringName, to_room_id: StringName) -> StringName:
+	if not _room_positions.has(from_room_id) or not _room_positions.has(to_room_id):
+		return &""
+	var delta: Vector2i = _room_positions[to_room_id] - _room_positions[from_room_id]
+	if delta == Vector2i(1, 0):
+		return &"E"
+	if delta == Vector2i(-1, 0):
+		return &"W"
+	if delta == Vector2i(0, 1):
+		return &"S"
+	if delta == Vector2i(0, -1):
+		return &"N"
+	return &""
+
+
+func _arrow_for_direction(direction: StringName) -> String:
+	match direction:
+		&"N":
+			return "^"
+		&"S":
+			return "v"
+		&"W":
+			return "<"
+		&"E":
+			return ">"
+	return "."
 
 
 func _path_has_connection(from_room_id: StringName, to_room_id: StringName) -> bool:

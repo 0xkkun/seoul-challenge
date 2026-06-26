@@ -7,6 +7,7 @@ const AUTHORED_LAYOUT_PATH := "res://resources/layouts/gyeongbokgung.tres"
 @export var layout_seed := 40
 @export var auto_run := true
 @export var quit_on_complete := false
+@export var screenshot_path := "res://test-results/map-inspector.png"
 
 var _minimap: Minimap
 var _status_label: Label
@@ -71,6 +72,12 @@ func _build_ui() -> void:
 	_status_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	toolbar.add_child(_status_label)
 
+	var legend_label := Label.new()
+	legend_label.name = "LegendLabel"
+	legend_label.text = "S start | C combat | E event | T treasure | $ shop | ? unknown | cyan ping = reachable exit"
+	legend_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	root.add_child(legend_label)
+
 	_minimap = MINIMAP_SCENE.instantiate() as Minimap
 	_minimap.name = "Minimap"
 	_minimap.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -122,6 +129,9 @@ func _run_runtime_check() -> void:
 		if not _assert_layout_inspectable(generator.generate(next_seed), "generated_%d" % next_seed):
 			return
 	print("[map_inspector] OK: authored and generated layouts inspectable")
+	await get_tree().process_frame
+	await get_tree().process_frame
+	_save_runtime_screenshot()
 	if quit_on_complete or DisplayServer.get_name() == "headless":
 		get_tree().quit(0)
 
@@ -129,6 +139,14 @@ func _run_runtime_check() -> void:
 func _assert_layout_inspectable(next_layout: RoomLayout, label: String) -> bool:
 	if next_layout == null:
 		_fail_inspector("%s layout missing" % label)
+		return false
+	var validation_errors := next_layout.validate_layout()
+	if not validation_errors.is_empty():
+		_fail_inspector("%s layout validation failed: %s" % [label, str(Array(validation_errors))])
+		return false
+	var grid_errors := _grid_position_errors(next_layout)
+	if not grid_errors.is_empty():
+		_fail_inspector("%s layout grid positions failed: %s" % [label, str(Array(grid_errors))])
 		return false
 	var unreachable := _unreachable_room_ids(next_layout)
 	if not unreachable.is_empty():
@@ -150,6 +168,27 @@ func _fail_inspector(message: String) -> void:
 	push_error("[map_inspector] FAIL: %s" % message)
 	if quit_on_complete or DisplayServer.get_name() == "headless":
 		get_tree().quit(1)
+
+
+func _save_runtime_screenshot() -> void:
+	if screenshot_path == "":
+		return
+	if DisplayServer.get_name() == "headless":
+		print("[map_inspector] screenshot skipped: headless display")
+		return
+	var global_path := ProjectSettings.globalize_path(screenshot_path)
+	var directory_path := global_path.get_base_dir()
+	if not DirAccess.dir_exists_absolute(directory_path):
+		var make_dir_error := DirAccess.make_dir_recursive_absolute(directory_path)
+		if make_dir_error != OK:
+			push_warning("[map_inspector] screenshot directory failed: %s" % directory_path)
+			return
+	var image := get_viewport().get_texture().get_image()
+	var save_error := image.save_png(global_path)
+	if save_error != OK:
+		push_warning("[map_inspector] screenshot failed: %s" % global_path)
+		return
+	print("[map_inspector] screenshot=%s" % global_path)
 
 
 func _on_generated_toggled(pressed: bool) -> void:
@@ -203,6 +242,38 @@ func _reachable_room_ids(next_layout: RoomLayout, start_room_id: StringName) -> 
 			reached[connected_room_id] = true
 			queue.append(connected_room_id)
 	return reached
+
+
+func _grid_position_errors(next_layout: RoomLayout) -> PackedStringArray:
+	var errors := PackedStringArray()
+	if next_layout == null:
+		errors.append("layout missing")
+		return errors
+
+	var start_room := next_layout.get_start_room()
+	if start_room == null:
+		errors.append("start room missing")
+	elif start_room.grid_pos != Vector2i.ZERO:
+		errors.append("start room grid_pos must be Vector2i(0, 0)")
+
+	var occupied := {}
+	for room_def: RoomDef in next_layout.room_defs:
+		if room_def == null:
+			continue
+		if occupied.has(room_def.grid_pos):
+			errors.append("%s overlaps %s" % [room_def.room_id, occupied[room_def.grid_pos]])
+		occupied[room_def.grid_pos] = room_def.room_id
+		for connected_room_id: StringName in room_def.connections:
+			var connected_room := next_layout.get_room(connected_room_id)
+			if connected_room == null:
+				continue
+			var grid_distance := (
+				absi(room_def.grid_pos.x - connected_room.grid_pos.x)
+				+ absi(room_def.grid_pos.y - connected_room.grid_pos.y)
+			)
+			if grid_distance != 1:
+				errors.append("%s connects to non-adjacent %s" % [room_def.room_id, connected_room_id])
+	return errors
 
 
 func _path_between(next_layout: RoomLayout, start_room_id: StringName, target_room_id: StringName) -> Array[StringName]:
