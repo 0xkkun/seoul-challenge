@@ -1,0 +1,15 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/interactables/friend_room.gd" id="1_friend_room"]
+
+[node name="FriendRoom" type="Node2D"]
+script = ExtResource("1_friend_room")
+room_id = &"friend_room"
+room_type = &"friend"
+door_dirs = Array[StringName]([&"W", &"E"])
+
+[node name="Floor" type="ColorRect" parent="."]
+
+[node name="Friends" type="Node2D" parent="."]
+
+[node name="Doors" type="Node2D" parent="."]

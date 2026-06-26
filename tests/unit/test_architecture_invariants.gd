@@ -35,6 +35,7 @@ func test_room_event_bus_surface_uses_payload_wrappers() -> void:
 		"room_cleared",
 		"student_rescued",
 		"friend_purified",
+		"boss_defeated",
 		"currency_changed",
 	]
 	for event_name: String in event_names:

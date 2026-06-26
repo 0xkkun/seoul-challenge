@@ -10,6 +10,7 @@ const WALL_DOOR_GAP_PADDING := 12.0
 const START_ROOM_FLOOR_COLOR := Color(0.352941, 0.490196, 0.352941, 1.0)
 const ACTIVITY_ROOM_FLOOR_COLOR := Color(0.690196, 0.254902, 0.243137, 1.0)
 const EVENT_ROOM_FLOOR_COLOR := Color(0.227451, 0.431373, 0.647059, 1.0)
+const FRIEND_ROOM_FLOOR_COLOR := Color(0.415686, 0.286275, 0.635294, 1.0)
 const REWARD_ROOM_FLOOR_COLOR := Color(0.784314, 0.631373, 0.227451, 1.0)
 const SHOP_ROOM_FLOOR_COLOR := Color(0.176471, 0.541176, 0.501961, 1.0)
 const FINAL_ROOM_FLOOR_COLOR := Color(0.415686, 0.227451, 0.541176, 1.0)
@@ -33,6 +34,8 @@ static func get_room_floor_color(room_type: StringName) -> Color:
 			return ACTIVITY_ROOM_FLOOR_COLOR
 		&"event":
 			return EVENT_ROOM_FLOOR_COLOR
+		&"friend":
+			return FRIEND_ROOM_FLOOR_COLOR
 		&"treasure":
 			return REWARD_ROOM_FLOOR_COLOR
 		&"shop":

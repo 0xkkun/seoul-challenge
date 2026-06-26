@@ -7,6 +7,7 @@ signal room_entered(payload: Dictionary)
 signal room_cleared(payload: Dictionary)
 signal student_rescued(payload: Dictionary)
 signal friend_purified(payload: Dictionary)
+signal boss_defeated(payload: Dictionary)
 signal currency_changed(payload: Dictionary)
 signal settings_changed(settings: Dictionary)
 ## #19 밤 전투 계약: 플레이어 체력 변화 — payload {"current": int, "max": int}.
@@ -43,6 +44,10 @@ func emit_student_rescued(payload: Dictionary) -> void:
 
 func emit_friend_purified(payload: Dictionary) -> void:
 	friend_purified.emit(payload.duplicate(true))
+
+
+func emit_boss_defeated(payload: Dictionary) -> void:
+	boss_defeated.emit(payload.duplicate(true))
 
 
 func emit_currency_changed(payload: Dictionary) -> void:
