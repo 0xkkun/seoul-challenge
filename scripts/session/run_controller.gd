@@ -119,6 +119,7 @@ func _resolve_actor() -> Node2D:
 
 func _on_room_manager_room_changed(room_id: StringName, room_type: StringName) -> void:
 	visited_room_ids.append(room_id)
+	_configure_run_controlled_room(room_manager.current_room)
 	room_changed.emit(room_id, room_type)
 
 
@@ -141,3 +142,10 @@ func _on_room_manager_layout_completed(layout_id: StringName) -> void:
 		elif has_node("/root/EventBus"):
 			EventBus.emit_session_finished(result)
 	run_completed.emit(result.duplicate(true))
+
+
+func _configure_run_controlled_room(room: Node) -> void:
+	if room == null:
+		return
+	if room.has_method("set_finish_session_on_resolve"):
+		room.call("set_finish_session_on_resolve", false)

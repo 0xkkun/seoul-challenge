@@ -77,14 +77,8 @@ func get_active_count(pool_id: StringName) -> int:
 
 
 func clear_all() -> void:
-	for node_list: Array in _available.values():
-		for node: Node in node_list:
-			if is_instance_valid(node):
-				node.free()
-	for node_list: Array in _active.values():
-		for node: Node in node_list:
-			if is_instance_valid(node):
-				node.free()
+	_free_node_lists(_available.values())
+	_free_node_lists(_active.values())
 	_pool_scenes.clear()
 	_available.clear()
 	_active.clear()
@@ -97,6 +91,16 @@ func _instantiate(pool_id: StringName) -> Node:
 	node.set_meta("pool_id", pool_id)
 	node.add_to_group(TemplateGroups.POOLED_OBJECT)
 	return node
+
+
+func _free_node_lists(node_lists: Array) -> void:
+	for node_list: Array in node_lists:
+		for value: Variant in node_list:
+			if not is_instance_valid(value):
+				continue
+			var node := value as Node
+			if node != null:
+				node.free()
 
 
 func _activate(node: Node) -> void:

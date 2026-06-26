@@ -2,6 +2,8 @@ extends Node2D
 
 const POOLED_MARKER_SCENE = preload("res://scenes/interactables/sample_pooled_marker.tscn")
 const GYEONGBOKGUNG_LAYOUT = preload("res://resources/layouts/gyeongbokgung.tres")
+const BOSS_SCENE = preload("res://scenes/enemies/boss.tscn")
+const RoomPalette = preload("res://scripts/constants/room_palette.gd")
 
 @onready var actor: Node2D = %Player
 @onready var room_layer: Node = %RoomLayer
@@ -11,11 +13,13 @@ const GYEONGBOKGUNG_LAYOUT = preload("res://resources/layouts/gyeongbokgung.tres
 @onready var interaction_system: Node = %InteractionSystem
 @onready var room_manager: RoomManager = %RoomManager
 @onready var session_ui_root: CanvasLayer = %SessionUIRoot
+@onready var player_camera: Camera2D = %PlayerCamera
 
 var completed_interactions := 0
 var return_to_school_callable: Callable
 var retry_session_callable: Callable
 var _handoff_session_on_exit := false
+var _active_boss: Node = null
 
 
 func _ready() -> void:
@@ -23,6 +27,8 @@ func _ready() -> void:
 		GameManager.start_session({"source": "session_root"})
 	PoolManager.register_scene(&"sample_marker", POOLED_MARKER_SCENE, 1, pooled_object_layer)
 	interaction_system.configure(actor, interactable_layer)
+	_configure_player_camera()
+	room_manager.room_changed.connect(_on_room_changed)
 	room_manager.configure(GYEONGBOKGUNG_LAYOUT, room_layer, actor)
 	room_manager.start_layout()
 	sample_interactable.interaction_triggered.connect(_on_interaction_triggered)
@@ -115,6 +121,58 @@ func _on_retry_requested() -> void:
 		result = SceneTransition.start_session(config)
 	if result is int and result != OK:
 		_handoff_session_on_exit = false
+
+
+func _configure_player_camera() -> void:
+	if player_camera == null:
+		return
+	var half := RoomPalette.ROOM_HALF_SIZE
+	var wall: float = RoomPalette.WALL_THICKNESS
+	player_camera.limit_left = int(floor(-half.x - wall))
+	player_camera.limit_top = int(floor(-half.y - wall))
+	player_camera.limit_right = int(ceil(half.x + wall))
+	player_camera.limit_bottom = int(ceil(half.y + wall))
+	player_camera.make_current()
+
+
+func _on_room_changed(_room_id: StringName, _room_type: StringName) -> void:
+	var current_room := room_manager.current_room
+	if current_room != null:
+		actor.global_position = current_room.global_position
+	_connect_boss_room(current_room)
+
+
+func _connect_boss_room(room: Node) -> void:
+	if not room.has_signal("boss_spawn_requested"):
+		return
+	var callback := Callable(self, "_on_boss_spawn_requested")
+	if not room.is_connected("boss_spawn_requested", callback):
+		room.connect("boss_spawn_requested", callback)
+
+
+func _on_boss_spawn_requested(room_id: StringName, boss_id: StringName, spawn_position: Vector2) -> void:
+	if room_id != room_manager.current_room_id:
+		return
+	if _active_boss != null and is_instance_valid(_active_boss):
+		_active_boss.queue_free()
+	var boss := BOSS_SCENE.instantiate()
+	boss.name = String(boss_id)
+	var parent := room_manager.current_room
+	if parent == null:
+		boss.queue_free()
+		return
+	parent.add_child(boss)
+	(boss as Node2D).global_position = spawn_position
+	_active_boss = boss
+	if boss.has_signal("defeated"):
+		boss.connect("defeated", Callable(self, "_on_boss_defeated").bind(parent))
+
+
+func _on_boss_defeated(_boss: Node, room: Node) -> void:
+	if _active_boss == _boss:
+		_active_boss = null
+	if room != null and is_instance_valid(room) and room.has_method("complete_boss_encounter"):
+		room.call("complete_boss_encounter")
 
 
 func _is_layout_complete() -> bool:

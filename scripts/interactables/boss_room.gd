@@ -6,6 +6,7 @@ signal boss_resolved(room_id: StringName, boss_id: StringName)
 
 @export var boss_id: StringName = &"gyeongbokgung_boss"
 @export var spawn_anchor_path: NodePath
+@export var finish_session_on_resolve := true
 
 var _spawn_requested := false
 var _boss_resolved := false
@@ -59,7 +60,7 @@ func complete_boss_encounter() -> bool:
 	if has_node("/root/EventBus"):
 		EventBus.emit_friend_purified(payload)
 	mark_cleared()
-	if has_node("/root/GameManager") and GameManager.is_session_active():
+	if finish_session_on_resolve and has_node("/root/GameManager") and GameManager.is_session_active():
 		GameManager.finish_session({
 			"reason": "boss_resolved",
 			"room_id": room_id,
@@ -70,6 +71,10 @@ func complete_boss_encounter() -> bool:
 
 func has_requested_spawn() -> bool:
 	return _spawn_requested
+
+
+func set_finish_session_on_resolve(enabled: bool) -> void:
+	finish_session_on_resolve = enabled
 
 
 func get_spawn_position() -> Vector2:

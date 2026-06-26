@@ -15,7 +15,7 @@ grid_pos = Vector2i(0, 0)
 script = ExtResource("2_def")
 room_id = &"combat_1"
 room_type = &"combat"
-scene_path = "res://scenes/session/room_base.tscn"
+scene_path = "res://scenes/interactables/combat_room.tscn"
 connections = Array[StringName]([&"start", &"combat_2"])
 grid_pos = Vector2i(1, 0)
 
@@ -23,7 +23,7 @@ grid_pos = Vector2i(1, 0)
 script = ExtResource("2_def")
 room_id = &"combat_2"
 room_type = &"combat"
-scene_path = "res://scenes/session/room_base.tscn"
+scene_path = "res://scenes/interactables/combat_room.tscn"
 connections = Array[StringName]([&"combat_1", &"event_1"])
 grid_pos = Vector2i(2, 0)
 
@@ -31,7 +31,7 @@ grid_pos = Vector2i(2, 0)
 script = ExtResource("2_def")
 room_id = &"event_1"
 room_type = &"event"
-scene_path = "res://scenes/session/room_base.tscn"
+scene_path = "res://scenes/interactables/rescue_room.tscn"
 connections = Array[StringName]([&"combat_2", &"final_1"])
 grid_pos = Vector2i(3, 0)
 
@@ -39,7 +39,7 @@ grid_pos = Vector2i(3, 0)
 script = ExtResource("2_def")
 room_id = &"final_1"
 room_type = &"final"
-scene_path = "res://scenes/session/room_base.tscn"
+scene_path = "res://scenes/interactables/boss_room.tscn"
 connections = Array[StringName]([&"event_1"])
 grid_pos = Vector2i(4, 0)
 hidden = true
