@@ -43,6 +43,7 @@ func generate(layout_seed: int, params: Dictionary = {}) -> RoomLayout:
 	var cells := _generate_cells(rng, width, height, target_count, chance)
 	var adjacency := _build_adjacency(cells)
 	var distances := _compute_distances(adjacency, 0)
+	var max_distance := _max_distance(distances)
 	var final_index := _pick_special_room_index(cells, adjacency, distances, [0])
 	var event_index := _pick_special_room_index(cells, adjacency, distances, [0, final_index])
 	var treasure_index := -1
@@ -64,6 +65,11 @@ func generate(layout_seed: int, params: Dictionary = {}) -> RoomLayout:
 		room_def.hidden = index == final_index
 		room_def.connections = _connection_ids_for_index(index, cells, adjacency, room_ids)
 		room_def.grid_pos = cells[index] - cells[0]
+		room_def.room_config = _room_config_for_type(
+			room_def.room_type,
+			int(distances.get(index, 0)),
+			max_distance
+		)
 		layout.room_defs.append(room_def)
 
 	return layout
@@ -252,6 +258,46 @@ func _compute_distances(adjacency: Dictionary, start_index: int) -> Dictionary:
 			queue.append(neighbor)
 
 	return distances
+
+
+func _max_distance(distances: Dictionary) -> int:
+	var max_value := 0
+	for value: Variant in distances.values():
+		max_value = maxi(max_value, int(value))
+	return max_value
+
+
+func _room_config_for_type(room_type: StringName, distance_from_start: int, max_distance: int) -> Dictionary:
+	if room_type != RoomLayout.TYPE_COMBAT:
+		return {}
+	return _combat_room_config(distance_from_start, max_distance)
+
+
+func _combat_room_config(distance_from_start: int, max_distance: int) -> Dictionary:
+	var progress := 0.0
+	if max_distance > 0:
+		progress = clampf(float(distance_from_start) / float(max_distance), 0.0, 1.0)
+
+	if progress >= 0.7:
+		return {
+			"chaser_count": 2,
+			"ranged_count": 2,
+			"elite_chaser_count": 1,
+			"elite_ranged_count": 0,
+		}
+	if progress >= 0.4:
+		return {
+			"chaser_count": 2,
+			"ranged_count": 1,
+			"elite_chaser_count": 0,
+			"elite_ranged_count": 0,
+		}
+	return {
+		"chaser_count": 2,
+		"ranged_count": 0,
+		"elite_chaser_count": 0,
+		"elite_ranged_count": 0,
+	}
 
 
 func _pick_special_room_index(

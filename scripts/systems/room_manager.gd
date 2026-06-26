@@ -161,6 +161,8 @@ func _resolve_layout() -> RoomLayout:
 func _apply_room_def(room: Node2D, room_def: RoomDef) -> void:
 	room.set("room_id", room_def.room_id)
 	room.set("room_type", room_def.room_type)
+	if room.has_method("apply_room_config"):
+		room.call("apply_room_config", room_def.room_config.duplicate(true))
 
 
 ## 연결된 방의 grid 위치 차이로 문 방향(N/S/E/W)을 도출한다.
