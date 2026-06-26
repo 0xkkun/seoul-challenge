@@ -80,3 +80,31 @@ func test_skill_state_event_updates_skill_slot() -> void:
 	})
 
 	_runner.assert_true(_hud.get_skill_text().contains("1/3"), "skill event updates HUD")
+
+
+func test_currency_state_renders_ingame_balance() -> void:
+	_runner.assert_true(_hud.has_method("set_currency_state"), "HUD exposes currency state setter")
+	_runner.assert_true(_hud.has_method("get_currency_text"), "HUD exposes currency text for tests")
+	if not _hud.has_method("set_currency_state") or not _hud.has_method("get_currency_text"):
+		return
+
+	_hud.set_currency_state({"ingame": 7})
+
+	_runner.assert_true(_hud.get_currency_text().contains("엽전"), "HUD labels ingame currency")
+	_runner.assert_true(_hud.get_currency_text().contains("7"), "HUD renders ingame balance")
+
+
+func test_currency_changed_event_updates_currency_slot() -> void:
+	_runner.assert_true(EventBus.has_method("emit_currency_changed"), "EventBus exposes currency wrapper")
+	_runner.assert_true(_hud.has_method("get_currency_text"), "HUD exposes currency text for tests")
+	if not EventBus.has_method("emit_currency_changed") or not _hud.has_method("get_currency_text"):
+		return
+
+	EventBus.emit_currency_changed({
+		"kind": "ingame",
+		"amount": 3,
+		"ingame": 3,
+		"source": "CurrencySystem",
+	})
+
+	_runner.assert_true(_hud.get_currency_text().contains("3"), "currency event updates HUD")
