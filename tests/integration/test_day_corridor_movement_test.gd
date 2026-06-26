@@ -234,7 +234,7 @@ func test_day_corridor_exit_button_confirms_lobby_return() -> void:
 
 	var exit_button := UiTestHarness.find_by_test_id(scene, "day_corridor.exit_button") as Button
 	_runner.assert_not_null(exit_button, "exit button exposes a stable test id")
-	_assert_pixel_button_style(exit_button, "day exit")
+	_assert_pixel_button_style(exit_button, PixelButtonStyle.VARIANT_PRIMARY, "day exit")
 	_runner.assert_true(UiTestHarness.press_by_uat_action(scene, "day_corridor.exit_to_lobby"), "exit action opens confirmation")
 	_runner.assert_true(scene.is_return_confirm_visible(), "return confirmation opens")
 	_runner.assert_eq(scene.get_return_confirm_message(), "로비로 돌아갈까요? 진행은 자동 저장됩니다", "return copy matches issue")
@@ -355,9 +355,9 @@ func _tap_dialogue(dialogue_ui: Node) -> void:
 	dialogue_ui.call("_input", event)
 
 
-func _assert_pixel_button_style(button: Button, label: String) -> void:
-	_assert_pixel_button_texture(button.get_theme_stylebox("normal"), PixelButtonStyle.NORMAL_TEXTURE_PATH, "%s normal" % label)
-	_assert_pixel_button_texture(button.get_theme_stylebox("pressed"), PixelButtonStyle.PRESSED_TEXTURE_PATH, "%s pressed" % label)
+func _assert_pixel_button_style(button: Button, variant: StringName, label: String) -> void:
+	_assert_pixel_button_texture(button.get_theme_stylebox("normal"), PixelButtonStyle.normal_texture_path(variant), "%s normal" % label)
+	_assert_pixel_button_texture(button.get_theme_stylebox("pressed"), PixelButtonStyle.pressed_texture_path(variant), "%s pressed" % label)
 
 
 func _assert_pixel_button_texture(style: StyleBox, texture_path: String, message: String) -> void:
