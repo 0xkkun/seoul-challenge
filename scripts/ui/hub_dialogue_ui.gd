@@ -7,6 +7,9 @@ signal choice_selected(choice_id: StringName)
 signal unlock_hidden
 
 const REFERENCE_SIZE := Vector2(844.0, 390.0)
+const DIALOGUE_BAR_HEIGHT := 152.0
+const UNLOCK_POPUP_SIZE := Vector2(338.0, 148.0)
+const UNLOCK_POPUP_CENTER_OFFSET := Vector2(0.0, -58.0)
 const CHOICE_ASK := &"ask"
 const CHOICE_ACCEPT := &"accept"
 const STAGE_STATE_COMPLETED := "completed"
@@ -67,11 +70,20 @@ func _ready() -> void:
 		{"id": CHOICE_ASK, "text": "물어본다", "emphasized": false},
 		{"id": CHOICE_ACCEPT, "text": "받는다", "emphasized": true},
 	])
-	hide_unlock()
+	_unlock_overlay.visible = false
 
 
 func get_reference_size() -> Vector2:
 	return REFERENCE_SIZE
+
+
+func get_dialogue_bar_reference_rect() -> Rect2:
+	return Rect2(Vector2(0.0, REFERENCE_SIZE.y - DIALOGUE_BAR_HEIGHT), Vector2(REFERENCE_SIZE.x, DIALOGUE_BAR_HEIGHT))
+
+
+func get_unlock_popup_reference_rect() -> Rect2:
+	var center := REFERENCE_SIZE * 0.5 + UNLOCK_POPUP_CENTER_OFFSET
+	return Rect2(center - UNLOCK_POPUP_SIZE * 0.5, UNLOCK_POPUP_SIZE)
 
 
 func set_dialogue(next_speaker_name: String, next_dialogue_text: String, next_memory_text := "", portrait_color := PORTRAIT_COLOR) -> void:
@@ -165,8 +177,10 @@ func show_unlock(title: String, subtitle: String, items: Array[Dictionary]) -> v
 
 
 func hide_unlock() -> void:
+	var was_visible := _unlock_overlay.visible
 	_unlock_overlay.visible = false
-	unlock_hidden.emit()
+	if was_visible:
+		unlock_hidden.emit()
 
 
 func is_unlock_visible() -> bool:

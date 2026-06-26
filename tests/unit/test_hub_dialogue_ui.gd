@@ -28,6 +28,16 @@ func test_component_uses_landscape_reference_frame() -> void:
 	_runner.assert_eq(_ui.get_reference_size(), Vector2(844.0, 390.0), "가로모드 기준 프레임을 노출한다")
 
 
+func test_unlock_popup_sits_above_dialogue_bar_in_reference_frame() -> void:
+	var popup_rect: Rect2 = _ui.get_unlock_popup_reference_rect()
+	var dialogue_rect: Rect2 = _ui.get_dialogue_bar_reference_rect()
+
+	_runner.assert_true(
+		popup_rect.end.y < dialogue_rect.position.y,
+		"해금 팝업은 기준 프레임에서 대화 바 위에 있어야 한다"
+	)
+
+
 func test_dialogue_content_updates_from_data() -> void:
 	_ui.set_dialogue("과학부 선배", "\"이 유리병은 밤마다 혼자 흔들려.\"", "기억: 실험실 싱크대의 물방울")
 
@@ -76,3 +86,18 @@ func test_unlock_popup_tracks_reward_items() -> void:
 
 	_ui.hide_unlock()
 	_runner.assert_false(_ui.is_unlock_visible(), "해금 팝업을 숨길 수 있다")
+
+
+func test_unlock_hidden_only_emits_after_visible_popup_is_hidden() -> void:
+	var hidden_count := [0]
+	_ui.unlock_hidden.connect(func() -> void: hidden_count[0] += 1)
+
+	_ui.hide_unlock()
+	_runner.assert_eq(hidden_count[0], 0, "초기 비표시 상태를 숨겨도 dismiss 신호를 보내지 않는다")
+
+	var items: Array[Dictionary] = [
+		{"id": &"old_baseball", "name": "낡은 야구공", "color": HUB_DIALOGUE_SCRIPT.DEFAULT_BALL_COLOR},
+	]
+	_ui.show_unlock("아이템을 얻었다", "STAGE 2 보상", items)
+	_ui.hide_unlock()
+	_runner.assert_eq(hidden_count[0], 1, "표시된 팝업을 닫을 때만 dismiss 신호를 보낸다")
