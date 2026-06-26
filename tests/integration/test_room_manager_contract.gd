@@ -76,6 +76,29 @@ func test_room_manager_runs_layout_with_interactive_rooms() -> void:
 	manager.room_changed.disconnect(on_room_changed)
 
 
+func test_room_manager_uses_door_direction_for_transition_target() -> void:
+	var layout := load("res://resources/layouts/gyeongbokgung.tres") as RoomLayout
+	var container := Node2D.new()
+	var actor := (load("res://scenes/actors/sample_actor.tscn") as PackedScene).instantiate() as Node2D
+	var manager := RoomManager.new()
+	add_child(container)
+	add_child(actor)
+	add_child(manager)
+	manager.configure(layout, container, actor)
+
+	_runner.assert_true(manager.start_layout(), "manager starts fixed layout")
+	_runner.assert_true(manager.request_next_room(), "manager advances to first combat room")
+	_runner.assert_eq(manager.current_room_id, &"combat_1", "manager enters combat_1")
+	_resolve_current_room(manager, actor)
+
+	var west_door: RoomDoor = manager.current_room.get_door(&"W")
+	_runner.assert_not_null(west_door, "combat_1 exposes a west door back to start")
+	if west_door == null:
+		return
+	_runner.assert_true(west_door.request_transition(), "west door requests transition")
+	_runner.assert_eq(manager.current_room_id, &"start", "west door returns to connected start room")
+
+
 func test_session_root_mounts_room_manager() -> void:
 	var packed := load("res://scenes/session/session_root.tscn") as PackedScene
 	var entered_payloads: Array[Dictionary] = []

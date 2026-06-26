@@ -24,17 +24,20 @@ func test_combat_room_spawns_enemies_and_clears_after_defeats() -> void:
 
 	room.enter()
 
-	var north_door := room.call("get_door", &"N") as RoomDoor
+	var east_door := room.call("get_door", &"E") as RoomDoor
+	_runner.assert_not_null(east_door, "combat room has an east exit")
+	if east_door == null:
+		return
 	_runner.assert_eq(room.call("get_remaining_enemy_count"), 3, "combat room spawns chasers and a ranged shooter")
 	_runner.assert_false(room.call("is_cleared"), "combat room waits for enemy defeats")
-	_runner.assert_true(north_door.is_locked(), "combat room door stays locked while enemies remain")
+	_runner.assert_true(east_door.is_locked(), "combat room door stays locked while enemies remain")
 
 	for enemy: Node in room.call("get_active_enemies"):
 		if enemy.has_method("take_damage"):
 			enemy.call("take_damage", 99)
 
 	_runner.assert_true(room.call("is_cleared"), "combat room clears after every enemy is defeated")
-	_runner.assert_true(north_door.is_open(), "combat clear opens exits")
+	_runner.assert_true(east_door.is_open(), "combat clear opens exits")
 	_runner.assert_eq(cleared_rooms, [room.get("room_id")], "combat room emits cleared once")
 
 
@@ -63,4 +66,5 @@ func _instantiate_combat_room() -> Node:
 	var room := packed.instantiate()
 	_runner.assert_true(room.has_method("get_active_enemies"), "combat room exposes active enemies")
 	_runner.assert_true(room.has_method("get_remaining_enemy_count"), "combat room exposes remaining enemy count")
+	_runner.assert_true(room.has_method("get_alive_count"), "combat room keeps legacy alive count alias")
 	return room

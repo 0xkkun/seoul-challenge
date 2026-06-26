@@ -165,13 +165,14 @@ func _draw() -> void:
 			var icon_margin := minf(rect.size.x, rect.size.y) * 0.18
 			draw_texture_rect(icon_texture, rect.grow(-icon_margin), false, entry["icon_color"])
 		elif entry["label"] != "":
+			var label_font := maxi(8, int(minf(float(font_size), rect.size.y * 0.7)))
 			draw_string(
 				font,
-				Vector2(rect.position.x, rect.position.y + rect.size.y * 0.64),
+				Vector2(rect.position.x, rect.position.y + rect.size.y * 0.66),
 				entry["label"],
 				HORIZONTAL_ALIGNMENT_CENTER,
 				rect.size.x,
-				font_size,
+				label_font,
 				entry["text_color"]
 			)
 

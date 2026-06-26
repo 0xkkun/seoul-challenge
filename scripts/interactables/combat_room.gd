@@ -4,20 +4,20 @@ extends Room
 const CHASER_SCENE = preload("res://scenes/enemies/chaser.tscn")
 const RANGED_SHOOTER_SCENE = preload("res://scenes/enemies/ranged_shooter.tscn")
 const CHASER_SPAWN_FACTORS: Array[Vector2] = [
-	Vector2(-0.45, -0.25),
-	Vector2(0.45, -0.25),
-	Vector2(-0.35, 0.35),
-	Vector2(0.35, 0.35),
+	Vector2(0.15, -0.35),
+	Vector2(0.45, 0.35),
+	Vector2(0.3, 0.15),
+	Vector2(0.65, -0.1),
 ]
 const RANGED_SPAWN_FACTORS: Array[Vector2] = [
-	Vector2(0.0, -0.45),
-	Vector2(0.0, 0.45),
-	Vector2(-0.5, 0.0),
-	Vector2(0.5, 0.0),
+	Vector2(0.65, 0.0),
+	Vector2(0.3, -0.2),
+	Vector2(0.5, 0.3),
 ]
 
 signal combat_started(room_id: StringName, enemy_count: int)
 signal combat_resolved(room_id: StringName)
+signal combat_cleared(room_id: StringName)
 signal enemy_count_changed(remaining_count: int)
 
 @export var chaser_scene: PackedScene = CHASER_SCENE
@@ -58,6 +58,7 @@ func resolve_combat() -> void:
 		return
 	_combat_resolved = true
 	combat_resolved.emit(room_id)
+	combat_cleared.emit(room_id)
 	enemy_count_changed.emit(0)
 	mark_cleared()
 
@@ -70,6 +71,10 @@ func get_active_enemies() -> Array[Node]:
 func get_remaining_enemy_count() -> int:
 	_prune_inactive_enemies()
 	return _active_enemies.size()
+
+
+func get_alive_count() -> int:
+	return get_remaining_enemy_count()
 
 
 func _spawn_encounter() -> void:

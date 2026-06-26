@@ -2,6 +2,7 @@ class_name Room
 extends Node2D
 
 const RoomPalette = preload("res://scripts/constants/room_palette.gd")
+const BACKGROUND_TEXTURE = preload("res://assets/backgrounds/gyeongbokgung/gyeongbokgung_night.png")
 
 signal cleared(room_id: StringName)
 signal transition_requested(room_id: StringName, door_dir: StringName)
@@ -21,12 +22,14 @@ var _actor: Node2D
 
 func _ready() -> void:
 	_floor = _resolve_floor()
+	_build_doors()
 	_cache_doors()
 	if door_dirs.is_empty():
 		for door: RoomDoor in _doors:
 			door_dirs.append(door.door_dir)
 	_build_perimeter_walls()
 	_apply_room_visuals()
+	_build_background()
 	_apply_door_state()
 
 
@@ -95,6 +98,55 @@ func get_door(door_dir: StringName) -> RoomDoor:
 	return null
 
 
+func _build_doors() -> void:
+	var doors_parent := get_node_or_null("Doors")
+	if doors_parent == null:
+		doors_parent = Node2D.new()
+		doors_parent.name = "Doors"
+		add_child(doors_parent)
+	if door_dirs.is_empty():
+		return
+	_remove_unconfigured_doors(doors_parent)
+	for dir: StringName in door_dirs:
+		if _has_door_dir(doors_parent, dir):
+			continue
+		doors_parent.add_child(_make_door(dir))
+
+
+func _remove_unconfigured_doors(parent: Node) -> void:
+	for child: Node in parent.get_children():
+		if child is RoomDoor and not door_dirs.has((child as RoomDoor).door_dir):
+			parent.remove_child(child)
+			child.queue_free()
+
+
+func _has_door_dir(parent: Node, dir: StringName) -> bool:
+	for child: Node in parent.get_children():
+		if child is RoomDoor and (child as RoomDoor).door_dir == dir:
+			return true
+	return false
+
+
+func _make_door(dir: StringName) -> RoomDoor:
+	var door := RoomDoor.new()
+	door.name = "%sDoor" % String(dir)
+	door.door_dir = dir
+
+	var visual := ColorRect.new()
+	visual.name = "DoorVisual"
+	door.add_child(visual)
+
+	var area := Area2D.new()
+	area.name = "TransitionArea"
+	area.collision_layer = 0
+	door.add_child(area)
+
+	var shape := CollisionShape2D.new()
+	shape.name = "CollisionShape2D"
+	area.add_child(shape)
+	return door
+
+
 func _cache_doors() -> void:
 	_doors.clear()
 	_collect_doors(self)
@@ -126,6 +178,7 @@ func _apply_room_visuals() -> void:
 	_floor.size = RoomPalette.ROOM_SIZE
 	_floor.position = -RoomPalette.ROOM_HALF_SIZE
 	_floor.color = RoomPalette.get_room_floor_color(room_type)
+	_floor.visible = false
 
 
 func _resolve_floor() -> ColorRect:
@@ -231,6 +284,20 @@ func _add_wall_segment(layer: Node2D, segment_name: String, segment_position: Ve
 
 	layer.add_child(body)
 	_wall_segments.append(body)
+
+
+func _build_background() -> void:
+	if get_node_or_null("Background") != null:
+		return
+	var bg := Sprite2D.new()
+	bg.name = "Background"
+	bg.texture = BACKGROUND_TEXTURE
+	bg.z_index = -10
+	var tex_size := BACKGROUND_TEXTURE.get_size()
+	if tex_size.x > 0.0 and tex_size.y > 0.0:
+		var fit := maxf(RoomPalette.ROOM_SIZE.x / tex_size.x, RoomPalette.ROOM_SIZE.y / tex_size.y)
+		bg.scale = Vector2(fit, fit)
+	add_child(bg)
 
 
 func _build_payload() -> Dictionary:

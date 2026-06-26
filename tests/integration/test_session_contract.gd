@@ -128,23 +128,23 @@ func test_room_base_lifecycle_opens_door_and_requests_transition() -> void:
 	var actor := (load("res://scenes/actors/sample_actor.tscn") as PackedScene).instantiate() as Node2D
 	add_child(actor)
 
-	var north_door := room.get_door(&"N")
+	var exit_door := room.get_door(&"E")
 	var floor := room.get_node("Floor") as ColorRect
-	var door_visual := north_door.get_node("DoorVisual") as ColorRect
-	var door_shape := north_door.get_node("TransitionArea/CollisionShape2D") as CollisionShape2D
+	var door_visual := exit_door.get_node("DoorVisual") as ColorRect
+	var door_shape := exit_door.get_node("TransitionArea/CollisionShape2D") as CollisionShape2D
 	var door_rectangle := door_shape.shape as RectangleShape2D
 
-	_runner.assert_not_null(north_door, "base room exposes north door")
+	_runner.assert_not_null(exit_door, "base room exposes exit door")
 	_runner.assert_not_null(door_rectangle, "base room door configures collision shape")
 	_runner.assert_eq(floor.size, RoomPalette.ROOM_SIZE, "room floor uses palette size")
 	_runner.assert_eq(floor.color, RoomPalette.START_ROOM_FLOOR_COLOR, "room floor uses palette color")
-	_runner.assert_eq(north_door.position, RoomPalette.NORTH_DOOR_POSITION, "door uses palette position")
+	_runner.assert_eq(exit_door.position, RoomPalette.EAST_DOOR_POSITION, "door uses palette position")
 	_runner.assert_eq(door_visual.size, RoomPalette.DOOR_SIZE, "door visual uses palette size")
 	_runner.assert_eq(door_rectangle.size, RoomPalette.DOOR_TRIGGER_SIZE, "door trigger uses palette size")
-	_runner.assert_true(north_door.is_locked(), "door starts locked")
+	_runner.assert_true(exit_door.is_locked(), "door starts locked")
 	_runner.assert_eq(door_visual.color, RoomPalette.DOOR_LOCKED_COLOR, "door starts with locked palette color")
 	room.configure_actor(actor)
-	actor.global_position = north_door.global_position
+	actor.global_position = exit_door.global_position
 	_runner.assert_eq(room.check_actor_transitions(), 0, "locked door ignores actor overlap")
 
 	room.enter()
@@ -154,21 +154,21 @@ func test_room_base_lifecycle_opens_door_and_requests_transition() -> void:
 	_runner.assert_eq(cleared_rooms.size(), 1, "room emits cleared once")
 	_runner.assert_eq(entered_payloads.size(), 1, "room entered event emitted")
 	_runner.assert_eq(cleared_payloads.size(), 1, "room cleared event emitted")
-	_runner.assert_true(north_door.is_open(), "door opens after clear")
+	_runner.assert_true(exit_door.is_open(), "door opens after clear")
 	_runner.assert_eq(door_visual.color, RoomPalette.DOOR_OPEN_COLOR, "open door uses palette color")
 
 	if entered_payloads.size() == 1:
 		_runner.assert_eq(entered_payloads[0]["room_id"], &"room_base", "entered payload has room id")
 		_runner.assert_eq(entered_payloads[0]["room_type"], &"start", "entered payload has room type")
 	if cleared_payloads.size() == 1:
-		_runner.assert_eq(cleared_payloads[0]["door_dirs"][0], &"N", "cleared payload has door dir")
+		_runner.assert_eq(cleared_payloads[0]["door_dirs"][0], &"E", "cleared payload has door dir")
 
 	var did_request_transition := room.check_actor_transitions()
 	_runner.assert_eq(did_request_transition, 1, "open door accepts actor overlap transition")
 	_runner.assert_eq(transitions.size(), 1, "room forwards door transition request")
 	if transitions.size() == 1:
 		_runner.assert_eq(transitions[0]["room_id"], &"room_base", "transition includes room id")
-		_runner.assert_eq(transitions[0]["door_dir"], &"N", "transition includes door dir")
+		_runner.assert_eq(transitions[0]["door_dir"], &"E", "transition includes door dir")
 	_runner.assert_eq(room.check_actor_transitions(), 0, "door overlap transition emits once per entry")
 
 	EventBus.room_entered.disconnect(on_room_entered)

@@ -1,7 +1,7 @@
 extends RefCounted
 
-const ROOM_SIZE := Vector2(256.0, 192.0)
-const ROOM_HALF_SIZE := Vector2(128.0, 96.0)
+const ROOM_SIZE := Vector2(1920.0, 640.0)
+const ROOM_HALF_SIZE := Vector2(960.0, 320.0)
 const DOOR_SIZE := Vector2(36.0, 16.0)
 const DOOR_TRIGGER_SIZE := Vector2(32.0, 28.0)
 const WALL_THICKNESS := 16.0
@@ -19,10 +19,10 @@ const DOOR_OPEN_COLOR := Color(0.298039, 0.686275, 0.313725, 1.0)
 const STUDENT_MARKER_COLOR := Color(0.164706, 0.631373, 0.596078, 1.0)
 const WALL_COLOR := Color(0.188235, 0.188235, 0.215686, 1.0)
 
-const NORTH_DOOR_POSITION := Vector2(0.0, -96.0)
-const SOUTH_DOOR_POSITION := Vector2(0.0, 96.0)
-const EAST_DOOR_POSITION := Vector2(128.0, 0.0)
-const WEST_DOOR_POSITION := Vector2(-128.0, 0.0)
+const NORTH_DOOR_POSITION := Vector2(0.0, -320.0)
+const SOUTH_DOOR_POSITION := Vector2(0.0, 320.0)
+const EAST_DOOR_POSITION := Vector2(960.0, 0.0)
+const WEST_DOOR_POSITION := Vector2(-960.0, 0.0)
 
 
 static func get_room_floor_color(room_type: StringName) -> Color:
