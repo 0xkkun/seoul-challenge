@@ -25,10 +25,9 @@ Paste command output or link the CI run:
 
 ```
 
-## Template Contract
+## Project Contract
 
-- [ ] Reusable names remain domain-neutral.
-- [ ] No private project references were copied.
+- [ ] No private project references from the upstream template were copied.
 - [ ] No secret-bearing or generated cache files are tracked.
 - [ ] README, `docs/customizing.md`, and `AGENTS.md` still match the commands in the repo.
 

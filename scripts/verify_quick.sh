@@ -40,7 +40,6 @@ ok "Godot $godot_version"
 
 echo "== static contract =="
 "$PYTHON" scripts/verify_project_contract.py
-"$PYTHON" scripts/verify_domain_neutrality.py
 "$PYTHON" scripts/verify_import_metadata.py
 "$PYTHON" scripts/verify_secret_hygiene.py
 
