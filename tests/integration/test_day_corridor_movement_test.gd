@@ -224,6 +224,22 @@ func test_day_corridor_uat_dispatcher_drives_dialogue_by_test_id() -> void:
 	_runner.assert_false(scene.is_dialogue_ui_visible(), "test id close action hides the dialogue UI")
 
 
+func test_day_corridor_uat_dispatcher_rejects_hidden_dialogue_buttons() -> void:
+	var scene := DayCorridorScene.instantiate()
+	add_child(scene)
+
+	var player: CharacterBody2D = scene.get_node("%Player")
+	var bridge: Node = scene.get_node("%UatCommandBridge")
+	player.global_position = Vector2(950.0, scene.get_floor_y())
+
+	_runner.assert_true(bridge.press_by_test_id("day_corridor.dialogue.open_button"), "test setup opens dialogue by test id")
+	scene.close_dialogue()
+
+	_runner.assert_false(bridge.press_by_test_id("day_corridor.dialogue.next_button"), "닫힌 대화 UI의 남은 next 버튼은 누르지 않는다")
+	_runner.assert_false(scene.is_dialogue_ui_visible(), "숨겨진 next 버튼 누름 시도는 대화를 다시 열지 않는다")
+	_runner.assert_eq(scene.get_dialogue_count(), 1, "숨겨진 next 버튼은 대화 상태를 진행시키지 않는다")
+
+
 func _tap_dialogue(dialogue_ui: Node) -> void:
 	var event := InputEventMouseButton.new()
 	event.button_index = MOUSE_BUTTON_LEFT

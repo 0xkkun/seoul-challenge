@@ -49,8 +49,12 @@ func _find_by_meta(node: Node, meta_key: StringName, expected_value: String) -> 
 func _press_node(node: Node) -> bool:
 	if node == null:
 		return false
+	if not _is_node_usable(node):
+		return false
 	var button := node as BaseButton
 	if button != null:
+		if button.disabled:
+			return false
 		button.emit_signal("pressed")
 		return true
 
@@ -59,3 +63,19 @@ func _press_node(node: Node) -> bool:
 	if action_name != "" and target != null and target.has_method("perform_uat_action"):
 		return bool(target.call("perform_uat_action", action_name))
 	return false
+
+
+func _is_node_usable(node: Node) -> bool:
+	var current := node
+	while current != null:
+		var canvas_layer := current as CanvasLayer
+		if canvas_layer != null and not canvas_layer.visible:
+			return false
+		var canvas_item := current as CanvasItem
+		if canvas_item != null and not canvas_item.visible:
+			return false
+		var control := current as Control
+		if control != null and not control.is_visible_in_tree():
+			return false
+		current = current.get_parent()
+	return true

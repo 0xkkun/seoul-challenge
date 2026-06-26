@@ -55,6 +55,13 @@ func test_dialogue_overlay_and_stage_row_visibility_are_configurable() -> void:
 	_runner.assert_false(_ui.is_stage_row_visible(), "씬 목적에 맞지 않는 단계 행은 숨길 수 있다")
 
 
+func test_nameplate_does_not_overlap_stage_row() -> void:
+	var name_label := _ui.get_node("%NameLabel") as Label
+	var stage_row := _ui.get_node("%StageRow") as HBoxContainer
+
+	_runner.assert_true(name_label.offset_right <= stage_row.offset_left, "이름표는 스테이지 행 시작 전에서 끝난다")
+
+
 func test_choice_buttons_keep_mobile_touch_size() -> void:
 	var choices: Array[Dictionary] = [
 		{"id": &"next", "text": HUB_DIALOGUE_SCRIPT.CONTINUE_HINT_TOUCH, "tap_to_continue": true, "test_id": "dialogue.next_button", "uat_action": "dialogue.next"},
