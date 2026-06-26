@@ -84,6 +84,24 @@ Use these when available:
 
 MCP success is not enough by itself. Always inspect the diff and run the verification scripts.
 
+## Android Device UAT Rules
+
+Godot UI renders inside an Android `SurfaceView`, so Android native view tools
+cannot select Godot nodes by `test_id`. Treat `test_id` and `uat_action` as
+in-process Godot contracts, not Android view IDs.
+
+- Do not verify UI buttons on Android with screen coordinates such as
+  `adb shell input tap`, `input tap <x> <y>`, or `tap_pct`.
+- Do not use app-private `user://` command files, `run-as` shell redirection, or
+  `/data/data` path writes as the primary device UAT transport.
+- Local/headless tests may press controls through the in-process Godot harness
+  by `test_id` or `uat_action`.
+- Real device automation must enter Godot through an explicit debug-only bridge,
+  such as localhost TCP/WebSocket with `adb forward`, and assert app state/log
+  transitions rather than coordinate-tap success.
+- Screenshots are evidence for visual review; they are not the pass/fail control
+  path for button interaction.
+
 ## Naming Rules
 
 - Use neutral names such as `session_root`, `sample_actor`, `sample_interactable`, `InteractionSystem`, and `SessionSummaryUI`.

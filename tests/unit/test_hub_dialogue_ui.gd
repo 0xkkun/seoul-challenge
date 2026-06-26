@@ -57,17 +57,36 @@ func test_dialogue_overlay_and_stage_row_visibility_are_configurable() -> void:
 
 func test_choice_buttons_keep_mobile_touch_size() -> void:
 	var choices: Array[Dictionary] = [
-		{"id": &"next", "text": "다음", "test_id": "dialogue.next_button", "uat_action": "dialogue.next"},
+		{"id": &"next", "text": HUB_DIALOGUE_SCRIPT.CONTINUE_HINT_TOUCH, "tap_to_continue": true, "test_id": "dialogue.next_button", "uat_action": "dialogue.next"},
 		{"id": &"close", "text": "나가기", "emphasized": true, "test_id": "dialogue.close_button", "uat_action": "dialogue.close"},
 	]
 	_ui.set_choices(choices)
 
 	var first_button := _ui.get_node("%ChoiceRow").get_child(0) as Button
 	var second_button := _ui.get_node("%ChoiceRow").get_child(1) as Button
-	_runner.assert_eq(first_button.custom_minimum_size.y, 44.0, "선택 버튼은 모바일 가로 화면에서 과하게 두껍지 않다")
+	_runner.assert_eq(first_button.custom_minimum_size.y, 28.0, "탭 진행 힌트는 두꺼운 버튼처럼 보이지 않는다")
 	_runner.assert_eq(first_button.size_flags_horizontal, Control.SIZE_SHRINK_END, "선택 버튼은 행 전체를 채우지 않는다")
+	_runner.assert_eq(first_button.mouse_filter, Control.MOUSE_FILTER_IGNORE, "탭 진행 힌트는 화면 탭 진행을 가로막지 않는다")
 	_runner.assert_eq(first_button.get_meta("test_id"), "dialogue.next_button", "선택 버튼은 안정적인 test id를 노출한다")
 	_runner.assert_eq(second_button.get_meta("uat_action"), "dialogue.close", "선택 버튼은 좌표 대신 액션 id로 누를 수 있다")
+
+
+func test_tap_to_continue_choice_advances_from_any_dialogue_tap() -> void:
+	var selected_ids: Array[StringName] = []
+	_ui.choice_selected.connect(func(choice_id: StringName) -> void: selected_ids.append(choice_id))
+	_ui.visible = true
+	var choices: Array[Dictionary] = [
+		{"id": &"next", "text": HUB_DIALOGUE_SCRIPT.CONTINUE_HINT_TOUCH, "tap_to_continue": true},
+	]
+	_ui.set_choices(choices)
+
+	var event := InputEventMouseButton.new()
+	event.button_index = MOUSE_BUTTON_LEFT
+	event.pressed = true
+	event.position = Vector2(24.0, 24.0)
+	_ui.call("_input", event)
+
+	_runner.assert_eq(selected_ids, [&"next"], "탭 진행 대화는 버튼 좌표가 아니라 화면 탭으로 진행된다")
 
 
 func test_dialogue_bar_uses_inset_rule_without_outer_border() -> void:

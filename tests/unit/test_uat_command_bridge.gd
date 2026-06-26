@@ -1,5 +1,5 @@
 extends Node
-## UAT command bridge — device checks press Godot UI by test_id instead of coordinates.
+## UAT dispatcher — in-process tests press Godot UI by test_id instead of coordinates.
 
 const UatCommandBridge := preload("res://scripts/dev/uat_command_bridge.gd")
 
@@ -24,13 +24,9 @@ func after_each() -> void:
 	for child: Node in get_children():
 		remove_child(child)
 		child.free()
-	var cleanup := FileAccess.open("user://test_uat_commands.jsonl", FileAccess.WRITE)
-	if cleanup != null:
-		cleanup.store_string("")
-		cleanup.close()
 
 
-func test_bridge_presses_button_by_test_id_from_command_file() -> void:
+func test_dispatcher_presses_button_by_test_id() -> void:
 	var root := Node.new()
 	var button := Button.new()
 	var bridge := UatCommandBridge.new()
@@ -41,14 +37,9 @@ func test_bridge_presses_button_by_test_id_from_command_file() -> void:
 	button.set_meta("test_id", "dialogue.next_button")
 	button.set_meta("uat_action", "dialogue.next")
 	button.pressed.connect(func() -> void: pressed[0] = true)
-	bridge.command_file_path = "user://test_uat_commands.jsonl"
 
-	var file := FileAccess.open("user://test_uat_commands.jsonl", FileAccess.WRITE)
-	file.store_line(JSON.stringify({"action": "press", "test_id": "dialogue.next_button"}))
-	file.close()
-	bridge.call("_consume_commands")
-
-	_runner.assert_true(pressed[0], "command file can press a button by test id")
+	_runner.assert_true(bridge.press_by_test_id("dialogue.next_button"), "dispatcher can press a button by test id")
+	_runner.assert_true(pressed[0], "test id press emits the button signal")
 
 
 func test_bridge_falls_back_to_root_uat_action_for_non_button_targets() -> void:

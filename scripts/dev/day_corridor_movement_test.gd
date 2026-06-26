@@ -439,8 +439,8 @@ func _show_dialogue_line(line_index: int) -> void:
 	_hub_dialogue_ui.set_choices([
 		{
 			"id": CHOICE_CLOSE if is_last_line else CHOICE_NEXT,
-			"text": "나가기" if is_last_line else "다음",
-			"emphasized": is_last_line,
+			"text": HubDialogueUi.CONTINUE_HINT_TOUCH,
+			"tap_to_continue": true,
 			"test_id": TEST_ID_DIALOGUE_CLOSE if is_last_line else TEST_ID_DIALOGUE_NEXT,
 			"uat_action": ACTION_DIALOGUE_CLOSE if is_last_line else ACTION_DIALOGUE_NEXT,
 		},

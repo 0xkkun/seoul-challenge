@@ -1,30 +1,15 @@
 class_name UatCommandBridge
 extends Node
-## Debug UAT bridge. Polls user:// commands so device checks can press UI by test_id.
+## In-process UAT dispatcher for Godot tests.
+##
+## Android cannot see Godot node metadata through the native view tree. Real
+## device UAT must enter Godot through an explicit debug IPC bridge, not app
+## private user:// command files or screen-coordinate taps.
 
 const TEST_ID_META := &"test_id"
 const UAT_ACTION_META := &"uat_action"
 
-@export var enabled := true
 @export var target_root_path := NodePath("..")
-@export var command_file_path := "user://uat_commands.jsonl"
-@export var poll_interval := 0.1
-
-var _poll_elapsed := 0.0
-
-
-func _ready() -> void:
-	print("[uat] command_file=%s" % ProjectSettings.globalize_path(command_file_path))
-
-
-func _process(delta: float) -> void:
-	if not enabled:
-		return
-	_poll_elapsed += delta
-	if _poll_elapsed < poll_interval:
-		return
-	_poll_elapsed = 0.0
-	_consume_commands()
 
 
 func press_by_test_id(test_id: String) -> bool:
@@ -33,46 +18,6 @@ func press_by_test_id(test_id: String) -> bool:
 
 func press_by_uat_action(uat_action: String) -> bool:
 	return _press_by_meta(UAT_ACTION_META, uat_action)
-
-
-func _consume_commands() -> void:
-	if not FileAccess.file_exists(command_file_path):
-		return
-	var file := FileAccess.open(command_file_path, FileAccess.READ)
-	if file == null:
-		return
-	var content := file.get_as_text()
-	file.close()
-
-	var clear_file := FileAccess.open(command_file_path, FileAccess.WRITE)
-	if clear_file != null:
-		clear_file.store_string("")
-		clear_file.close()
-
-	for line: String in content.split("\n", false):
-		var parsed: Variant = JSON.parse_string(line)
-		if not parsed is Dictionary:
-			print("[uat] ignored invalid command")
-			continue
-		_run_command(parsed as Dictionary)
-
-
-func _run_command(command: Dictionary) -> void:
-	if String(command.get("action", "press")) != "press":
-		print("[uat] ignored action=%s" % String(command.get("action", "")))
-		return
-
-	var ok := false
-	var label := ""
-	if command.has("test_id"):
-		label = "test_id=%s" % String(command["test_id"])
-		ok = press_by_test_id(String(command["test_id"]))
-	elif command.has("uat_action"):
-		label = "uat_action=%s" % String(command["uat_action"])
-		ok = press_by_uat_action(String(command["uat_action"]))
-	else:
-		label = "missing target"
-	print("[uat] press %s ok=%s" % [label, str(ok)])
 
 
 func _press_by_meta(meta_key: StringName, value: String) -> bool:

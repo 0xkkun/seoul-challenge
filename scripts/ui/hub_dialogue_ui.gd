@@ -10,6 +10,7 @@ const REFERENCE_SIZE := Vector2(844.0, 390.0)
 const DIALOGUE_BAR_HEIGHT := 152.0
 const UNLOCK_POPUP_SIZE := Vector2(338.0, 148.0)
 const UNLOCK_POPUP_CENTER_OFFSET := Vector2(0.0, -58.0)
+const CONTINUE_HINT_TOUCH := "▼ 탭하여 계속 ▼"
 const CHOICE_ASK := &"ask"
 const CHOICE_ACCEPT := &"accept"
 const STAGE_STATE_COMPLETED := "completed"
@@ -167,6 +168,10 @@ func get_choice_ids() -> Array[StringName]:
 	return ids
 
 
+func is_tap_to_continue_active() -> bool:
+	return _tap_to_continue_choice_id() != &""
+
+
 func get_choice_texts() -> Array[String]:
 	var texts: Array[String] = []
 	for choice: Dictionary in _choice_models:
@@ -212,6 +217,22 @@ func get_unlock_items() -> Array[Dictionary]:
 	return _unlock_items.duplicate(true)
 
 
+func _input(event: InputEvent) -> void:
+	if not visible or is_unlock_visible():
+		return
+	if not _is_advance_tap_event(event):
+		return
+
+	var choice_id := _tap_to_continue_choice_id()
+	if choice_id == &"":
+		return
+
+	var viewport := get_viewport()
+	if viewport != null:
+		viewport.set_input_as_handled()
+	select_choice(choice_id)
+
+
 func _render_stages() -> void:
 	_clear_children(_stage_row)
 	_stage_states.clear()
@@ -243,16 +264,21 @@ func _render_choices() -> void:
 		var choice_id := StringName(choice.get("id", &""))
 		var test_id := String(choice.get("test_id", "hub_dialogue.choice.%s" % String(choice_id)))
 		var action_name := String(choice.get("uat_action", "hub_dialogue.choice.%s" % String(choice_id)))
+		var is_tap_continue := bool(choice.get("tap_to_continue", false))
 		var button := Button.new()
 		button.text = String(choice.get("text", ""))
-		button.custom_minimum_size = Vector2(112.0, 44.0)
+		button.custom_minimum_size = Vector2(170.0, 28.0) if is_tap_continue else Vector2(112.0, 44.0)
 		button.size_flags_horizontal = Control.SIZE_SHRINK_END
 		button.focus_mode = Control.FOCUS_NONE
+		button.mouse_filter = Control.MOUSE_FILTER_IGNORE if is_tap_continue else Control.MOUSE_FILTER_STOP
 		button.set_meta("test_id", test_id)
 		button.set_meta("uat_action", action_name)
 		button.set_meta("choice_id", choice_id)
 		button.pressed.connect(_on_choice_pressed.bind(choice_id))
-		_apply_button_style(button, bool(choice.get("emphasized", false)))
+		if is_tap_continue:
+			_apply_continue_hint_style(button)
+		else:
+			_apply_button_style(button, bool(choice.get("emphasized", false)))
 		_choice_row.add_child(button)
 
 
@@ -288,6 +314,25 @@ func _on_choice_pressed(choice_id: StringName) -> void:
 	select_choice(choice_id)
 
 
+func _tap_to_continue_choice_id() -> StringName:
+	if _choice_models.size() != 1:
+		return &""
+	var choice := _choice_models[0]
+	if not bool(choice.get("tap_to_continue", false)):
+		return &""
+	return StringName(choice.get("id", &""))
+
+
+func _is_advance_tap_event(event: InputEvent) -> bool:
+	var mouse := event as InputEventMouseButton
+	if mouse != null:
+		return mouse.pressed and mouse.button_index == MOUSE_BUTTON_LEFT
+	var touch := event as InputEventScreenTouch
+	if touch != null:
+		return touch.pressed
+	return false
+
+
 func _apply_static_styles() -> void:
 	_dialogue_bar.add_theme_stylebox_override("panel", _make_panel_style(PANEL_COLOR, PANEL_COLOR, 0))
 	_dialogue_top_rule.color = PANEL_BORDER_COLOR
@@ -316,6 +361,17 @@ func _apply_button_style(button: Button, emphasized: bool) -> void:
 	button.add_theme_stylebox_override("normal", _make_panel_style(fill, Color(0.45, 0.5, 0.59), 2))
 	button.add_theme_stylebox_override("hover", _make_panel_style(fill.lightened(0.08), Color(0.64, 0.69, 0.78), 2))
 	button.add_theme_stylebox_override("pressed", _make_panel_style(fill.darkened(0.08), Color(0.07, 0.08, 0.1), 2))
+
+
+func _apply_continue_hint_style(button: Button) -> void:
+	button.flat = true
+	button.add_theme_color_override("font_color", MEMORY_TEXT_COLOR)
+	button.add_theme_color_override("font_hover_color", MEMORY_TEXT_COLOR)
+	button.add_theme_color_override("font_pressed_color", MEMORY_TEXT_COLOR)
+	button.add_theme_font_size_override("font_size", 13)
+	button.add_theme_stylebox_override("normal", StyleBoxEmpty.new())
+	button.add_theme_stylebox_override("hover", StyleBoxEmpty.new())
+	button.add_theme_stylebox_override("pressed", StyleBoxEmpty.new())
 
 
 func _stage_color(state: String) -> Color:
