@@ -37,10 +37,14 @@ func test_start_room_clears_on_entry() -> void:
 
 
 func test_boss_room_requests_spawn_and_finishes_active_session() -> void:
+	_runner.assert_true(EventBus.has_signal("boss_defeated"), "EventBus exposes boss defeated event")
+	if not EventBus.has_signal("boss_defeated"):
+		return
 	var room := (load("res://scenes/interactables/boss_room.tscn") as PackedScene).instantiate() as BossRoom
 	var spawn_requests: Array[Dictionary] = []
 	var spawn_events: Array[Dictionary] = []
 	var purified_payloads: Array[Dictionary] = []
+	var boss_defeated_payloads: Array[Dictionary] = []
 	var finished_results: Array[Dictionary] = []
 	var on_spawn_requested := func(room_id: StringName, boss_id: StringName, spawn_position: Vector2) -> void:
 		spawn_requests.append({
@@ -53,12 +57,15 @@ func test_boss_room_requests_spawn_and_finishes_active_session() -> void:
 			spawn_events.append(payload)
 	var on_friend_purified := func(payload: Dictionary) -> void:
 		purified_payloads.append(payload)
+	var on_boss_defeated := func(payload: Dictionary) -> void:
+		boss_defeated_payloads.append(payload)
 	var on_session_finished := func(result: Dictionary) -> void:
 		finished_results.append(result)
 
 	room.boss_spawn_requested.connect(on_spawn_requested)
 	EventBus.interaction_completed.connect(on_interaction_completed)
 	EventBus.friend_purified.connect(on_friend_purified)
+	EventBus.boss_defeated.connect(on_boss_defeated)
 	EventBus.session_finished.connect(on_session_finished)
 	GameManager.start_session({"source": "boss_room_test"})
 	add_child(room)
@@ -76,7 +83,11 @@ func test_boss_room_requests_spawn_and_finishes_active_session() -> void:
 	_runner.assert_true(room.complete_boss_encounter(), "boss completion resolves the shell")
 
 	_runner.assert_true(room.has_been_cleared(), "boss completion clears the room")
-	_runner.assert_eq(purified_payloads.size(), 1, "boss completion emits friend purified payload")
+	_runner.assert_eq(purified_payloads.size(), 0, "boss completion does not emit friend purified payload")
+	_runner.assert_eq(boss_defeated_payloads.size(), 1, "boss completion emits boss defeated payload")
+	if boss_defeated_payloads.size() == 1:
+		_runner.assert_eq(boss_defeated_payloads[0]["room_id"], &"final_1", "boss defeated includes room id")
+		_runner.assert_eq(boss_defeated_payloads[0]["boss_id"], &"gyeongbokgung_boss", "boss defeated includes boss id")
 	_runner.assert_eq(finished_results.size(), 1, "active session is finished by boss completion")
 	_runner.assert_false(GameManager.is_session_active(), "boss completion ends the active session")
 	if finished_results.size() == 1:
@@ -85,6 +96,7 @@ func test_boss_room_requests_spawn_and_finishes_active_session() -> void:
 	room.boss_spawn_requested.disconnect(on_spawn_requested)
 	EventBus.interaction_completed.disconnect(on_interaction_completed)
 	EventBus.friend_purified.disconnect(on_friend_purified)
+	EventBus.boss_defeated.disconnect(on_boss_defeated)
 	EventBus.session_finished.disconnect(on_session_finished)
 
 
@@ -147,6 +159,16 @@ func test_minimap_data_marks_current_visible_and_boss_hidden() -> void:
 	}
 	var revealed_data: Dictionary = MinimapDataScript.build_from_layout(layout, &"event_1", cleared)
 	var revealed_boss := _find_room(revealed_data["rooms"], &"final_1")
+	var friend_room := _find_room(revealed_data["rooms"], &"friend_1")
+	_runner.assert_false(friend_room.is_empty(), "minimap data includes friend room")
+	if friend_room.is_empty():
+		return
+	_runner.assert_eq(friend_room["minimap_type"], &"friend", "friend room is exposed as friend type")
+	_runner.assert_false(revealed_boss["visible"], "boss stays hidden until friend room clears")
+
+	cleared[&"friend_1"] = true
+	revealed_data = MinimapDataScript.build_from_layout(layout, &"friend_1", cleared)
+	revealed_boss = _find_room(revealed_data["rooms"], &"final_1")
 	_runner.assert_true(revealed_boss["visible"], "layout reveal rules can expose boss room data later")
 
 

@@ -18,25 +18,37 @@ func test_gyeongbokgung_layout_validates_fixed_route() -> void:
 
 	var errors := layout.validate_layout()
 	_runner.assert_eq(errors.size(), 0, "layout passes its own rules")
-	_runner.assert_eq(layout.get_room_ids(), [&"start", &"combat_1", &"combat_2", &"event_1", &"final_1"])
+	_runner.assert_eq(layout.get_room_ids(), [&"start", &"combat_1", &"combat_2", &"event_1", &"friend_1", &"final_1"])
 	_runner.assert_eq(layout.get_connected_room_ids(&"start"), [&"combat_1"])
 	_runner.assert_eq(layout.get_room(&"start").grid_pos, Vector2i.ZERO, "authored start grid position is normalized")
-	_runner.assert_eq(layout.get_room(&"final_1").grid_pos, Vector2i(4, 0), "authored final grid position is stable")
+	_runner.assert_eq(layout.get_room(&"final_1").grid_pos, Vector2i(5, 0), "authored final grid position is stable")
 	_runner.assert_eq(layout.get_room(&"combat_1").scene_path, "res://scenes/interactables/combat_room.tscn", "combat rooms use combat scene")
 	_runner.assert_eq(layout.get_room(&"combat_2").scene_path, "res://scenes/interactables/combat_room.tscn", "second combat room uses combat scene")
 	_runner.assert_eq(layout.get_room(&"event_1").scene_path, "res://scenes/interactables/rescue_room.tscn", "event room uses rescue scene")
+	var friend_def := layout.get_room(&"friend_1")
+	_runner.assert_not_null(friend_def, "layout includes friend room before final")
+	if friend_def == null:
+		return
+	_runner.assert_eq(friend_def.scene_path, "res://scenes/interactables/friend_room.tscn", "friend room uses yokai friend scene")
 	_runner.assert_eq(layout.get_room(&"final_1").scene_path, "res://scenes/interactables/boss_room.tscn", "final room uses boss scene")
 	_assert_grid_connections_are_adjacent(layout)
 
 	var cleared := {}
 	var initially_visible := layout.get_visible_room_defs(cleared)
-	_runner.assert_eq(initially_visible.size(), 4, "hidden final room is not visible at start")
+	_runner.assert_eq(initially_visible.size(), 5, "hidden final room is not visible at start")
 
-	for room_id: StringName in [&"start", &"combat_1", &"combat_2", &"event_1"]:
+	for room_id: StringName in [&"start", &"combat_1", &"combat_2", &"event_1", &"friend_1"]:
 		cleared[room_id] = true
 
 	_runner.assert_true(layout.is_room_visible(&"final_1", cleared), "final room is revealed after required rooms clear")
-	_runner.assert_eq(layout.get_next_room_id(&"event_1", cleared), &"final_1", "route can finish")
+	var cleared_before_friend := {
+		&"start": true,
+		&"combat_1": true,
+		&"combat_2": true,
+		&"event_1": true,
+	}
+	_runner.assert_eq(layout.get_next_room_id(&"event_1", cleared_before_friend), &"friend_1", "route must pass friend room")
+	_runner.assert_eq(layout.get_next_room_id(&"friend_1", cleared), &"final_1", "friend room leads to final")
 
 
 func test_room_manager_runs_layout_with_interactive_rooms() -> void:
@@ -57,21 +69,21 @@ func test_room_manager_runs_layout_with_interactive_rooms() -> void:
 	_runner.assert_true(manager.start_layout(), "manager starts fixed layout")
 	_runner.assert_eq(manager.current_room_id, &"start")
 	_runner.assert_true(manager.has_cleared_room(&"start"), "start clears on entry")
-	_runner.assert_eq(manager.get_visible_room_defs().size(), 4, "hidden final room starts hidden")
+	_runner.assert_eq(manager.get_visible_room_defs().size(), 5, "hidden final room starts hidden")
 
-	for expected_room_id: StringName in [&"combat_1", &"combat_2", &"event_1"]:
+	for expected_room_id: StringName in [&"combat_1", &"combat_2", &"event_1", &"friend_1"]:
 		_runner.assert_true(manager.request_next_room(), "manager advances to %s" % expected_room_id)
 		_runner.assert_eq(manager.current_room_id, expected_room_id)
 		_resolve_current_room(manager, actor)
 		_runner.assert_true(manager.has_cleared_room(expected_room_id), "%s clears after its room objective" % expected_room_id)
 
-	_runner.assert_eq(manager.get_visible_room_defs().size(), 5, "final room is visible after required rooms clear")
+	_runner.assert_eq(manager.get_visible_room_defs().size(), 6, "final room is visible after required rooms clear")
 	_runner.assert_true(manager.request_next_room(), "manager advances to final room")
 	_runner.assert_eq(manager.current_room_id, &"final_1")
 	_resolve_current_room(manager, actor)
 	_runner.assert_true(manager.has_cleared_room(&"final_1"), "final room clears after boss completion")
 	_runner.assert_false(manager.request_next_room(), "route has no room after final")
-	_runner.assert_eq(entered_rooms, [&"start", &"combat_1", &"combat_2", &"event_1", &"final_1"])
+	_runner.assert_eq(entered_rooms, [&"start", &"combat_1", &"combat_2", &"event_1", &"friend_1", &"final_1"])
 
 	manager.room_changed.disconnect(on_room_changed)
 
@@ -140,6 +152,10 @@ func _resolve_current_room(manager: RoomManager, actor: Node2D) -> void:
 		for student: Node in room.call("get_active_students"):
 			if student.has_method("rescue"):
 				student.call("rescue", actor)
+	elif room.has_method("get_active_friends"):
+		for friend: Node in room.call("get_active_friends"):
+			if friend.has_signal("purified"):
+				friend.emit_signal("purified", friend)
 	elif room.has_method("complete_boss_encounter"):
 		room.call("complete_boss_encounter")
 

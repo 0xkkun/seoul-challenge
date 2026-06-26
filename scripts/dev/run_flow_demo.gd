@@ -79,6 +79,10 @@ func resolve_current_room_for_demo() -> void:
 		for student: Node in current_room.call("get_active_students"):
 			if student.has_method("rescue"):
 				student.call("rescue", actor)
+	elif current_room.has_method("get_active_friends"):
+		for friend: Node in current_room.call("get_active_friends"):
+			if friend.has_signal("purified"):
+				friend.emit_signal("purified", friend)
 	elif current_room.has_method("complete_boss_encounter"):
 		current_room.call("complete_boss_encounter")
 
