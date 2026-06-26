@@ -94,7 +94,6 @@ Keep these contracts unless you intentionally redesign the template:
 
 - Godot version is `4.6.3.stable.official.7d41c59c4`.
 - `project.godot` autoload inventory matches `scripts/verify_project_contract.py`.
-- Reusable names stay domain-neutral.
 - Local config and credentials stay untracked.
 - Every shared runtime change has a verification path.
 
@@ -129,7 +128,7 @@ Platform services:
 Give coding agents one issue at a time. A useful request looks like:
 
 ```text
-Implement issue #4. Keep reusable names domain-neutral. Run bash scripts/verify_quick.sh and paste the output in the PR.
+Implement issue #4. Run bash scripts/verify_quick.sh and paste the output in the PR.
 ```
 
 When a check fails, send the failing command and the relevant log from `test-results/`.
