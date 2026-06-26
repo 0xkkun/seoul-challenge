@@ -199,9 +199,17 @@ func _on_boss_defeated(_boss: Node, room: Node) -> void:
 func _is_layout_complete() -> bool:
 	if room_manager.layout == null or room_manager.current_room_id == &"":
 		return false
-	if not room_manager.is_current_room_cleared():
+	var final_room_id := _final_room_id()
+	if final_room_id == &"":
 		return false
-	return room_manager.layout.get_next_room_id(room_manager.current_room_id, room_manager.cleared_room_ids) == &""
+	return room_manager.has_cleared_room(final_room_id)
+
+
+func _final_room_id() -> StringName:
+	for room_def: RoomDef in room_manager.layout.room_defs:
+		if room_def != null and room_def.room_type == RoomLayout.TYPE_FINAL:
+			return room_def.room_id
+	return &""
 
 
 func _input(event: InputEvent) -> void:

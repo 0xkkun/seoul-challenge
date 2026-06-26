@@ -63,6 +63,13 @@ func resolve_combat() -> void:
 	mark_cleared()
 
 
+func restore_cleared_state() -> void:
+	_combat_started = true
+	_combat_resolved = true
+	_active_enemies.clear()
+	super.restore_cleared_state()
+
+
 func get_active_enemies() -> Array[Node]:
 	_prune_inactive_enemies()
 	return _active_enemies.duplicate()

@@ -64,6 +64,14 @@ func resolve_event() -> void:
 	mark_cleared()
 
 
+func restore_cleared_state() -> void:
+	_event_active = true
+	_event_resolved = true
+	_students_spawned = true
+	_active_students.clear()
+	super.restore_cleared_state()
+
+
 func get_active_students() -> Array[Node]:
 	return _active_students.duplicate()
 

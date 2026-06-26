@@ -91,6 +91,7 @@ func enter_room(room_id: StringName) -> bool:
 	_apply_room_def(current_room, room_def)
 	_configure_actor(current_room)
 	_connect_room(current_room)
+	_restore_cleared_room_state(current_room, room_def.room_id)
 
 	room_changed.emit(room_def.room_id, room_def.room_type)
 	if current_room.has_method("enter"):
@@ -214,6 +215,13 @@ func _connect_room(room: Node2D) -> void:
 		room.connect("cleared", _on_room_cleared)
 	if room.has_signal("transition_requested") and not room.is_connected("transition_requested", _on_room_transition_requested):
 		room.connect("transition_requested", _on_room_transition_requested)
+
+
+func _restore_cleared_room_state(room: Node2D, room_id: StringName) -> void:
+	if not has_cleared_room(room_id):
+		return
+	if room.has_method("restore_cleared_state"):
+		room.call("restore_cleared_state")
 
 
 func _clear_current_room() -> void:
