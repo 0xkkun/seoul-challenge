@@ -13,6 +13,7 @@ signal fired(muzzle_position: Vector2, direction: Vector2)
 @export var stick_deadzone: float = 0.2    ## 게임패드 스틱 데드존
 @export var fire_cooldown: float = 0.22    ## 연사 간격 (s)
 @export var muzzle_offset: float = 18.0    ## 발사 지점 오프셋 (px)
+@export var recoil_strength: float = 55.0  ## 발사 반동(조준 반대 방향 킥) (px/s)
 
 var _fire_timer: float = 0.0
 
@@ -20,8 +21,10 @@ var _fire_timer: float = 0.0
 func _physics_process(delta: float) -> void:
 	var input_vector := read_input_vector()
 	velocity = step_velocity(velocity, input_vector, delta)
-	move_and_slide()
+	# 발사 반동은 move_and_slide 전에 적용해야 이번 틱 이동에 반영된다. 뒤에 두면
+	# 다음 틱 step_velocity 의 friction 이 먼저 깎아 반동이 사실상 사라진다 (Codex #49 P2).
 	_process_firing(delta)
+	move_and_slide()
 
 
 ## 입력 벡터 → 목표 속도. 대각선도 최고 속도를 넘지 않도록 정규화. 순수 함수.
@@ -48,6 +51,13 @@ func aim_direction_to(from: Vector2, to: Vector2) -> Vector2:
 ## 쿨다운 타이머를 delta만큼 감소(0 클램프). 순수 함수(테스트 대상).
 func step_fire_cooldown(timer: float, delta: float) -> float:
 	return maxf(0.0, timer - delta)
+
+
+## 발사 반동 속도(조준 반대 방향). 순수 함수(테스트 대상).
+func recoil_velocity(aim_dir: Vector2, strength: float) -> Vector2:
+	if aim_dir.length() < 0.001:
+		return Vector2.ZERO
+	return -aim_dir.normalized() * strength
 
 
 ## 이동 입력 읽기 (WASD + 방향키 + 패드 좌스틱). I/O.
@@ -79,6 +89,7 @@ func _process_firing(delta: float) -> void:
 	if dir == Vector2.ZERO:
 		return
 	fired.emit(global_position + dir * muzzle_offset, dir)
+	velocity += recoil_velocity(dir, recoil_strength)
 	_fire_timer = fire_cooldown
 
 

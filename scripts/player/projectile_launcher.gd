@@ -5,6 +5,10 @@ extends Node
 const BULLET_SCENE := preload("res://scenes/projectiles/purify_bullet.tscn")
 const POOL_ID := &"purify_bullet"
 
+## 무기 정체성 — "무기는 학교의 기억"(#15). UI/도감이 weapon_info()로 읽는다.
+const WEAPON_NAME := "낡은 야구공"
+const WEAPON_FLAVOR := "비 오던 날, 같이 줍던 공."
+
 @export var prewarm: int = 8
 
 
@@ -29,3 +33,8 @@ func _spawn_parent() -> Node:
 	if is_inside_tree() and get_tree().current_scene != null:
 		return get_tree().current_scene
 	return self
+
+
+## 장착 무기 정보(이름·기억 플레이버) — UI/도감용.
+func weapon_info() -> Dictionary:
+	return {"name": WEAPON_NAME, "flavor": WEAPON_FLAVOR}
