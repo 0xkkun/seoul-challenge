@@ -15,6 +15,7 @@ var _start_requested := false
 
 func _ready() -> void:
 	SceneTransition.configure_exit_requests()
+	AudioManager.play_bgm(AudioManager.LOBBY_BGM_DEFAULT)
 	start_button.set_meta("test_id", "lobby.start_button")
 	resized.connect(_fit_background_to_viewport)
 	_fit_background_to_viewport()

@@ -4,6 +4,7 @@ Keep committed source assets and their Godot `.import` metadata together.
 
 ## Layout
 
+- `audio/bgm/`: short loopable lobby and scene background music candidates.
 - `backgrounds/corridor/day/`: daytime corridor background plates for scene and world composition.
 - `backgrounds/gyeongbokgung/`: night run background plates for combat and room scenes.
 - `branding/`: project logos and brand marks for lobby, menu, splash, and related UI surfaces.

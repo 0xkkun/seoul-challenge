@@ -15,7 +15,8 @@ The template is intentionally small. Shared runtime behavior sits behind narrow 
 - `SceneTransition`: scene navigation.
 - `SaveManager`: local persistence stub.
 - `Settings`: user settings stub.
-- `AudioManager`: audio stub.
+- `AudioManager`: BGM/SFX facade. It tracks the current BGM id, owns the
+  runtime `AudioStreamPlayer`, and keeps scene code behind `play_bgm(id)`.
 - `PoolManager`: reusable object lifecycle.
 - `PlatformManager`: platform feature checks.
 
