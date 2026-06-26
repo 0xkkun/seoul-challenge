@@ -12,6 +12,9 @@ signal settings_changed(settings: Dictionary)
 ## #19 밤 전투 계약: 플레이어 체력 변화 — payload {"current": int, "max": int}.
 ## 전투 트랙은 emit_player_health_changed() 로 발신, HUD(#13) 등은 구독만 한다.
 signal player_health_changed(payload: Dictionary)
+## #19 밤 전투 계약: 플레이어 사망 — payload 예 {"cause": String}. 런 종료/귀환 트리거.
+## 전투 트랙은 emit_player_died() 로 발신, 재선언하지 말 것.
+signal player_died(payload: Dictionary)
 
 
 func emit_session_started(config: Dictionary) -> void:
@@ -52,3 +55,7 @@ func emit_settings_changed(settings: Dictionary) -> void:
 
 func emit_player_health_changed(payload: Dictionary) -> void:
 	player_health_changed.emit(payload.duplicate(true))
+
+
+func emit_player_died(payload: Dictionary) -> void:
+	player_died.emit(payload.duplicate(true))
