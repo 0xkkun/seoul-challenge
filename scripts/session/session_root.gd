@@ -15,6 +15,8 @@ const SHOP_ROOM_SCENE_PATH := "res://scenes/interactables/shop_room.tscn"
 const FINAL_ROOM_SCENE_PATH := "res://scenes/interactables/boss_room.tscn"
 const ABANDON_RUN_MESSAGE := "런을 포기할까요? 이번 밤 보상은 사라지고 영구 재화는 유지됩니다"
 const QUIT_GAME_MESSAGE := "게임을 종료할까요?"
+const WEAPON_BASEBALL := &"baseball"
+const WEAPON_BAT := &"bat"
 
 @onready var world_layer: Node2D = $WorldLayer
 @onready var room_layer: Node2D = %RoomLayer
@@ -46,6 +48,7 @@ func _ready() -> void:
 	_apply_render_layers()
 	if not GameManager.is_session_active():
 		GameManager.start_session({"source": "session_root"})
+	_apply_session_loadout()
 	PoolManager.register_scene(&"sample_marker", POOLED_MARKER_SCENE, 1, pooled_object_layer)
 	interaction_system.configure(actor, self)
 	_configure_player_camera()
@@ -100,6 +103,20 @@ func _build_run_layout() -> RoomLayout:
 	generator.shop_scene_path = SHOP_ROOM_SCENE_PATH
 	generator.final_scene_path = FINAL_ROOM_SCENE_PATH
 	return generator.generate(RUN_LAYOUT_SEED, {"room_count": RUN_LAYOUT_ROOM_COUNT})
+
+
+func _apply_session_loadout() -> void:
+	var config := GameManager.get_active_config()
+	if not config.has(SceneTransition.RUN_CONFIG_SELECTED_WEAPON_ID):
+		return
+	var weapon_id := StringName(config.get(SceneTransition.RUN_CONFIG_SELECTED_WEAPON_ID, &""))
+	match weapon_id:
+		WEAPON_BASEBALL:
+			actor.set("ranged_enabled", true)
+		WEAPON_BAT:
+			actor.set("ranged_enabled", false)
+			if actor.has_method("equip_bat"):
+				actor.call("equip_bat")
 
 
 func finish_session() -> Dictionary:
@@ -162,7 +179,8 @@ func _on_return_requested() -> void:
 func _on_retry_requested() -> void:
 	get_tree().paused = false
 	_handoff_session_on_exit = true
-	var config := {"source": "session_result_retry"}
+	var config := GameManager.get_active_config()
+	config["source"] = "session_result_retry"
 	var result: Variant = OK
 	if retry_session_callable.is_valid():
 		result = retry_session_callable.call(config)

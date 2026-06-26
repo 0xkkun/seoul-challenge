@@ -2,7 +2,12 @@ extends Node
 
 const LOBBY_SCENE := "res://scenes/lobby/lobby.tscn"
 const DAY_LOBBY_SCENE := "res://scenes/dev/day_corridor_movement_test.tscn"
+const LOCKER_MAINTENANCE_SCENE := "res://scenes/ui/locker_maintenance.tscn"
+const NIGHT_MAP_SELECT_SCENE := "res://scenes/ui/night_map_select.tscn"
 const SESSION_SCENE := "res://scenes/session/session_root.tscn"
+const RUN_CONFIG_SELECTED_WEAPON_ID := "selected_weapon_id"
+const DAY_CORRIDOR_CONTEXT_ROOM_ID := "room_id"
+const DAY_CORRIDOR_CONTEXT_EDGE_ID := "edge"
 const FADE_SECONDS := 0.22
 const SAVED_INDICATOR_SECONDS := 1.1
 
@@ -15,6 +20,8 @@ var _overlay_layer: CanvasLayer
 var _fade_rect: ColorRect
 var _saved_label: Label
 var _saved_generation := 0
+var _pending_run_config: Dictionary = {}
+var _pending_day_corridor_context: Dictionary = {}
 
 
 func _ready() -> void:
@@ -24,17 +31,30 @@ func _ready() -> void:
 
 
 func go_to_lobby() -> Error:
+	clear_pending_run_config()
+	clear_pending_day_corridor_context()
 	last_requested_scene = LOBBY_SCENE
 	return _change_scene(LOBBY_SCENE)
 
 
 func go_to_day_lobby() -> Error:
+	clear_pending_run_config()
 	last_requested_scene = DAY_LOBBY_SCENE
 	return _change_scene(DAY_LOBBY_SCENE)
 
 
 func go_to_day() -> Error:
 	return go_to_day_lobby()
+
+
+func go_to_locker_maintenance() -> Error:
+	last_requested_scene = LOCKER_MAINTENANCE_SCENE
+	return _change_scene(LOCKER_MAINTENANCE_SCENE)
+
+
+func go_to_night_map_select() -> Error:
+	last_requested_scene = NIGHT_MAP_SELECT_SCENE
+	return _change_scene(NIGHT_MAP_SELECT_SCENE)
 
 
 func start_session(config: Dictionary = {}) -> Error:
@@ -56,8 +76,45 @@ func get_day_scene_path() -> String:
 	return get_day_lobby_scene_path()
 
 
+func get_locker_maintenance_scene_path() -> String:
+	return LOCKER_MAINTENANCE_SCENE
+
+
+func get_night_map_select_scene_path() -> String:
+	return NIGHT_MAP_SELECT_SCENE
+
+
 func get_session_scene_path() -> String:
 	return SESSION_SCENE
+
+
+func set_pending_run_config(config: Dictionary) -> void:
+	_pending_run_config = config.duplicate(true)
+
+
+func merge_pending_run_config(config: Dictionary) -> void:
+	for key: Variant in config.keys():
+		_pending_run_config[key] = config[key]
+
+
+func get_pending_run_config() -> Dictionary:
+	return _pending_run_config.duplicate(true)
+
+
+func clear_pending_run_config() -> void:
+	_pending_run_config.clear()
+
+
+func set_pending_day_corridor_context(context: Dictionary) -> void:
+	_pending_day_corridor_context = context.duplicate(true)
+
+
+func get_pending_day_corridor_context() -> Dictionary:
+	return _pending_day_corridor_context.duplicate(true)
+
+
+func clear_pending_day_corridor_context() -> void:
+	_pending_day_corridor_context.clear()
 
 
 func is_transitioning() -> bool:

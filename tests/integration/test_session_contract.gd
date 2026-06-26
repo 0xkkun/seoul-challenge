@@ -84,6 +84,39 @@ func test_session_root_preserves_existing_config() -> void:
 	session.queue_free()
 
 
+func test_session_root_applies_locker_weapon_config() -> void:
+	GameManager.start_session({
+		"source": "night_map_select",
+		SceneTransition.RUN_CONFIG_SELECTED_WEAPON_ID: &"bat",
+	})
+
+	var packed := load("res://scenes/session/session_root.tscn") as PackedScene
+	var session := packed.instantiate()
+	add_child(session)
+	var actor: Node = session.get_node("%Player")
+
+	_runner.assert_eq(actor.call("current_weapon_name"), "야구배트", "bat locker selection equips the run actor")
+	_runner.assert_false(bool(actor.get("ranged_enabled")), "bat locker selection keeps ranged baseball disabled")
+
+	session.queue_free()
+
+
+func test_session_root_applies_baseball_weapon_config() -> void:
+	GameManager.start_session({
+		"source": "night_map_select",
+		SceneTransition.RUN_CONFIG_SELECTED_WEAPON_ID: &"baseball",
+	})
+
+	var packed := load("res://scenes/session/session_root.tscn") as PackedScene
+	var session := packed.instantiate()
+	add_child(session)
+	var actor: Node = session.get_node("%Player")
+
+	_runner.assert_true(bool(actor.get("ranged_enabled")), "baseball locker selection enables ranged baseball")
+
+	session.queue_free()
+
+
 func test_session_ui_can_resume_while_tree_is_paused() -> void:
 	var packed := load("res://scenes/session/session_root.tscn") as PackedScene
 	var session := packed.instantiate()
@@ -127,6 +160,10 @@ func test_session_render_layer_contract() -> void:
 
 
 func test_session_result_actions_unpause_and_preserve_retry_config() -> void:
+	GameManager.start_session({
+		"source": "session_result_test",
+		SceneTransition.RUN_CONFIG_SELECTED_WEAPON_ID: &"bat",
+	})
 	var packed := load("res://scenes/session/session_root.tscn") as PackedScene
 	var session := packed.instantiate()
 	add_child(session)
@@ -151,6 +188,7 @@ func test_session_result_actions_unpause_and_preserve_retry_config() -> void:
 	_runner.assert_false(get_tree().paused, "retry action unpauses before transition")
 	_runner.assert_eq(retry_configs.size(), 1, "retry action starts a new session once")
 	_runner.assert_eq(retry_configs[0]["source"], "session_result_retry", "retry uses result retry source")
+	_runner.assert_eq(retry_configs[0][SceneTransition.RUN_CONFIG_SELECTED_WEAPON_ID], &"bat", "retry keeps the selected locker weapon")
 	session._exit_tree()
 	_runner.assert_true(GameManager.is_session_active(), "retry handoff is not reset by old session exit")
 	_runner.assert_eq(GameManager.get_active_config()["source"], "session_result_retry", "retry config survives old session exit")

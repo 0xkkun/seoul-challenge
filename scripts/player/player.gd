@@ -457,6 +457,7 @@ func _show_swing(dir: Vector2) -> void:
 
 ## 야구배트 장착(맵 클리어 보상). 통합 단계에서 보상 지급 시 호출.
 func equip_bat() -> void:
+	ranged_enabled = false
 	if _has_bat:
 		return
 	_has_bat = true
