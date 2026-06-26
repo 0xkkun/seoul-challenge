@@ -71,6 +71,7 @@ func reached_stun_threshold(accum: int, threshold: int) -> bool:
 func take_damage(amount: int) -> void:
 	if _state != State.CHASING:
 		return
+	HapticManager.on_enemy_hit()
 	_stun_accum = accumulate_stun(_stun_accum, amount)
 	if reached_stun_threshold(_stun_accum, max_stun):
 		_enter_stunned()
