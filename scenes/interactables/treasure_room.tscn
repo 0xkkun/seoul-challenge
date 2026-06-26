@@ -15,6 +15,14 @@ door_dirs = Array[StringName]([&"N"])
 
 [node name="PickupVisual" type="ColorRect" parent="PickupSpot"]
 
+[node name="PickupLabel" type="Label" parent="PickupSpot"]
+offset_left = -64.0
+offset_top = 20.0
+offset_right = 64.0
+offset_bottom = 48.0
+horizontal_alignment = 1
+text = "궁 부적"
+
 [node name="Doors" type="Node2D" parent="."]
 
 [node name="NorthDoor" type="Node2D" parent="Doors"]

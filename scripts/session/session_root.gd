@@ -10,6 +10,7 @@ const RUN_LAYOUT_ROOM_COUNT := 15
 const START_ROOM_SCENE_PATH := "res://scenes/interactables/start_room.tscn"
 const COMBAT_ROOM_SCENE_PATH := "res://scenes/interactables/combat_room.tscn"
 const EVENT_ROOM_SCENE_PATH := "res://scenes/interactables/rescue_room.tscn"
+const TREASURE_ROOM_SCENE_PATH := "res://scenes/interactables/treasure_room.tscn"
 const SHOP_ROOM_SCENE_PATH := "res://scenes/interactables/shop_room.tscn"
 const FINAL_ROOM_SCENE_PATH := "res://scenes/interactables/boss_room.tscn"
 
@@ -89,6 +90,7 @@ func _build_run_layout() -> RoomLayout:
 	generator.start_scene_path = START_ROOM_SCENE_PATH
 	generator.combat_scene_path = COMBAT_ROOM_SCENE_PATH
 	generator.event_scene_path = EVENT_ROOM_SCENE_PATH
+	generator.treasure_scene_path = TREASURE_ROOM_SCENE_PATH
 	generator.shop_scene_path = SHOP_ROOM_SCENE_PATH
 	generator.final_scene_path = FINAL_ROOM_SCENE_PATH
 	return generator.generate(RUN_LAYOUT_SEED, {"room_count": RUN_LAYOUT_ROOM_COUNT})

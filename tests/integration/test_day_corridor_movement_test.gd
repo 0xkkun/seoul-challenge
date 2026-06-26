@@ -33,10 +33,33 @@ func test_day_corridor_scene_uses_mobile_landscape_plate() -> void:
 	_runner.assert_true(is_equal_approx(scene.get_character_asset_scale(), 2.0), "student sprite is scaled up for corridor readability")
 	_runner.assert_true(scene.are_runtime_sprites_nearest_filtered(), "runtime sprites use nearest filtering")
 	_runner.assert_not_null(scene.get_node("%Player"), "placeholder player is mounted")
+	_runner.assert_not_null(scene.get_node("%DayCharacterRoot"), "day-only character visual root is mounted")
 	_runner.assert_not_null(scene.get_node("%CharacterSprite"), "student character sprite is mounted")
 	_runner.assert_not_null(scene.get_node("%TouchControls"), "touch controls are mounted")
 	_runner.assert_not_null(scene.get_node("%HubDialogueUi"), "hub dialogue UI is mounted")
 	_runner.assert_false(scene.is_dialogue_ui_visible(), "dialogue UI starts hidden")
+
+
+func test_day_corridor_shows_only_day_character_visual_under_player() -> void:
+	var scene := DayCorridorScene.instantiate()
+	add_child(scene)
+
+	var player: Node = scene.get_node("%Player")
+	var day_root: Node = scene.get_node("%DayCharacterRoot")
+	var character_sprite: Node = scene.get_node("%CharacterSprite")
+	var visible_visual_roots: Array[Node] = []
+
+	for child: Node in player.get_children():
+		if child is CollisionShape2D:
+			continue
+		var item := child as CanvasItem
+		if item != null and item.visible:
+			visible_visual_roots.append(child)
+
+	_runner.assert_eq(character_sprite.get_parent(), day_root, "student sprite is grouped under the day-only root")
+	_runner.assert_eq(visible_visual_roots.size(), 1, "day scene hides default player visual roots")
+	if visible_visual_roots.size() == 1:
+		_runner.assert_eq(visible_visual_roots[0], day_root, "only the day-only visual root remains visible")
 
 
 func test_day_corridor_routes_touch_attack_to_dialogue_not_combat() -> void:

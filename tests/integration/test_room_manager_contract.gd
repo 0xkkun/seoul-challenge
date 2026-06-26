@@ -18,11 +18,12 @@ func test_gyeongbokgung_layout_validates_fixed_route() -> void:
 
 	var errors := layout.validate_layout()
 	_runner.assert_eq(errors.size(), 0, "layout passes its own rules")
-	_runner.assert_eq(layout.get_room_ids(), [&"start", &"combat_1", &"combat_2", &"event_1", &"friend_1", &"final_1"])
+	_runner.assert_eq(layout.get_room_ids(), [&"start", &"combat_1", &"treasure_1", &"combat_2", &"event_1", &"friend_1", &"final_1"])
 	_runner.assert_eq(layout.get_connected_room_ids(&"start"), [&"combat_1"])
 	_runner.assert_eq(layout.get_room(&"start").grid_pos, Vector2i.ZERO, "authored start grid position is normalized")
-	_runner.assert_eq(layout.get_room(&"final_1").grid_pos, Vector2i(5, 0), "authored final grid position is stable")
+	_runner.assert_eq(layout.get_room(&"final_1").grid_pos, Vector2i(6, 0), "authored final grid position is stable")
 	_runner.assert_eq(layout.get_room(&"combat_1").scene_path, "res://scenes/interactables/combat_room.tscn", "combat rooms use combat scene")
+	_runner.assert_eq(layout.get_room(&"treasure_1").scene_path, "res://scenes/interactables/treasure_room.tscn", "treasure room uses treasure scene")
 	_runner.assert_eq(layout.get_room(&"combat_2").scene_path, "res://scenes/interactables/combat_room.tscn", "second combat room uses combat scene")
 	_runner.assert_eq(layout.get_room(&"event_1").scene_path, "res://scenes/interactables/rescue_room.tscn", "event room uses rescue scene")
 	var friend_def := layout.get_room(&"friend_1")
@@ -35,18 +36,21 @@ func test_gyeongbokgung_layout_validates_fixed_route() -> void:
 
 	var cleared := {}
 	var initially_visible := layout.get_visible_room_defs(cleared)
-	_runner.assert_eq(initially_visible.size(), 5, "hidden final room is not visible at start")
+	_runner.assert_eq(initially_visible.size(), 6, "hidden final room is not visible at start")
 
-	for room_id: StringName in [&"start", &"combat_1", &"combat_2", &"event_1", &"friend_1"]:
+	for room_id: StringName in [&"start", &"combat_1", &"treasure_1", &"combat_2", &"event_1", &"friend_1"]:
 		cleared[room_id] = true
 
 	_runner.assert_true(layout.is_room_visible(&"final_1", cleared), "final room is revealed after required rooms clear")
 	var cleared_before_friend := {
 		&"start": true,
 		&"combat_1": true,
+		&"treasure_1": true,
 		&"combat_2": true,
 		&"event_1": true,
 	}
+	_runner.assert_eq(layout.get_next_room_id(&"combat_1", {&"start": true, &"combat_1": true}), &"treasure_1", "route must pass treasure room")
+	_runner.assert_eq(layout.get_next_room_id(&"treasure_1", {&"start": true, &"combat_1": true, &"treasure_1": true}), &"combat_2", "treasure room leads to second combat")
 	_runner.assert_eq(layout.get_next_room_id(&"event_1", cleared_before_friend), &"friend_1", "route must pass friend room")
 	_runner.assert_eq(layout.get_next_room_id(&"friend_1", cleared), &"final_1", "friend room leads to final")
 
@@ -69,21 +73,21 @@ func test_room_manager_runs_layout_with_interactive_rooms() -> void:
 	_runner.assert_true(manager.start_layout(), "manager starts fixed layout")
 	_runner.assert_eq(manager.current_room_id, &"start")
 	_runner.assert_true(manager.has_cleared_room(&"start"), "start clears on entry")
-	_runner.assert_eq(manager.get_visible_room_defs().size(), 5, "hidden final room starts hidden")
+	_runner.assert_eq(manager.get_visible_room_defs().size(), 6, "hidden final room starts hidden")
 
-	for expected_room_id: StringName in [&"combat_1", &"combat_2", &"event_1", &"friend_1"]:
+	for expected_room_id: StringName in [&"combat_1", &"treasure_1", &"combat_2", &"event_1", &"friend_1"]:
 		_runner.assert_true(manager.request_next_room(), "manager advances to %s" % expected_room_id)
 		_runner.assert_eq(manager.current_room_id, expected_room_id)
 		_resolve_current_room(manager, actor)
 		_runner.assert_true(manager.has_cleared_room(expected_room_id), "%s clears after its room objective" % expected_room_id)
 
-	_runner.assert_eq(manager.get_visible_room_defs().size(), 6, "final room is visible after required rooms clear")
+	_runner.assert_eq(manager.get_visible_room_defs().size(), 7, "final room is visible after required rooms clear")
 	_runner.assert_true(manager.request_next_room(), "manager advances to final room")
 	_runner.assert_eq(manager.current_room_id, &"final_1")
 	_resolve_current_room(manager, actor)
 	_runner.assert_true(manager.has_cleared_room(&"final_1"), "final room clears after boss completion")
 	_runner.assert_false(manager.request_next_room(), "route has no room after final")
-	_runner.assert_eq(entered_rooms, [&"start", &"combat_1", &"combat_2", &"event_1", &"friend_1", &"final_1"])
+	_runner.assert_eq(entered_rooms, [&"start", &"combat_1", &"treasure_1", &"combat_2", &"event_1", &"friend_1", &"final_1"])
 
 	manager.room_changed.disconnect(on_room_changed)
 
@@ -164,6 +168,10 @@ func test_session_root_mounts_room_manager() -> void:
 		_undirected_edge_count(manager.layout) >= manager.layout.room_defs.size(),
 		"session run map includes an alternate route beyond a pure tree"
 	)
+	var treasure_defs := _room_defs_of_type(manager.layout, RoomLayout.TYPE_TREASURE)
+	_runner.assert_eq(treasure_defs.size(), 1, "session run map includes one treasure room")
+	if treasure_defs.size() == 1:
+		_runner.assert_eq(treasure_defs[0].scene_path, "res://scenes/interactables/treasure_room.tscn", "session treasure room uses treasure scene")
 	_runner.assert_eq(manager.current_room.get_parent(), room_layer, "room manager mounts rooms under room layer")
 	_runner.assert_true(manager.has_cleared_room(&"start"), "start room clears")
 	_runner.assert_true(session.advance_room(), "session can advance through room manager")
@@ -212,6 +220,8 @@ func _resolve_current_room(manager: RoomManager, actor: Node2D) -> void:
 		for student: Node in room.call("get_active_students"):
 			if student.has_method("rescue"):
 				student.call("rescue", actor)
+	elif room.has_method("pick_up"):
+		room.call("pick_up", actor)
 	elif room.has_method("get_active_friends"):
 		for friend: Node in room.call("get_active_friends"):
 			if friend.has_signal("purified"):
@@ -287,6 +297,14 @@ func _non_final_leaf_room(layout: RoomLayout) -> RoomDef:
 		if room_def.room_type != RoomLayout.TYPE_FINAL and room_def.room_id != layout.start_room_id and room_def.connections.size() == 1:
 			return room_def
 	return null
+
+
+func _room_defs_of_type(layout: RoomLayout, room_type: StringName) -> Array[RoomDef]:
+	var matches: Array[RoomDef] = []
+	for room_def: RoomDef in layout.room_defs:
+		if room_def != null and room_def.room_type == room_type:
+			matches.append(room_def)
+	return matches
 
 
 func _path_between(layout: RoomLayout, start_room_id: StringName, target_room_id: StringName) -> Array[StringName]:

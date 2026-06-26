@@ -106,7 +106,7 @@ func test_boss_room_requests_spawn_and_finishes_active_session() -> void:
 
 func test_treasure_room_pickup_marks_room_cleared() -> void:
 	var room := (load("res://scenes/interactables/treasure_room.tscn") as PackedScene).instantiate() as TreasureRoom
-	var actor := Node2D.new()
+	var actor := (load("res://scenes/player/player.tscn") as PackedScene).instantiate() as Node2D
 	var room_container := Node2D.new()
 	var interaction_system: Node = (load("res://scripts/systems/interaction_system.gd") as GDScript).new()
 	var pickup_events: Array[Dictionary] = []
@@ -127,6 +127,7 @@ func test_treasure_room_pickup_marks_room_cleared() -> void:
 	_runner.assert_false(room.has_picked_up(), "treasure starts available")
 	_runner.assert_true(north_door.is_locked(), "treasure room door stays locked before pickup")
 	_runner.assert_eq(pickup_visual.color, RoomPalette.REWARD_ROOM_FLOOR_COLOR, "pickup visual uses palette color")
+	_runner.assert_eq(actor.get("melee_damage"), 1, "player starts at base melee damage")
 
 	var dispatched: int = interaction_system.check_now()
 
@@ -135,9 +136,12 @@ func test_treasure_room_pickup_marks_room_cleared() -> void:
 	_runner.assert_true(room.has_been_cleared(), "treasure pickup clears room")
 	_runner.assert_true(north_door.is_open(), "treasure pickup opens exits")
 	_runner.assert_false(pickup_visual.visible, "pickup visual hides after pickup")
+	_runner.assert_eq(actor.get("melee_damage"), 2, "treasure pickup applies the run item immediately")
 	_runner.assert_eq(pickup_events.size(), 1, "treasure pickup emits EventBus payload")
 	if pickup_events.size() == 1:
-		_runner.assert_eq(pickup_events[0]["item_id"], &"treasure_stub", "pickup payload includes item id")
+		_runner.assert_eq(pickup_events[0]["item_id"], &"gung_talisman", "pickup payload includes item id")
+		_runner.assert_eq(pickup_events[0]["item_display_name"], "궁 부적", "pickup payload includes flavor name")
+		_runner.assert_true(pickup_events[0]["applied"], "pickup payload records player stat application")
 
 	EventBus.interaction_completed.disconnect(on_interaction_completed)
 
@@ -218,6 +222,7 @@ func test_minimap_data_marks_current_visible_and_boss_hidden() -> void:
 	var cleared := {
 		&"start": true,
 		&"combat_1": true,
+		&"treasure_1": true,
 		&"combat_2": true,
 		&"event_1": true,
 	}
