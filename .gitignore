@@ -1,0 +1,28 @@
+.DS_Store
+.godot/
+build/
+exports/
+test-results/
+*.tmp
+*.log
+
+# Local configuration and secrets.
+config/app.cfg
+config/*.local.cfg
+config/*.secret.cfg
+config/*credentials*
+config/*token*
+config/*secret*
+.env
+.env.*
+
+# Godot export outputs.
+*.apk
+*.aab
+*.ipa
+*.pck
+*.zip
+*.dmg
+*.exe
+*.x86_64
+*.arm64

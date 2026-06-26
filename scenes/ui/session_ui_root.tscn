@@ -1,0 +1,86 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/session_ui_root.gd" id="1_ui"]
+
+[node name="SessionUIRoot" type="CanvasLayer"]
+unique_name_in_owner = true
+script = ExtResource("1_ui")
+
+[node name="Root" type="Control" parent="."]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="TopPanel" type="HBoxContainer" parent="Root"]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_left = 12.0
+offset_top = 12.0
+offset_right = -12.0
+offset_bottom = 44.0
+grow_horizontal = 2
+theme_override_constants/separation = 12
+
+[node name="StatusLabel" type="Label" parent="Root/TopPanel"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Ready"
+
+[node name="InteractionLabel" type="Label" parent="Root/TopPanel"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Interactions: 0"
+
+[node name="ActionPanel" type="HBoxContainer" parent="Root"]
+layout_mode = 1
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 12.0
+offset_top = -56.0
+offset_right = -12.0
+offset_bottom = -12.0
+grow_horizontal = 2
+grow_vertical = 0
+theme_override_constants/separation = 8
+
+[node name="PauseButton" type="Button" parent="Root/ActionPanel"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Pause"
+
+[node name="ResumeButton" type="Button" parent="Root/ActionPanel"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Resume"
+
+[node name="FinishButton" type="Button" parent="Root/ActionPanel"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Finish"
+
+[node name="SummaryLabel" type="Label" parent="Root"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -160.0
+offset_top = -104.0
+offset_right = 160.0
+offset_bottom = -72.0
+grow_horizontal = 2
+grow_vertical = 0
+text = "Summary: pending"
+horizontal_alignment = 1

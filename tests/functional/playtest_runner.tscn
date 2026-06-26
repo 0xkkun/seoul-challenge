@@ -1,0 +1,8 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://tests/support/test_runner.gd" id="1_runner"]
+
+[node name="FunctionalTestRunner" type="Node"]
+script = ExtResource("1_runner")
+suite_path = "res://tests/functional"
+suite_name = "Functional"

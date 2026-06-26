@@ -1,0 +1,8 @@
+[app]
+project_id="com.example.pixel_template"
+display_name="Pixel Godot Template"
+
+[services]
+analytics_enabled=false
+ads_enabled=false
+cloud_save_enabled=false

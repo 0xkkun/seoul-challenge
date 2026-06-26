@@ -1,0 +1,9 @@
+keys,en
+APP_TITLE,Pixel Godot Template
+START_ACTION,Start
+SESSION_STATUS_READY,Ready
+SESSION_STATUS_INTERACTED,Interaction complete
+PAUSE_ACTION,Pause
+RESUME_ACTION,Resume
+FINISH_ACTION,Finish
+SUMMARY_TITLE,Session Summary

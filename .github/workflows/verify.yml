@@ -1,0 +1,61 @@
+name: Verify
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  quick:
+    name: Quick verification
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7.0.0
+
+      - name: Set up Godot
+        uses: chickensoft-games/setup-godot@v2.4.1
+        with:
+          version: 4.6.3
+          use-dotnet: false
+
+      - name: Verify Godot version
+        run: godot --version
+
+      - name: Run quick gate
+        run: bash scripts/verify_quick.sh
+
+      - name: Upload failure logs
+        if: failure()
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: test-results
+          path: test-results/
+          if-no-files-found: ignore
+
+  full:
+    name: Full verification
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7.0.0
+
+      - name: Set up Godot
+        uses: chickensoft-games/setup-godot@v2.4.1
+        with:
+          version: 4.6.3
+          use-dotnet: false
+
+      - name: Run full gate
+        run: bash scripts/verify_full.sh
+
+      - name: Upload failure logs
+        if: failure()
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: full-test-results
+          path: test-results/
+          if-no-files-found: ignore
