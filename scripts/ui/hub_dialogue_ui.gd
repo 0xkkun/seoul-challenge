@@ -36,6 +36,7 @@ const UNLOCK_BORDER_COLOR := Color(0.84, 0.68, 0.28)
 const DEFAULT_BALL_COLOR := Color(0.9, 0.88, 0.8)
 const DEFAULT_BAT_COLOR := Color(0.54, 0.55, 0.6)
 
+@onready var _dialogue_dimmer: ColorRect = %DialogueDimmer
 @onready var _portrait_panel: ColorRect = %PortraitPanel
 @onready var _portrait_accent: ColorRect = %PortraitAccent
 @onready var _dialogue_bar: PanelContainer = %DialogueBar
@@ -86,6 +87,10 @@ func get_unlock_popup_reference_rect() -> Rect2:
 	return Rect2(center - UNLOCK_POPUP_SIZE * 0.5, UNLOCK_POPUP_SIZE)
 
 
+func is_dialogue_overlay_visible() -> bool:
+	return _dialogue_dimmer.visible and _dialogue_dimmer.color.a > 0.0
+
+
 func set_dialogue(next_speaker_name: String, next_dialogue_text: String, next_memory_text := "", portrait_color := PORTRAIT_COLOR) -> void:
 	_speaker_name = next_speaker_name
 	_dialogue_text = next_dialogue_text
@@ -130,6 +135,14 @@ func get_stage_state(stage_number: int) -> String:
 
 func get_stage_labels() -> Array[String]:
 	return _stage_labels.duplicate()
+
+
+func set_stage_row_visible(should_show: bool) -> void:
+	_stage_row.visible = should_show
+
+
+func is_stage_row_visible() -> bool:
+	return _stage_row.visible
 
 
 func set_choices(next_choices: Array[Dictionary]) -> void:

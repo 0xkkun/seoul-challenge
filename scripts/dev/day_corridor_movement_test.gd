@@ -3,12 +3,21 @@ extends Node2D
 signal dialogue_requested(payload: Dictionary)
 
 const REFERENCE_VIEWPORT_SIZE := Vector2(960.0, 540.0)
+const DIALOGUE_SPEAKER := "반 친구"
 const DIALOGUE_LINES: Array[String] = [
 	"친구: 낮엔 뛰지 말고, 얘기부터 하자.",
 	"친구: 복도 끝 교실에 들르면 준비가 끝나.",
+	"친구: 밤에 나가기 전에 여기서 필요한 얘기를 끝내자.",
+]
+const DIALOGUE_MEMORY_LINES: Array[String] = [
+	"기억: 창밖으로 밀려드는 낮빛",
+	"기억: 복도 끝 교실 문손잡이",
+	"기억: 야자 시작 전의 짧은 정적",
 ]
 const ROOM_LEFT := &"left"
 const ROOM_RIGHT := &"right"
+const CHOICE_NEXT := &"next"
+const CHOICE_CLOSE := &"close"
 
 @export var corridor_size := Vector2(2172.0, 720.0)
 @export var floor_y := 616.0
@@ -30,10 +39,12 @@ const ROOM_RIGHT := &"right"
 @onready var _talk_target: Node2D = %TalkTarget
 @onready var _character_sprite: Sprite2D = %CharacterSprite
 @onready var _interaction_prompt: Label = %InteractionPrompt
-@onready var _dialogue_state: Label = %DialogueState
+@onready var _talk_button_label: Label = %TalkButtonLabel
+@onready var _hub_dialogue_ui: HubDialogueUi = %HubDialogueUi
 @onready var _fade_overlay: ColorRect = %FadeOverlay
 
 var _dialogue_count := 0
+var _dialogue_line_index := -1
 var _was_dialogue_pressed := false
 var _walk_elapsed := 0.0
 var _faces_left := false
@@ -47,7 +58,9 @@ func _ready() -> void:
 	_apply_nearest_texture_filter()
 	_fit_character_to_asset_scale()
 	_apply_room_state()
-	_dialogue_state.visible = false
+	_hub_dialogue_ui.visible = false
+	_hub_dialogue_ui.set_stage_row_visible(false)
+	_hub_dialogue_ui.choice_selected.connect(_on_hub_dialogue_choice_selected)
 	_interaction_prompt.visible = false
 	_fit_camera_to_corridor_height()
 	_clamp_player_to_corridor()
@@ -58,6 +71,13 @@ func _process(delta: float) -> void:
 	if _is_room_transitioning:
 		_player.velocity = Vector2.ZERO
 		_sync_camera()
+		return
+	if is_dialogue_ui_visible():
+		_player.velocity = Vector2.ZERO
+		_update_character_sprite(delta)
+		_sync_camera()
+		_update_interaction_prompt()
+		_process_dialogue_input()
 		return
 	update_room_transition_request()
 	_clamp_player_to_corridor()
@@ -134,6 +154,30 @@ func get_dialogue_count() -> int:
 	return _dialogue_count
 
 
+func get_active_dialogue_line_index() -> int:
+	return _dialogue_line_index
+
+
+func get_active_dialogue_text() -> String:
+	return _hub_dialogue_ui.get_dialogue_text()
+
+
+func get_active_dialogue_memory_text() -> String:
+	return _hub_dialogue_ui.get_memory_text()
+
+
+func get_dialogue_choice_ids() -> Array[StringName]:
+	return _hub_dialogue_ui.get_choice_ids()
+
+
+func is_dialogue_ui_visible() -> bool:
+	return _hub_dialogue_ui.visible
+
+
+func is_touch_controls_visible() -> bool:
+	return _touch_controls.visible
+
+
 func is_player_in_dialogue_range() -> bool:
 	if not _talk_target.visible:
 		return false
@@ -164,15 +208,25 @@ func is_combat_output_disabled() -> bool:
 
 
 func trigger_dialogue() -> void:
-	_dialogue_count += 1
-	var line_index := (_dialogue_count - 1) % DIALOGUE_LINES.size()
-	_dialogue_state.text = DIALOGUE_LINES[line_index]
-	_dialogue_state.visible = true
-	dialogue_requested.emit({
-		"count": _dialogue_count,
-		"line": _dialogue_state.text,
-		"source": &"day_corridor",
-	})
+	if is_dialogue_ui_visible():
+		_show_dialogue_line((_dialogue_line_index + 1) % DIALOGUE_LINES.size())
+		return
+	_open_dialogue_ui()
+	_show_dialogue_line(0)
+
+
+func close_dialogue() -> void:
+	_hub_dialogue_ui.visible = false
+	_touch_controls.visible = true
+	_talk_button_label.visible = true
+	_player.set_physics_process(true)
+	_dialogue_line_index = -1
+	_update_interaction_prompt()
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_WM_GO_BACK_REQUEST and is_dialogue_ui_visible():
+		close_dialogue()
 
 
 func _disable_combat_output() -> void:
@@ -209,6 +263,8 @@ func _apply_room_state() -> void:
 	_school_bg_right.visible = _current_room_id == ROOM_RIGHT
 	_talk_target.visible = _current_room_id == ROOM_LEFT
 	_camera.limit_right = int(corridor_size.x)
+	if _current_room_id != ROOM_LEFT:
+		close_dialogue()
 
 
 func _start_room_transition(target_room_id: StringName) -> void:
@@ -319,11 +375,57 @@ func _center_or_clamp(value: float, half_view: float, world_size: float) -> floa
 
 
 func _update_interaction_prompt() -> void:
-	_interaction_prompt.visible = is_player_in_dialogue_range()
+	_interaction_prompt.visible = not is_dialogue_ui_visible() and is_player_in_dialogue_range()
 
 
 func _process_dialogue_input() -> void:
 	var pressed := is_dialogue_input_pressed()
+	if is_dialogue_ui_visible() and _is_dialogue_close_input_pressed():
+		close_dialogue()
+		_was_dialogue_pressed = pressed
+		return
 	if pressed and not _was_dialogue_pressed and is_player_in_dialogue_range():
 		trigger_dialogue()
 	_was_dialogue_pressed = pressed
+
+
+func _open_dialogue_ui() -> void:
+	_hub_dialogue_ui.visible = true
+	_touch_controls.visible = false
+	_talk_button_label.visible = false
+	_player.velocity = Vector2.ZERO
+	_player.set_physics_process(false)
+	_update_character_sprite(0.0)
+
+
+func _show_dialogue_line(line_index: int) -> void:
+	_dialogue_count += 1
+	_dialogue_line_index = posmod(line_index, DIALOGUE_LINES.size())
+	_hub_dialogue_ui.set_dialogue(
+		DIALOGUE_SPEAKER,
+		DIALOGUE_LINES[_dialogue_line_index],
+		DIALOGUE_MEMORY_LINES[_dialogue_line_index]
+	)
+	_hub_dialogue_ui.set_choices([
+		{"id": CHOICE_NEXT, "text": "다음" if _dialogue_line_index < DIALOGUE_LINES.size() - 1 else "처음부터"},
+		{"id": CHOICE_CLOSE, "text": "나가기", "emphasized": true},
+	])
+	dialogue_requested.emit({
+		"count": _dialogue_count,
+		"line": DIALOGUE_LINES[_dialogue_line_index],
+		"line_index": _dialogue_line_index,
+		"memory": DIALOGUE_MEMORY_LINES[_dialogue_line_index],
+		"source": &"day_corridor",
+	})
+
+
+func _on_hub_dialogue_choice_selected(choice_id: StringName) -> void:
+	match choice_id:
+		CHOICE_NEXT:
+			trigger_dialogue()
+		CHOICE_CLOSE:
+			close_dialogue()
+
+
+func _is_dialogue_close_input_pressed() -> bool:
+	return Input.is_action_pressed(&"ui_cancel") or Input.is_key_pressed(KEY_ESCAPE)

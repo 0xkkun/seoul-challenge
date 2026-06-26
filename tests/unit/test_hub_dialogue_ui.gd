@@ -46,6 +46,14 @@ func test_dialogue_content_updates_from_data() -> void:
 	_runner.assert_eq(_ui.get_memory_text(), "기억: 실험실 싱크대의 물방울", "기억 플레이버 텍스트가 데이터로 갱신된다")
 
 
+func test_dialogue_overlay_and_stage_row_visibility_are_configurable() -> void:
+	_runner.assert_true(_ui.is_dialogue_overlay_visible(), "일반 대화 UI는 배경을 덮는 오버레이를 제공한다")
+	_runner.assert_true(_ui.is_stage_row_visible(), "기본 허브 대화 UI는 단계 행을 표시한다")
+
+	_ui.set_stage_row_visible(false)
+	_runner.assert_false(_ui.is_stage_row_visible(), "씬 목적에 맞지 않는 단계 행은 숨길 수 있다")
+
+
 func test_stage_row_tracks_completed_current_and_locked_states() -> void:
 	_ui.set_stage(2)
 
