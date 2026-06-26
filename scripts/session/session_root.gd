@@ -1,12 +1,15 @@
 extends Node2D
 
 const POOLED_MARKER_SCENE = preload("res://scenes/interactables/sample_pooled_marker.tscn")
+const GYEONGBOKGUNG_LAYOUT = preload("res://resources/layouts/gyeongbokgung.tres")
 
 @onready var actor: Node2D = %SampleActor
+@onready var room_layer: Node = %RoomLayer
 @onready var interactable_layer: Node = %InteractableLayer
 @onready var sample_interactable: Node = %SampleInteractable
 @onready var pooled_object_layer: Node = %PooledObjectLayer
 @onready var interaction_system: Node = %InteractionSystem
+@onready var room_manager: RoomManager = %RoomManager
 @onready var session_ui_root: CanvasLayer = %SessionUIRoot
 
 var completed_interactions := 0
@@ -17,6 +20,8 @@ func _ready() -> void:
 		GameManager.start_session({"source": "session_root"})
 	PoolManager.register_scene(&"sample_marker", POOLED_MARKER_SCENE, 1, pooled_object_layer)
 	interaction_system.configure(actor, interactable_layer)
+	room_manager.configure(GYEONGBOKGUNG_LAYOUT, room_layer, actor)
+	room_manager.start_layout()
 	sample_interactable.interaction_triggered.connect(_on_interaction_triggered)
 	session_ui_root.pause_requested.connect(_on_pause_requested)
 	session_ui_root.resume_requested.connect(_on_resume_requested)
@@ -39,6 +44,10 @@ func spawn_sample_marker() -> Node:
 	if marker != null and marker.has_method("activate_at"):
 		marker.call("activate_at", actor.global_position + Vector2(24, 0))
 	return marker
+
+
+func advance_room(preferred_room_id: StringName = &"") -> bool:
+	return room_manager.request_next_room(preferred_room_id)
 
 
 func finish_session() -> Dictionary:
