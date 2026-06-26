@@ -40,6 +40,9 @@ const QUIT_GAME_MESSAGE := "게임을 종료할까요?"
 @export var background_asset_scale := 1.0
 @export var character_asset_scale := 2.0
 @export var character_walk_fps := 8.0
+@export var character_idle_fps := 1.6
+@export var character_idle_frames: PackedInt32Array = PackedInt32Array([0, 1, 0, 7])
+@export var character_idle_bob_px := 2.0
 @export var room_transition_fade_time := 0.18
 @export var room_transition_spawn_inset := 320.0
 @export var outer_edge_scene_transition_enabled := true
@@ -65,6 +68,8 @@ var _dialogue_count := 0
 var _dialogue_line_index := -1
 var _was_dialogue_pressed := false
 var _walk_elapsed := 0.0
+var _idle_elapsed := 0.0
+var _character_base_position := Vector2.ZERO
 var _faces_left := false
 var _current_room_id := ROOM_LEFT
 var _is_room_transitioning := false
@@ -169,6 +174,10 @@ func get_background_wash_alpha() -> float:
 
 func get_character_frame_count() -> int:
 	return _get_character_frame_count()
+
+
+func get_character_idle_frame_count() -> int:
+	return character_idle_frames.size()
 
 
 func get_current_room_id() -> StringName:
@@ -349,10 +358,10 @@ func _apply_nearest_texture_filter() -> void:
 
 
 func _fit_character_to_asset_scale() -> void:
-	if character_asset_scale <= 0.0:
-		return
-	_character_sprite.scale = Vector2(character_asset_scale, character_asset_scale)
-	_character_sprite.position.y = -_get_character_frame_size().y * character_asset_scale * 0.5
+	if character_asset_scale > 0.0:
+		_character_sprite.scale = Vector2(character_asset_scale, character_asset_scale)
+		_character_sprite.position.y = -_get_character_frame_size().y * character_asset_scale * 0.5
+	_character_base_position = _character_sprite.position
 
 
 func _apply_room_state() -> void:
@@ -470,9 +479,13 @@ func _update_character_sprite(delta: float) -> void:
 
 	if absf(velocity_x) <= 1.0:
 		_walk_elapsed = 0.0
-		_character_sprite.frame = 0
+		_idle_elapsed += delta
+		_character_sprite.frame = _get_character_idle_frame()
+		_character_sprite.position.y = _character_base_position.y + _get_character_idle_bob_offset()
 		return
 
+	_idle_elapsed = 0.0
+	_character_sprite.position = _character_base_position
 	_walk_elapsed += delta
 	_character_sprite.frame = int(_walk_elapsed * character_walk_fps) % _get_character_frame_count()
 
@@ -497,6 +510,19 @@ func _get_character_frame_size() -> Vector2:
 
 func _get_character_frame_count() -> int:
 	return maxi(1, _character_sprite.hframes * _character_sprite.vframes)
+
+
+func _get_character_idle_frame() -> int:
+	if character_idle_frames.is_empty():
+		return 0
+	var index := int(_idle_elapsed * character_idle_fps) % character_idle_frames.size()
+	return clampi(character_idle_frames[index], 0, _get_character_frame_count() - 1)
+
+
+func _get_character_idle_bob_offset() -> float:
+	if character_idle_bob_px <= 0.0 or character_idle_frames.size() < 2:
+		return 0.0
+	return -sin(_idle_elapsed * TAU * character_idle_fps * 0.5) * character_idle_bob_px
 
 
 func _get_visible_world_size() -> Vector2:

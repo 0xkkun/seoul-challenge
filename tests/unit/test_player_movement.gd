@@ -20,6 +20,12 @@ func test_input_moves_velocity_toward_direction() -> void:
 	p.free()
 
 
+func test_default_move_speed_is_snappier() -> void:
+	var p = PlayerScript.new()
+	_runner.assert_eq(p.move_speed, 260.0, "기본 이동 속도를 답답하지 않게 올린다")
+	p.free()
+
+
 func test_diagonal_speed_is_normalized() -> void:
 	var p = PlayerScript.new()
 	var speed: float = p.move_speed

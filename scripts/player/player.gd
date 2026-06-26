@@ -16,7 +16,7 @@ signal special_skill_state_changed(payload: Dictionary)
 ## 런 한정 맵 아이템 변경 — 보물방/상점방 표시용.
 signal run_modifiers_changed(payload: Dictionary)
 
-@export var move_speed: float = 220.0      ## 최고 속도 (px/s)
+@export var move_speed: float = 260.0      ## 최고 속도 (px/s)
 @export var acceleration: float = 2200.0   ## 가속 (px/s^2)
 @export var friction: float = 2600.0       ## 감속 (px/s^2)
 @export var vertical_speed_factor: float = 0.6  ## 깊이(상하) 이동을 좌우보다 느리게 — 벨트 원근감
@@ -46,7 +46,6 @@ signal run_modifiers_changed(payload: Dictionary)
 @export var dodge_invuln_time: float = 0.24
 @export var touch_controls_path: NodePath  ## 비우면 키보드 폴백
 
-var _fire_timer: float = 0.0
 var _attack_timer: float = 0.0
 var _swing_timer: float = 0.0
 var _is_attacking: bool = false   ## 공격 모션 재생 중(애니 끝날 때까지 walk/idle 억제)
