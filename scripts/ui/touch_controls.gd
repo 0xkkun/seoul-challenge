@@ -25,6 +25,13 @@ func is_attack_pressed() -> bool:
 	return _attack.is_held()
 
 
+## 공격 조준 방향 — 공격버튼 드래그 방향(없으면 ZERO).
+func get_aim() -> Vector2:
+	if _attack.has_method("get_aim"):
+		return _attack.get_aim()
+	return Vector2.ZERO
+
+
 func is_skill_pressed() -> bool:
 	return _skill.is_held()
 
