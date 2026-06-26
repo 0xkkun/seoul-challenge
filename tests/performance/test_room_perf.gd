@@ -94,6 +94,7 @@ func test_room_manager_runtime_walks_fixed_route() -> void:
 	for expected_room_id: StringName in [&"combat_1", &"combat_2", &"event_1", &"final_1"]:
 		_runner.assert_true(manager.request_next_room(), "runtime advances to %s" % expected_room_id)
 		_runner.assert_eq(manager.current_room_id, expected_room_id)
+		_clear_room(manager.current_room)
 
 	_runner.assert_false(manager.request_next_room(), "runtime reports route completion after final")
 	_runner.assert_eq(completed_layouts, [&"gyeongbokgung"], "runtime emits layout completion")
@@ -104,3 +105,8 @@ func _load_layout() -> RoomLayout:
 	var layout := load(LAYOUT_PATH) as RoomLayout
 	_runner.assert_not_null(layout, "layout resource loads")
 	return layout
+
+
+func _clear_room(room: Node) -> void:
+	if room != null and room.has_method("mark_cleared"):
+		room.mark_cleared()

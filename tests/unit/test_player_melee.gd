@@ -44,6 +44,20 @@ func test_melee_hits_enemy_in_front() -> void:
 	p.free()
 
 
+func test_player_collision_radius_stays_inside_melee_range() -> void:
+	var player := (load("res://scenes/player/player.tscn") as PackedScene).instantiate()
+	add_child(player)
+	var collision := player.get_node("Collision") as CollisionShape2D
+	var shape := collision.shape as CircleShape2D
+
+	_runner.assert_not_null(shape, "player collision uses a circle shape")
+	if shape != null:
+		_runner.assert_true(
+			shape.radius <= player.melee_range,
+			"melee-only player can move close enough to hit enemy centers"
+		)
+
+
 func test_melee_misses_enemy_behind() -> void:
 	var p = PlayerScript.new()
 	add_child(p)

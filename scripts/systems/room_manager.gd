@@ -174,15 +174,34 @@ func _door_dirs_for_room(room_def: RoomDef) -> Array[StringName]:
 		if connected == null:
 			continue
 		var delta := connected.grid_pos - room_def.grid_pos
-		if delta.x > 0:
-			dirs.append(&"E")
-		elif delta.x < 0:
-			dirs.append(&"W")
-		elif delta.y > 0:
-			dirs.append(&"S")
-		elif delta.y < 0:
-			dirs.append(&"N")
+		var door_dir := _door_dir_for_delta(delta)
+		if door_dir != &"":
+			dirs.append(door_dir)
 	return dirs
+
+
+func _connected_room_id_for_door_dir(room_def: RoomDef, door_dir: StringName) -> StringName:
+	if layout == null:
+		return &""
+	for connected_id: StringName in room_def.connections:
+		var connected := layout.get_room(connected_id)
+		if connected == null:
+			continue
+		if _door_dir_for_delta(connected.grid_pos - room_def.grid_pos) == door_dir:
+			return connected_id
+	return &""
+
+
+func _door_dir_for_delta(delta: Vector2i) -> StringName:
+	if delta.x > 0:
+		return &"E"
+	if delta.x < 0:
+		return &"W"
+	if delta.y > 0:
+		return &"S"
+	if delta.y < 0:
+		return &"N"
+	return &""
 
 
 func _configure_actor(room: Node2D) -> void:
@@ -209,7 +228,8 @@ func _on_room_cleared(room_id: StringName) -> void:
 	cleared_room_ids[room_id] = true
 
 
-func _on_room_transition_requested(room_id: StringName, _door_dir: StringName) -> void:
+func _on_room_transition_requested(room_id: StringName, door_dir: StringName) -> void:
 	if room_id != current_room_id:
 		return
-	request_next_room()
+	var preferred_room_id := _connected_room_id_for_door_dir(current_room_def, door_dir)
+	request_next_room(preferred_room_id)
