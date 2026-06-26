@@ -155,8 +155,9 @@ func _assert_layout_invariants(layout: RoomLayout, expected_count: int) -> void:
 
 	_runner.assert_eq(type_counts[RoomLayout.TYPE_START], 1, "one start room")
 	_runner.assert_true(type_counts[RoomLayout.TYPE_COMBAT] >= 2, "at least two combat rooms")
-	_runner.assert_eq(type_counts[RoomLayout.TYPE_COMBAT], expected_count - 3, "remaining generated rooms are combat")
+	_runner.assert_eq(type_counts[RoomLayout.TYPE_COMBAT], expected_count - 4, "remaining generated rooms are combat")
 	_runner.assert_eq(type_counts[RoomLayout.TYPE_EVENT], 1, "one event room")
+	_runner.assert_eq(type_counts[RoomLayout.TYPE_TREASURE], 1, "one treasure room")
 	_runner.assert_eq(type_counts[RoomLayout.TYPE_FINAL], 1, "one final room")
 	_runner.assert_eq(final_rooms.size(), 1, "final room exists")
 	if final_rooms.size() == 1:
