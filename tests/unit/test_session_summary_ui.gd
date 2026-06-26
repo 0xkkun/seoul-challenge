@@ -108,11 +108,11 @@ func test_summary_actions_emit_distinct_flow_signals() -> void:
 
 
 func test_action_buttons_use_pixel_button_skin() -> void:
-	_assert_pixel_button_style(_ui.get_node("%PauseButton") as Button, "pause")
-	_assert_pixel_button_style(_ui.get_node("%ResumeButton") as Button, "resume")
-	_assert_pixel_button_style(_ui.get_node("%FinishButton") as Button, "finish")
-	_assert_pixel_button_style(_ui.get_node("%ReturnButton") as Button, "return")
-	_assert_pixel_button_style(_ui.get_node("%RetryButton") as Button, "retry")
+	_assert_pixel_button_style(_ui.get_node("%PauseButton") as Button, PixelButtonStyle.VARIANT_SECONDARY, "pause")
+	_assert_pixel_button_style(_ui.get_node("%ResumeButton") as Button, PixelButtonStyle.VARIANT_PRIMARY, "resume")
+	_assert_pixel_button_style(_ui.get_node("%FinishButton") as Button, PixelButtonStyle.VARIANT_DANGER, "finish")
+	_assert_pixel_button_style(_ui.get_node("%ReturnButton") as Button, PixelButtonStyle.VARIANT_PRIMARY, "return")
+	_assert_pixel_button_style(_ui.get_node("%RetryButton") as Button, PixelButtonStyle.VARIANT_SECONDARY, "retry")
 
 
 func _assert_no_explainer_copy(snapshot: Dictionary) -> void:
@@ -123,10 +123,10 @@ func _assert_no_explainer_copy(snapshot: Dictionary) -> void:
 		_runner.assert_false(text.contains("저장 완료"), "summary does not show save-complete footer")
 
 
-func _assert_pixel_button_style(button: Button, label: String) -> void:
-	_assert_pixel_button_texture(button.get_theme_stylebox("normal"), PixelButtonStyle.NORMAL_TEXTURE_PATH, "%s normal" % label)
-	_assert_pixel_button_texture(button.get_theme_stylebox("hover"), PixelButtonStyle.NORMAL_TEXTURE_PATH, "%s hover" % label)
-	_assert_pixel_button_texture(button.get_theme_stylebox("pressed"), PixelButtonStyle.PRESSED_TEXTURE_PATH, "%s pressed" % label)
+func _assert_pixel_button_style(button: Button, variant: StringName, label: String) -> void:
+	_assert_pixel_button_texture(button.get_theme_stylebox("normal"), PixelButtonStyle.normal_texture_path(variant), "%s normal" % label)
+	_assert_pixel_button_texture(button.get_theme_stylebox("hover"), PixelButtonStyle.normal_texture_path(variant), "%s hover" % label)
+	_assert_pixel_button_texture(button.get_theme_stylebox("pressed"), PixelButtonStyle.pressed_texture_path(variant), "%s pressed" % label)
 
 
 func _assert_pixel_button_texture(style: StyleBox, texture_path: String, message: String) -> void:

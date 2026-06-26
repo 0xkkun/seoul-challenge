@@ -37,8 +37,8 @@ func test_open_renders_message_and_yes_callback() -> void:
 	var no_button := UiTestHarness.find_by_test_id(_modal, ConfirmModal.TEST_ID_NO) as Button
 	_runner.assert_not_null(yes_button, "yes exposes test id")
 	_runner.assert_not_null(no_button, "no exposes test id")
-	_assert_pixel_button_style(yes_button, "yes")
-	_assert_pixel_button_style(no_button, "no")
+	_assert_pixel_button_style(yes_button, PixelButtonStyle.VARIANT_PRIMARY, "yes")
+	_assert_pixel_button_style(no_button, PixelButtonStyle.VARIANT_SECONDARY, "no")
 
 	_runner.assert_true(UiTestHarness.press_by_uat_action(_modal, ConfirmModal.ACTION_YES), "yes button is pressable by action")
 	_runner.assert_false(_modal.is_open(), "yes closes modal")
@@ -56,16 +56,20 @@ func test_no_callback_closes_danger_modal() -> void:
 	)
 
 	_runner.assert_true(_modal.is_danger_mode(), "danger mode is recorded")
+	var yes_button := UiTestHarness.find_by_test_id(_modal, ConfirmModal.TEST_ID_YES) as Button
+	var no_button := UiTestHarness.find_by_test_id(_modal, ConfirmModal.TEST_ID_NO) as Button
+	_assert_pixel_button_style(yes_button, PixelButtonStyle.VARIANT_DANGER, "danger yes")
+	_assert_pixel_button_style(no_button, PixelButtonStyle.VARIANT_SECONDARY, "danger no")
 	_runner.assert_true(UiTestHarness.press_by_test_id(_modal, ConfirmModal.TEST_ID_NO), "no button is pressable by test id")
 	_runner.assert_false(_modal.is_open(), "no closes modal")
 	_runner.assert_eq(counts["yes"], 0, "yes callback does not run")
 	_runner.assert_eq(counts["no"], 1, "no callback runs once")
 
 
-func _assert_pixel_button_style(button: Button, label: String) -> void:
-	_assert_pixel_button_texture(button.get_theme_stylebox("normal"), PixelButtonStyle.NORMAL_TEXTURE_PATH, "%s normal" % label)
-	_assert_pixel_button_texture(button.get_theme_stylebox("hover"), PixelButtonStyle.NORMAL_TEXTURE_PATH, "%s hover" % label)
-	_assert_pixel_button_texture(button.get_theme_stylebox("pressed"), PixelButtonStyle.PRESSED_TEXTURE_PATH, "%s pressed" % label)
+func _assert_pixel_button_style(button: Button, variant: StringName, label: String) -> void:
+	_assert_pixel_button_texture(button.get_theme_stylebox("normal"), PixelButtonStyle.normal_texture_path(variant), "%s normal" % label)
+	_assert_pixel_button_texture(button.get_theme_stylebox("hover"), PixelButtonStyle.normal_texture_path(variant), "%s hover" % label)
+	_assert_pixel_button_texture(button.get_theme_stylebox("pressed"), PixelButtonStyle.pressed_texture_path(variant), "%s pressed" % label)
 
 
 func _assert_pixel_button_texture(style: StyleBox, texture_path: String, message: String) -> void:
