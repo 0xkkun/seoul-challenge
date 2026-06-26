@@ -1,6 +1,92 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=11 format=3]
 
 [ext_resource type="Script" path="res://scripts/lobby/lobby.gd" id="1_lobby"]
+[ext_resource type="Texture2D" uid="uid://c750vcawxg880" path="res://assets/backgrounds/lobby/title_lobby_bg.png" id="2_bg"]
+[ext_resource type="Texture2D" uid="uid://c705k1cbsft40" path="res://assets/branding/title_logo.png" id="3_logo"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_start_normal"]
+bg_color = Color(0.0470588, 0.215686, 0.301961, 0.92)
+border_width_left = 3
+border_width_top = 3
+border_width_right = 3
+border_width_bottom = 3
+border_color = Color(0.403922, 0.909804, 0.976471, 0.88)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_start_hover"]
+bg_color = Color(0.0588235, 0.305882, 0.419608, 0.96)
+border_width_left = 4
+border_width_top = 4
+border_width_right = 4
+border_width_bottom = 4
+border_color = Color(0.403922, 0.909804, 0.976471, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_start_pressed"]
+bg_color = Color(0.027451, 0.145098, 0.207843, 1)
+border_width_left = 4
+border_width_top = 4
+border_width_right = 4
+border_width_bottom = 4
+border_color = Color(0.403922, 0.909804, 0.976471, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_settings_normal"]
+bg_color = Color(0.227451, 0.341176, 0.227451, 0.9)
+border_width_left = 3
+border_width_top = 3
+border_width_right = 3
+border_width_bottom = 3
+border_color = Color(0.784314, 0.631373, 0.227451, 0.78)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_settings_hover"]
+bg_color = Color(0.301961, 0.431373, 0.301961, 0.96)
+border_width_left = 4
+border_width_top = 4
+border_width_right = 4
+border_width_bottom = 4
+border_color = Color(0.784314, 0.631373, 0.227451, 0.95)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_settings_disabled"]
+bg_color = Color(0.105882, 0.141176, 0.14902, 0.74)
+border_width_left = 3
+border_width_top = 3
+border_width_right = 3
+border_width_bottom = 3
+border_color = Color(0.294118, 0.345098, 0.345098, 0.52)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_focus"]
+bg_color = Color(0, 0, 0, 0)
+border_width_left = 4
+border_width_top = 4
+border_width_right = 4
+border_width_bottom = 4
+border_color = Color(0.403922, 0.909804, 0.976471, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
 
 [node name="Lobby" type="Control"]
 layout_mode = 3
@@ -11,42 +97,112 @@ grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_lobby")
 
-[node name="Background" type="ColorRect" parent="."]
+[node name="Background" type="TextureRect" parent="."]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-color = Color(0.08, 0.09, 0.11, 1)
+mouse_filter = 2
+texture = ExtResource("2_bg")
+expand_mode = 1
+stretch_mode = 6
 
-[node name="Content" type="VBoxContainer" parent="."]
+[node name="FullOverlay" type="ColorRect" parent="."]
 layout_mode = 1
-anchors_preset = 8
-anchor_left = 0.5
-anchor_top = 0.5
-anchor_right = 0.5
-anchor_bottom = 0.5
-offset_left = -120.0
-offset_top = -96.0
-offset_right = 120.0
-offset_bottom = 96.0
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-theme_override_constants/separation = 16
+mouse_filter = 2
+color = Color(0.00392157, 0.0156863, 0.0392157, 0.46)
 
-[node name="TitleLabel" type="Label" parent="Content"]
-layout_mode = 2
-text = "Seoul Challenge"
-horizontal_alignment = 1
+[node name="LogoPane" type="Control" parent="."]
+layout_mode = 1
+anchors_preset = -1
+anchor_left = 0.03
+anchor_top = 0.05
+anchor_right = 0.56
+anchor_bottom = 0.9
+offset_left = 24.0
+offset_top = 8.0
+offset_right = -10.0
+offset_bottom = -8.0
+mouse_filter = 2
 
-[node name="StatusLabel" type="Label" parent="Content"]
+[node name="TitleLogo" type="TextureRect" parent="LogoPane"]
+layout_mode = 1
+anchors_preset = -1
+anchor_top = 0.06
+anchor_right = 1.0
+anchor_bottom = 0.9
+mouse_filter = 2
+texture = ExtResource("3_logo")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="StatusLabel" type="Label" parent="LogoPane"]
 unique_name_in_owner = true
-layout_mode = 2
-text = "Ready"
+visible = false
+layout_mode = 1
+anchors_preset = -1
+anchor_left = 0.18
+anchor_top = 0.88
+anchor_right = 0.82
+anchor_bottom = 0.96
+theme_override_colors/font_color = Color(0.403922, 0.909804, 0.976471, 0.92)
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.8)
+theme_override_constants/shadow_offset_x = 2
+theme_override_constants/shadow_offset_y = 2
+theme_override_font_sizes/font_size = 20
 horizontal_alignment = 1
+vertical_alignment = 1
+autowrap_mode = 2
 
-[node name="StartButton" type="Button" parent="Content"]
+[node name="MenuPane" type="VBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = -1
+anchor_left = 0.62
+anchor_top = 0.33
+anchor_right = 0.92
+anchor_bottom = 0.72
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 18
+alignment = 1
+
+[node name="StartButton" type="Button" parent="MenuPane"]
 unique_name_in_owner = true
+custom_minimum_size = Vector2(360, 66)
 layout_mode = 2
-text = "Start"
+theme_override_colors/font_color = Color(0.968627, 0.984314, 1, 1)
+theme_override_colors/font_focus_color = Color(1, 1, 1, 1)
+theme_override_colors/font_hover_color = Color(1, 1, 1, 1)
+theme_override_colors/font_pressed_color = Color(0.403922, 0.909804, 0.976471, 1)
+theme_override_font_sizes/font_size = 30
+theme_override_styles/normal = SubResource("StyleBoxFlat_start_normal")
+theme_override_styles/hover = SubResource("StyleBoxFlat_start_hover")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_start_pressed")
+theme_override_styles/focus = SubResource("StyleBoxFlat_focus")
+text = "게임 시작"
+
+[node name="SettingsButton" type="Button" parent="MenuPane"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(360, 66)
+layout_mode = 2
+focus_mode = 0
+focus_neighbor_top = NodePath("../StartButton")
+theme_override_colors/font_color = Color(0.968627, 0.984314, 1, 1)
+theme_override_colors/font_disabled_color = Color(0.607843, 0.670588, 0.670588, 0.78)
+theme_override_colors/font_focus_color = Color(1, 1, 1, 1)
+theme_override_colors/font_hover_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 30
+theme_override_styles/normal = SubResource("StyleBoxFlat_settings_normal")
+theme_override_styles/hover = SubResource("StyleBoxFlat_settings_hover")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_settings_hover")
+theme_override_styles/disabled = SubResource("StyleBoxFlat_settings_disabled")
+theme_override_styles/focus = SubResource("StyleBoxFlat_focus")
+disabled = true
+text = "설정"

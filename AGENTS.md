@@ -91,6 +91,16 @@ Godot UI renders inside an Android `SurfaceView`, so Android native view tools
 cannot select Godot nodes by `test_id`. Treat `test_id` and `uat_action` as
 in-process Godot contracts, not Android view IDs.
 
+- Keep debug Android builds installable and identifiable as a debug package. Use
+  `com.oxkkun.seoulchallenge.debug` for debug APKs and export them as
+  `build/android/seoul-challenge.debug.apk`.
+- When a Godot `Control`/`Button` must respond to phone taps, keep
+  `input_devices/pointing/emulate_mouse_from_touch=true`; otherwise keyboard or
+  pad focus can work while real touch does not emit the expected GUI button
+  press.
+- Before judging a real-device launch or input bug, clear stale Android debugger
+  wait state with `adb shell am clear-debug-app`, then relaunch and verify with
+  screenshots before and after the input.
 - Do not verify UI buttons on Android with screen coordinates such as
   `adb shell input tap`, `input tap <x> <y>`, or `tap_pct`.
 - Do not use app-private `user://` command files, `run-as` shell redirection, or
