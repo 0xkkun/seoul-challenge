@@ -1,5 +1,6 @@
 extends Node2D
 
+const RenderLayers = preload("res://scripts/constants/render_layers.gd")
 const POOLED_MARKER_SCENE = preload("res://scenes/interactables/sample_pooled_marker.tscn")
 const BOSS_SCENE = preload("res://scenes/enemies/boss.tscn")
 const RoomPalette = preload("res://scripts/constants/room_palette.gd")
@@ -11,11 +12,13 @@ const COMBAT_ROOM_SCENE_PATH := "res://scenes/interactables/combat_room.tscn"
 const EVENT_ROOM_SCENE_PATH := "res://scenes/interactables/rescue_room.tscn"
 const FINAL_ROOM_SCENE_PATH := "res://scenes/interactables/boss_room.tscn"
 
+@onready var world_layer: Node2D = $WorldLayer
+@onready var room_layer: Node2D = %RoomLayer
 @onready var actor: Node2D = %Player
-@onready var room_layer: Node = %RoomLayer
-@onready var interactable_layer: Node = %InteractableLayer
+@onready var actor_layer: Node2D = $ActorLayer
+@onready var interactable_layer: Node2D = %InteractableLayer
 @onready var sample_interactable: Node = %SampleInteractable
-@onready var pooled_object_layer: Node = %PooledObjectLayer
+@onready var pooled_object_layer: Node2D = %PooledObjectLayer
 @onready var interaction_system: Node = %InteractionSystem
 @onready var room_manager: RoomManager = %RoomManager
 @onready var session_ui_root: CanvasLayer = %SessionUIRoot
@@ -32,6 +35,7 @@ var _minimap_full := false
 
 
 func _ready() -> void:
+	_apply_render_layers()
 	if not GameManager.is_session_active():
 		GameManager.start_session({"source": "session_root"})
 	PoolManager.register_scene(&"sample_marker", POOLED_MARKER_SCENE, 1, pooled_object_layer)
@@ -47,6 +51,14 @@ func _ready() -> void:
 	session_ui_root.finish_requested.connect(_on_finish_requested)
 	session_ui_root.return_requested.connect(_on_return_requested)
 	session_ui_root.retry_requested.connect(_on_retry_requested)
+
+
+func _apply_render_layers() -> void:
+	world_layer.z_index = RenderLayers.WORLD_BACKGROUND_Z
+	room_layer.z_index = RenderLayers.WORLD_BACKGROUND_Z
+	actor_layer.z_index = RenderLayers.WORLD_ACTOR_Z
+	interactable_layer.z_index = RenderLayers.WORLD_INTERACTABLE_Z
+	pooled_object_layer.z_index = RenderLayers.WORLD_EFFECT_Z
 
 
 func _exit_tree() -> void:
@@ -145,12 +157,11 @@ func _on_retry_requested() -> void:
 func _configure_player_camera() -> void:
 	if player_camera == null:
 		return
-	var half := RoomPalette.ROOM_HALF_SIZE
-	var wall: float = RoomPalette.WALL_THICKNESS
-	player_camera.limit_left = int(floor(-half.x - wall))
-	player_camera.limit_top = int(floor(-half.y - wall))
-	player_camera.limit_right = int(ceil(half.x + wall))
-	player_camera.limit_bottom = int(ceil(half.y + wall))
+	var limits := RoomPalette.get_camera_limits()
+	player_camera.limit_left = int(limits["left"])
+	player_camera.limit_top = int(limits["top"])
+	player_camera.limit_right = int(limits["right"])
+	player_camera.limit_bottom = int(limits["bottom"])
 	player_camera.make_current()
 
 

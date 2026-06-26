@@ -53,6 +53,7 @@ func test_layout_connectivity_validation_stays_under_budget() -> void:
 
 func test_room_manager_request_next_room_stays_under_budget() -> void:
 	var layout := _load_layout()
+	_warm_room_scene_resources(layout)
 	var container := Node2D.new()
 	var actor := Node2D.new()
 	var manager := RoomManager.new()
@@ -91,7 +92,7 @@ func test_room_manager_runtime_walks_fixed_route() -> void:
 	manager.configure(layout, container, actor)
 
 	_runner.assert_true(manager.start_layout(), "runtime starts room manager")
-	for expected_room_id: StringName in [&"combat_1", &"combat_2", &"event_1", &"final_1"]:
+	for expected_room_id: StringName in [&"combat_1", &"combat_2", &"event_1", &"friend_1", &"final_1"]:
 		_runner.assert_true(manager.request_next_room(), "runtime advances to %s" % expected_room_id)
 		_runner.assert_eq(manager.current_room_id, expected_room_id)
 		_resolve_current_room(manager, actor)
@@ -107,6 +108,13 @@ func _load_layout() -> RoomLayout:
 	return layout
 
 
+func _warm_room_scene_resources(layout: RoomLayout) -> void:
+	for room_def: RoomDef in layout.room_defs:
+		if room_def == null:
+			continue
+		_runner.assert_not_null(load(room_def.scene_path), "room scene resource warms: %s" % room_def.scene_path)
+
+
 func _resolve_current_room(manager: RoomManager, actor: Node2D) -> void:
 	var room := manager.current_room
 	if room == null or manager.is_current_room_cleared():
@@ -119,5 +127,9 @@ func _resolve_current_room(manager: RoomManager, actor: Node2D) -> void:
 		for student: Node in room.call("get_active_students"):
 			if student.has_method("rescue"):
 				student.call("rescue", actor)
+	elif room.has_method("get_active_friends"):
+		for friend: Node in room.call("get_active_friends"):
+			if friend.has_signal("purified"):
+				friend.emit_signal("purified", friend)
 	elif room.has_method("complete_boss_encounter"):
 		room.call("complete_boss_encounter")

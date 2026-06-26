@@ -1,0 +1,9 @@
+extends RefCounted
+
+const WORLD_BACKGROUND_Z := 0
+const WORLD_ACTOR_Z := 100
+const WORLD_INTERACTABLE_Z := 120
+const WORLD_EFFECT_Z := 200
+
+const UI_SESSION_LAYER := 10
+const UI_MODAL_LAYER := 20

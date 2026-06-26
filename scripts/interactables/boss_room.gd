@@ -58,7 +58,7 @@ func complete_boss_encounter() -> bool:
 	}
 	boss_resolved.emit(room_id, boss_id)
 	if has_node("/root/EventBus"):
-		EventBus.emit_friend_purified(payload)
+		EventBus.emit_boss_defeated(payload)
 	mark_cleared()
 	if finish_session_on_resolve and has_node("/root/GameManager") and GameManager.is_session_active():
 		GameManager.finish_session({

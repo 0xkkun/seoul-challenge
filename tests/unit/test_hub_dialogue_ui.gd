@@ -46,6 +46,76 @@ func test_dialogue_content_updates_from_data() -> void:
 	_runner.assert_eq(_ui.get_memory_text(), "기억: 실험실 싱크대의 물방울", "기억 플레이버 텍스트가 데이터로 갱신된다")
 
 
+func test_dialogue_overlay_and_stage_row_visibility_are_configurable() -> void:
+	_runner.assert_true(_ui.is_dialogue_overlay_visible(), "일반 대화 UI는 배경을 덮는 오버레이를 제공한다")
+	_runner.assert_false(_ui.is_dialogue_overlay_modal(), "오버레이는 선택지 버튼 터치를 가로막지 않는다")
+	_runner.assert_true(_ui.is_stage_row_visible(), "기본 허브 대화 UI는 단계 행을 표시한다")
+
+	_ui.set_stage_row_visible(false)
+	_runner.assert_false(_ui.is_stage_row_visible(), "씬 목적에 맞지 않는 단계 행은 숨길 수 있다")
+
+
+func test_nameplate_does_not_overlap_stage_row() -> void:
+	var name_label := _ui.get_node("%NameLabel") as Label
+	var stage_row := _ui.get_node("%StageRow") as HBoxContainer
+
+	_runner.assert_true(name_label.offset_right <= stage_row.offset_left, "이름표는 스테이지 행 시작 전에서 끝난다")
+
+
+func test_choice_buttons_keep_mobile_touch_size() -> void:
+	var choices: Array[Dictionary] = [
+		{"id": &"next", "text": HUB_DIALOGUE_SCRIPT.CONTINUE_HINT_TOUCH, "tap_to_continue": true, "test_id": "dialogue.next_button", "uat_action": "dialogue.next"},
+		{"id": &"close", "text": "나가기", "emphasized": true, "test_id": "dialogue.close_button", "uat_action": "dialogue.close"},
+	]
+	_ui.set_choices(choices)
+
+	var first_button := _ui.get_node("%ChoiceRow").get_child(0) as Button
+	var second_button := _ui.get_node("%ChoiceRow").get_child(1) as Button
+	_runner.assert_eq(first_button.custom_minimum_size.y, 28.0, "탭 진행 힌트는 두꺼운 버튼처럼 보이지 않는다")
+	_runner.assert_eq(first_button.size_flags_horizontal, Control.SIZE_SHRINK_END, "선택 버튼은 행 전체를 채우지 않는다")
+	_runner.assert_eq(first_button.mouse_filter, Control.MOUSE_FILTER_IGNORE, "탭 진행 힌트는 화면 탭 진행을 가로막지 않는다")
+	_runner.assert_eq(first_button.get_meta("test_id"), "dialogue.next_button", "선택 버튼은 안정적인 test id를 노출한다")
+	_runner.assert_eq(second_button.get_meta("uat_action"), "dialogue.close", "선택 버튼은 좌표 대신 액션 id로 누를 수 있다")
+
+
+func test_tap_to_continue_choice_advances_from_any_dialogue_tap() -> void:
+	var selected_ids: Array[StringName] = []
+	_ui.choice_selected.connect(func(choice_id: StringName) -> void: selected_ids.append(choice_id))
+	_ui.visible = true
+	var choices: Array[Dictionary] = [
+		{"id": &"next", "text": HUB_DIALOGUE_SCRIPT.CONTINUE_HINT_TOUCH, "tap_to_continue": true},
+	]
+	_ui.set_choices(choices)
+
+	var event := InputEventMouseButton.new()
+	event.button_index = MOUSE_BUTTON_LEFT
+	event.pressed = true
+	event.position = Vector2(24.0, 24.0)
+	_ui.call("_input", event)
+
+	_runner.assert_eq(selected_ids, [&"next"], "탭 진행 대화는 버튼 좌표가 아니라 화면 탭으로 진행된다")
+
+
+func test_dialogue_bar_uses_inset_rule_without_outer_border() -> void:
+	var dialogue_bar := _ui.get_node("%DialogueBar") as PanelContainer
+	var panel_style := dialogue_bar.get_theme_stylebox("panel") as StyleBoxFlat
+	var top_rule := _ui.get_node("%DialogueTopRule") as ColorRect
+
+	_runner.assert_not_null(panel_style, "대화 패널 스타일을 제공한다")
+	if panel_style != null:
+		_runner.assert_eq(panel_style.get_border_width(SIDE_TOP), 0, "대화 패널 상단 바깥 테두리를 쓰지 않는다")
+		_runner.assert_eq(panel_style.get_border_width(SIDE_BOTTOM), 0, "대화 패널 하단 바깥 테두리를 쓰지 않는다")
+	_runner.assert_true(top_rule.size.y >= 0.0, "대화 패널 내부 구분선 노드를 제공한다")
+
+
+func test_choice_row_is_anchored_to_dialogue_end() -> void:
+	var choice_row := _ui.get_node("%ChoiceRow") as HBoxContainer
+
+	_runner.assert_eq(choice_row.anchor_left, 1.0, "선택지 행은 우측 기준으로 배치한다")
+	_runner.assert_eq(choice_row.anchor_right, 1.0, "선택지 행은 우측 끝에 고정된다")
+	_runner.assert_true(choice_row.offset_right < 0.0, "선택지 행은 화면 끝에서 안쪽 여백만 둔다")
+
+
 func test_stage_row_tracks_completed_current_and_locked_states() -> void:
 	_ui.set_stage(2)
 

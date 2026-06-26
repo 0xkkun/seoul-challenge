@@ -4,6 +4,7 @@ extends Resource
 const TYPE_START := &"start"
 const TYPE_COMBAT := &"combat"
 const TYPE_EVENT := &"event"
+const TYPE_FRIEND := &"friend"
 const TYPE_FINAL := &"final"
 const TYPE_TREASURE := &"treasure"
 const TYPE_SHOP := &"shop"
@@ -103,6 +104,7 @@ func validate_layout() -> PackedStringArray:
 		TYPE_START: 0,
 		TYPE_COMBAT: 0,
 		TYPE_EVENT: 0,
+		TYPE_FRIEND: 0,
 		TYPE_FINAL: 0,
 		TYPE_TREASURE: 0,
 		TYPE_SHOP: 0,

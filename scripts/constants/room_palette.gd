@@ -10,6 +10,7 @@ const WALL_DOOR_GAP_PADDING := 12.0
 const START_ROOM_FLOOR_COLOR := Color(0.352941, 0.490196, 0.352941, 1.0)
 const ACTIVITY_ROOM_FLOOR_COLOR := Color(0.690196, 0.254902, 0.243137, 1.0)
 const EVENT_ROOM_FLOOR_COLOR := Color(0.227451, 0.431373, 0.647059, 1.0)
+const FRIEND_ROOM_FLOOR_COLOR := Color(0.415686, 0.286275, 0.635294, 1.0)
 const REWARD_ROOM_FLOOR_COLOR := Color(0.784314, 0.631373, 0.227451, 1.0)
 const SHOP_ROOM_FLOOR_COLOR := Color(0.176471, 0.541176, 0.501961, 1.0)
 const FINAL_ROOM_FLOOR_COLOR := Color(0.415686, 0.227451, 0.541176, 1.0)
@@ -25,6 +26,26 @@ const EAST_DOOR_POSITION := Vector2(960.0, 0.0)
 const WEST_DOOR_POSITION := Vector2(-960.0, 0.0)
 
 
+static func get_room_bounds() -> Rect2:
+	return Rect2(-ROOM_HALF_SIZE, ROOM_SIZE)
+
+
+static func get_wall_bounds() -> Rect2:
+	var wall_margin := Vector2(WALL_THICKNESS, WALL_THICKNESS)
+	var room_bounds := get_room_bounds()
+	return Rect2(room_bounds.position - wall_margin, room_bounds.size + wall_margin * 2.0)
+
+
+static func get_camera_limits() -> Dictionary:
+	var wall_bounds := get_wall_bounds()
+	return {
+		"left": int(floor(wall_bounds.position.x)),
+		"top": int(floor(wall_bounds.position.y)),
+		"right": int(ceil(wall_bounds.end.x)),
+		"bottom": int(ceil(wall_bounds.end.y)),
+	}
+
+
 static func get_room_floor_color(room_type: StringName) -> Color:
 	match room_type:
 		&"start":
@@ -33,6 +54,8 @@ static func get_room_floor_color(room_type: StringName) -> Color:
 			return ACTIVITY_ROOM_FLOOR_COLOR
 		&"event":
 			return EVENT_ROOM_FLOOR_COLOR
+		&"friend":
+			return FRIEND_ROOM_FLOOR_COLOR
 		&"treasure":
 			return REWARD_ROOM_FLOOR_COLOR
 		&"shop":
