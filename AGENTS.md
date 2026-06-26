@@ -112,6 +112,8 @@ in-process Godot contracts, not Android view IDs.
   transitions rather than coordinate-tap success.
 - Screenshots are evidence for visual review; they are not the pass/fail control
   path for button interaction.
+- To build a debug APK and install/launch it on a device for visual
+  playtesting, see [docs/android-build.md](docs/android-build.md).
 
 ## Naming Rules
 
