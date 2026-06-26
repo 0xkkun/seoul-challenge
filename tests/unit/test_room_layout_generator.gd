@@ -48,8 +48,7 @@ func test_room_count_param_expands_connected_layout() -> void:
 	var generator := RoomLayoutGenerator.new()
 	var layout := generator.generate(91, {"room_count": 8})
 	_runner.assert_eq(layout.room_defs.size(), 8, "room count param expands layout")
-	_assert_reachable_and_bidirectional(layout)
-	_assert_grid_positions_unique_and_adjacent(layout)
+	_assert_layout_invariants(layout, 8)
 
 
 func test_fifteen_room_layout_preserves_generation_contracts() -> void:
@@ -172,6 +171,7 @@ func _assert_layout_invariants(layout: RoomLayout, expected_count: int) -> void:
 		RoomLayout.TYPE_SHOP: 0,
 	}
 	var final_rooms: Array[RoomDef] = []
+	var shop_rooms: Array[RoomDef] = []
 
 	for room_def: RoomDef in layout.room_defs:
 		_runner.assert_false(ids.has(room_def.room_id), "room id is unique")
@@ -180,19 +180,26 @@ func _assert_layout_invariants(layout: RoomLayout, expected_count: int) -> void:
 			type_counts[room_def.room_type] += 1
 		if room_def.room_type == RoomLayout.TYPE_FINAL:
 			final_rooms.append(room_def)
+		if room_def.room_type == RoomLayout.TYPE_SHOP:
+			shop_rooms.append(room_def)
 
 	_assert_reachable_and_bidirectional(layout)
 	_assert_grid_positions_unique_and_adjacent(layout)
 
 	_runner.assert_eq(type_counts[RoomLayout.TYPE_START], 1, "one start room")
 	_runner.assert_true(type_counts[RoomLayout.TYPE_COMBAT] >= 2, "at least two combat rooms")
-	_runner.assert_eq(type_counts[RoomLayout.TYPE_COMBAT], expected_count - 4, "remaining generated rooms are combat")
+	_runner.assert_eq(type_counts[RoomLayout.TYPE_COMBAT], expected_count - 5, "remaining generated rooms are combat")
 	_runner.assert_eq(type_counts[RoomLayout.TYPE_EVENT], 1, "one event room")
 	_runner.assert_eq(type_counts[RoomLayout.TYPE_TREASURE], 1, "one treasure room")
+	_runner.assert_eq(type_counts[RoomLayout.TYPE_SHOP], 1, "one shop room")
 	_runner.assert_eq(type_counts[RoomLayout.TYPE_FINAL], 1, "one final room")
 	_runner.assert_eq(final_rooms.size(), 1, "final room exists")
 	if final_rooms.size() == 1:
 		_runner.assert_true(final_rooms[0].hidden, "final room is hidden")
+	_runner.assert_eq(shop_rooms.size(), 1, "shop room exists")
+	if shop_rooms.size() == 1:
+		_runner.assert_false(shop_rooms[0].hidden, "shop room is visible from run start")
+		_runner.assert_true(shop_rooms[0].scene_path != "", "shop room has a scene path")
 
 	var reachable := _reachable_room_ids(layout, layout.start_room_id)
 	_runner.assert_eq(reachable.size(), layout.room_defs.size(), "all rooms reachable from start")

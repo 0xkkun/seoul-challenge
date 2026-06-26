@@ -8,9 +8,10 @@ const DIRECTIONS: Array[Vector2i] = [
 	Vector2i(1, 0),
 	Vector2i(-1, 0),
 ]
+const MIN_GENERATED_SPECIAL_ROOM_COUNT := 7
 
 @export var seed := 1
-@export_range(5, 64) var default_room_count := 15
+@export_range(7, 64) var default_room_count := 15
 @export_range(3, 32) var grid_width := 9
 @export_range(3, 32) var grid_height := 8
 @export_range(0.0, 1.0, 0.05) var branch_chance := 0.5
@@ -18,6 +19,7 @@ const DIRECTIONS: Array[Vector2i] = [
 @export_file("*.tscn") var combat_scene_path := DEFAULT_SCENE_PATH
 @export_file("*.tscn") var event_scene_path := DEFAULT_SCENE_PATH
 @export_file("*.tscn") var treasure_scene_path := DEFAULT_SCENE_PATH
+@export_file("*.tscn") var shop_scene_path := DEFAULT_SCENE_PATH
 @export_file("*.tscn") var final_scene_path := DEFAULT_SCENE_PATH
 
 
@@ -31,7 +33,7 @@ func generate(layout_seed: int, params: Dictionary = {}) -> RoomLayout:
 
 	var target_count := clampi(
 		int(params.get("room_count", params.get("target_room_count", default_room_count))),
-		RoomLayout.MIN_ROOM_COUNT,
+		MIN_GENERATED_SPECIAL_ROOM_COUNT,
 		RoomLayout.MAX_ROOM_COUNT
 	)
 	var min_dimension := _minimum_grid_dimension_for_count(target_count)
@@ -43,13 +45,19 @@ func generate(layout_seed: int, params: Dictionary = {}) -> RoomLayout:
 	var cells := _generate_cells(rng, width, height, target_count, chance)
 	var adjacency := _build_adjacency(cells)
 	var distances := _compute_distances(adjacency, 0)
-	var max_distance := _max_distance(distances)
 	var final_index := _pick_special_room_index(cells, adjacency, distances, [0])
 	var event_index := _pick_special_room_index(cells, adjacency, distances, [0, final_index])
-	var treasure_index := -1
-	if cells.size() >= 6:
-		treasure_index = _pick_special_room_index(cells, adjacency, distances, [0, final_index, event_index])
-	var room_ids := _assign_room_ids(cells.size(), final_index, event_index, treasure_index)
+	var treasure_index := _pick_special_room_index(cells, adjacency, distances, [0, final_index, event_index])
+	var shop_index := _pick_special_room_index(cells, adjacency, distances, [0, final_index, event_index, treasure_index])
+	var room_ids := _assign_room_ids(cells.size(), final_index, event_index, treasure_index, shop_index)
+	var max_combat_distance := _max_combat_distance(
+		cells.size(),
+		final_index,
+		event_index,
+		treasure_index,
+		shop_index,
+		distances
+	)
 
 	var layout := RoomLayout.new()
 	layout.layout_id = StringName("generated_%d" % layout_seed)
@@ -60,7 +68,7 @@ func generate(layout_seed: int, params: Dictionary = {}) -> RoomLayout:
 	for index: int in range(cells.size()):
 		var room_def := RoomDef.new()
 		room_def.room_id = room_ids[index]
-		room_def.room_type = _room_type_for_index(index, final_index, event_index, treasure_index)
+		room_def.room_type = _room_type_for_index(index, final_index, event_index, treasure_index, shop_index)
 		room_def.scene_path = _scene_path_for_type(room_def.room_type, scene_paths)
 		room_def.hidden = index == final_index
 		room_def.connections = _connection_ids_for_index(index, cells, adjacency, room_ids)
@@ -68,7 +76,7 @@ func generate(layout_seed: int, params: Dictionary = {}) -> RoomLayout:
 		room_def.room_config = _room_config_for_type(
 			room_def.room_type,
 			int(distances.get(index, 0)),
-			max_distance
+			max_combat_distance
 		)
 		layout.room_defs.append(room_def)
 
@@ -260,10 +268,19 @@ func _compute_distances(adjacency: Dictionary, start_index: int) -> Dictionary:
 	return distances
 
 
-func _max_distance(distances: Dictionary) -> int:
+func _max_combat_distance(
+	count: int,
+	final_index: int,
+	event_index: int,
+	treasure_index: int,
+	shop_index: int,
+	distances: Dictionary
+) -> int:
 	var max_value := 0
-	for value: Variant in distances.values():
-		max_value = maxi(max_value, int(value))
+	for index: int in range(count):
+		if _room_type_for_index(index, final_index, event_index, treasure_index, shop_index) != RoomLayout.TYPE_COMBAT:
+			continue
+		max_value = maxi(max_value, int(distances.get(index, 0)))
 	return max_value
 
 
@@ -352,7 +369,13 @@ func _is_better_special_candidate(
 	return cell.x < best_cell.x
 
 
-func _assign_room_ids(count: int, final_index: int, event_index: int, treasure_index: int) -> Array[StringName]:
+func _assign_room_ids(
+	count: int,
+	final_index: int,
+	event_index: int,
+	treasure_index: int,
+	shop_index: int
+) -> Array[StringName]:
 	var ids: Array[StringName] = []
 	var combat_index := 1
 	for index: int in range(count):
@@ -364,13 +387,21 @@ func _assign_room_ids(count: int, final_index: int, event_index: int, treasure_i
 			ids.append(&"event_1")
 		elif index == treasure_index:
 			ids.append(&"treasure_1")
+		elif index == shop_index:
+			ids.append(&"shop_1")
 		else:
 			ids.append(StringName("combat_%d" % combat_index))
 			combat_index += 1
 	return ids
 
 
-func _room_type_for_index(index: int, final_index: int, event_index: int, treasure_index: int) -> StringName:
+func _room_type_for_index(
+	index: int,
+	final_index: int,
+	event_index: int,
+	treasure_index: int,
+	shop_index: int
+) -> StringName:
 	if index == 0:
 		return RoomLayout.TYPE_START
 	if index == final_index:
@@ -379,6 +410,8 @@ func _room_type_for_index(index: int, final_index: int, event_index: int, treasu
 		return RoomLayout.TYPE_EVENT
 	if index == treasure_index:
 		return RoomLayout.TYPE_TREASURE
+	if index == shop_index:
+		return RoomLayout.TYPE_SHOP
 	return RoomLayout.TYPE_COMBAT
 
 
@@ -415,6 +448,8 @@ func _scene_path_for_type(room_type: StringName, scene_paths: Variant) -> String
 			return event_scene_path
 		RoomLayout.TYPE_TREASURE:
 			return treasure_scene_path
+		RoomLayout.TYPE_SHOP:
+			return shop_scene_path
 		RoomLayout.TYPE_FINAL:
 			return final_scene_path
 	return combat_scene_path

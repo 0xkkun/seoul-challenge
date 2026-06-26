@@ -11,6 +11,7 @@ const START_ROOM_SCENE_PATH := "res://scenes/interactables/start_room.tscn"
 const COMBAT_ROOM_SCENE_PATH := "res://scenes/interactables/combat_room.tscn"
 const EVENT_ROOM_SCENE_PATH := "res://scenes/interactables/rescue_room.tscn"
 const TREASURE_ROOM_SCENE_PATH := "res://scenes/interactables/treasure_room.tscn"
+const SHOP_ROOM_SCENE_PATH := "res://scenes/interactables/shop_room.tscn"
 const FINAL_ROOM_SCENE_PATH := "res://scenes/interactables/boss_room.tscn"
 const ABANDON_RUN_MESSAGE := "런을 포기할까요? 이번 밤 보상은 사라지고 영구 재화는 유지됩니다"
 const QUIT_GAME_MESSAGE := "게임을 종료할까요?"
@@ -46,7 +47,7 @@ func _ready() -> void:
 	if not GameManager.is_session_active():
 		GameManager.start_session({"source": "session_root"})
 	PoolManager.register_scene(&"sample_marker", POOLED_MARKER_SCENE, 1, pooled_object_layer)
-	interaction_system.configure(actor, interactable_layer)
+	interaction_system.configure(actor, self)
 	_configure_player_camera()
 	room_manager.room_changed.connect(_on_room_changed)
 	room_manager.configure(_build_run_layout(), room_layer, actor)
@@ -96,6 +97,7 @@ func _build_run_layout() -> RoomLayout:
 	generator.combat_scene_path = COMBAT_ROOM_SCENE_PATH
 	generator.event_scene_path = EVENT_ROOM_SCENE_PATH
 	generator.treasure_scene_path = TREASURE_ROOM_SCENE_PATH
+	generator.shop_scene_path = SHOP_ROOM_SCENE_PATH
 	generator.final_scene_path = FINAL_ROOM_SCENE_PATH
 	return generator.generate(RUN_LAYOUT_SEED, {"room_count": RUN_LAYOUT_ROOM_COUNT})
 
