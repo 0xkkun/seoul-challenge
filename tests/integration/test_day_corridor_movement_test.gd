@@ -308,6 +308,28 @@ func test_day_corridor_dialogue_tap_anywhere_advances_and_closes() -> void:
 	_runner.assert_false(scene.is_dialogue_ui_visible(), "final dialogue tap closes the dialogue")
 
 
+func test_day_corridor_final_tap_does_not_reopen_from_held_touch_attack() -> void:
+	var scene := DayCorridorScene.instantiate()
+	add_child(scene)
+
+	var player: CharacterBody2D = scene.get_node("%Player")
+	var attack_button: Control = scene.get_node("%TouchControls/AttackButton")
+	player.global_position = Vector2(1010.0, scene.get_floor_y())
+	scene.trigger_dialogue()
+	var dialogue_ui: Node = scene.get_node("%HubDialogueUi")
+
+	_tap_dialogue(dialogue_ui)
+	_tap_dialogue(dialogue_ui)
+	attack_button.set("_active_index", 0)
+	_tap_dialogue(dialogue_ui)
+	scene.call("_process_dialogue_input")
+
+	_runner.assert_false(scene.is_dialogue_ui_visible(), "final dialogue tap is consumed and does not immediately reopen dialogue")
+	_runner.assert_eq(scene.get_active_dialogue_line_index(), -1, "dialogue remains closed while the closing touch is still held")
+
+	attack_button.set("_active_index", -1)
+
+
 func test_day_corridor_uat_dispatcher_drives_dialogue_by_test_id() -> void:
 	var scene := DayCorridorScene.instantiate()
 	add_child(scene)
