@@ -4,6 +4,8 @@ extends Control
 const MinimapDataScript = preload("res://scripts/systems/minimap_data.gd")
 const RoomPalette = preload("res://scripts/constants/room_palette.gd")
 
+const BOSS_ROOM_ICON_PATH := "res://assets/ui/minimap/boss_skull.png"
+const BOSS_ROOM_ICON = preload(BOSS_ROOM_ICON_PATH)
 const GRAPH_DIRECTIONS: Array[Vector2i] = [
 	Vector2i(1, 0),
 	Vector2i(0, 1),
@@ -158,7 +160,11 @@ func _draw() -> void:
 			draw_rect(rect.grow(ping_margin), ping_color, false, 2.0)
 		draw_rect(rect, entry["fill_color"], true)
 		draw_rect(rect, entry["border_color"], false, entry["border_width"])
-		if entry["label"] != "":
+		var icon_texture := entry["icon_texture"] as Texture2D
+		if icon_texture != null:
+			var icon_margin := minf(rect.size.x, rect.size.y) * 0.18
+			draw_texture_rect(icon_texture, rect.grow(-icon_margin), false, entry["icon_color"])
+		elif entry["label"] != "":
 			draw_string(
 				font,
 				Vector2(rect.position.x, rect.position.y + rect.size.y * 0.64),
@@ -203,12 +209,16 @@ func _build_room_entries() -> Array[Dictionary]:
 		var display_minimap_type := actual_minimap_type if room_visible else UNKNOWN_MINIMAP_TYPE
 		var fill_color := _fill_color_for_room(room_def, room_visible, is_visited)
 		var border_color := _border_color_for_room(is_current, is_cleared, is_problem)
-		var label := _label_for_room(room_def, room_visible)
+		var icon_texture := _icon_texture_for_room(room_def, room_visible)
+		var label := "" if icon_texture != null else _label_for_room(room_def, room_visible)
 		entries.append({
 			"room_id": room_id,
 			"room_type": room_def.room_type,
 			"minimap_type": display_minimap_type,
 			"actual_minimap_type": actual_minimap_type,
+			"icon_path": BOSS_ROOM_ICON_PATH if icon_texture != null else "",
+			"icon_texture": icon_texture,
+			"icon_color": Color.WHITE if room_visible else UNKNOWN_TEXT_COLOR,
 			"hidden": room_def.hidden,
 			"visible": room_visible,
 			"layout_visible": _is_layout_visible(room_def),
@@ -466,6 +476,14 @@ func _color_for_minimap_type(minimap_type: StringName) -> Color:
 	if minimap_type == &"boss":
 		return RoomPalette.FINAL_ROOM_FLOOR_COLOR
 	return RoomPalette.get_room_floor_color(minimap_type)
+
+
+func _icon_texture_for_room(room_def: RoomDef, room_visible: bool) -> Texture2D:
+	if not room_visible:
+		return null
+	if _minimap_type_for_room(room_def) == &"boss":
+		return BOSS_ROOM_ICON
+	return null
 
 
 func _derive_room_positions() -> Dictionary:

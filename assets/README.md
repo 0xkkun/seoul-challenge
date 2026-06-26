@@ -6,6 +6,7 @@ Keep committed source assets and their Godot `.import` metadata together.
 
 - `backgrounds/corridor/day/`: daytime corridor background plates for scene and world composition.
 - `branding/`: project logos and brand marks for lobby, menu, splash, and related UI surfaces.
+- `ui/minimap/`: compact minimap room icons and related UI markers.
 
 ## Naming
 
