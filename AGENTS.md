@@ -34,6 +34,24 @@ them.
 9. When addressing GitHub review comments, reply with the change or rationale and
    resolve the review thread after the reply.
 
+## Review & merge loop
+
+Opening the PR is NOT the end of the task. Drive the PR to merge — do not stop
+at "PR opened" and do not leave a green, review-clean PR sitting.
+
+1. Open the PR as **ready (not draft)** and request the one codex review pass.
+2. **Keep CI green.** If any check fails (`Quick verification` etc.), fix it in
+   the same worktree and push until green. Never abandon a red PR — a red PR is
+   your bug to fix, not a reason to stop.
+3. **Wait for the codex review (1 pass).** If it requests changes, address them,
+   push, and re-request review (loop). If it has no change requests, proceed.
+4. **Merge as soon as CI is green AND the review has no outstanding change
+   requests:** `gh pr merge <n> --merge --delete-branch`. Merge immediately;
+   do not wait for a human unless the PR description explicitly asks for one.
+
+Only stop short of merging when the PR body marks it as needing human sign-off,
+or a merge conflict needs the orchestrator. Otherwise the loop ends in a merge.
+
 ## Worktree
 
 Multiple agent sessions share this repository, so every code task MUST run in
