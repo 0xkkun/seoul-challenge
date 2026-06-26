@@ -5,6 +5,8 @@ signal return_requested
 signal weapon_changed(weapon_id: StringName)
 signal map_requested
 
+const DungeonTheme := preload("res://scripts/ui/dungeon_ui_theme.gd")
+
 const WEAPON_BASEBALL := &"baseball"
 const WEAPON_BAT := &"bat"
 const WEAPON_STUDENT_ID := &"student_id"
@@ -22,6 +24,7 @@ var _weapon_status_label: Label
 var _baseball_card: Button
 var _bat_card: Button
 var _student_id_card: Button
+var _loadout_panel: PanelContainer
 var _weapon_button: Button
 var _map_button: Button
 var _return_button: Button
@@ -58,7 +61,7 @@ func _build_ui() -> void:
 	var background := ColorRect.new()
 	background.name = "Background"
 	background.set_anchors_preset(Control.PRESET_FULL_RECT)
-	background.color = Color(0.031373, 0.05098, 0.062745, 1.0)
+	background.color = DungeonTheme.COLOR_BACKDROP
 	add_child(background)
 
 	_build_locker_wall(background)
@@ -74,7 +77,7 @@ func _build_locker_wall(parent: Control) -> void:
 	wall.anchor_top = 0.0
 	wall.anchor_right = 1.0
 	wall.anchor_bottom = 1.0
-	wall.color = Color(0.039216, 0.086275, 0.094118, 1.0)
+	wall.color = Color(0.031, 0.056, 0.06, 1.0)
 	parent.add_child(wall)
 
 	for index: int in range(7):
@@ -84,7 +87,7 @@ func _build_locker_wall(parent: Control) -> void:
 		locker.anchor_top = 0.0
 		locker.anchor_right = locker.anchor_left + 0.095
 		locker.anchor_bottom = 0.79
-		locker.color = Color(0.058824, 0.172549, 0.180392, 1.0)
+		locker.color = Color(0.043, 0.106, 0.112, 0.72)
 		parent.add_child(locker)
 
 	var open_locker := ColorRect.new()
@@ -93,7 +96,7 @@ func _build_locker_wall(parent: Control) -> void:
 	open_locker.anchor_top = 0.15
 	open_locker.anchor_right = 0.75
 	open_locker.anchor_bottom = 0.78
-	open_locker.color = Color(0.023529, 0.407843, 0.423529, 0.45)
+	open_locker.color = Color(0.039, 0.24, 0.25, 0.38)
 	parent.add_child(open_locker)
 
 	var hallway := ColorRect.new()
@@ -102,7 +105,7 @@ func _build_locker_wall(parent: Control) -> void:
 	hallway.anchor_top = 0.0
 	hallway.anchor_right = 1.0
 	hallway.anchor_bottom = 0.79
-	hallway.color = Color(0.060784, 0.054902, 0.047059, 1.0)
+	hallway.color = Color(0.041, 0.039, 0.035, 1.0)
 	parent.add_child(hallway)
 
 	var exit_glow := ColorRect.new()
@@ -111,100 +114,111 @@ func _build_locker_wall(parent: Control) -> void:
 	exit_glow.anchor_top = 0.20
 	exit_glow.anchor_right = 0.96
 	exit_glow.anchor_bottom = 0.61
-	exit_glow.color = Color(0.05098, 0.231373, 0.352941, 0.88)
+	exit_glow.color = Color(0.036, 0.18, 0.27, 0.82)
 	parent.add_child(exit_glow)
 
-	var floor := ColorRect.new()
-	floor.name = "Floor"
-	floor.anchor_left = 0.0
-	floor.anchor_top = 0.79
-	floor.anchor_right = 1.0
-	floor.anchor_bottom = 1.0
-	floor.color = Color(0.031373, 0.039216, 0.05098, 1.0)
-	parent.add_child(floor)
+	var floor_strip := ColorRect.new()
+	floor_strip.name = "Floor"
+	floor_strip.anchor_left = 0.0
+	floor_strip.anchor_top = 0.79
+	floor_strip.anchor_right = 1.0
+	floor_strip.anchor_bottom = 1.0
+	floor_strip.color = Color(0.022, 0.028, 0.038, 1.0)
+	parent.add_child(floor_strip)
 
 
 func _build_title() -> void:
 	var title := Label.new()
 	title.name = "TitleLabel"
-	title.anchor_left = 0.04
-	title.anchor_top = 0.04
+	title.anchor_left = 0.05
+	title.anchor_top = 0.045
 	title.anchor_right = 0.52
-	title.anchor_bottom = 0.16
+	title.anchor_bottom = 0.13
 	title.text = "사물함 정비"
-	title.add_theme_font_size_override("font_size", 44)
-	title.add_theme_color_override("font_color", Color(0.941176, 0.811765, 0.392157, 1.0))
+	title.add_theme_font_size_override("font_size", 40)
+	title.add_theme_color_override("font_color", DungeonTheme.COLOR_GOLD)
 	add_child(title)
 
 	var subtitle := Label.new()
 	subtitle.name = "SubtitleLabel"
-	subtitle.anchor_left = 0.04
-	subtitle.anchor_top = 0.16
-	subtitle.anchor_right = 0.70
-	subtitle.anchor_bottom = 0.23
-	subtitle.text = "밤의 경복궁으로 나가기 전, 기억을 무기로 다듬는다."
+	subtitle.anchor_left = 0.05
+	subtitle.anchor_top = 0.135
+	subtitle.anchor_right = 0.72
+	subtitle.anchor_bottom = 0.20
+	subtitle.text = "밤의 경복궁으로 나가기 전, 들고 갈 기억을 고른다."
 	subtitle.add_theme_font_size_override("font_size", 18)
-	subtitle.add_theme_color_override("font_color", Color(0.780392, 0.807843, 0.858824, 1.0))
+	subtitle.add_theme_color_override("font_color", DungeonTheme.COLOR_MUTED_TEXT)
 	add_child(subtitle)
 
 	var section := Label.new()
 	section.name = "WeaponSectionLabel"
 	section.anchor_left = 0.05
-	section.anchor_top = 0.29
+	section.anchor_top = 0.245
 	section.anchor_right = 0.36
-	section.anchor_bottom = 0.36
+	section.anchor_bottom = 0.31
 	section.text = "기억 무기"
 	section.add_theme_font_size_override("font_size", 24)
-	section.add_theme_color_override("font_color", Color(0.858824, 0.784314, 0.596078, 1.0))
+	section.add_theme_color_override("font_color", Color(0.86, 0.80, 0.62, 1.0))
 	add_child(section)
 
 
 func _build_weapon_cards() -> void:
 	_baseball_card = _make_weapon_card(
 		"BaseballCard",
-		"낡은 야구공\n\n위력  ■■■□□\n속도  ■■■■□\n사거리 ■■□□□\n\n작은 충격파 생성",
-		Rect2(0.04, 0.38, 0.18, 0.37),
+		"낡은 야구공\n\n원거리 / 빠른 연사\n위력  ■■■□□\n속도  ■■■■□\n\n작은 충격파",
+		Rect2(0.05, 0.32, 0.205, 0.36),
 		ACTION_SELECT_BASEBALL
 	)
 	add_child(_baseball_card)
 
 	_bat_card = _make_weapon_card(
 		"BatCard",
-		"금 간 배트\n\n위력  ■■■■□\n속도  ■□□□□\n사거리 ■□□□□\n\n적을 밀쳐냄",
-		Rect2(0.24, 0.40, 0.18, 0.34),
+		"금 간 배트\n\n근거리 / 큰 반동\n위력  ■■■■□\n속도  ■□□□□\n\n적 밀쳐냄",
+		Rect2(0.285, 0.32, 0.205, 0.36),
 		ACTION_SELECT_BAT
 	)
 	add_child(_bat_card)
 
 	_student_id_card = _make_weapon_card(
 		"StudentIdCard",
-		"학생증\n\n보조 아이템\n효과 지속  ■■■□□\n\n피해 감소",
-		Rect2(0.44, 0.42, 0.16, 0.30),
+		"학생증\n\n보조 슬롯\n준비 중\n\n피해 감소",
+		Rect2(0.52, 0.32, 0.205, 0.36),
 		""
 	)
 	_student_id_card.disabled = true
 	add_child(_student_id_card)
 
+	_loadout_panel = PanelContainer.new()
+	_loadout_panel.name = "LoadoutSummaryPanel"
+	_loadout_panel.anchor_left = 0.76
+	_loadout_panel.anchor_top = 0.32
+	_loadout_panel.anchor_right = 0.94
+	_loadout_panel.anchor_bottom = 0.68
+	_loadout_panel.add_theme_stylebox_override(
+		"panel",
+		DungeonTheme.panel_style(DungeonTheme.COLOR_PANEL, DungeonTheme.COLOR_GOLD_DIM, 2, 14.0, 12.0)
+	)
+	add_child(_loadout_panel)
+
 	_weapon_status_label = Label.new()
 	_weapon_status_label.name = "WeaponStatusLabel"
-	_weapon_status_label.anchor_left = 0.62
-	_weapon_status_label.anchor_top = 0.56
-	_weapon_status_label.anchor_right = 0.82
-	_weapon_status_label.anchor_bottom = 0.67
+	_weapon_status_label.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_weapon_status_label.add_theme_font_size_override("font_size", 18)
-	_weapon_status_label.add_theme_color_override("font_color", Color(0.776471, 0.956863, 0.976471, 1.0))
+	_weapon_status_label.add_theme_color_override("font_color", DungeonTheme.COLOR_TEXT)
 	_weapon_status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	add_child(_weapon_status_label)
+	_weapon_status_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_weapon_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_loadout_panel.add_child(_weapon_status_label)
 
 
 func _build_action_bar() -> void:
-	_return_button = _make_action_button("ReturnButton", "복도\n뒤로 돌아가기", Rect2(0.06, 0.82, 0.24, 0.13), ACTION_RETURN)
+	_return_button = _make_action_button("ReturnButton", "복도\n나가기", Rect2(0.06, 0.82, 0.24, 0.13), ACTION_RETURN)
 	add_child(_return_button)
 
-	_weapon_button = _make_action_button("WeaponButton", "무기\n무기 변경", Rect2(0.36, 0.82, 0.28, 0.13), ACTION_CYCLE_WEAPON)
+	_weapon_button = _make_action_button("WeaponButton", "무기\n전환", Rect2(0.36, 0.82, 0.24, 0.13), ACTION_CYCLE_WEAPON)
 	add_child(_weapon_button)
 
-	_map_button = _make_action_button("MapButton", "지도\n지도 보기", Rect2(0.72, 0.82, 0.22, 0.13), ACTION_OPEN_MAP)
+	_map_button = _make_action_button("MapButton", "지도\n경복궁 선택", Rect2(0.66, 0.82, 0.28, 0.13), ACTION_OPEN_MAP)
 	add_child(_map_button)
 
 	_return_button.pressed.connect(_on_return_pressed)
@@ -223,12 +237,16 @@ func _make_weapon_card(node_name: String, text: String, relative_rect: Rect2, ac
 	card.text = text
 	card.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	card.alignment = HORIZONTAL_ALIGNMENT_CENTER
+	card.focus_mode = Control.FOCUS_NONE
 	card.add_theme_font_size_override("font_size", 17)
-	card.add_theme_color_override("font_color", Color(0.909804, 0.92549, 0.956863, 1.0))
-	card.add_theme_stylebox_override("normal", _make_panel_style(Color(0.039216, 0.062745, 0.086275, 0.96), Color(0.286275, 0.337255, 0.407843, 1.0), 2))
-	card.add_theme_stylebox_override("hover", _make_panel_style(Color(0.058824, 0.094118, 0.129412, 0.98), Color(0.403922, 0.909804, 0.976471, 0.82), 2))
-	card.add_theme_stylebox_override("pressed", _make_panel_style(Color(0.027451, 0.043137, 0.058824, 1.0), Color(0.403922, 0.909804, 0.976471, 1.0), 2))
-	card.add_theme_stylebox_override("disabled", _make_panel_style(Color(0.027451, 0.035294, 0.047059, 0.82), Color(0.180392, 0.207843, 0.25098, 1.0), 2))
+	card.add_theme_color_override("font_color", DungeonTheme.COLOR_TEXT)
+	card.add_theme_color_override("font_hover_color", DungeonTheme.COLOR_TEXT)
+	card.add_theme_color_override("font_pressed_color", DungeonTheme.COLOR_GOLD)
+	card.add_theme_color_override("font_disabled_color", DungeonTheme.COLOR_MUTED_TEXT)
+	card.add_theme_stylebox_override("normal", DungeonTheme.slot_style(false))
+	card.add_theme_stylebox_override("hover", DungeonTheme.panel_style(DungeonTheme.COLOR_PANEL_RAISED, DungeonTheme.COLOR_CYAN, 3, 12.0, 10.0))
+	card.add_theme_stylebox_override("pressed", DungeonTheme.panel_style(DungeonTheme.COLOR_SLOT, DungeonTheme.COLOR_GOLD, 3, 12.0, 10.0))
+	card.add_theme_stylebox_override("disabled", DungeonTheme.slot_style(false, true))
 	if action != "":
 		_set_button_meta(card, action.replace(".", "_"), action)
 		card.pressed.connect(select_weapon.bind(WEAPON_BASEBALL if action == ACTION_SELECT_BASEBALL else WEAPON_BAT))
@@ -246,12 +264,9 @@ func _make_action_button(node_name: String, text: String, relative_rect: Rect2, 
 	button.text = text
 	button.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	button.alignment = HORIZONTAL_ALIGNMENT_CENTER
-	button.add_theme_font_size_override("font_size", 22)
-	button.add_theme_color_override("font_color", Color(0.937255, 0.960784, 0.988235, 1.0))
-	var border_color := Color(0.403922, 0.909804, 0.976471, 0.86) if action == ACTION_OPEN_MAP else Color(0.784314, 0.631373, 0.227451, 0.86)
-	button.add_theme_stylebox_override("normal", _make_panel_style(Color(0.047059, 0.070588, 0.098039, 0.96), border_color, 2))
-	button.add_theme_stylebox_override("hover", _make_panel_style(Color(0.066667, 0.105882, 0.145098, 1.0), border_color, 3))
-	button.add_theme_stylebox_override("pressed", _make_panel_style(Color(0.027451, 0.043137, 0.058824, 1.0), border_color, 3))
+	button.add_theme_font_size_override("font_size", 21)
+	var variant := DungeonTheme.VARIANT_PRIMARY if action == ACTION_OPEN_MAP else DungeonTheme.VARIANT_SECONDARY
+	DungeonTheme.apply_button(button, variant, Vector2(0.0, 64.0))
 	_set_button_meta(button, action.replace(".", "_"), action)
 	return button
 
@@ -272,32 +287,12 @@ func _apply_weapon_card_state() -> void:
 		"normal",
 		_make_weapon_state_style(_selected_weapon_id == WEAPON_BAT)
 	)
-	_weapon_status_label.text = "선택 중: %s" % ("낡은 야구공" if _selected_weapon_id == WEAPON_BASEBALL else "금 간 배트")
+	var weapon_name := "낡은 야구공" if _selected_weapon_id == WEAPON_BASEBALL else "금 간 배트"
+	_weapon_status_label.text = "선택된 기억\n\n%s\n\n지도에서\n경복궁 선택" % weapon_name
 
 
 func _make_weapon_state_style(selected: bool) -> StyleBoxFlat:
-	var border := Color(0.941176, 0.737255, 0.25098, 1.0) if selected else Color(0.286275, 0.337255, 0.407843, 1.0)
-	var width := 4 if selected else 2
-	return _make_panel_style(Color(0.039216, 0.062745, 0.086275, 0.96), border, width)
-
-
-func _make_panel_style(bg_color: Color, border_color: Color, border_width: int) -> StyleBoxFlat:
-	var style := StyleBoxFlat.new()
-	style.bg_color = bg_color
-	style.border_color = border_color
-	style.border_width_left = border_width
-	style.border_width_top = border_width
-	style.border_width_right = border_width
-	style.border_width_bottom = border_width
-	style.corner_radius_top_left = 4
-	style.corner_radius_top_right = 4
-	style.corner_radius_bottom_right = 4
-	style.corner_radius_bottom_left = 4
-	style.content_margin_left = 10
-	style.content_margin_top = 8
-	style.content_margin_right = 10
-	style.content_margin_bottom = 8
-	return style
+	return DungeonTheme.slot_style(selected)
 
 
 func _count_action_entries(node: Node, action: String) -> int:
