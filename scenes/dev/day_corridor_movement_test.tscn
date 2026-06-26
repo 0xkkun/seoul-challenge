@@ -20,6 +20,7 @@ unique_name_in_owner = true
 
 [node name="SchoolBgLeft" type="Sprite2D" parent="Background"]
 unique_name_in_owner = true
+self_modulate = Color(0.94, 0.92, 0.88, 1)
 position = Vector2(1088, 360)
 texture_filter = 1
 texture = ExtResource("2_bg1")
@@ -27,9 +28,16 @@ texture = ExtResource("2_bg1")
 [node name="SchoolBgRight" type="Sprite2D" parent="Background"]
 unique_name_in_owner = true
 visible = false
+self_modulate = Color(0.94, 0.92, 0.88, 1)
 position = Vector2(1086, 360)
 texture_filter = 1
 texture = ExtResource("3_bg2")
+
+[node name="BackgroundWash" type="Polygon2D" parent="Background"]
+unique_name_in_owner = true
+z_index = 2
+color = Color(0.035, 0.045, 0.06, 0.06)
+polygon = PackedVector2Array(0, 0, 2176, 0, 2176, 720, 0, 720)
 
 [node name="TalkTarget" type="Node2D" parent="."]
 unique_name_in_owner = true
