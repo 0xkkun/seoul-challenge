@@ -12,6 +12,7 @@ func _set_runner(runner: Node) -> void:
 
 
 func after_each() -> void:
+	SceneTransition.clear_pending_day_corridor_context()
 	for child: Node in get_children():
 		remove_child(child)
 		child.free()
@@ -102,7 +103,12 @@ func test_day_corridor_character_animates_and_flips_with_side_movement() -> void
 func test_day_corridor_internal_edges_fade_between_corridor_rooms() -> void:
 	var scene := DayCorridorScene.instantiate()
 	scene.room_transition_fade_time = 0.0
+	scene.outer_edge_scene_transition_enabled = false
+	var maintenance_payloads: Array[Dictionary] = []
 	add_child(scene)
+	scene.maintenance_requested.connect(func(payload: Dictionary) -> void:
+		maintenance_payloads.append(payload)
+	)
 
 	var player: CharacterBody2D = scene.get_node("%Player")
 	var left_bg: Sprite2D = scene.get_node("%SchoolBgLeft")
@@ -131,7 +137,56 @@ func test_day_corridor_internal_edges_fade_between_corridor_rooms() -> void:
 
 	player.global_position = Vector2(scene.get_player_left_bound() - 1.0, scene.get_floor_y())
 	player.velocity.x = -80.0
-	_runner.assert_false(scene.update_room_transition_request(), "outer left edge stays blocked for later handling")
+	_runner.assert_true(scene.update_room_transition_request(), "outer left edge opens the locker maintenance flow")
+	_runner.assert_eq(scene.get_last_maintenance_edge(), &"outer_left", "outer left edge is reported")
+	_runner.assert_eq(scene.get_current_room_id(), &"left", "maintenance request does not change the corridor room locally")
+	_runner.assert_eq(maintenance_payloads.size(), 1, "maintenance request emits one payload")
+	if maintenance_payloads.size() == 1:
+		_runner.assert_eq(maintenance_payloads[0]["source"], &"day_corridor", "maintenance payload identifies the source")
+		_runner.assert_eq(maintenance_payloads[0]["edge"], &"outer_left", "maintenance payload identifies the edge")
+	_runner.assert_false(scene.update_room_transition_request(), "outer left maintenance request is gated after the first request")
+	_runner.assert_eq(maintenance_payloads.size(), 1, "outer left does not emit repeated maintenance requests")
+
+
+func test_day_corridor_outer_right_edge_requests_locker_maintenance() -> void:
+	var scene := DayCorridorScene.instantiate()
+	scene.room_transition_fade_time = 0.0
+	scene.outer_edge_scene_transition_enabled = false
+	var maintenance_payloads: Array[Dictionary] = []
+	add_child(scene)
+	scene.maintenance_requested.connect(func(payload: Dictionary) -> void:
+		maintenance_payloads.append(payload)
+	)
+
+	scene.call("_finish_room_transition", &"right")
+	var player: CharacterBody2D = scene.get_node("%Player")
+	player.global_position = Vector2(scene.get_player_right_bound() + 1.0, scene.get_floor_y())
+	player.velocity.x = 80.0
+
+	_runner.assert_true(scene.update_room_transition_request(), "outer right edge opens the locker maintenance flow")
+	_runner.assert_eq(scene.get_last_maintenance_edge(), &"outer_right", "outer right edge is reported")
+	_runner.assert_eq(scene.get_current_room_id(), &"right", "maintenance request does not change the corridor room locally")
+	_runner.assert_eq(maintenance_payloads.size(), 1, "outer right emits one maintenance request")
+	if maintenance_payloads.size() == 1:
+		_runner.assert_eq(maintenance_payloads[0]["room_id"], &"right", "maintenance payload keeps the current corridor room")
+	_runner.assert_false(scene.update_room_transition_request(), "outer right maintenance request is gated after the first request")
+	_runner.assert_eq(maintenance_payloads.size(), 1, "outer right does not emit repeated maintenance requests")
+
+
+func test_day_corridor_return_context_restores_room_and_spawn() -> void:
+	SceneTransition.set_pending_day_corridor_context({
+		SceneTransition.DAY_CORRIDOR_CONTEXT_ROOM_ID: &"right",
+		SceneTransition.DAY_CORRIDOR_CONTEXT_EDGE_ID: &"outer_right",
+	})
+
+	var scene := DayCorridorScene.instantiate()
+	add_child(scene)
+	var player: CharacterBody2D = scene.get_node("%Player")
+
+	_runner.assert_eq(scene.get_current_room_id(), &"right", "return context restores the right corridor room")
+	_runner.assert_true(player.global_position.x < scene.get_player_right_bound(), "return context spawns inside the right outer edge")
+	_runner.assert_true(player.global_position.x > scene.get_player_right_bound() - 520.0, "return context keeps the player near the right edge")
+	_runner.assert_true(SceneTransition.get_pending_day_corridor_context().is_empty(), "return context is consumed after restore")
 
 
 func test_day_corridor_dialogue_signal_updates_state() -> void:

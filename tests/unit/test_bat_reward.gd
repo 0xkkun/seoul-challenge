@@ -33,6 +33,17 @@ func test_default_is_barehands_then_bat() -> void:
 	p.free()
 
 
+func test_equip_bat_disables_baseball_ranged_mode() -> void:
+	var p = PlayerScript.new()
+	p.ranged_enabled = true
+
+	p.equip_bat()
+
+	_runner.assert_false(p.ranged_enabled, "bat equip turns off baseball ranged mode")
+	_runner.assert_eq(p.current_weapon_name(), "야구배트", "bat equip still updates weapon name")
+	p.free()
+
+
 func test_barehands_damage() -> void:
 	var p = PlayerScript.new()
 	add_child(p)

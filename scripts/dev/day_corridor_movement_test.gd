@@ -1,6 +1,7 @@
 extends Node2D
 
 signal dialogue_requested(payload: Dictionary)
+signal maintenance_requested(payload: Dictionary)
 
 const REFERENCE_VIEWPORT_SIZE := Vector2(960.0, 540.0)
 const DIALOGUE_SPEAKER := "반 친구"
@@ -16,6 +17,8 @@ const DIALOGUE_MEMORY_LINES: Array[String] = [
 ]
 const ROOM_LEFT := &"left"
 const ROOM_RIGHT := &"right"
+const EDGE_OUTER_LEFT := &"outer_left"
+const EDGE_OUTER_RIGHT := &"outer_right"
 const CHOICE_NEXT := &"next"
 const CHOICE_CLOSE := &"close"
 const TEST_ID_OPEN_DIALOGUE := "day_corridor.dialogue.open_button"
@@ -39,6 +42,7 @@ const QUIT_GAME_MESSAGE := "게임을 종료할까요?"
 @export var character_walk_fps := 8.0
 @export var room_transition_fade_time := 0.18
 @export var room_transition_spawn_inset := 320.0
+@export var outer_edge_scene_transition_enabled := true
 
 @onready var _background: Node2D = %Background
 @onready var _school_bg_left: Sprite2D = %SchoolBgLeft
@@ -63,6 +67,8 @@ var _walk_elapsed := 0.0
 var _faces_left := false
 var _current_room_id := ROOM_LEFT
 var _is_room_transitioning := false
+var _last_maintenance_edge := &""
+var _is_maintenance_requested := false
 var return_to_lobby_callable: Callable
 var quit_game_callable: Callable
 
@@ -73,6 +79,7 @@ func _ready() -> void:
 	_hide_player_default_visuals()
 	_apply_nearest_texture_filter()
 	_fit_character_to_asset_scale()
+	_restore_corridor_context()
 	_apply_room_state()
 	_hub_dialogue_ui.visible = false
 	_hub_dialogue_ui.set_stage_row_visible(false)
@@ -159,6 +166,10 @@ func get_current_room_id() -> StringName:
 	return _current_room_id
 
 
+func get_last_maintenance_edge() -> StringName:
+	return _last_maintenance_edge
+
+
 func is_room_transitioning() -> bool:
 	return _is_room_transitioning
 
@@ -216,13 +227,19 @@ func is_player_in_dialogue_range() -> bool:
 
 
 func update_room_transition_request() -> bool:
-	if _is_room_transitioning:
+	if _is_room_transitioning or _is_maintenance_requested:
 		return false
+	if _current_room_id == ROOM_LEFT and _player.global_position.x <= player_left_bound and _player.velocity.x < 0.0:
+		_request_locker_maintenance(EDGE_OUTER_LEFT)
+		return true
 	if _current_room_id == ROOM_LEFT and _player.global_position.x >= player_right_bound and _player.velocity.x > 0.0:
 		_start_room_transition(ROOM_RIGHT)
 		return true
 	if _current_room_id == ROOM_RIGHT and _player.global_position.x <= player_left_bound and _player.velocity.x < 0.0:
 		_start_room_transition(ROOM_LEFT)
+		return true
+	if _current_room_id == ROOM_RIGHT and _player.global_position.x >= player_right_bound and _player.velocity.x > 0.0:
+		_request_locker_maintenance(EDGE_OUTER_RIGHT)
 		return true
 	return false
 
@@ -370,6 +387,50 @@ func _finish_room_transition(target_room_id: StringName) -> void:
 	_character_sprite.frame = 0
 	_sync_camera()
 	_camera.reset_smoothing()
+
+
+func _request_locker_maintenance(edge_id: StringName) -> void:
+	if _is_maintenance_requested:
+		return
+	_is_maintenance_requested = true
+	_last_maintenance_edge = edge_id
+	_player.velocity = Vector2.ZERO
+	SceneTransition.set_pending_day_corridor_context({
+		SceneTransition.DAY_CORRIDOR_CONTEXT_ROOM_ID: _current_room_id,
+		SceneTransition.DAY_CORRIDOR_CONTEXT_EDGE_ID: edge_id,
+	})
+	maintenance_requested.emit({
+		"source": &"day_corridor",
+		"edge": edge_id,
+		"room_id": _current_room_id,
+	})
+	if outer_edge_scene_transition_enabled:
+		var result := SceneTransition.go_to_locker_maintenance()
+		if result != OK:
+			_is_maintenance_requested = false
+
+
+func _restore_corridor_context() -> void:
+	var context := SceneTransition.get_pending_day_corridor_context()
+	if context.is_empty():
+		return
+	var room_id := StringName(context.get(SceneTransition.DAY_CORRIDOR_CONTEXT_ROOM_ID, ROOM_LEFT))
+	if room_id == ROOM_RIGHT:
+		_current_room_id = ROOM_RIGHT
+	else:
+		_current_room_id = ROOM_LEFT
+
+	var edge_id := StringName(context.get(SceneTransition.DAY_CORRIDOR_CONTEXT_EDGE_ID, &""))
+	var spawn_x := player_left_bound + room_transition_spawn_inset
+	if edge_id == EDGE_OUTER_RIGHT:
+		spawn_x = player_right_bound - room_transition_spawn_inset
+		_faces_left = true
+	elif edge_id == EDGE_OUTER_LEFT:
+		spawn_x = player_left_bound + room_transition_spawn_inset
+		_faces_left = false
+	_player.global_position = Vector2(spawn_x, floor_y)
+	_player.velocity = Vector2.ZERO
+	SceneTransition.clear_pending_day_corridor_context()
 
 
 func _fit_camera_to_corridor_height() -> void:
