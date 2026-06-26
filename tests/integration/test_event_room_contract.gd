@@ -24,7 +24,8 @@ func test_rescue_room_clears_after_all_students_are_rescued() -> void:
 	var on_student_rescued := func(payload: Dictionary) -> void:
 		rescued_payloads.append(payload)
 	var on_currency_changed := func(payload: Dictionary) -> void:
-		currency_payloads.append(payload)
+		if payload.get("source", "") != "CurrencySystem":
+			currency_payloads.append(payload)
 	var on_cleared := func(room_id: StringName) -> void:
 		cleared_rooms.append(room_id)
 
