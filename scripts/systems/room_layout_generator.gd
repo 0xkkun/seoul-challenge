@@ -49,9 +49,15 @@ func generate(layout_seed: int, params: Dictionary = {}) -> RoomLayout:
 	var event_index := _pick_special_room_index(cells, adjacency, distances, [0, final_index])
 	var treasure_index := _pick_special_room_index(cells, adjacency, distances, [0, final_index, event_index])
 	var shop_index := _pick_special_room_index(cells, adjacency, distances, [0, final_index, event_index, treasure_index])
-	var special_indices := [0, final_index, event_index, treasure_index, shop_index]
-	var max_combat_distance := _max_distance_excluding(distances, special_indices)
 	var room_ids := _assign_room_ids(cells.size(), final_index, event_index, treasure_index, shop_index)
+	var max_combat_distance := _max_combat_distance(
+		cells.size(),
+		final_index,
+		event_index,
+		treasure_index,
+		shop_index,
+		distances
+	)
 
 	var layout := RoomLayout.new()
 	layout.layout_id = StringName("generated_%d" % layout_seed)
@@ -262,12 +268,19 @@ func _compute_distances(adjacency: Dictionary, start_index: int) -> Dictionary:
 	return distances
 
 
-func _max_distance_excluding(distances: Dictionary, excluded: Array) -> int:
+func _max_combat_distance(
+	count: int,
+	final_index: int,
+	event_index: int,
+	treasure_index: int,
+	shop_index: int,
+	distances: Dictionary
+) -> int:
 	var max_value := 0
-	for index: Variant in distances.keys():
-		if excluded.has(int(index)):
+	for index: int in range(count):
+		if _room_type_for_index(index, final_index, event_index, treasure_index, shop_index) != RoomLayout.TYPE_COMBAT:
 			continue
-		max_value = maxi(max_value, int(distances[index]))
+		max_value = maxi(max_value, int(distances.get(index, 0)))
 	return max_value
 
 

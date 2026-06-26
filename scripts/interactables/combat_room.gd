@@ -25,14 +25,14 @@ signal enemy_count_changed(remaining_count: int)
 @export var ranged_scene: PackedScene = RANGED_SHOOTER_SCENE
 @export_range(0, 12, 1) var chaser_count := 2
 @export_range(0, 12, 1) var ranged_count := 1
-@export_range(0, 99, 1) var enemy_defeat_ingame_reward := 1
-@export_range(0, 99, 1) var combat_clear_ingame_reward := 3
 @export_range(0, 12, 1) var elite_chaser_count := 0
 @export_range(0, 12, 1) var elite_ranged_count := 0
 @export_range(1, 8, 1) var elite_health_multiplier := 2
 @export_range(1.0, 2.0, 0.05) var elite_speed_multiplier := 1.15
 @export_range(0.2, 1.0, 0.05) var elite_fire_interval_multiplier := 0.75
 @export_range(0, 6, 1) var elite_contact_damage_bonus := 1
+@export_range(0, 99, 1) var enemy_defeat_ingame_reward := 1
+@export_range(0, 99, 1) var combat_clear_ingame_reward := 3
 
 var _combat_started := false
 var _combat_resolved := false
@@ -201,18 +201,6 @@ func _resolve_enemy_layer() -> Node2D:
 	return layer
 
 
-func _emit_ingame_reward(amount: int, reason: String) -> void:
-	if amount <= 0 or not has_node("/root/EventBus"):
-		return
-	EventBus.emit_currency_changed({
-		"kind": "ingame",
-		"amount": amount,
-		"reason": reason,
-		"room_id": room_id,
-		"room_type": room_type,
-	})
-
-
 func _config_count(config: Dictionary, key: String, fallback: int) -> int:
 	if not config.has(key):
 		return fallback
@@ -230,3 +218,15 @@ func _has_property(node: Node, property_name: String) -> bool:
 		if String(property.get("name", "")) == property_name:
 			return true
 	return false
+
+
+func _emit_ingame_reward(amount: int, reason: String) -> void:
+	if amount <= 0 or not has_node("/root/EventBus"):
+		return
+	EventBus.emit_currency_changed({
+		"kind": "ingame",
+		"amount": amount,
+		"reason": reason,
+		"room_id": room_id,
+		"room_type": room_type,
+	})

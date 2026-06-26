@@ -1,4 +1,4 @@
-[gd_scene load_steps=11 format=3]
+[gd_scene load_steps=12 format=3]
 
 [ext_resource type="Script" path="res://scripts/session/session_root.gd" id="1_session"]
 [ext_resource type="PackedScene" path="res://scenes/player/player.tscn" id="2_actor"]
@@ -10,6 +10,7 @@
 [ext_resource type="PackedScene" path="res://scenes/ui/combat_hud.tscn" id="8_combat_hud"]
 [ext_resource type="Script" path="res://scripts/session/death_return_controller.gd" id="9_death_return"]
 [ext_resource type="PackedScene" path="res://scenes/ui/minimap.tscn" id="10_minimap"]
+[ext_resource type="PackedScene" path="res://scenes/ui/confirm_modal.tscn" id="11_confirm"]
 
 [node name="SessionRoot" type="Node2D"]
 script = ExtResource("1_session")
@@ -90,3 +91,6 @@ grow_horizontal = 0
 mouse_filter = 0
 room_size = Vector2(26, 26)
 cell_spacing = Vector2(36, 36)
+
+[node name="ConfirmModal" parent="." instance=ExtResource("11_confirm")]
+unique_name_in_owner = true

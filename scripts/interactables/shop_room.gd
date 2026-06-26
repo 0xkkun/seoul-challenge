@@ -139,10 +139,21 @@ func _sync_sold_offers_from_actor() -> void:
 		return
 	if _actor.has_method("current_weapon_name") and String(_actor.call("current_weapon_name")) == "야구배트":
 		_sold_offers[OFFER_BAT] = true
+	if not _has_actor_property("special_skill_max_uses") or not _has_actor_property("special_skill_cooldown"):
+		return
 	var max_uses := int(_actor.get("special_skill_max_uses"))
 	var cooldown := float(_actor.get("special_skill_cooldown"))
 	if max_uses >= 5 and cooldown <= 1.0:
 		_sold_offers[OFFER_DODGE_REFILL] = true
+
+
+func _has_actor_property(property_name: String) -> bool:
+	if _actor == null:
+		return false
+	for property: Dictionary in _actor.get_property_list():
+		if String(property.get("name", "")) == property_name:
+			return true
+	return false
 
 
 func _spend_ingame(cost: int, offer_id: StringName) -> void:

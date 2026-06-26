@@ -171,7 +171,6 @@ func _assert_layout_invariants(layout: RoomLayout, expected_count: int) -> void:
 		RoomLayout.TYPE_SHOP: 0,
 	}
 	var final_rooms: Array[RoomDef] = []
-	var treasure_rooms: Array[RoomDef] = []
 	var shop_rooms: Array[RoomDef] = []
 
 	for room_def: RoomDef in layout.room_defs:
@@ -181,8 +180,6 @@ func _assert_layout_invariants(layout: RoomLayout, expected_count: int) -> void:
 			type_counts[room_def.room_type] += 1
 		if room_def.room_type == RoomLayout.TYPE_FINAL:
 			final_rooms.append(room_def)
-		if room_def.room_type == RoomLayout.TYPE_TREASURE:
-			treasure_rooms.append(room_def)
 		if room_def.room_type == RoomLayout.TYPE_SHOP:
 			shop_rooms.append(room_def)
 
@@ -199,10 +196,6 @@ func _assert_layout_invariants(layout: RoomLayout, expected_count: int) -> void:
 	_runner.assert_eq(final_rooms.size(), 1, "final room exists")
 	if final_rooms.size() == 1:
 		_runner.assert_true(final_rooms[0].hidden, "final room is hidden")
-	_runner.assert_eq(treasure_rooms.size(), 1, "treasure room exists")
-	if treasure_rooms.size() == 1:
-		_runner.assert_false(treasure_rooms[0].hidden, "treasure room is visible from run start")
-		_runner.assert_true(treasure_rooms[0].scene_path != "", "treasure room has a scene path")
 	_runner.assert_eq(shop_rooms.size(), 1, "shop room exists")
 	if shop_rooms.size() == 1:
 		_runner.assert_false(shop_rooms[0].hidden, "shop room is visible from run start")

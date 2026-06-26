@@ -21,9 +21,13 @@ const CHOICE_CLOSE := &"close"
 const TEST_ID_OPEN_DIALOGUE := "day_corridor.dialogue.open_button"
 const TEST_ID_DIALOGUE_NEXT := "day_corridor.dialogue.next_button"
 const TEST_ID_DIALOGUE_CLOSE := "day_corridor.dialogue.close_button"
+const TEST_ID_EXIT_BUTTON := "day_corridor.exit_button"
 const ACTION_OPEN_DIALOGUE := "day_corridor.dialogue.open"
 const ACTION_DIALOGUE_NEXT := "day_corridor.dialogue.next"
 const ACTION_DIALOGUE_CLOSE := "day_corridor.dialogue.close"
+const ACTION_EXIT_TO_LOBBY := "day_corridor.exit_to_lobby"
+const RETURN_TO_LOBBY_MESSAGE := "로비로 돌아갈까요? 진행은 자동 저장됩니다"
+const QUIT_GAME_MESSAGE := "게임을 종료할까요?"
 
 @export var corridor_size := Vector2(2172.0, 720.0)
 @export var floor_y := 616.0
@@ -49,6 +53,8 @@ const ACTION_DIALOGUE_CLOSE := "day_corridor.dialogue.close"
 @onready var _talk_button_label: Label = %TalkButtonLabel
 @onready var _hub_dialogue_ui: HubDialogueUi = %HubDialogueUi
 @onready var _fade_overlay: ColorRect = %FadeOverlay
+@onready var _exit_button: Button = %ExitButton
+@onready var _confirm_modal: ConfirmModal = %ConfirmModal
 
 var _dialogue_count := 0
 var _dialogue_line_index := -1
@@ -57,9 +63,12 @@ var _walk_elapsed := 0.0
 var _faces_left := false
 var _current_room_id := ROOM_LEFT
 var _is_room_transitioning := false
+var return_to_lobby_callable: Callable
+var quit_game_callable: Callable
 
 
 func _ready() -> void:
+	SceneTransition.configure_exit_requests()
 	_disable_combat_output()
 	_hide_player_default_visuals()
 	_apply_nearest_texture_filter()
@@ -70,12 +79,18 @@ func _ready() -> void:
 	_hub_dialogue_ui.choice_selected.connect(_on_hub_dialogue_choice_selected)
 	_interaction_prompt.visible = false
 	_apply_ui_automation_metadata()
+	_exit_button.pressed.connect(_request_return_to_lobby)
 	_fit_camera_to_corridor_height()
 	_clamp_player_to_corridor()
 	_sync_camera()
 
 
 func _process(delta: float) -> void:
+	if _confirm_modal.is_open():
+		_player.velocity = Vector2.ZERO
+		_update_character_sprite(delta)
+		_sync_camera()
+		return
 	if _is_room_transitioning:
 		_player.velocity = Vector2.ZERO
 		_sync_camera()
@@ -186,6 +201,14 @@ func is_touch_controls_visible() -> bool:
 	return _touch_controls.visible
 
 
+func is_return_confirm_visible() -> bool:
+	return _confirm_modal.is_open()
+
+
+func get_return_confirm_message() -> String:
+	return _confirm_modal.get_message_text()
+
+
 func is_player_in_dialogue_range() -> bool:
 	if not _talk_target.visible:
 		return false
@@ -232,6 +255,9 @@ func perform_uat_action(action_name: String) -> bool:
 				return false
 			_hub_dialogue_ui.select_choice(CHOICE_CLOSE)
 			return true
+		ACTION_EXIT_TO_LOBBY:
+			_request_return_to_lobby()
+			return true
 		_:
 			return false
 
@@ -254,8 +280,21 @@ func close_dialogue() -> void:
 
 
 func _notification(what: int) -> void:
-	if what == NOTIFICATION_WM_GO_BACK_REQUEST and is_dialogue_ui_visible():
-		close_dialogue()
+	match what:
+		NOTIFICATION_WM_CLOSE_REQUEST:
+			_request_quit_game()
+		NOTIFICATION_WM_GO_BACK_REQUEST:
+			_handle_back_request()
+		NOTIFICATION_APPLICATION_PAUSED:
+			SceneTransition.save_profile_snapshot()
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if _confirm_modal.is_open():
+		return
+	if event.is_action_pressed(&"ui_cancel") or _is_escape_key(event):
+		_handle_back_request()
+		get_viewport().set_input_as_handled()
 
 
 func _disable_combat_output() -> void:
@@ -475,3 +514,55 @@ func _apply_ui_automation_metadata() -> void:
 	if attack_button != null:
 		attack_button.set_meta("test_id", TEST_ID_OPEN_DIALOGUE)
 		attack_button.set_meta("uat_action", ACTION_OPEN_DIALOGUE)
+	_exit_button.set_meta("test_id", TEST_ID_EXIT_BUTTON)
+	_exit_button.set_meta("uat_action", ACTION_EXIT_TO_LOBBY)
+
+
+func _handle_back_request() -> void:
+	if _confirm_modal.is_open():
+		return
+	if is_dialogue_ui_visible():
+		close_dialogue()
+		return
+	_request_return_to_lobby()
+
+
+func _request_return_to_lobby() -> void:
+	if _confirm_modal.is_open():
+		return
+	_player.velocity = Vector2.ZERO
+	_confirm_modal.open(
+		RETURN_TO_LOBBY_MESSAGE,
+		Callable(self, "_return_to_lobby"),
+		Callable()
+	)
+
+
+func _return_to_lobby() -> void:
+	if return_to_lobby_callable.is_valid():
+		return_to_lobby_callable.call()
+	else:
+		SceneTransition.go_to_lobby()
+
+
+func _request_quit_game() -> void:
+	if _confirm_modal.is_open():
+		return
+	_player.velocity = Vector2.ZERO
+	_confirm_modal.open(
+		QUIT_GAME_MESSAGE,
+		Callable(self, "_quit_game"),
+		Callable()
+	)
+
+
+func _quit_game() -> void:
+	if quit_game_callable.is_valid():
+		quit_game_callable.call()
+	else:
+		SceneTransition.quit_game()
+
+
+func _is_escape_key(event: InputEvent) -> bool:
+	var key_event := event as InputEventKey
+	return key_event != null and key_event.pressed and not key_event.echo and key_event.keycode == KEY_ESCAPE

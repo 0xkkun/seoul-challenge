@@ -6,11 +6,15 @@ const BACKGROUND_CROP_ANCHOR := Vector2(0.5, 0.0)
 @onready var start_button: Button = %StartButton
 @onready var settings_button: Button = %SettingsButton
 @onready var status_label: Label = %StatusLabel
+@onready var _confirm_modal: ConfirmModal = %ConfirmModal
+
+var quit_game_callable: Callable
 
 var _start_requested := false
 
 
 func _ready() -> void:
+	SceneTransition.configure_exit_requests()
 	start_button.set_meta("test_id", "lobby.start_button")
 	resized.connect(_fit_background_to_viewport)
 	_fit_background_to_viewport()
@@ -22,6 +26,14 @@ func _ready() -> void:
 	status_label.text = ""
 	status_label.visible = false
 	start_button.grab_focus()
+
+
+func is_quit_confirm_visible() -> bool:
+	return _confirm_modal.is_open()
+
+
+func get_quit_confirm_message() -> String:
+	return _confirm_modal.get_message_text()
 
 
 func _on_start_pressed() -> void:
@@ -39,6 +51,44 @@ func _go_to_day_lobby() -> void:
 	_start_requested = false
 	start_button.disabled = false
 	push_error("Failed to open day lobby scene: %s" % result)
+
+
+func _notification(what: int) -> void:
+	match what:
+		NOTIFICATION_WM_CLOSE_REQUEST, NOTIFICATION_WM_GO_BACK_REQUEST:
+			_request_quit_game()
+		NOTIFICATION_APPLICATION_PAUSED:
+			SceneTransition.save_profile_snapshot()
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if _confirm_modal.is_open():
+		return
+	if event.is_action_pressed(&"ui_cancel") or _is_escape_key(event):
+		_request_quit_game()
+		get_viewport().set_input_as_handled()
+
+
+func _request_quit_game() -> void:
+	if _confirm_modal.is_open():
+		return
+	_confirm_modal.open(
+		"게임을 종료할까요?",
+		Callable(self, "_quit_game"),
+		Callable()
+	)
+
+
+func _quit_game() -> void:
+	if quit_game_callable.is_valid():
+		quit_game_callable.call()
+	else:
+		SceneTransition.quit_game()
+
+
+func _is_escape_key(event: InputEvent) -> bool:
+	var key_event := event as InputEventKey
+	return key_event != null and key_event.pressed and not key_event.echo and key_event.keycode == KEY_ESCAPE
 
 
 func get_background_cover_rect(target_size: Vector2, texture_size: Vector2) -> Rect2:

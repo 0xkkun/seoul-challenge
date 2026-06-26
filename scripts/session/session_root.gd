@@ -13,6 +13,8 @@ const EVENT_ROOM_SCENE_PATH := "res://scenes/interactables/rescue_room.tscn"
 const TREASURE_ROOM_SCENE_PATH := "res://scenes/interactables/treasure_room.tscn"
 const SHOP_ROOM_SCENE_PATH := "res://scenes/interactables/shop_room.tscn"
 const FINAL_ROOM_SCENE_PATH := "res://scenes/interactables/boss_room.tscn"
+const ABANDON_RUN_MESSAGE := "런을 포기할까요? 이번 밤 보상은 사라지고 영구 재화는 유지됩니다"
+const QUIT_GAME_MESSAGE := "게임을 종료할까요?"
 
 @onready var world_layer: Node2D = $WorldLayer
 @onready var room_layer: Node2D = %RoomLayer
@@ -27,16 +29,20 @@ const FINAL_ROOM_SCENE_PATH := "res://scenes/interactables/boss_room.tscn"
 @onready var player_camera: Camera2D = %PlayerCamera
 @onready var _fade_rect: ColorRect = $FadeLayer/FadeRect
 @onready var _minimap: Control = $MinimapLayer/Minimap
+@onready var _confirm_modal: ConfirmModal = %ConfirmModal
 
 var completed_interactions := 0
 var return_to_school_callable: Callable
 var retry_session_callable: Callable
+var quit_game_callable: Callable
 var _handoff_session_on_exit := false
 var _active_boss: Node = null
 var _minimap_full := false
+var _paused_before_exit_modal := false
 
 
 func _ready() -> void:
+	SceneTransition.configure_exit_requests()
 	_apply_render_layers()
 	if not GameManager.is_session_active():
 		GameManager.start_session({"source": "session_root"})
@@ -115,6 +121,14 @@ func finish_session() -> Dictionary:
 	return result
 
 
+func is_exit_confirm_visible() -> bool:
+	return _confirm_modal.is_open()
+
+
+func get_exit_confirm_message() -> String:
+	return _confirm_modal.get_message_text()
+
+
 func _on_interaction_triggered(_source: Node, _target: Node) -> void:
 	completed_interactions += 1
 	session_ui_root.set_status("Interaction complete")
@@ -134,7 +148,7 @@ func _on_resume_requested() -> void:
 
 
 func _on_finish_requested() -> void:
-	finish_session()
+	_request_abandon_run()
 
 
 func _on_return_requested() -> void:
@@ -271,3 +285,84 @@ func _play_room_fade() -> void:
 	_fade_rect.color.a = 1.0
 	var tween := create_tween()
 	tween.tween_property(_fade_rect, "color:a", 0.0, 0.35)
+
+
+func _notification(what: int) -> void:
+	match what:
+		NOTIFICATION_WM_CLOSE_REQUEST:
+			_request_quit_game()
+		NOTIFICATION_WM_GO_BACK_REQUEST:
+			_handle_back_request()
+		NOTIFICATION_APPLICATION_PAUSED:
+			SceneTransition.save_profile_snapshot()
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if _confirm_modal.is_open():
+		return
+	if event.is_action_pressed(&"ui_cancel") or _is_escape_key(event):
+		_handle_back_request()
+		get_viewport().set_input_as_handled()
+
+
+func _handle_back_request() -> void:
+	if _confirm_modal.is_open():
+		return
+	if session_ui_root.is_summary_visible():
+		_on_return_requested()
+		return
+	_request_abandon_run()
+
+
+func _request_abandon_run() -> void:
+	if _confirm_modal.is_open():
+		return
+	_paused_before_exit_modal = get_tree().paused
+	get_tree().paused = true
+	session_ui_root.set_status("포기 확인")
+	_confirm_modal.open(
+		ABANDON_RUN_MESSAGE,
+		Callable(self, "_abandon_run_to_lobby"),
+		Callable(self, "_restore_pause_after_exit_modal"),
+		true
+	)
+
+
+func _abandon_run_to_lobby() -> void:
+	get_tree().paused = false
+	if has_node("/root/GameManager"):
+		GameManager.reset_session()
+	if return_to_school_callable.is_valid():
+		return_to_school_callable.call()
+	else:
+		SceneTransition.go_to_lobby()
+
+
+func _request_quit_game() -> void:
+	if _confirm_modal.is_open():
+		return
+	_paused_before_exit_modal = get_tree().paused
+	get_tree().paused = true
+	_confirm_modal.open(
+		QUIT_GAME_MESSAGE,
+		Callable(self, "_quit_game"),
+		Callable(self, "_restore_pause_after_exit_modal")
+	)
+
+
+func _quit_game() -> void:
+	get_tree().paused = false
+	if quit_game_callable.is_valid():
+		quit_game_callable.call()
+	else:
+		SceneTransition.quit_game()
+
+
+func _restore_pause_after_exit_modal() -> void:
+	get_tree().paused = _paused_before_exit_modal
+	session_ui_root.set_status("Paused" if get_tree().paused else "Ready")
+
+
+func _is_escape_key(event: InputEvent) -> bool:
+	var key_event := event as InputEventKey
+	return key_event != null and key_event.pressed and not key_event.echo and key_event.keycode == KEY_ESCAPE

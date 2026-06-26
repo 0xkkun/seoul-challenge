@@ -224,6 +224,7 @@ func test_minimap_data_marks_current_visible_and_boss_hidden() -> void:
 		&"combat_1": true,
 		&"treasure_1": true,
 		&"combat_2": true,
+		&"shop_1": true,
 		&"event_1": true,
 	}
 	var revealed_data: Dictionary = MinimapDataScript.build_from_layout(layout, &"event_1", cleared)

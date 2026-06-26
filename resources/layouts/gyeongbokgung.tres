@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="RoomLayout" load_steps=9 format=3]
+[gd_resource type="Resource" script_class="RoomLayout" load_steps=10 format=3]
 
 [ext_resource type="Script" path="res://scripts/systems/room_layout.gd" id="1_layout"]
 [ext_resource type="Script" path="res://scripts/systems/room_def.gd" id="2_def"]
@@ -38,7 +38,7 @@ script = ExtResource("2_def")
 room_id = &"combat_2"
 room_type = &"combat"
 scene_path = "res://scenes/interactables/combat_room.tscn"
-connections = Array[StringName]([&"treasure_1", &"event_1"])
+connections = Array[StringName]([&"treasure_1", &"shop_1"])
 grid_pos = Vector2i(3, 0)
 room_config = {
 "chaser_count": 2,
@@ -47,13 +47,21 @@ room_config = {
 "ranged_count": 1
 }
 
+[sub_resource type="Resource" id="Resource_shop_1"]
+script = ExtResource("2_def")
+room_id = &"shop_1"
+room_type = &"shop"
+scene_path = "res://scenes/interactables/shop_room.tscn"
+connections = Array[StringName]([&"combat_2", &"event_1"])
+grid_pos = Vector2i(4, 0)
+
 [sub_resource type="Resource" id="Resource_event_1"]
 script = ExtResource("2_def")
 room_id = &"event_1"
 room_type = &"event"
 scene_path = "res://scenes/interactables/rescue_room.tscn"
-connections = Array[StringName]([&"combat_2", &"friend_1"])
-grid_pos = Vector2i(4, 0)
+connections = Array[StringName]([&"shop_1", &"friend_1"])
+grid_pos = Vector2i(5, 0)
 
 [sub_resource type="Resource" id="Resource_friend_1"]
 script = ExtResource("2_def")
@@ -61,7 +69,7 @@ room_id = &"friend_1"
 room_type = &"friend"
 scene_path = "res://scenes/interactables/friend_room.tscn"
 connections = Array[StringName]([&"event_1", &"final_1"])
-grid_pos = Vector2i(5, 0)
+grid_pos = Vector2i(6, 0)
 
 [sub_resource type="Resource" id="Resource_final_1"]
 script = ExtResource("2_def")
@@ -69,11 +77,11 @@ room_id = &"final_1"
 room_type = &"final"
 scene_path = "res://scenes/interactables/boss_room.tscn"
 connections = Array[StringName]([&"friend_1"])
-grid_pos = Vector2i(6, 0)
+grid_pos = Vector2i(7, 0)
 hidden = true
 
 [resource]
 script = ExtResource("1_layout")
 layout_id = &"gyeongbokgung"
 start_room_id = &"start"
-room_defs = Array[ExtResource("2_def")]([SubResource("Resource_start"), SubResource("Resource_combat_1"), SubResource("Resource_treasure_1"), SubResource("Resource_combat_2"), SubResource("Resource_event_1"), SubResource("Resource_friend_1"), SubResource("Resource_final_1")])
+room_defs = Array[ExtResource("2_def")]([SubResource("Resource_start"), SubResource("Resource_combat_1"), SubResource("Resource_treasure_1"), SubResource("Resource_combat_2"), SubResource("Resource_shop_1"), SubResource("Resource_event_1"), SubResource("Resource_friend_1"), SubResource("Resource_final_1")])
