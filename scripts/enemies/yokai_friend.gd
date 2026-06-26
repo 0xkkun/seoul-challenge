@@ -18,7 +18,7 @@ enum State { CHASING, STUNNED, PURIFIED }
 @export var purify_range: float = 60.0    ## 정화 가능 거리 (px)
 @export var move_speed: float = 80.0
 @export var contact_damage: int = 1
-@export var contact_range: float = 30.0
+@export var contact_range: float = 40.0    ## 합산 충돌 반지름(보스 20 + 플레이어 14 = 34) 위 — 몸이 닿으면 접촉 데미지가 들어가도록
 @export var contact_cooldown: float = 0.7
 @export var target_group: StringName = &"player"
 
