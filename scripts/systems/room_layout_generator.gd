@@ -262,13 +262,6 @@ func _compute_distances(adjacency: Dictionary, start_index: int) -> Dictionary:
 	return distances
 
 
-func _max_distance(distances: Dictionary) -> int:
-	var max_value := 0
-	for value: Variant in distances.values():
-		max_value = maxi(max_value, int(value))
-	return max_value
-
-
 func _max_distance_excluding(distances: Dictionary, excluded: Array) -> int:
 	var max_value := 0
 	for index: Variant in distances.keys():
