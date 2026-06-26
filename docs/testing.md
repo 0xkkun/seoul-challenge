@@ -26,10 +26,31 @@ Full verification adds:
 - runtime smoke for the dev scene
 - tooling regression checks
 
+## Rooms Gate
+
+```sh
+bash scripts/verify_rooms.sh
+```
+
+The rooms gate protects the room, event-room, layout-generation, and currency
+domain separately from the shared quick gate. It runs:
+
+- `scripts/verify_room_coverage.py` to ensure every active domain script has a
+  mapped test file
+- headless Godot runtime coverage for the fixed room route
+- performance budgets for `RoomLayoutGenerator`, layout validation, and
+  `RoomManager.request_next_room()`
+
+Future room-domain scripts must be added to the manifest in
+`scripts/verify_room_coverage.py`. Placeholder manifest entries can stay disabled
+until the corresponding script lands, but an existing script with a disabled or
+missing manifest entry fails the gate.
+
 ## Test Locations
 
 - `tests/unit/`
 - `tests/integration/`
+- `tests/performance/`
 - `tests/functional/`
 - `tests/tooling/`
 - `tests/support/test_runner.gd`
@@ -42,6 +63,7 @@ Recommended `main` protection:
 
 - require pull requests before merging
 - require the `Quick verification` status check
+- require the `Rooms gate` status check for room-domain PRs
 - require branches to be up to date before merging
 - allow administrators to bypass only for repository recovery
 
