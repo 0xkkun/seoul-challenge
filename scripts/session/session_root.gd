@@ -27,6 +27,7 @@ const WEAPON_BAT := &"bat"
 @onready var pooled_object_layer: Node2D = %PooledObjectLayer
 @onready var interaction_system: Node = %InteractionSystem
 @onready var room_manager: RoomManager = %RoomManager
+@onready var death_return_controller: DeathReturnController = %DeathReturnController
 @onready var session_ui_root: CanvasLayer = %SessionUIRoot
 @onready var player_camera: Camera2D = %PlayerCamera
 @onready var _fade_rect: ColorRect = $FadeLayer/FadeRect
@@ -52,6 +53,8 @@ func _ready() -> void:
 	PoolManager.register_scene(&"sample_marker", POOLED_MARKER_SCENE, 1, pooled_object_layer)
 	interaction_system.configure(actor, self)
 	_configure_player_camera()
+	death_return_controller.death_result_builder_callable = Callable(self, "_build_death_result")
+	death_return_controller.game_over_callable = Callable(self, "_show_death_summary")
 	room_manager.room_changed.connect(_on_room_changed)
 	room_manager.configure(_build_run_layout(), room_layer, actor)
 	room_manager.start_layout()
@@ -120,6 +123,13 @@ func _apply_session_loadout() -> void:
 
 
 func finish_session() -> Dictionary:
+	var result := _build_session_result()
+	GameManager.finish_session(result)
+	session_ui_root.show_summary(result)
+	return result
+
+
+func _build_session_result(overrides: Dictionary = {}) -> Dictionary:
 	var cleared_room_ids := room_manager.cleared_room_ids.keys()
 	var rooms_cleared := cleared_room_ids.size()
 	var result := {
@@ -133,9 +143,23 @@ func finish_session() -> Dictionary:
 		"students_rescued": 0,
 		"friends_purified": 0,
 	}
-	GameManager.finish_session(result)
-	session_ui_root.show_summary(result)
+	if not overrides.is_empty():
+		result.merge(overrides, true)
 	return result
+
+
+func _build_death_result() -> Dictionary:
+	return _build_session_result({
+		"outcome": "death",
+		"died": true,
+		"completed": false,
+	})
+
+
+func _show_death_summary(result: Dictionary) -> void:
+	get_tree().paused = true
+	session_ui_root.set_status("쓰러짐")
+	session_ui_root.show_summary(result)
 
 
 func is_exit_confirm_visible() -> bool:

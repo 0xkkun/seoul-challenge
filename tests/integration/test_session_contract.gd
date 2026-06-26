@@ -196,6 +196,30 @@ func test_session_result_actions_unpause_and_preserve_retry_config() -> void:
 	session.queue_free()
 
 
+func test_player_death_shows_game_over_summary_without_lobby_transition() -> void:
+	var packed := load("res://scenes/session/session_root.tscn") as PackedScene
+	var session := packed.instantiate()
+	var action_counts := {"returned": 0}
+	session.return_to_school_callable = func() -> void:
+		action_counts["returned"] += 1
+	add_child(session)
+
+	var death_controller: DeathReturnController = session.get_node("%DeathReturnController")
+	death_controller.trigger_death_return()
+
+	var session_ui: CanvasLayer = session.get_node("%SessionUIRoot")
+	var snapshot: Dictionary = session_ui.get_summary_snapshot()
+	_runner.assert_true(snapshot["visible"], "death shows the result summary overlay")
+	_runner.assert_eq(snapshot["title"], "쓰러짐", "death summary uses game over title")
+	_runner.assert_false(GameManager.is_session_active(), "death finishes the active run")
+	_runner.assert_eq(GameManager.get_last_result().get("outcome", ""), "death", "death result is saved")
+	_runner.assert_eq(action_counts["returned"], 0, "death does not immediately transition to lobby")
+	_runner.assert_true(get_tree().paused, "gameplay freezes under the game over summary")
+
+	get_tree().paused = false
+	session.queue_free()
+
+
 func test_session_finish_button_confirms_abandon_to_lobby() -> void:
 	var packed := load("res://scenes/session/session_root.tscn") as PackedScene
 	var session := packed.instantiate()
