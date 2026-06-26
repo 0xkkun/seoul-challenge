@@ -17,8 +17,8 @@ func _ready() -> void:
 	start_button.set_meta("uat_action", "lobby.start")
 	start_button.pressed.connect(_on_start_pressed)
 	settings_button.set_meta("test_id", "lobby.settings_button")
-	settings_button.set_meta("uat_action", "lobby.settings")
-	settings_button.pressed.connect(_on_settings_pressed)
+	settings_button.disabled = true
+	settings_button.focus_mode = Control.FOCUS_NONE
 	status_label.text = ""
 	status_label.visible = false
 	start_button.grab_focus()
@@ -30,10 +30,6 @@ func _on_start_pressed() -> void:
 	_start_requested = true
 	start_button.disabled = true
 	call_deferred("_go_to_day_lobby")
-
-
-func _on_settings_pressed() -> void:
-	pass
 
 
 func _go_to_day_lobby() -> void:

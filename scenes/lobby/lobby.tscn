@@ -1,4 +1,4 @@
-[gd_scene load_steps=10 format=3]
+[gd_scene load_steps=11 format=3]
 
 [ext_resource type="Script" path="res://scripts/lobby/lobby.gd" id="1_lobby"]
 [ext_resource type="Texture2D" uid="uid://c750vcawxg880" path="res://assets/backgrounds/lobby/title_lobby_bg.png" id="2_bg"]
@@ -59,6 +59,18 @@ border_width_top = 4
 border_width_right = 4
 border_width_bottom = 4
 border_color = Color(0.784314, 0.631373, 0.227451, 0.95)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_settings_disabled"]
+bg_color = Color(0.105882, 0.141176, 0.14902, 0.74)
+border_width_left = 3
+border_width_top = 3
+border_width_right = 3
+border_width_bottom = 3
+border_color = Color(0.294118, 0.345098, 0.345098, 0.52)
 corner_radius_top_left = 4
 corner_radius_top_right = 4
 corner_radius_bottom_right = 4
@@ -165,7 +177,6 @@ alignment = 1
 unique_name_in_owner = true
 custom_minimum_size = Vector2(360, 66)
 layout_mode = 2
-focus_neighbor_bottom = NodePath("../SettingsButton")
 theme_override_colors/font_color = Color(0.968627, 0.984314, 1, 1)
 theme_override_colors/font_focus_color = Color(1, 1, 1, 1)
 theme_override_colors/font_hover_color = Color(1, 1, 1, 1)
@@ -181,13 +192,17 @@ text = "게임 시작"
 unique_name_in_owner = true
 custom_minimum_size = Vector2(360, 66)
 layout_mode = 2
+focus_mode = 0
 focus_neighbor_top = NodePath("../StartButton")
 theme_override_colors/font_color = Color(0.968627, 0.984314, 1, 1)
+theme_override_colors/font_disabled_color = Color(0.607843, 0.670588, 0.670588, 0.78)
 theme_override_colors/font_focus_color = Color(1, 1, 1, 1)
 theme_override_colors/font_hover_color = Color(1, 1, 1, 1)
 theme_override_font_sizes/font_size = 30
 theme_override_styles/normal = SubResource("StyleBoxFlat_settings_normal")
 theme_override_styles/hover = SubResource("StyleBoxFlat_settings_hover")
 theme_override_styles/pressed = SubResource("StyleBoxFlat_settings_hover")
+theme_override_styles/disabled = SubResource("StyleBoxFlat_settings_disabled")
 theme_override_styles/focus = SubResource("StyleBoxFlat_focus")
+disabled = true
 text = "설정"
