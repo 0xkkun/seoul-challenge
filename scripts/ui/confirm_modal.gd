@@ -47,6 +47,7 @@ func open(message: String, on_yes: Callable, on_no: Callable = Callable(), dange
 func confirm_yes() -> void:
 	if not visible:
 		return
+	HapticManager.on_ui_confirm()
 	var callback := _yes_callback
 	_close()
 	if callback.is_valid():
@@ -56,6 +57,7 @@ func confirm_yes() -> void:
 func confirm_no() -> void:
 	if not visible:
 		return
+	HapticManager.on_ui_confirm()
 	var callback := _no_callback
 	_close()
 	if callback.is_valid():

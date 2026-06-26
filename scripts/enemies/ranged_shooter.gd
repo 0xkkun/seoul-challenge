@@ -86,6 +86,7 @@ func tick_fire(delta: float, origin: Vector2, target_position: Vector2) -> bool:
 
 ## 정화탄 등이 호출한다(계약). HP 감소 → 0 이하면 처치.
 func take_damage(amount: int) -> void:
+	HapticManager.on_enemy_hit()
 	_hp -= amount
 	if is_dead(_hp):
 		_die()
