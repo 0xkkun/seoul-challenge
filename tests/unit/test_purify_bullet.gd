@@ -46,3 +46,16 @@ func test_pool_acquire_release_reuse() -> void:
 	_runner.assert_eq(PoolManager.get_available_count(POOL_ID), 1)
 	var second = PoolManager.acquire(POOL_ID, self)
 	_runner.assert_true(first == second, "released 인스턴스를 재사용")
+
+
+func test_ignores_shooter() -> void:
+	var b = BULLET_SCENE.instantiate()
+	var shooter := Node.new()
+	b.activate(Vector2.ZERO, Vector2.RIGHT, shooter)
+	_runner.assert_false(b.is_blocking_hit(shooter), "발사자 충돌은 무시")
+	_runner.assert_false(b.is_blocking_hit(null), "null 충돌은 무시")
+	var other := Node.new()
+	_runner.assert_true(b.is_blocking_hit(other), "다른 노드는 차단성 충돌")
+	shooter.free()
+	other.free()
+	b.free()
