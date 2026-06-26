@@ -312,6 +312,8 @@ func close_dialogue() -> void:
 	_talk_button_label.visible = true
 	_player.set_physics_process(true)
 	_dialogue_line_index = -1
+	# The closing tap can reveal touch controls under the same held press.
+	_was_dialogue_pressed = true
 	_update_interaction_prompt()
 
 
