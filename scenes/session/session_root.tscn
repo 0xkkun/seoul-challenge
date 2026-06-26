@@ -1,7 +1,7 @@
 [gd_scene load_steps=7 format=3]
 
 [ext_resource type="Script" path="res://scripts/session/session_root.gd" id="1_session"]
-[ext_resource type="PackedScene" path="res://scenes/actors/sample_actor.tscn" id="2_actor"]
+[ext_resource type="PackedScene" path="res://scenes/player/player.tscn" id="2_actor"]
 [ext_resource type="PackedScene" path="res://scenes/interactables/sample_interactable.tscn" id="3_interactable"]
 [ext_resource type="PackedScene" path="res://scenes/ui/session_ui_root.tscn" id="4_ui"]
 [ext_resource type="Script" path="res://scripts/systems/interaction_system.gd" id="5_interaction"]
@@ -17,7 +17,7 @@ unique_name_in_owner = true
 
 [node name="ActorLayer" type="Node2D" parent="."]
 
-[node name="SampleActor" parent="ActorLayer" instance=ExtResource("2_actor")]
+[node name="Player" parent="ActorLayer" instance=ExtResource("2_actor")]
 unique_name_in_owner = true
 position = Vector2(120, 320)
 

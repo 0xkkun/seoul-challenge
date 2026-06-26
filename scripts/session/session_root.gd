@@ -3,7 +3,7 @@ extends Node2D
 const POOLED_MARKER_SCENE = preload("res://scenes/interactables/sample_pooled_marker.tscn")
 const GYEONGBOKGUNG_LAYOUT = preload("res://resources/layouts/gyeongbokgung.tres")
 
-@onready var actor: Node2D = %SampleActor
+@onready var actor: Node2D = %Player
 @onready var room_layer: Node = %RoomLayer
 @onready var interactable_layer: Node = %InteractableLayer
 @onready var sample_interactable: Node = %SampleInteractable

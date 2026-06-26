@@ -5,6 +5,8 @@ const TYPE_START := &"start"
 const TYPE_COMBAT := &"combat"
 const TYPE_EVENT := &"event"
 const TYPE_FINAL := &"final"
+const TYPE_TREASURE := &"treasure"
+const TYPE_SHOP := &"shop"
 
 @export var layout_id: StringName = &"layout"
 @export var start_room_id: StringName = TYPE_START
@@ -97,7 +99,11 @@ func validate_layout() -> PackedStringArray:
 		TYPE_COMBAT: 0,
 		TYPE_EVENT: 0,
 		TYPE_FINAL: 0,
+		TYPE_TREASURE: 0,
+		TYPE_SHOP: 0,
 	}
+	var rooms_by_id := {}
+	var grid_positions := {}
 
 	if room_defs.size() < 3 or room_defs.size() > 5:
 		errors.append("layout must contain 3 to 5 rooms")
@@ -112,6 +118,12 @@ func validate_layout() -> PackedStringArray:
 			errors.append("duplicate room id: %s" % room_def.room_id)
 		else:
 			seen[room_def.room_id] = true
+			rooms_by_id[room_def.room_id] = room_def
+
+		if grid_positions.has(room_def.grid_pos):
+			errors.append("%s overlaps grid position with %s" % [room_def.room_id, grid_positions[room_def.grid_pos]])
+		else:
+			grid_positions[room_def.grid_pos] = room_def.room_id
 
 		if room_def.scene_path == "":
 			errors.append("%s scene path must not be empty" % room_def.room_id)
@@ -127,6 +139,14 @@ func validate_layout() -> PackedStringArray:
 		for connected_room_id: StringName in room_def.connections:
 			if not seen.has(connected_room_id):
 				errors.append("%s connects to missing room: %s" % [room_def.room_id, connected_room_id])
+				continue
+			var connected_room := rooms_by_id[connected_room_id] as RoomDef
+			var grid_distance := (
+				absi(room_def.grid_pos.x - connected_room.grid_pos.x)
+				+ absi(room_def.grid_pos.y - connected_room.grid_pos.y)
+			)
+			if grid_distance != 1:
+				errors.append("%s connects to non-adjacent room %s" % [room_def.room_id, connected_room_id])
 
 	if not seen.has(start_room_id):
 		errors.append("start room is missing: %s" % start_room_id)

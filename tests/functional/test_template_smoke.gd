@@ -24,9 +24,9 @@ func test_boot_start_interact_finish() -> void:
 
 	_runner.assert_true(GameManager.is_session_active(), "session starts on ready")
 
-	var actor: Node2D = session.get_node("%SampleActor")
-	actor.apply_input_vector(Vector2.RIGHT, 0.25)
-	_runner.assert_true(actor.position.x > 120.0, "sample actor responds to input path")
+	var actor: Node2D = session.get_node("%Player")
+	var step: Vector2 = actor.step_velocity(Vector2.ZERO, Vector2.RIGHT, 1.0 / 60.0)
+	_runner.assert_true(step.x > 0.0, "player responds to input path")
 
 	session.trigger_sample_interaction()
 	_runner.assert_eq(session.completed_interactions, 1, "sample interaction completes")
