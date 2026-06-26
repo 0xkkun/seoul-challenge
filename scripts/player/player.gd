@@ -32,8 +32,10 @@ func _physics_process(delta: float) -> void:
 	var move := read_input_vector()
 	_facing = update_facing(_facing, move)
 	velocity = step_velocity(velocity, move, delta)
-	move_and_slide()
+	# 발사 반동은 move_and_slide 전에 적용해야 이번 틱 이동에 반영된다. 뒤에 두면
+	# 다음 틱 step_velocity 의 friction 이 먼저 깎아 반동이 사실상 사라진다 (Codex #49 P2).
 	_process_firing(delta)
+	move_and_slide()
 
 
 # --- 이동/조준/사격 수학 (순수 함수, 테스트 대상) ---
