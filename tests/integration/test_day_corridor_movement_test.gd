@@ -1,6 +1,7 @@
 extends Node
 
 const DayCorridorScene := preload("res://scenes/dev/day_corridor_movement_test.tscn")
+const UiTestHarness := preload("res://tests/support/ui_test_harness.gd")
 
 var _runner: Node
 
@@ -124,13 +125,14 @@ func test_day_corridor_dialogue_signal_updates_state() -> void:
 	_runner.assert_false(scene.is_touch_controls_visible(), "touch controls hide while the dialogue bar is open")
 	_runner.assert_false(scene.get_node("%TalkButtonLabel").visible, "talk button helper label hides behind dialogue UI")
 	_runner.assert_true(scene.get_node("%HubDialogueUi").is_dialogue_overlay_visible(), "dialogue UI dims the corridor behind it")
-	_runner.assert_true(scene.get_node("%HubDialogueUi").is_dialogue_overlay_modal(), "dialogue overlay blocks tap-through")
+	_runner.assert_false(scene.get_node("%HubDialogueUi").is_dialogue_overlay_modal(), "dialogue overlay does not block the choice button")
 	_runner.assert_false(scene.get_node("%HubDialogueUi").is_stage_row_visible(), "day corridor dialogue hides abstract stage labels")
 	_runner.assert_eq(scene.get_active_dialogue_line_index(), 0, "first trigger starts at the first dialogue line")
 	_runner.assert_eq(scene.get_active_dialogue_text(), "낮엔 뛰지 말고, 얘기부터 하자.", "dialogue text is rendered without duplicating the speaker name")
 	_runner.assert_eq(scene.get_active_dialogue_memory_text(), "기억: 창밖으로 밀려드는 낮빛", "memory text is rendered through HubDialogueUi")
-	_runner.assert_eq(scene.get_dialogue_choice_ids(), [&"next", &"close"], "dialogue UI exposes next and close choices")
-	_runner.assert_eq(scene.get_node("%HubDialogueUi").get_choice_texts(), ["다음", "나가기"], "dialogue UI exposes clear next and exit labels")
+	_runner.assert_eq(scene.get_dialogue_choice_ids(), [&"next"], "dialogue UI exposes only the currently available action")
+	_runner.assert_eq(scene.get_node("%HubDialogueUi").get_choice_texts(), ["다음"], "first dialogue line exposes a single next button")
+	_runner.assert_not_null(UiTestHarness.find_by_test_id(scene, "day_corridor.dialogue.next_button"), "next choice exposes a stable test id")
 	_runner.assert_eq(payloads.size(), 1, "dialogue request signal emits once")
 	if payloads.size() == 1:
 		_runner.assert_eq(payloads[0]["source"], &"day_corridor", "dialogue payload identifies the day corridor")
@@ -141,16 +143,63 @@ func test_day_corridor_dialogue_choices_advance_and_close_ui() -> void:
 	var scene := DayCorridorScene.instantiate()
 	add_child(scene)
 
-	var dialogue_ui = scene.get_node("%HubDialogueUi")
 	scene.trigger_dialogue()
 
-	dialogue_ui.select_choice(&"next")
+	_runner.assert_true(UiTestHarness.press_by_uat_action(scene, "day_corridor.dialogue.next"), "harness presses next by action id")
 	_runner.assert_eq(scene.get_dialogue_count(), 2, "next choice advances the dialogue counter")
 	_runner.assert_eq(scene.get_active_dialogue_line_index(), 1, "next choice advances to the second line")
 	_runner.assert_eq(scene.get_active_dialogue_text(), "복도 끝 교실에 들르면 준비가 끝나.", "second dialogue line is rendered")
 	_runner.assert_true(scene.is_dialogue_ui_visible(), "next choice keeps dialogue UI open")
+	_runner.assert_eq(scene.get_dialogue_choice_ids(), [&"next"], "middle dialogue line still exposes only next")
 
-	dialogue_ui.select_choice(&"close")
+	_runner.assert_true(UiTestHarness.press_by_uat_action(scene, "day_corridor.dialogue.next"), "harness presses next to the final line")
+	_runner.assert_eq(scene.get_dialogue_count(), 3, "second next advances the dialogue counter")
+	_runner.assert_eq(scene.get_active_dialogue_line_index(), 2, "second next advances to the final line")
+	_runner.assert_eq(scene.get_dialogue_choice_ids(), [&"close"], "final dialogue line exposes only close")
+	_runner.assert_eq(scene.get_node("%HubDialogueUi").get_choice_texts(), ["나가기"], "final dialogue line exposes a single exit button")
+	_runner.assert_not_null(UiTestHarness.find_by_test_id(scene, "day_corridor.dialogue.close_button"), "close choice exposes a stable test id on the final line")
+
+	_runner.assert_true(UiTestHarness.press_by_test_id(scene, "day_corridor.dialogue.close_button"), "harness presses close by test id")
 	_runner.assert_false(scene.is_dialogue_ui_visible(), "close choice hides dialogue UI")
 	_runner.assert_true(scene.is_touch_controls_visible(), "touch controls return after dialogue closes")
 	_runner.assert_true(scene.get_node("%TalkButtonLabel").visible, "talk button helper label returns after dialogue closes")
+
+
+func test_day_corridor_dialogue_ignores_hidden_touch_attack_while_open() -> void:
+	var scene := DayCorridorScene.instantiate()
+	add_child(scene)
+
+	var touch_controls: Node = scene.get_node("%TouchControls")
+	var attack_button: Control = touch_controls.get_node("AttackButton")
+	_runner.assert_not_null(UiTestHarness.find_by_uat_action(scene, "day_corridor.dialogue.open"), "dialogue open button exposes an action id")
+	scene.trigger_dialogue()
+	attack_button.set("_active_index", 0)
+	scene.call("_process_dialogue_input")
+
+	_runner.assert_eq(scene.get_active_dialogue_line_index(), 0, "dialogue stays on the current line while hidden touch controls are pressed")
+	_runner.assert_eq(scene.get_dialogue_count(), 1, "hidden touch attack does not advance dialogue while the dialogue UI owns input")
+
+	attack_button.set("_active_index", -1)
+
+
+func test_day_corridor_uat_bridge_drives_dialogue_by_test_id() -> void:
+	var scene := DayCorridorScene.instantiate()
+	add_child(scene)
+
+	var player: CharacterBody2D = scene.get_node("%Player")
+	var bridge: Node = scene.get_node("%UatCommandBridge")
+	player.global_position = Vector2(950.0, scene.get_floor_y())
+
+	_runner.assert_true(bridge.press_by_test_id("day_corridor.dialogue.open_button"), "device bridge opens dialogue by test id")
+	_runner.assert_true(scene.is_dialogue_ui_visible(), "test id open action opens the dialogue UI")
+	_runner.assert_eq(scene.get_dialogue_choice_ids(), [&"next"], "first UAT state exposes next only")
+
+	_runner.assert_true(bridge.press_by_test_id("day_corridor.dialogue.next_button"), "device bridge presses next by test id")
+	_runner.assert_eq(scene.get_active_dialogue_line_index(), 1, "first next advances to the second line")
+
+	_runner.assert_true(bridge.press_by_test_id("day_corridor.dialogue.next_button"), "device bridge presses next on the second line by test id")
+	_runner.assert_eq(scene.get_active_dialogue_line_index(), 2, "second next advances to the final line")
+	_runner.assert_eq(scene.get_dialogue_choice_ids(), [&"close"], "final UAT state exposes close only")
+
+	_runner.assert_true(bridge.press_by_test_id("day_corridor.dialogue.close_button"), "device bridge closes dialogue by test id")
+	_runner.assert_false(scene.is_dialogue_ui_visible(), "test id close action hides the dialogue UI")

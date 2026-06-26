@@ -40,6 +40,7 @@ const DEFAULT_BAT_COLOR := Color(0.54, 0.55, 0.6)
 @onready var _portrait_panel: ColorRect = %PortraitPanel
 @onready var _portrait_accent: ColorRect = %PortraitAccent
 @onready var _dialogue_bar: PanelContainer = %DialogueBar
+@onready var _dialogue_top_rule: ColorRect = %DialogueTopRule
 @onready var _name_label: Label = %NameLabel
 @onready var _stage_row: HBoxContainer = %StageRow
 @onready var _dialogue_label: Label = %DialogueLabel
@@ -64,6 +65,9 @@ var _unlock_items: Array[Dictionary] = []
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	_dialogue_dimmer.set_meta("test_id", "hub_dialogue.overlay")
+	_dialogue_bar.set_meta("test_id", "hub_dialogue.bar")
+	_choice_row.set_meta("test_id", "hub_dialogue.choice_row")
 	_apply_static_styles()
 	set_dialogue("야구부 주장", "\"스윙은 겁먹으면 늦어. 밤의 궁에선 더 그렇겠지.\"", "기억: 손바닥의 희미한 배트 자국")
 	set_stage(2)
@@ -237,11 +241,15 @@ func _render_choices() -> void:
 	_clear_children(_choice_row)
 	for choice: Dictionary in _choice_models:
 		var choice_id := StringName(choice.get("id", &""))
+		var test_id := String(choice.get("test_id", "hub_dialogue.choice.%s" % String(choice_id)))
+		var action_name := String(choice.get("uat_action", "hub_dialogue.choice.%s" % String(choice_id)))
 		var button := Button.new()
 		button.text = String(choice.get("text", ""))
-		button.custom_minimum_size = Vector2(116.0, 54.0)
-		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		button.custom_minimum_size = Vector2(112.0, 44.0)
+		button.size_flags_horizontal = Control.SIZE_SHRINK_END
 		button.focus_mode = Control.FOCUS_NONE
+		button.set_meta("test_id", test_id)
+		button.set_meta("uat_action", action_name)
 		button.set_meta("choice_id", choice_id)
 		button.pressed.connect(_on_choice_pressed.bind(choice_id))
 		_apply_button_style(button, bool(choice.get("emphasized", false)))
@@ -281,7 +289,8 @@ func _on_choice_pressed(choice_id: StringName) -> void:
 
 
 func _apply_static_styles() -> void:
-	_dialogue_bar.add_theme_stylebox_override("panel", _make_panel_style(PANEL_COLOR, PANEL_BORDER_COLOR, 3))
+	_dialogue_bar.add_theme_stylebox_override("panel", _make_panel_style(PANEL_COLOR, PANEL_COLOR, 0))
+	_dialogue_top_rule.color = PANEL_BORDER_COLOR
 	_name_label.add_theme_color_override("font_color", NAMEPLATE_TEXT_COLOR)
 	_name_label.add_theme_font_size_override("font_size", 16)
 	_name_label.add_theme_stylebox_override("normal", _make_panel_style(NAMEPLATE_COLOR, Color(0.07, 0.08, 0.1), 2))
@@ -290,6 +299,7 @@ func _apply_static_styles() -> void:
 	_memory_label.add_theme_color_override("font_color", MEMORY_TEXT_COLOR)
 	_memory_label.add_theme_font_size_override("font_size", 13)
 	_choice_row.add_theme_constant_override("separation", 8)
+	_choice_row.alignment = BoxContainer.ALIGNMENT_END
 	_stage_row.add_theme_constant_override("separation", 4)
 	_unlock_popup.add_theme_stylebox_override("panel", _make_panel_style(UNLOCK_COLOR, UNLOCK_BORDER_COLOR, 4))
 	_unlock_title_label.add_theme_color_override("font_color", Color(0.08, 0.08, 0.1))
@@ -302,7 +312,7 @@ func _apply_button_style(button: Button, emphasized: bool) -> void:
 	var fill := NAMEPLATE_COLOR if emphasized else Color(0.18, 0.23, 0.31)
 	var text_color := NAMEPLATE_TEXT_COLOR if emphasized else Color(0.95, 0.94, 0.87)
 	button.add_theme_color_override("font_color", text_color)
-	button.add_theme_font_size_override("font_size", 15)
+	button.add_theme_font_size_override("font_size", 14)
 	button.add_theme_stylebox_override("normal", _make_panel_style(fill, Color(0.45, 0.5, 0.59), 2))
 	button.add_theme_stylebox_override("hover", _make_panel_style(fill.lightened(0.08), Color(0.64, 0.69, 0.78), 2))
 	button.add_theme_stylebox_override("pressed", _make_panel_style(fill.darkened(0.08), Color(0.07, 0.08, 0.1), 2))
@@ -338,4 +348,4 @@ func _make_panel_style(fill: Color, border: Color, border_width: int) -> StyleBo
 func _clear_children(parent: Node) -> void:
 	for child: Node in parent.get_children():
 		parent.remove_child(child)
-		child.free()
+		child.queue_free()

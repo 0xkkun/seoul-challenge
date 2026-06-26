@@ -22,6 +22,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+mouse_filter = 2
 color = Color(0.03, 0.04, 0.06, 0.46)
 
 [node name="PortraitPanel" type="ColorRect" parent="Root"]
@@ -62,6 +63,15 @@ grow_vertical = 0
 layout_mode = 2
 custom_minimum_size = Vector2(844, 152)
 
+[node name="DialogueTopRule" type="ColorRect" parent="Root/DialogueBar/DialogueContent"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_bottom = 3.0
+grow_horizontal = 2
+mouse_filter = 2
+
 [node name="NameLabel" type="Label" parent="Root/DialogueBar/DialogueContent"]
 unique_name_in_owner = true
 layout_mode = 1
@@ -85,32 +95,39 @@ theme_override_constants/separation = 4
 [node name="DialogueLabel" type="Label" parent="Root/DialogueBar/DialogueContent"]
 unique_name_in_owner = true
 layout_mode = 1
+anchor_right = 1.0
 offset_left = 190.0
 offset_top = 50.0
-offset_right = 584.0
+offset_right = -318.0
 offset_bottom = 96.0
+grow_horizontal = 2
 text = "\"스윙은 겁먹으면 늦어. 밤의 궁에선 더 그렇겠지.\""
 autowrap_mode = 3
 
 [node name="MemoryLabel" type="Label" parent="Root/DialogueBar/DialogueContent"]
 unique_name_in_owner = true
 layout_mode = 1
+anchor_right = 1.0
 offset_left = 190.0
 offset_top = 104.0
-offset_right = 584.0
+offset_right = -318.0
 offset_bottom = 132.0
+grow_horizontal = 2
 text = "기억: 손바닥의 희미한 배트 자국"
 autowrap_mode = 3
 
 [node name="ChoiceRow" type="HBoxContainer" parent="Root/DialogueBar/DialogueContent"]
 unique_name_in_owner = true
 layout_mode = 1
-offset_left = 586.0
-offset_top = 50.0
-offset_right = 826.0
-offset_bottom = 106.0
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -282.0
+offset_top = 56.0
+offset_right = -18.0
+offset_bottom = 100.0
 grow_horizontal = 0
 theme_override_constants/separation = 8
+alignment = 2
 
 [node name="UnlockOverlay" type="Control" parent="Root"]
 unique_name_in_owner = true

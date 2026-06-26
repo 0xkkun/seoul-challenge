@@ -18,6 +18,12 @@ const ROOM_LEFT := &"left"
 const ROOM_RIGHT := &"right"
 const CHOICE_NEXT := &"next"
 const CHOICE_CLOSE := &"close"
+const TEST_ID_OPEN_DIALOGUE := "day_corridor.dialogue.open_button"
+const TEST_ID_DIALOGUE_NEXT := "day_corridor.dialogue.next_button"
+const TEST_ID_DIALOGUE_CLOSE := "day_corridor.dialogue.close_button"
+const ACTION_OPEN_DIALOGUE := "day_corridor.dialogue.open"
+const ACTION_DIALOGUE_NEXT := "day_corridor.dialogue.next"
+const ACTION_DIALOGUE_CLOSE := "day_corridor.dialogue.close"
 
 @export var corridor_size := Vector2(2172.0, 720.0)
 @export var floor_y := 616.0
@@ -62,6 +68,7 @@ func _ready() -> void:
 	_hub_dialogue_ui.set_stage_row_visible(false)
 	_hub_dialogue_ui.choice_selected.connect(_on_hub_dialogue_choice_selected)
 	_interaction_prompt.visible = false
+	_apply_ui_automation_metadata()
 	_fit_camera_to_corridor_height()
 	_clamp_player_to_corridor()
 	_sync_camera()
@@ -205,6 +212,27 @@ func is_dialogue_input_pressed() -> bool:
 
 func is_combat_output_disabled() -> bool:
 	return _player.get_node_or_null("ProjectileLauncher") == null and is_equal_approx(float(_player.get("recoil_strength")), 0.0)
+
+
+func perform_uat_action(action_name: String) -> bool:
+	match action_name:
+		ACTION_OPEN_DIALOGUE:
+			if is_dialogue_ui_visible() or not is_player_in_dialogue_range():
+				return false
+			trigger_dialogue()
+			return true
+		ACTION_DIALOGUE_NEXT:
+			if not is_dialogue_ui_visible() or not get_dialogue_choice_ids().has(CHOICE_NEXT):
+				return false
+			_hub_dialogue_ui.select_choice(CHOICE_NEXT)
+			return true
+		ACTION_DIALOGUE_CLOSE:
+			if not is_dialogue_ui_visible() or not get_dialogue_choice_ids().has(CHOICE_CLOSE):
+				return false
+			_hub_dialogue_ui.select_choice(CHOICE_CLOSE)
+			return true
+		_:
+			return false
 
 
 func trigger_dialogue() -> void:
@@ -380,8 +408,9 @@ func _update_interaction_prompt() -> void:
 
 func _process_dialogue_input() -> void:
 	var pressed := is_dialogue_input_pressed()
-	if is_dialogue_ui_visible() and _is_dialogue_close_input_pressed():
-		close_dialogue()
+	if is_dialogue_ui_visible():
+		if _is_dialogue_close_input_pressed():
+			close_dialogue()
 		_was_dialogue_pressed = pressed
 		return
 	if pressed and not _was_dialogue_pressed and is_player_in_dialogue_range():
@@ -406,9 +435,15 @@ func _show_dialogue_line(line_index: int) -> void:
 		DIALOGUE_LINES[_dialogue_line_index],
 		DIALOGUE_MEMORY_LINES[_dialogue_line_index]
 	)
+	var is_last_line := _dialogue_line_index >= DIALOGUE_LINES.size() - 1
 	_hub_dialogue_ui.set_choices([
-		{"id": CHOICE_NEXT, "text": "다음" if _dialogue_line_index < DIALOGUE_LINES.size() - 1 else "처음부터"},
-		{"id": CHOICE_CLOSE, "text": "나가기", "emphasized": true},
+		{
+			"id": CHOICE_CLOSE if is_last_line else CHOICE_NEXT,
+			"text": "나가기" if is_last_line else "다음",
+			"emphasized": is_last_line,
+			"test_id": TEST_ID_DIALOGUE_CLOSE if is_last_line else TEST_ID_DIALOGUE_NEXT,
+			"uat_action": ACTION_DIALOGUE_CLOSE if is_last_line else ACTION_DIALOGUE_NEXT,
+		},
 	])
 	dialogue_requested.emit({
 		"count": _dialogue_count,
@@ -429,3 +464,10 @@ func _on_hub_dialogue_choice_selected(choice_id: StringName) -> void:
 
 func _is_dialogue_close_input_pressed() -> bool:
 	return Input.is_action_pressed(&"ui_cancel") or Input.is_key_pressed(KEY_ESCAPE)
+
+
+func _apply_ui_automation_metadata() -> void:
+	var attack_button := _touch_controls.get_node_or_null("AttackButton")
+	if attack_button != null:
+		attack_button.set_meta("test_id", TEST_ID_OPEN_DIALOGUE)
+		attack_button.set_meta("uat_action", ACTION_OPEN_DIALOGUE)

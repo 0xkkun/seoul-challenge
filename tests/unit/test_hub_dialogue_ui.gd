@@ -48,7 +48,7 @@ func test_dialogue_content_updates_from_data() -> void:
 
 func test_dialogue_overlay_and_stage_row_visibility_are_configurable() -> void:
 	_runner.assert_true(_ui.is_dialogue_overlay_visible(), "일반 대화 UI는 배경을 덮는 오버레이를 제공한다")
-	_runner.assert_true(_ui.is_dialogue_overlay_modal(), "오버레이가 터치 입력을 막아 모달로 동작한다")
+	_runner.assert_false(_ui.is_dialogue_overlay_modal(), "오버레이는 선택지 버튼 터치를 가로막지 않는다")
 	_runner.assert_true(_ui.is_stage_row_visible(), "기본 허브 대화 UI는 단계 행을 표시한다")
 
 	_ui.set_stage_row_visible(false)
@@ -57,13 +57,37 @@ func test_dialogue_overlay_and_stage_row_visibility_are_configurable() -> void:
 
 func test_choice_buttons_keep_mobile_touch_size() -> void:
 	var choices: Array[Dictionary] = [
-		{"id": &"next", "text": "다음"},
-		{"id": &"close", "text": "나가기", "emphasized": true},
+		{"id": &"next", "text": "다음", "test_id": "dialogue.next_button", "uat_action": "dialogue.next"},
+		{"id": &"close", "text": "나가기", "emphasized": true, "test_id": "dialogue.close_button", "uat_action": "dialogue.close"},
 	]
 	_ui.set_choices(choices)
 
 	var first_button := _ui.get_node("%ChoiceRow").get_child(0) as Button
-	_runner.assert_true(first_button.custom_minimum_size.y >= 54.0, "선택 버튼은 모바일 가로 터치 영역을 확보한다")
+	var second_button := _ui.get_node("%ChoiceRow").get_child(1) as Button
+	_runner.assert_eq(first_button.custom_minimum_size.y, 44.0, "선택 버튼은 모바일 가로 화면에서 과하게 두껍지 않다")
+	_runner.assert_eq(first_button.size_flags_horizontal, Control.SIZE_SHRINK_END, "선택 버튼은 행 전체를 채우지 않는다")
+	_runner.assert_eq(first_button.get_meta("test_id"), "dialogue.next_button", "선택 버튼은 안정적인 test id를 노출한다")
+	_runner.assert_eq(second_button.get_meta("uat_action"), "dialogue.close", "선택 버튼은 좌표 대신 액션 id로 누를 수 있다")
+
+
+func test_dialogue_bar_uses_inset_rule_without_outer_border() -> void:
+	var dialogue_bar := _ui.get_node("%DialogueBar") as PanelContainer
+	var panel_style := dialogue_bar.get_theme_stylebox("panel") as StyleBoxFlat
+	var top_rule := _ui.get_node("%DialogueTopRule") as ColorRect
+
+	_runner.assert_not_null(panel_style, "대화 패널 스타일을 제공한다")
+	if panel_style != null:
+		_runner.assert_eq(panel_style.get_border_width(SIDE_TOP), 0, "대화 패널 상단 바깥 테두리를 쓰지 않는다")
+		_runner.assert_eq(panel_style.get_border_width(SIDE_BOTTOM), 0, "대화 패널 하단 바깥 테두리를 쓰지 않는다")
+	_runner.assert_true(top_rule.size.y >= 0.0, "대화 패널 내부 구분선 노드를 제공한다")
+
+
+func test_choice_row_is_anchored_to_dialogue_end() -> void:
+	var choice_row := _ui.get_node("%ChoiceRow") as HBoxContainer
+
+	_runner.assert_eq(choice_row.anchor_left, 1.0, "선택지 행은 우측 기준으로 배치한다")
+	_runner.assert_eq(choice_row.anchor_right, 1.0, "선택지 행은 우측 끝에 고정된다")
+	_runner.assert_true(choice_row.offset_right < 0.0, "선택지 행은 화면 끝에서 안쪽 여백만 둔다")
 
 
 func test_stage_row_tracks_completed_current_and_locked_states() -> void:
