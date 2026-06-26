@@ -64,3 +64,43 @@ func test_room_palette_centralizes_placeholder_values() -> void:
 	_runner.assert_true(source.contains("const STUDENT_MARKER_COLOR"), "room palette defines student marker color")
 	_runner.assert_true(room_source.contains("RoomPalette"), "room script reads room palette")
 	_runner.assert_true(door_source.contains("RoomPalette"), "door script reads room palette")
+
+
+func test_render_layers_are_centralized() -> void:
+	var render_layers := FileAccess.get_file_as_string("res://scripts/constants/render_layers.gd")
+	var session_root := FileAccess.get_file_as_string("res://scripts/session/session_root.gd")
+	var session_ui_root := FileAccess.get_file_as_string("res://scripts/ui/session_ui_root.gd")
+
+	for constant_name: String in [
+		"WORLD_BACKGROUND_Z",
+		"WORLD_ACTOR_Z",
+		"WORLD_INTERACTABLE_Z",
+		"WORLD_EFFECT_Z",
+		"UI_SESSION_LAYER",
+		"UI_MODAL_LAYER",
+	]:
+		_runner.assert_true(
+			render_layers.contains("const %s :=" % constant_name),
+			"render layer constant exists: %s" % constant_name
+		)
+
+	_runner.assert_true(
+		session_root.contains("RenderLayers.WORLD_BACKGROUND_Z"),
+		"session root uses render layer constants for world background"
+	)
+	_runner.assert_true(
+		session_root.contains("RenderLayers.WORLD_ACTOR_Z"),
+		"session root uses render layer constants for actors"
+	)
+	_runner.assert_true(
+		session_root.contains("RenderLayers.WORLD_INTERACTABLE_Z"),
+		"session root uses render layer constants for interactables"
+	)
+	_runner.assert_true(
+		session_root.contains("RenderLayers.WORLD_EFFECT_Z"),
+		"session root uses render layer constants for effects"
+	)
+	_runner.assert_true(
+		session_ui_root.contains("RenderLayers.UI_SESSION_LAYER"),
+		"session UI uses render layer constants"
+	)

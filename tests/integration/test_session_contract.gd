@@ -1,5 +1,6 @@
 extends Node
 
+const RenderLayers = preload("res://scripts/constants/render_layers.gd")
 const RoomPalette = preload("res://scripts/constants/room_palette.gd")
 
 var _runner: Node
@@ -65,6 +66,28 @@ func test_session_ui_can_resume_while_tree_is_paused() -> void:
 
 	session._on_resume_requested()
 	_runner.assert_false(get_tree().paused, "resume request unpauses scene tree")
+
+	session.queue_free()
+
+
+func test_session_render_layer_contract() -> void:
+	var packed := load("res://scenes/session/session_root.tscn") as PackedScene
+	var session := packed.instantiate()
+	add_child(session)
+
+	var world_layer := session.get_node("WorldLayer") as Node2D
+	var room_layer := session.get_node("%RoomLayer") as Node2D
+	var actor_layer := session.get_node("ActorLayer") as Node2D
+	var interactable_layer := session.get_node("%InteractableLayer") as Node2D
+	var pooled_object_layer := session.get_node("%PooledObjectLayer") as Node2D
+	var session_ui := session.get_node("%SessionUIRoot") as CanvasLayer
+
+	_runner.assert_eq(world_layer.z_index, RenderLayers.WORLD_BACKGROUND_Z)
+	_runner.assert_eq(room_layer.z_index, RenderLayers.WORLD_BACKGROUND_Z)
+	_runner.assert_eq(actor_layer.z_index, RenderLayers.WORLD_ACTOR_Z)
+	_runner.assert_eq(interactable_layer.z_index, RenderLayers.WORLD_INTERACTABLE_Z)
+	_runner.assert_eq(pooled_object_layer.z_index, RenderLayers.WORLD_EFFECT_Z)
+	_runner.assert_eq(session_ui.layer, RenderLayers.UI_SESSION_LAYER)
 
 	session.queue_free()
 
