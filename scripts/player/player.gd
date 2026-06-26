@@ -15,20 +15,28 @@ signal fired(muzzle_position: Vector2, direction: Vector2)
 @export var fire_cooldown: float = 0.22    ## 연사 간격 (s)
 @export var muzzle_offset: float = 18.0    ## 발사 지점 오프셋 (px)
 @export var recoil_strength: float = 55.0  ## 발사 반동(조준 반대 방향 킥) (px/s)
+@export var max_health: int = 5            ## 최대 체력(하트)
+@export var invuln_time: float = 0.5       ## 피격 후 무적 시간 (s) — 보스 탄막 원샷 방지
 @export var touch_controls_path: NodePath  ## 비우면 키보드 폴백
 
 var _fire_timer: float = 0.0
 var _facing: Vector2 = Vector2.DOWN
+var _health: int = 0
+var _invuln_timer: float = 0.0
 var _touch: Node = null
 
 
 func _ready() -> void:
 	add_to_group(&"player")
+	_health = max_health
 	if not touch_controls_path.is_empty():
 		_touch = get_node_or_null(touch_controls_path)
+	# HUD·죽음 컨트롤러가 연결된 뒤 초기 체력을 알리도록 지연 발신.
+	_broadcast_health.call_deferred()
 
 
 func _physics_process(delta: float) -> void:
+	_invuln_timer = maxf(0.0, _invuln_timer - delta)
 	var move := read_input_vector()
 	_facing = update_facing(_facing, move)
 	velocity = step_velocity(velocity, move, delta)
@@ -74,6 +82,32 @@ func recoil_velocity(aim_dir: Vector2, strength: float) -> Vector2:
 	if aim_dir.length() < 0.001:
 		return Vector2.ZERO
 	return -aim_dir.normalized() * strength
+
+
+## 피해 적용 후 체력(0 클램프). 순수 함수(테스트 대상).
+func damaged_health(current: int, amount: int) -> int:
+	return maxi(0, current - amount)
+
+
+# --- 체력/피격 (계약: EventBus.player_health_changed 발신) ---
+
+func get_health() -> int:
+	return _health
+
+
+## 적/적탄이 호출한다(계약). 무적시간이 아니면 체력 감소 후 EventBus로 발신.
+## 체력 0 → 귀환 처리는 death_return_controller 가 player_health_changed 를 듣고 담당.
+func take_damage(amount: int) -> void:
+	if _health <= 0 or _invuln_timer > 0.0:
+		return
+	_health = damaged_health(_health, amount)
+	_invuln_timer = invuln_time
+	_broadcast_health()
+
+
+func _broadcast_health() -> void:
+	if has_node("/root/EventBus"):
+		EventBus.emit_player_health_changed({"current": _health, "max": max_health})
 
 
 # --- 입력 I/O (단위 테스트 제외) ---
