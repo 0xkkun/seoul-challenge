@@ -13,6 +13,14 @@ class StubEnemy extends Node2D:
 		taken += amount
 
 
+class StubBullet extends Node2D:
+	var deflect_count: int = 0
+	var deflected_dir: Vector2 = Vector2.ZERO
+	func deflect(direction: Vector2) -> void:
+		deflect_count += 1
+		deflected_dir = direction
+
+
 func _set_runner(runner: Node) -> void:
 	_runner = runner
 
@@ -70,3 +78,61 @@ func test_melee_misses_enemy_behind() -> void:
 	_runner.assert_eq(e.taken, 0, "뒤의 적은 안 맞음")
 	e.free()
 	p.free()
+
+
+func test_bat_deflects_enemy_projectile_in_arc() -> void:
+	var p = PlayerScript.new()
+	add_child(p)
+	p.position = Vector2.ZERO
+	p.equip_bat()
+	var b := StubBullet.new()
+	b.position = Vector2(40.0, 0.0)  # 정면, bat_range(56) 안
+	b.add_to_group(&"enemy_projectile")
+	add_child(b)
+	p._attack_melee(Vector2.RIGHT)
+	_runner.assert_eq(b.deflect_count, 1, "배트 부채꼴 안 적탄을 되받아침")
+	_runner.assert_eq(b.deflected_dir, Vector2.RIGHT, "스윙 방향으로 되받아침")
+	b.free()
+	p.free()
+
+
+func test_bat_does_not_deflect_projectile_behind() -> void:
+	var p = PlayerScript.new()
+	add_child(p)
+	p.position = Vector2.ZERO
+	p.equip_bat()
+	var b := StubBullet.new()
+	b.position = Vector2(-40.0, 0.0)  # 뒤
+	b.add_to_group(&"enemy_projectile")
+	add_child(b)
+	p._attack_melee(Vector2.RIGHT)
+	_runner.assert_eq(b.deflect_count, 0, "뒤의 적탄은 안 튕김")
+	b.free()
+	p.free()
+
+
+func test_bare_hands_do_not_deflect_projectiles() -> void:
+	var p = PlayerScript.new()
+	add_child(p)
+	p.position = Vector2.ZERO
+	var b := StubBullet.new()
+	b.position = Vector2(20.0, 0.0)  # 정면, melee_range(34) 안이지만 배트 없음
+	b.add_to_group(&"enemy_projectile")
+	add_child(b)
+	p._attack_melee(Vector2.RIGHT)
+	_runner.assert_eq(b.deflect_count, 0, "맨손은 적탄을 못 튕김(배트 전용)")
+	b.free()
+	p.free()
+
+
+func test_enemy_bullet_deflect_retargets_to_enemy_layer() -> void:
+	var bullet := (load("res://scenes/enemies/enemy_bullet.tscn") as PackedScene).instantiate()
+	add_child(bullet)
+	bullet.launch(Vector2.ZERO, Vector2.LEFT)
+	_runner.assert_true(bullet.is_in_group(&"enemy_projectile"), "발사 시 적탄 그룹")
+	_runner.assert_eq(bullet.collision_mask, 2, "발사 시 플레이어(레이어2) 타격")
+	bullet.deflect(Vector2.RIGHT)
+	_runner.assert_eq(bullet.collision_mask, 1, "deflect 후 적(레이어1) 타격으로 전환")
+	_runner.assert_false(bullet.is_in_group(&"enemy_projectile"), "deflect 후 적탄 그룹에서 빠짐")
+	_runner.assert_eq(bullet.damage, bullet.deflect_damage, "deflect 후 반사 피해로 전환")
+	bullet.free()

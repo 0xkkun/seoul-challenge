@@ -204,7 +204,7 @@ func _process_attack(delta: float) -> void:
 		_attack_timer = attack_cooldown
 
 
-## 근접 휘두르기 — 무기(맨손/배트)에 따라 사거리·각·피해가 다르다. 배트면 넉백 + 적탄 일부 지움.
+## 근접 휘두르기 — 무기(맨손/배트)에 따라 사거리·각·피해가 다르다. 배트면 넉백 + 적탄 되받아침(deflect).
 func _attack_melee(dir: Vector2) -> void:
 	var dmg := bat_damage if _has_bat else melee_damage
 	var rng := bat_range if _has_bat else melee_range
@@ -220,7 +220,7 @@ func _attack_melee(dir: Vector2) -> void:
 			if _has_bat:
 				e.global_position += knockback_vector(global_position, e.global_position, bat_knockback)
 	if _has_bat:
-		_erase_bullets_in_arc(dir, rng, arc)
+		_deflect_bullets_in_arc(dir, rng, arc)
 	_show_swing(dir)
 
 
@@ -252,12 +252,16 @@ func current_weapon_name() -> String:
 	return "야구배트" if _has_bat else "맨손"
 
 
-## 앞쪽 부채꼴 안의 적 투사체(enemy_projectile)를 지운다. (배트 전용)
-func _erase_bullets_in_arc(dir: Vector2, rng: float, arc: float) -> void:
+## 앞쪽 부채꼴 안의 적 투사체(enemy_projectile)를 swing 방향으로 되받아친다(deflect). (배트 전용)
+## 투사체가 deflect()를 지원하면 반사(적 타격으로 전환), 아니면 기존처럼 제거.
+func _deflect_bullets_in_arc(dir: Vector2, rng: float, arc: float) -> void:
 	for b: Node in get_tree().get_nodes_in_group(&"enemy_projectile"):
 		var node := b as Node2D
 		if node == null or not is_instance_valid(node):
 			continue
 		var to := node.global_position - global_position
 		if to.length() <= rng and in_melee_arc(dir, to, arc):
-			node.queue_free()
+			if node.has_method("deflect"):
+				node.call("deflect", dir)
+			else:
+				node.queue_free()
