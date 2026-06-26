@@ -33,7 +33,7 @@ func _run_demo() -> void:
 	var guard := 0
 	while not run_controller.is_completed():
 		guard += 1
-		if guard > 8:
+		if guard > 9:
 			_fail_demo("run guard exceeded")
 			return
 		var before_room_id := run_controller.get_current_room_id()
@@ -79,6 +79,8 @@ func resolve_current_room_for_demo() -> void:
 		for student: Node in current_room.call("get_active_students"):
 			if student.has_method("rescue"):
 				student.call("rescue", actor)
+	elif current_room.has_method("pick_up"):
+		current_room.call("pick_up", actor)
 	elif current_room.has_method("get_active_friends"):
 		for friend: Node in current_room.call("get_active_friends"):
 			if friend.has_signal("purified"):

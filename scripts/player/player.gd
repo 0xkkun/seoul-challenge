@@ -5,12 +5,16 @@ extends CharacterBody2D
 ## 조준 = 이동(facing) 방향. 발사 = 공격 버튼 / 스페이스 / 우트리거.
 ## 이동·조준·쿨다운·반동 수학은 순수 함수로 분리해 물리/입력 없이 단위 테스트한다.
 
+const MapItemCatalog = preload("res://scripts/items/map_item_catalog.gd")
+
 ## 발사 순간의 발사 지점(global)과 방향. #10 정화탄이 이 시그널을 받아 스폰한다.
 signal fired(muzzle_position: Vector2, direction: Vector2)
 ## 무기 변경 — 맨손 → 야구배트 등. UI 표시용.
 signal weapon_changed(weapon_name: String)
 ## 특수 스킬 상태 변경 — HUD 표시용.
 signal special_skill_state_changed(payload: Dictionary)
+## 런 한정 맵 아이템 변경 — 보물방/상점방 표시용.
+signal run_modifiers_changed(payload: Dictionary)
 
 @export var move_speed: float = 220.0      ## 최고 속도 (px/s)
 @export var acceleration: float = 2200.0   ## 가속 (px/s^2)
@@ -53,13 +57,17 @@ var _facing: Vector2 = Vector2.DOWN
 var _health: int = 0
 var _invuln_timer: float = 0.0
 var _touch: Node = null
+var _base_run_stats := {}
+var _run_modifier_ids: Array[StringName] = []
 
 @onready var _swing_visual: Node2D = get_node_or_null(^"MeleeSwing")
 
 
 func _ready() -> void:
 	add_to_group(&"player")
+	_capture_base_run_stats()
 	_health = max_health
+	_connect_run_session_events()
 	if not touch_controls_path.is_empty():
 		_touch = get_node_or_null(touch_controls_path)
 	# HUD·죽음 컨트롤러가 연결된 뒤 초기 체력을 알리도록 지연 발신.
@@ -171,6 +179,35 @@ func damaged_health(current: int, amount: int) -> int:
 
 func get_health() -> int:
 	return _health
+
+
+func apply_run_modifier(item_id: StringName) -> bool:
+	if not MapItemCatalog.has_item(item_id):
+		return false
+	_capture_base_run_stats()
+	_run_modifier_ids.append(item_id)
+	_apply_run_modifier_stats()
+	_broadcast_run_modifiers_changed()
+	return true
+
+
+func reset_run_modifiers(restore_health := false) -> void:
+	_capture_base_run_stats()
+	_run_modifier_ids.clear()
+	var previous_health := _health
+	var previous_max_health := max_health
+	_apply_stats(_base_run_stats)
+	if restore_health:
+		_health = max_health
+	else:
+		_health = mini(_health, max_health)
+	if previous_health != _health or previous_max_health != max_health:
+		_broadcast_health()
+	_broadcast_run_modifiers_changed()
+
+
+func get_run_modifier_ids() -> Array[StringName]:
+	return _run_modifier_ids.duplicate()
 
 
 ## 적/적탄이 호출한다(계약). 무적시간이 아니면 체력 감소 후 EventBus로 발신.
@@ -299,6 +336,69 @@ func _broadcast_special_skill_state() -> void:
 	special_skill_state_changed.emit(payload.duplicate(true))
 	if has_node("/root/EventBus"):
 		EventBus.emit_special_skill_state_changed(payload)
+
+
+func _connect_run_session_events() -> void:
+	if not has_node("/root/EventBus"):
+		return
+	var started_callback := Callable(self, "_on_session_started")
+	if not EventBus.session_started.is_connected(started_callback):
+		EventBus.session_started.connect(started_callback)
+	var finished_callback := Callable(self, "_on_session_finished")
+	if not EventBus.session_finished.is_connected(finished_callback):
+		EventBus.session_finished.connect(finished_callback)
+
+
+func _on_session_started(_config: Dictionary) -> void:
+	reset_run_modifiers(true)
+
+
+func _on_session_finished(_result: Dictionary) -> void:
+	reset_run_modifiers(false)
+
+
+func _capture_base_run_stats() -> void:
+	if not _base_run_stats.is_empty():
+		return
+	_base_run_stats = {
+		"move_speed": move_speed,
+		"attack_cooldown": attack_cooldown,
+		"fire_cooldown": fire_cooldown,
+		"melee_damage": melee_damage,
+		"bat_damage": bat_damage,
+		"max_health": max_health,
+	}
+
+
+func _apply_run_modifier_stats() -> void:
+	var previous_health := _health
+	var previous_max_health := max_health
+	var modifiers := MapItemCatalog.compose_modifiers(_run_modifier_ids)
+	var stats := MapItemCatalog.apply_modifiers_to_stats(_base_run_stats, modifiers)
+	_apply_stats(stats)
+	if max_health > previous_max_health:
+		_health += max_health - previous_max_health
+	elif _health > max_health:
+		_health = max_health
+	if previous_health != _health or previous_max_health != max_health:
+		_broadcast_health()
+
+
+func _apply_stats(stats: Dictionary) -> void:
+	move_speed = float(stats.get("move_speed", move_speed))
+	attack_cooldown = float(stats.get("attack_cooldown", attack_cooldown))
+	fire_cooldown = float(stats.get("fire_cooldown", fire_cooldown))
+	melee_damage = int(stats.get("melee_damage", melee_damage))
+	bat_damage = int(stats.get("bat_damage", bat_damage))
+	max_health = int(stats.get("max_health", max_health))
+
+
+func _broadcast_run_modifiers_changed() -> void:
+	var payload := {
+		"item_ids": _run_modifier_ids.duplicate(),
+		"modifiers": MapItemCatalog.compose_modifiers(_run_modifier_ids),
+	}
+	run_modifiers_changed.emit(payload.duplicate(true))
 
 
 ## 공격 입력/쿨다운 처리. 기본은 근접(휘두르기), ranged_enabled 면 원거리(야구공) 발사.
