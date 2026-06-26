@@ -13,6 +13,7 @@ signal fired(muzzle_position: Vector2, direction: Vector2)
 @export var stick_deadzone: float = 0.2    ## 게임패드 스틱 데드존
 @export var fire_cooldown: float = 0.22    ## 연사 간격 (s)
 @export var muzzle_offset: float = 18.0    ## 발사 지점 오프셋 (px)
+@export var recoil_strength: float = 55.0  ## 발사 반동(조준 반대 방향 킥) (px/s)
 
 var _fire_timer: float = 0.0
 
@@ -50,6 +51,13 @@ func step_fire_cooldown(timer: float, delta: float) -> float:
 	return maxf(0.0, timer - delta)
 
 
+## 발사 반동 속도(조준 반대 방향). 순수 함수(테스트 대상).
+func recoil_velocity(aim_dir: Vector2, strength: float) -> Vector2:
+	if aim_dir.length() < 0.001:
+		return Vector2.ZERO
+	return -aim_dir.normalized() * strength
+
+
 ## 이동 입력 읽기 (WASD + 방향키 + 패드 좌스틱). I/O.
 func read_input_vector() -> Vector2:
 	var v := Vector2.ZERO
@@ -79,6 +87,7 @@ func _process_firing(delta: float) -> void:
 	if dir == Vector2.ZERO:
 		return
 	fired.emit(global_position + dir * muzzle_offset, dir)
+	velocity += recoil_velocity(dir, recoil_strength)
 	_fire_timer = fire_cooldown
 
 

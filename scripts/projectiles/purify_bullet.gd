@@ -5,9 +5,10 @@ extends Area2D
 ## 이동/수명 수학은 순수 함수로 분리해 물리 없이 단위 테스트한다.
 ## 자기 자신을 free() 하지 않고 PoolManager.release(self) 로 풀에 반환한다.
 
-@export var speed: float = 620.0      ## 이동 속도 (px/s)
-@export var lifetime: float = 1.2     ## 최대 수명 (s)
+@export var speed: float = 640.0      ## 이동 속도 (px/s) — 야구공 던지는 손맛
+@export var lifetime: float = 1.1     ## 최대 수명 (s)
 @export var damage: int = 1           ## 적에게 주는 피해
+@export var spin_speed: float = 16.0  ## 시각 회전(야구공 스핀) (rad/s)
 
 var _direction: Vector2 = Vector2.RIGHT
 var _life: float = 0.0
@@ -28,6 +29,7 @@ func activate(spawn_position: Vector2, direction: Vector2) -> void:
 
 func _physics_process(delta: float) -> void:
 	global_position = step_position(global_position, _direction, speed, delta)
+	rotation = step_spin(rotation, spin_speed, delta)
 	_life = step_lifetime(_life, delta)
 	if is_expired(_life):
 		_release()
@@ -45,6 +47,11 @@ func step_lifetime(life: float, delta: float) -> float:
 
 func is_expired(life: float) -> bool:
 	return life <= 0.0
+
+
+## 시각 회전을 delta만큼 진행(야구공 스핀). 순수 함수(테스트 대상).
+func step_spin(current_rotation: float, spin: float, delta: float) -> float:
+	return current_rotation + spin * delta
 
 
 # --- 풀 훅 / 충돌 ---
