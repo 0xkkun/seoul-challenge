@@ -25,7 +25,7 @@ them.
 
 1. For that issue, create a git worktree — never `checkout -b` in the main checkout. See `## Worktree` below.
 2. Keep the PR focused on one verifiable contract.
-3. Use the PR title format in `docs/pr-hygiene.md`, such as `[UI] Add session controls`.
+3. Use the PR title format in `docs/pr-hygiene.md`, such as `[UI] 세션 컨트롤 추가`. PR titles/bodies and commit messages must be written in Korean (only the `[Area]` tag stays English).
 4. Set assignee, milestone, priority label, and at least one `area:*` label before review.
 5. Prefer Godot MCP for editor/runtime checks when available.
 6. Fall back to CLI checks when MCP is unavailable.
