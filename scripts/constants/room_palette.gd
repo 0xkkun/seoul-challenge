@@ -26,6 +26,26 @@ const EAST_DOOR_POSITION := Vector2(960.0, 0.0)
 const WEST_DOOR_POSITION := Vector2(-960.0, 0.0)
 
 
+static func get_room_bounds() -> Rect2:
+	return Rect2(-ROOM_HALF_SIZE, ROOM_SIZE)
+
+
+static func get_wall_bounds() -> Rect2:
+	var wall_margin := Vector2(WALL_THICKNESS, WALL_THICKNESS)
+	var room_bounds := get_room_bounds()
+	return Rect2(room_bounds.position - wall_margin, room_bounds.size + wall_margin * 2.0)
+
+
+static func get_camera_limits() -> Dictionary:
+	var wall_bounds := get_wall_bounds()
+	return {
+		"left": int(floor(wall_bounds.position.x)),
+		"top": int(floor(wall_bounds.position.y)),
+		"right": int(ceil(wall_bounds.end.x)),
+		"bottom": int(ceil(wall_bounds.end.y)),
+	}
+
+
 static func get_room_floor_color(room_type: StringName) -> Color:
 	match room_type:
 		&"start":
