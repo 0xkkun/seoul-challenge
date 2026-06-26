@@ -1,0 +1,18 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/enemies/ranged_shooter.gd" id="1_ranged"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_ranged"]
+radius = 12.0
+
+[node name="RangedShooter" type="CharacterBody2D"]
+collision_layer = 1
+collision_mask = 3
+script = ExtResource("1_ranged")
+
+[node name="Collision" type="CollisionShape2D" parent="."]
+shape = SubResource("CircleShape2D_ranged")
+
+[node name="Placeholder" type="Polygon2D" parent="."]
+color = Color(0.45, 0.55, 0.9, 1)
+polygon = PackedVector2Array(0, -14, 14, 0, 0, 14, -14, 0)
