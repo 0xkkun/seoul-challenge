@@ -30,9 +30,10 @@ signal run_modifiers_changed(payload: Dictionary)
 @export var melee_range: float = 34.0      ## 맨손 사거리 (px) — 짧은 펀치
 @export var melee_arc: float = 1.4         ## 맨손 타격 각 (rad)
 @export var bat_damage: int = 2            ## 배트 피해(보상 무기)
-@export var bat_range: float = 56.0        ## 배트 사거리 (px) — 더 길게 휘두름
-@export var bat_arc: float = 1.9           ## 배트 타격 각 (rad)
+@export var bat_range: float = 100.0       ## 배트 사거리 (px) — 방망이 끝까지 길게
+@export var bat_arc: float = 2.4            ## 배트 타격 각 (rad) — 넓게 휘두름
 @export var bat_knockback: float = 64.0    ## 배트 넉백 거리 (px)
+@export var swing_vertical_factor: float = 0.6  ## 스윙 세로(깊이) 압축 — 위/아래 사거리를 좌우보다 짧게(벨트 원근감)
 @export var swing_visual_time: float = 0.12  ## 휘두르기 시각 표시 시간 (s)
 @export var max_health: int = 5            ## 최대 체력(하트)
 @export var invuln_time: float = 0.5       ## 피격 후 무적 시간 (s) — 보스 탄막 원샷 방지
@@ -48,6 +49,7 @@ signal run_modifiers_changed(payload: Dictionary)
 var _fire_timer: float = 0.0
 var _attack_timer: float = 0.0
 var _swing_timer: float = 0.0
+var _is_attacking: bool = false   ## 공격 모션 재생 중(애니 끝날 때까지 walk/idle 억제)
 var _special_cooldown_timer: float = 0.0
 var _dodge_timer: float = 0.0
 var _dodge_direction: Vector2 = Vector2.ZERO
@@ -61,6 +63,7 @@ var _base_run_stats := {}
 var _run_modifier_ids: Array[StringName] = []
 
 @onready var _swing_visual: Node2D = get_node_or_null(^"MeleeSwing")
+@onready var _sprite: AnimatedSprite2D = get_node_or_null(^"Sprite")
 
 
 func _ready() -> void:
@@ -73,6 +76,8 @@ func _ready() -> void:
 	# HUD·죽음 컨트롤러가 연결된 뒤 초기 체력을 알리도록 지연 발신.
 	_broadcast_health.call_deferred()
 	_broadcast_special_skill_state.call_deferred()
+	if _sprite != null and not _sprite.animation_finished.is_connected(_on_sprite_animation_finished):
+		_sprite.animation_finished.connect(_on_sprite_animation_finished)
 
 
 func _physics_process(delta: float) -> void:
@@ -83,12 +88,16 @@ func _physics_process(delta: float) -> void:
 	if _dodge_timer > 0.0:
 		_dodge_timer = maxf(0.0, _dodge_timer - delta)
 		velocity = dodge_velocity(_dodge_direction, dodge_speed)
+	elif _is_attacking:
+		# 공격 중엔 이동 정지 — 입력을 무시하고 감속한다(이동하며 공격 불가).
+		velocity = step_velocity(velocity, Vector2.ZERO, delta)
 	else:
 		# 벨트 원근감: 깊이(상하) 이동을 좌우보다 느리게 한다.
 		move.y *= vertical_speed_factor
 		velocity = step_velocity(velocity, move, delta)
 	move_and_slide()
 	_process_attack(delta)
+	_update_animation(move)
 
 
 # --- 이동/조준/사격 수학 (순수 함수, 테스트 대상) ---
@@ -267,8 +276,12 @@ func _keyboard_vector() -> Vector2:
 	return v
 
 
-## 조준 = 바라보는(이동) 방향.
+## 조준 = 우측 공격버튼 드래그 방향이 있으면 그쪽, 없으면 바라보는(이동) 방향.
 func aim_direction() -> Vector2:
+	if _touch != null and _touch.has_method("get_aim"):
+		var a: Vector2 = _touch.get_aim()
+		if a.length() > 0.01:
+			return a
 	return _facing
 
 
@@ -418,6 +431,37 @@ func _process_attack(delta: float) -> void:
 	else:
 		_attack_melee(dir)
 		_attack_timer = attack_cooldown
+	_play_attack_anim(dir)
+
+
+## 공격 모션 재생(비반복). animation_finished 에서 _is_attacking 을 해제한다.
+func _play_attack_anim(dir: Vector2) -> void:
+	if _sprite == null:
+		return
+	# 공격 시 조준 방향으로 캐릭터를 돌린다(뒤로 때리면 뒤돌아봄).
+	if absf(dir.x) > 0.05:
+		_sprite.flip_h = dir.x < 0.0
+	_is_attacking = true
+	_sprite.play(&"attack")
+
+
+## 입력 상태에 맞는 애니메이션 — 공격 중이면 유지, 이동하면 walk, 정지면 idle.
+## 좌우 이동에 맞춰 스프라이트를 좌우 반전한다.
+func _update_animation(move: Vector2) -> void:
+	if _sprite == null:
+		return
+	if _is_attacking:
+		return  # 공격 중엔 조준 방향 반전을 유지(_play_attack_anim 이 설정)
+	if absf(_facing.x) > 0.05:
+		_sprite.flip_h = _facing.x < 0.0
+	var next: StringName = &"walk" if move.length() > 0.1 else &"idle"
+	if _sprite.animation != next:
+		_sprite.play(next)
+
+
+func _on_sprite_animation_finished() -> void:
+	if _sprite != null and _sprite.animation == &"attack":
+		_is_attacking = false
 
 
 ## 근접 휘두르기 — 무기(맨손/배트)에 따라 사거리·각·피해가 다르다. 배트면 넉백 + 적탄 되받아침(deflect).
@@ -430,14 +474,15 @@ func _attack_melee(dir: Vector2) -> void:
 		if e == null or not is_instance_valid(e):
 			continue
 		var to := e.global_position - global_position
-		if to.length() <= rng and in_melee_arc(dir, to, arc):
+		var to_us := Vector2(to.x, to.y / swing_vertical_factor)
+		if to_us.length() <= rng and in_melee_arc(dir, to_us, arc):
 			if enemy.has_method("take_damage"):
 				enemy.call("take_damage", dmg)
 			if _has_bat:
 				e.global_position += knockback_vector(global_position, e.global_position, bat_knockback)
 	if _has_bat:
 		_deflect_bullets_in_arc(dir, rng, arc)
-	_show_swing(dir)
+	_show_swing(dir, rng, arc)
 
 
 ## 원거리 발사(야구공) — 보존된 무기. ranged_enabled 일 때만 사용. fired → ProjectileLauncher 가 스폰.
@@ -446,13 +491,31 @@ func _attack_ranged(dir: Vector2) -> void:
 	velocity += recoil_velocity(dir, recoil_strength)
 
 
-## 휘두르기 시각 표시(플레이스홀더 웨지) — facing 방향으로 잠깐 보임.
-func _show_swing(dir: Vector2) -> void:
+## 휘두르기 시각 표시 — 실제 사거리(rng)·각(arc)으로 부채꼴을 그려 타격 범위와 일치시킨다.
+func _show_swing(dir: Vector2, rng: float, arc: float) -> void:
 	if _swing_visual == null:
 		return
-	_swing_visual.rotation = dir.angle()
+	if _swing_visual is Polygon2D:
+		(_swing_visual as Polygon2D).polygon = _build_swing_polygon(dir, rng, arc)
+	_swing_visual.rotation = 0.0
 	_swing_visual.visible = true
 	_swing_timer = swing_visual_time
+
+
+## 타격 부채꼴 폴리곤 — dir 기준 ±arc/2, 반지름 rng 의 팬을 월드 정렬로 만들고
+## 세로(Y)를 swing_vertical_factor 만큼 압축한다(판정 ellipse 와 일치).
+func _build_swing_polygon(dir: Vector2, rng: float, arc: float) -> PackedVector2Array:
+	var pts := PackedVector2Array()
+	pts.append(Vector2.ZERO)
+	var base := dir.angle()
+	var segments := 12
+	var half := arc * 0.5
+	for i in range(segments + 1):
+		var a := base - half + arc * (float(i) / float(segments))
+		var p := Vector2(cos(a), sin(a)) * rng
+		p.y *= swing_vertical_factor
+		pts.append(p)
+	return pts
 
 
 ## 야구배트 장착(맵 클리어 보상). 통합 단계에서 보상 지급 시 호출.
@@ -477,7 +540,8 @@ func _deflect_bullets_in_arc(dir: Vector2, rng: float, arc: float) -> void:
 		if node == null or not is_instance_valid(node):
 			continue
 		var to := node.global_position - global_position
-		if to.length() <= rng and in_melee_arc(dir, to, arc):
+		var to_us := Vector2(to.x, to.y / swing_vertical_factor)
+		if to_us.length() <= rng and in_melee_arc(dir, to_us, arc):
 			if node.has_method("deflect"):
 				node.call("deflect", dir)
 			else:

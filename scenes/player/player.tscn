@@ -2,7 +2,7 @@
 
 [ext_resource type="Script" path="res://scripts/player/player.gd" id="1_player"]
 [ext_resource type="Script" path="res://scripts/player/projectile_launcher.gd" id="2_launcher"]
-[ext_resource type="SpriteFrames" path="res://assets/sprites/player/player_walk_frames.tres" id="3_walk"]
+[ext_resource type="SpriteFrames" path="res://assets/sprites/player/player_baseball_frames.tres" id="3_walk"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_player"]
 radius = 14.0
@@ -18,8 +18,8 @@ shape = SubResource("CircleShape2D_player")
 [node name="Sprite" type="AnimatedSprite2D" parent="."]
 texture_filter = 1
 sprite_frames = ExtResource("3_walk")
-animation = &"walk"
-autoplay = "walk"
+animation = &"idle"
+autoplay = "idle"
 
 [node name="MeleeSwing" type="Polygon2D" parent="."]
 visible = false
