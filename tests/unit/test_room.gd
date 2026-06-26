@@ -124,6 +124,22 @@ func test_room_without_doors_builds_four_solid_walls() -> void:
 	_runner.assert_eq(room.call("get_wall_segments").size(), 4, "sealed room has one wall per side")
 
 
+func test_room_palette_exposes_play_area_and_camera_limits() -> void:
+	var room_bounds: Rect2 = RoomPalette.get_room_bounds()
+	var wall_bounds: Rect2 = RoomPalette.get_wall_bounds()
+	var camera_limits: Dictionary = RoomPalette.get_camera_limits()
+	var expected_wall_margin := Vector2(RoomPalette.WALL_THICKNESS, RoomPalette.WALL_THICKNESS)
+
+	_runner.assert_eq(room_bounds.position, -RoomPalette.ROOM_HALF_SIZE, "room bounds start at the authored play-area corner")
+	_runner.assert_eq(room_bounds.size, RoomPalette.ROOM_SIZE, "room bounds keep the authored maximum play-area size")
+	_runner.assert_eq(wall_bounds.position, room_bounds.position - expected_wall_margin, "wall bounds include perimeter thickness outside the room")
+	_runner.assert_eq(wall_bounds.size, room_bounds.size + expected_wall_margin * 2.0, "wall bounds wrap the full room perimeter")
+	_runner.assert_eq(camera_limits["left"], int(floor(wall_bounds.position.x)), "camera left limit matches wall-inclusive bounds")
+	_runner.assert_eq(camera_limits["top"], int(floor(wall_bounds.position.y)), "camera top limit matches wall-inclusive bounds")
+	_runner.assert_eq(camera_limits["right"], int(ceil(wall_bounds.end.x)), "camera right limit matches wall-inclusive bounds")
+	_runner.assert_eq(camera_limits["bottom"], int(ceil(wall_bounds.end.y)), "camera bottom limit matches wall-inclusive bounds")
+
+
 func _create_room(room_id: StringName, room_type: StringName, door_dirs: Array[StringName]) -> Room:
 	var room := Room.new()
 	room.name = String(room_id)

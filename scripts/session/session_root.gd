@@ -130,12 +130,11 @@ func _on_retry_requested() -> void:
 func _configure_player_camera() -> void:
 	if player_camera == null:
 		return
-	var half := RoomPalette.ROOM_HALF_SIZE
-	var wall: float = RoomPalette.WALL_THICKNESS
-	player_camera.limit_left = int(floor(-half.x - wall))
-	player_camera.limit_top = int(floor(-half.y - wall))
-	player_camera.limit_right = int(ceil(half.x + wall))
-	player_camera.limit_bottom = int(ceil(half.y + wall))
+	var limits := RoomPalette.get_camera_limits()
+	player_camera.limit_left = int(limits["left"])
+	player_camera.limit_top = int(limits["top"])
+	player_camera.limit_right = int(limits["right"])
+	player_camera.limit_bottom = int(limits["bottom"])
 	player_camera.make_current()
 
 
