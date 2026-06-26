@@ -91,6 +91,10 @@ func is_dialogue_overlay_visible() -> bool:
 	return _dialogue_dimmer.visible and _dialogue_dimmer.color.a > 0.0
 
 
+func is_dialogue_overlay_modal() -> bool:
+	return _dialogue_dimmer.mouse_filter == Control.MOUSE_FILTER_STOP
+
+
 func set_dialogue(next_speaker_name: String, next_dialogue_text: String, next_memory_text := "", portrait_color := PORTRAIT_COLOR) -> void:
 	_speaker_name = next_speaker_name
 	_dialogue_text = next_dialogue_text
@@ -235,7 +239,7 @@ func _render_choices() -> void:
 		var choice_id := StringName(choice.get("id", &""))
 		var button := Button.new()
 		button.text = String(choice.get("text", ""))
-		button.custom_minimum_size = Vector2(106.0, 42.0)
+		button.custom_minimum_size = Vector2(116.0, 54.0)
 		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		button.focus_mode = Control.FOCUS_NONE
 		button.set_meta("choice_id", choice_id)
@@ -279,11 +283,12 @@ func _on_choice_pressed(choice_id: StringName) -> void:
 func _apply_static_styles() -> void:
 	_dialogue_bar.add_theme_stylebox_override("panel", _make_panel_style(PANEL_COLOR, PANEL_BORDER_COLOR, 3))
 	_name_label.add_theme_color_override("font_color", NAMEPLATE_TEXT_COLOR)
+	_name_label.add_theme_font_size_override("font_size", 16)
 	_name_label.add_theme_stylebox_override("normal", _make_panel_style(NAMEPLATE_COLOR, Color(0.07, 0.08, 0.1), 2))
 	_dialogue_label.add_theme_color_override("font_color", Color.WHITE)
-	_dialogue_label.add_theme_font_size_override("font_size", 14)
+	_dialogue_label.add_theme_font_size_override("font_size", 18)
 	_memory_label.add_theme_color_override("font_color", MEMORY_TEXT_COLOR)
-	_memory_label.add_theme_font_size_override("font_size", 11)
+	_memory_label.add_theme_font_size_override("font_size", 13)
 	_choice_row.add_theme_constant_override("separation", 8)
 	_stage_row.add_theme_constant_override("separation", 4)
 	_unlock_popup.add_theme_stylebox_override("panel", _make_panel_style(UNLOCK_COLOR, UNLOCK_BORDER_COLOR, 4))
@@ -297,6 +302,7 @@ func _apply_button_style(button: Button, emphasized: bool) -> void:
 	var fill := NAMEPLATE_COLOR if emphasized else Color(0.18, 0.23, 0.31)
 	var text_color := NAMEPLATE_TEXT_COLOR if emphasized else Color(0.95, 0.94, 0.87)
 	button.add_theme_color_override("font_color", text_color)
+	button.add_theme_font_size_override("font_size", 15)
 	button.add_theme_stylebox_override("normal", _make_panel_style(fill, Color(0.45, 0.5, 0.59), 2))
 	button.add_theme_stylebox_override("hover", _make_panel_style(fill.lightened(0.08), Color(0.64, 0.69, 0.78), 2))
 	button.add_theme_stylebox_override("pressed", _make_panel_style(fill.darkened(0.08), Color(0.07, 0.08, 0.1), 2))

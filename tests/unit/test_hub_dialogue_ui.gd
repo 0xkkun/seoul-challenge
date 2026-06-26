@@ -48,10 +48,22 @@ func test_dialogue_content_updates_from_data() -> void:
 
 func test_dialogue_overlay_and_stage_row_visibility_are_configurable() -> void:
 	_runner.assert_true(_ui.is_dialogue_overlay_visible(), "일반 대화 UI는 배경을 덮는 오버레이를 제공한다")
+	_runner.assert_true(_ui.is_dialogue_overlay_modal(), "오버레이가 터치 입력을 막아 모달로 동작한다")
 	_runner.assert_true(_ui.is_stage_row_visible(), "기본 허브 대화 UI는 단계 행을 표시한다")
 
 	_ui.set_stage_row_visible(false)
 	_runner.assert_false(_ui.is_stage_row_visible(), "씬 목적에 맞지 않는 단계 행은 숨길 수 있다")
+
+
+func test_choice_buttons_keep_mobile_touch_size() -> void:
+	var choices: Array[Dictionary] = [
+		{"id": &"next", "text": "다음"},
+		{"id": &"close", "text": "나가기", "emphasized": true},
+	]
+	_ui.set_choices(choices)
+
+	var first_button := _ui.get_node("%ChoiceRow").get_child(0) as Button
+	_runner.assert_true(first_button.custom_minimum_size.y >= 54.0, "선택 버튼은 모바일 가로 터치 영역을 확보한다")
 
 
 func test_stage_row_tracks_completed_current_and_locked_states() -> void:

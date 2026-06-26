@@ -5,9 +5,9 @@ signal dialogue_requested(payload: Dictionary)
 const REFERENCE_VIEWPORT_SIZE := Vector2(960.0, 540.0)
 const DIALOGUE_SPEAKER := "반 친구"
 const DIALOGUE_LINES: Array[String] = [
-	"친구: 낮엔 뛰지 말고, 얘기부터 하자.",
-	"친구: 복도 끝 교실에 들르면 준비가 끝나.",
-	"친구: 밤에 나가기 전에 여기서 필요한 얘기를 끝내자.",
+	"낮엔 뛰지 말고, 얘기부터 하자.",
+	"복도 끝 교실에 들르면 준비가 끝나.",
+	"밤에 나가기 전에 여기서 필요한 얘기를 끝내자.",
 ]
 const DIALOGUE_MEMORY_LINES: Array[String] = [
 	"기억: 창밖으로 밀려드는 낮빛",

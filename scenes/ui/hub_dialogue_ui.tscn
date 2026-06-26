@@ -22,8 +22,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-mouse_filter = 2
-color = Color(0.03, 0.04, 0.06, 0.34)
+color = Color(0.03, 0.04, 0.06, 0.46)
 
 [node name="PortraitPanel" type="ColorRect" parent="Root"]
 unique_name_in_owner = true
@@ -68,8 +67,8 @@ unique_name_in_owner = true
 layout_mode = 1
 offset_left = 190.0
 offset_top = 14.0
-offset_right = 292.0
-offset_bottom = 40.0
+offset_right = 326.0
+offset_bottom = 44.0
 text = "야구부 주장"
 horizontal_alignment = 1
 vertical_alignment = 1
@@ -87,9 +86,9 @@ theme_override_constants/separation = 4
 unique_name_in_owner = true
 layout_mode = 1
 offset_left = 190.0
-offset_top = 54.0
-offset_right = 606.0
-offset_bottom = 86.0
+offset_top = 50.0
+offset_right = 584.0
+offset_bottom = 96.0
 text = "\"스윙은 겁먹으면 늦어. 밤의 궁에선 더 그렇겠지.\""
 autowrap_mode = 3
 
@@ -97,19 +96,19 @@ autowrap_mode = 3
 unique_name_in_owner = true
 layout_mode = 1
 offset_left = 190.0
-offset_top = 88.0
-offset_right = 606.0
-offset_bottom = 116.0
+offset_top = 104.0
+offset_right = 584.0
+offset_bottom = 132.0
 text = "기억: 손바닥의 희미한 배트 자국"
 autowrap_mode = 3
 
 [node name="ChoiceRow" type="HBoxContainer" parent="Root/DialogueBar/DialogueContent"]
 unique_name_in_owner = true
 layout_mode = 1
-offset_left = 620.0
-offset_top = 54.0
+offset_left = 586.0
+offset_top = 50.0
 offset_right = 826.0
-offset_bottom = 104.0
+offset_bottom = 106.0
 grow_horizontal = 0
 theme_override_constants/separation = 8
 
