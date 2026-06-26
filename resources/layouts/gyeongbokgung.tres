@@ -1,0 +1,46 @@
+[gd_resource type="Resource" script_class="RoomLayout" load_steps=7 format=3]
+
+[ext_resource type="Script" path="res://scripts/systems/room_layout.gd" id="1_layout"]
+[ext_resource type="Script" path="res://scripts/systems/room_def.gd" id="2_def"]
+
+[sub_resource type="Resource" id="Resource_start"]
+script = ExtResource("2_def")
+room_id = &"start"
+room_type = &"start"
+scene_path = "res://scenes/session/room_base.tscn"
+connections = Array[StringName]([&"combat_1"])
+
+[sub_resource type="Resource" id="Resource_combat_1"]
+script = ExtResource("2_def")
+room_id = &"combat_1"
+room_type = &"combat"
+scene_path = "res://scenes/session/room_base.tscn"
+connections = Array[StringName]([&"start", &"combat_2"])
+
+[sub_resource type="Resource" id="Resource_combat_2"]
+script = ExtResource("2_def")
+room_id = &"combat_2"
+room_type = &"combat"
+scene_path = "res://scenes/session/room_base.tscn"
+connections = Array[StringName]([&"combat_1", &"event_1"])
+
+[sub_resource type="Resource" id="Resource_event_1"]
+script = ExtResource("2_def")
+room_id = &"event_1"
+room_type = &"event"
+scene_path = "res://scenes/session/room_base.tscn"
+connections = Array[StringName]([&"combat_2", &"final_1"])
+
+[sub_resource type="Resource" id="Resource_final_1"]
+script = ExtResource("2_def")
+room_id = &"final_1"
+room_type = &"final"
+scene_path = "res://scenes/session/room_base.tscn"
+connections = Array[StringName]([&"event_1"])
+hidden = true
+
+[resource]
+script = ExtResource("1_layout")
+layout_id = &"gyeongbokgung"
+start_room_id = &"start"
+room_defs = Array[ExtResource("2_def")]([SubResource("Resource_start"), SubResource("Resource_combat_1"), SubResource("Resource_combat_2"), SubResource("Resource_event_1"), SubResource("Resource_final_1")])
