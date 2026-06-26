@@ -4,7 +4,10 @@ const LAYOUT_PATH := "res://resources/layouts/gyeongbokgung.tres"
 
 const GENERATED_LAYOUT_COUNT := 200
 const GENERATED_LAYOUT_BUDGET_USEC := 200000
-const REQUEST_NEXT_ROOM_BUDGET_USEC := 20000
+# request_next_room 은 방 씬을 콜드 로드 + 인스턴스화한다(배경/벽/문 빌드 포함).
+# 콜드 디스크 로드라 CI 러너 편차에 민감 — 로컬 ~수ms, CI 러너에선 20ms를 살짝 넘김.
+# 1회성 방 전환(페이드 중)이라 지연이 게임플레이에 무관하므로 여유 있는 예산을 둔다.
+const REQUEST_NEXT_ROOM_BUDGET_USEC := 40000
 const LAYOUT_VALIDATION_BUDGET_USEC := 20000
 
 var _runner: Node
