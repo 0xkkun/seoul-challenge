@@ -87,6 +87,10 @@ func get_summary_snapshot() -> Dictionary:
 	}
 
 
+func is_summary_visible() -> bool:
+	return summary_overlay.visible
+
+
 func _build_summary(result: Dictionary) -> Dictionary:
 	return {
 		"title": _result_title(result),

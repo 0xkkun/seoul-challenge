@@ -1,8 +1,9 @@
-[gd_scene load_steps=11 format=3]
+[gd_scene load_steps=12 format=3]
 
 [ext_resource type="Script" path="res://scripts/lobby/lobby.gd" id="1_lobby"]
 [ext_resource type="Texture2D" uid="uid://c750vcawxg880" path="res://assets/backgrounds/lobby/title_lobby_bg.png" id="2_bg"]
 [ext_resource type="Texture2D" uid="uid://c705k1cbsft40" path="res://assets/branding/title_logo.png" id="3_logo"]
+[ext_resource type="PackedScene" path="res://scenes/ui/confirm_modal.tscn" id="4_confirm"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_start_normal"]
 bg_color = Color(0.0470588, 0.215686, 0.301961, 0.92)
@@ -206,3 +207,6 @@ theme_override_styles/disabled = SubResource("StyleBoxFlat_settings_disabled")
 theme_override_styles/focus = SubResource("StyleBoxFlat_focus")
 disabled = true
 text = "설정"
+
+[node name="ConfirmModal" parent="." instance=ExtResource("4_confirm")]
+unique_name_in_owner = true

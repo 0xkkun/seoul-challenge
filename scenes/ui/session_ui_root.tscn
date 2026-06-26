@@ -127,7 +127,7 @@ text = "Resume"
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
-text = "Finish"
+text = "포기"
 
 [node name="SummaryOverlay" type="Control" parent="Root"]
 unique_name_in_owner = true

@@ -2,6 +2,7 @@ extends Node
 
 const RenderLayers = preload("res://scripts/constants/render_layers.gd")
 const RoomPalette = preload("res://scripts/constants/room_palette.gd")
+const UiTestHarness := preload("res://tests/support/ui_test_harness.gd")
 
 var _runner: Node
 
@@ -123,6 +124,33 @@ func test_session_result_actions_unpause_and_preserve_retry_config() -> void:
 	session._exit_tree()
 	_runner.assert_true(GameManager.is_session_active(), "retry handoff is not reset by old session exit")
 	_runner.assert_eq(GameManager.get_active_config()["source"], "session_result_retry", "retry config survives old session exit")
+
+	session.queue_free()
+
+
+func test_session_finish_button_confirms_abandon_to_lobby() -> void:
+	var packed := load("res://scenes/session/session_root.tscn") as PackedScene
+	var session := packed.instantiate()
+	var action_counts := {"returned": 0}
+	session.return_to_school_callable = func() -> void:
+		action_counts["returned"] += 1
+	add_child(session)
+
+	_runner.assert_true(GameManager.is_session_active(), "session starts active")
+	session._on_finish_requested()
+	_runner.assert_true(session.is_exit_confirm_visible(), "abandon confirmation opens")
+	_runner.assert_eq(session.get_exit_confirm_message(), "런을 포기할까요? 이번 밤 보상은 사라지고 영구 재화는 유지됩니다", "abandon copy matches issue")
+	_runner.assert_true(get_tree().paused, "abandon confirmation pauses gameplay")
+
+	_runner.assert_true(UiTestHarness.press_by_test_id(session, ConfirmModal.TEST_ID_NO), "no cancels abandon")
+	_runner.assert_false(session.is_exit_confirm_visible(), "no closes abandon confirmation")
+	_runner.assert_false(get_tree().paused, "cancel restores the previous pause state")
+	_runner.assert_true(GameManager.is_session_active(), "cancel keeps the run active")
+
+	session._on_finish_requested()
+	_runner.assert_true(UiTestHarness.press_by_test_id(session, ConfirmModal.TEST_ID_YES), "yes confirms abandon")
+	_runner.assert_eq(action_counts["returned"], 1, "abandon returns to lobby once")
+	_runner.assert_false(GameManager.is_session_active(), "abandon resets the active run")
 
 	session.queue_free()
 

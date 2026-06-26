@@ -164,6 +164,26 @@ func test_day_corridor_dialogue_signal_updates_state() -> void:
 		_runner.assert_eq(payloads[0]["line_index"], 0, "dialogue payload includes the current line index")
 
 
+func test_day_corridor_exit_button_confirms_lobby_return() -> void:
+	var scene := DayCorridorScene.instantiate()
+	var counts := {"return": 0}
+	scene.return_to_lobby_callable = func() -> void: counts["return"] += 1
+	add_child(scene)
+
+	_runner.assert_not_null(UiTestHarness.find_by_test_id(scene, "day_corridor.exit_button"), "exit button exposes a stable test id")
+	_runner.assert_true(UiTestHarness.press_by_uat_action(scene, "day_corridor.exit_to_lobby"), "exit action opens confirmation")
+	_runner.assert_true(scene.is_return_confirm_visible(), "return confirmation opens")
+	_runner.assert_eq(scene.get_return_confirm_message(), "로비로 돌아갈까요? 진행은 자동 저장됩니다", "return copy matches issue")
+
+	_runner.assert_true(UiTestHarness.press_by_test_id(scene, ConfirmModal.TEST_ID_NO), "no keeps player in day corridor")
+	_runner.assert_false(scene.is_return_confirm_visible(), "no closes confirmation")
+	_runner.assert_eq(counts["return"], 0, "no does not return")
+
+	_runner.assert_true(UiTestHarness.press_by_test_id(scene, "day_corridor.exit_button"), "exit button can reopen confirmation")
+	_runner.assert_true(UiTestHarness.press_by_test_id(scene, ConfirmModal.TEST_ID_YES), "yes confirms lobby return")
+	_runner.assert_eq(counts["return"], 1, "yes returns once")
+
+
 func test_day_corridor_dialogue_choices_advance_and_close_ui() -> void:
 	var scene := DayCorridorScene.instantiate()
 	add_child(scene)
