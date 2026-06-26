@@ -23,6 +23,7 @@ var _touch: Node = null
 
 
 func _ready() -> void:
+	add_to_group(&"player")
 	if not touch_controls_path.is_empty():
 		_touch = get_node_or_null(touch_controls_path)
 
