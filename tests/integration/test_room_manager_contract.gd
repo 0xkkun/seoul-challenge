@@ -113,11 +113,18 @@ func test_session_root_mounts_room_manager() -> void:
 	var manager := session.get_node("%RoomManager") as RoomManager
 	var room_layer := session.get_node("%RoomLayer")
 	_runner.assert_not_null(manager, "session root owns room manager")
-	_runner.assert_eq(manager.current_room_id, &"start", "session starts fixed layout")
+	_runner.assert_eq(manager.current_room_id, &"start", "session starts run layout")
+	_runner.assert_eq(manager.layout.room_defs.size(), 15, "session uses the branching run map room count")
+	_runner.assert_true(manager.layout.required_clears_for_hidden_reveal > 0, "session run map uses explicit boss reveal threshold")
+	_runner.assert_true(_junction_count(manager.layout) >= 2, "session run map has multiple branching junctions")
+	_runner.assert_true(
+		_undirected_edge_count(manager.layout) >= manager.layout.room_defs.size(),
+		"session run map includes an alternate route beyond a pure tree"
+	)
 	_runner.assert_eq(manager.current_room.get_parent(), room_layer, "room manager mounts rooms under room layer")
-	_runner.assert_true(manager.has_cleared_room(&"start"), "placeholder start room clears")
+	_runner.assert_true(manager.has_cleared_room(&"start"), "start room clears")
 	_runner.assert_true(session.advance_room(), "session can advance through room manager")
-	_runner.assert_eq(manager.current_room_id, &"combat_1", "session advances to first combat room")
+	_runner.assert_eq(manager.current_room_def.room_type, RoomLayout.TYPE_COMBAT, "session advances to first combat room")
 	_runner.assert_true(manager.current_room.has_method("get_remaining_enemy_count"), "session mounts combat room implementation")
 	_runner.assert_not_null(session.get_node_or_null("%CombatHud"), "session mounts combat HUD")
 	_runner.assert_not_null(session.get_node_or_null("%TouchControls"), "session mounts touch controls")
@@ -163,3 +170,26 @@ func _assert_grid_connections_are_adjacent(layout: RoomLayout) -> void:
 				1,
 				"%s connects to grid-adjacent %s" % [room_def.room_id, connected_room_id]
 			)
+
+
+func _junction_count(layout: RoomLayout) -> int:
+	var count := 0
+	for room_def: RoomDef in layout.room_defs:
+		if room_def.connections.size() >= 3:
+			count += 1
+	return count
+
+
+func _undirected_edge_count(layout: RoomLayout) -> int:
+	var seen := {}
+	var count := 0
+	for room_def: RoomDef in layout.room_defs:
+		for connected_room_id: StringName in room_def.connections:
+			var left := String(room_def.room_id)
+			var right := String(connected_room_id)
+			var edge_key := "%s|%s" % [left, right] if left < right else "%s|%s" % [right, left]
+			if seen.has(edge_key):
+				continue
+			seen[edge_key] = true
+			count += 1
+	return count

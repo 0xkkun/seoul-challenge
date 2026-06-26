@@ -10,7 +10,7 @@ const DIRECTIONS: Array[Vector2i] = [
 ]
 
 @export var seed := 1
-@export_range(5, 64) var default_room_count := 5
+@export_range(5, 64) var default_room_count := 15
 @export_range(3, 32) var grid_width := 9
 @export_range(3, 32) var grid_height := 8
 @export_range(0.0, 1.0, 0.05) var branch_chance := 0.5
@@ -49,6 +49,7 @@ func generate(layout_seed: int, params: Dictionary = {}) -> RoomLayout:
 	var layout := RoomLayout.new()
 	layout.layout_id = StringName("generated_%d" % layout_seed)
 	layout.start_room_id = &"start"
+	layout.required_clears_for_hidden_reveal = _hidden_reveal_threshold(cells.size())
 	layout.room_defs = []
 
 	for index: int in range(cells.size()):
@@ -68,6 +69,13 @@ func _minimum_grid_dimension_for_count(target_count: int) -> int:
 	return maxi(3, int(ceil(sqrt(float(target_count)))) * 2)
 
 
+func _hidden_reveal_threshold(room_count: int) -> int:
+	var non_final_count := room_count - 1
+	if non_final_count <= 4:
+		return non_final_count
+	return clampi(int(ceil(float(non_final_count) * 0.65)), 4, non_final_count - 1)
+
+
 func _generate_cells(
 	rng: RandomNumberGenerator,
 	width: int,
@@ -78,7 +86,9 @@ func _generate_cells(
 	var start := Vector2i(width / 2, height / 2)
 	var cells: Array[Vector2i] = [start]
 	var occupied := {start: true}
-	var queue: Array[Vector2i] = [start]
+	_grow_critical_path(rng, cells, occupied, width, height, _minimum_boss_distance_for_count(target_count))
+
+	var queue: Array[Vector2i] = cells.duplicate()
 	var queue_index := 0
 
 	while cells.size() < target_count:
@@ -103,6 +113,48 @@ func _generate_cells(
 				_add_cell(candidate, cells, occupied, queue)
 
 	return cells
+
+
+func _minimum_boss_distance_for_count(target_count: int) -> int:
+	return mini(target_count - 1, maxi(2, int(floor(float(target_count) * 0.4))))
+
+
+func _grow_critical_path(
+	rng: RandomNumberGenerator,
+	cells: Array[Vector2i],
+	occupied: Dictionary,
+	width: int,
+	height: int,
+	target_distance: int
+) -> void:
+	var start := cells[0]
+	while cells.size() - 1 < target_distance:
+		var current := cells[cells.size() - 1]
+		var candidates: Array[Vector2i] = []
+		for candidate: Vector2i in _shuffled_neighbors(current, rng):
+			if candidate.x < 0 or candidate.y < 0 or candidate.x >= width or candidate.y >= height:
+				continue
+			if occupied.has(candidate):
+				continue
+			if _occupied_neighbor_count(candidate, occupied) != 1:
+				continue
+			candidates.append(candidate)
+		if candidates.is_empty():
+			return
+
+		var chosen := candidates[0]
+		var chosen_distance := _grid_distance(chosen, start)
+		for candidate: Vector2i in candidates:
+			var candidate_distance := _grid_distance(candidate, start)
+			if candidate_distance > chosen_distance:
+				chosen = candidate
+				chosen_distance = candidate_distance
+		occupied[chosen] = true
+		cells.append(chosen)
+
+
+func _grid_distance(a: Vector2i, b: Vector2i) -> int:
+	return absi(a.x - b.x) + absi(a.y - b.y)
 
 
 func _add_cell(
@@ -154,7 +206,7 @@ func _is_valid_candidate(candidate: Vector2i, occupied: Dictionary, width: int, 
 		return false
 	if occupied.has(candidate):
 		return false
-	return _occupied_neighbor_count(candidate, occupied) < 2
+	return _occupied_neighbor_count(candidate, occupied) < 3
 
 
 func _occupied_neighbor_count(cell: Vector2i, occupied: Dictionary) -> int:
