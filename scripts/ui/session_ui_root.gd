@@ -40,6 +40,7 @@ func _ready() -> void:
 	return_button.set_meta("uat_action", "session.return_to_school")
 	retry_button.set_meta("test_id", "session.retry_button")
 	retry_button.set_meta("uat_action", "session.retry")
+	_apply_button_styles()
 	pause_button.pressed.connect(_on_pause_button_pressed)
 	resume_button.pressed.connect(_on_resume_button_pressed)
 	finish_button.pressed.connect(_on_finish_button_pressed)
@@ -89,6 +90,14 @@ func get_summary_snapshot() -> Dictionary:
 
 func is_summary_visible() -> bool:
 	return summary_overlay.visible
+
+
+func _apply_button_styles() -> void:
+	PixelButtonStyle.apply(pause_button, PixelButtonStyle.VARIANT_SECONDARY, Vector2(0.0, 58.0))
+	PixelButtonStyle.apply(resume_button, PixelButtonStyle.VARIANT_PRIMARY, Vector2(0.0, 58.0))
+	PixelButtonStyle.apply(finish_button, PixelButtonStyle.VARIANT_DANGER, Vector2(0.0, 58.0))
+	PixelButtonStyle.apply(return_button, PixelButtonStyle.VARIANT_PRIMARY, Vector2(0.0, 58.0))
+	PixelButtonStyle.apply(retry_button, PixelButtonStyle.VARIANT_SECONDARY, Vector2(0.0, 58.0))
 
 
 func _build_summary(result: Dictionary) -> Dictionary:

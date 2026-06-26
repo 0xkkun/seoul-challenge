@@ -33,8 +33,12 @@ func test_open_renders_message_and_yes_callback() -> void:
 	_runner.assert_true(_modal.is_open(), "modal opens")
 	_runner.assert_false(_modal.is_danger_mode(), "default modal is not danger")
 	_runner.assert_eq(_modal.get_message_text(), "로비로 돌아갈까요? 진행은 자동 저장됩니다", "message is rendered")
-	_runner.assert_not_null(UiTestHarness.find_by_test_id(_modal, ConfirmModal.TEST_ID_YES), "yes exposes test id")
-	_runner.assert_not_null(UiTestHarness.find_by_test_id(_modal, ConfirmModal.TEST_ID_NO), "no exposes test id")
+	var yes_button := UiTestHarness.find_by_test_id(_modal, ConfirmModal.TEST_ID_YES) as Button
+	var no_button := UiTestHarness.find_by_test_id(_modal, ConfirmModal.TEST_ID_NO) as Button
+	_runner.assert_not_null(yes_button, "yes exposes test id")
+	_runner.assert_not_null(no_button, "no exposes test id")
+	_assert_pixel_button_style(yes_button, "yes")
+	_assert_pixel_button_style(no_button, "no")
 
 	_runner.assert_true(UiTestHarness.press_by_uat_action(_modal, ConfirmModal.ACTION_YES), "yes button is pressable by action")
 	_runner.assert_false(_modal.is_open(), "yes closes modal")
@@ -56,3 +60,21 @@ func test_no_callback_closes_danger_modal() -> void:
 	_runner.assert_false(_modal.is_open(), "no closes modal")
 	_runner.assert_eq(counts["yes"], 0, "yes callback does not run")
 	_runner.assert_eq(counts["no"], 1, "no callback runs once")
+
+
+func _assert_pixel_button_style(button: Button, label: String) -> void:
+	_assert_pixel_button_texture(button.get_theme_stylebox("normal"), PixelButtonStyle.NORMAL_TEXTURE_PATH, "%s normal" % label)
+	_assert_pixel_button_texture(button.get_theme_stylebox("hover"), PixelButtonStyle.NORMAL_TEXTURE_PATH, "%s hover" % label)
+	_assert_pixel_button_texture(button.get_theme_stylebox("pressed"), PixelButtonStyle.PRESSED_TEXTURE_PATH, "%s pressed" % label)
+
+
+func _assert_pixel_button_texture(style: StyleBox, texture_path: String, message: String) -> void:
+	var texture_style := style as StyleBoxTexture
+	_runner.assert_not_null(texture_style, "%s uses pixel button texture style" % message)
+	if texture_style == null:
+		return
+	_runner.assert_eq(texture_style.texture.resource_path, texture_path, message)
+	_runner.assert_eq(texture_style.texture_margin_left, 60.0, "%s left 9-slice margin" % message)
+	_runner.assert_eq(texture_style.texture_margin_top, 12.0, "%s top 9-slice margin" % message)
+	_runner.assert_eq(texture_style.texture_margin_right, 60.0, "%s right 9-slice margin" % message)
+	_runner.assert_eq(texture_style.texture_margin_bottom, 12.0, "%s bottom 9-slice margin" % message)

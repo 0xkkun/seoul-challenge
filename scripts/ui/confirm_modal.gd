@@ -6,14 +6,6 @@ const TEST_ID_NO := "confirm_modal.no_button"
 const ACTION_YES := "confirm_modal.yes"
 const ACTION_NO := "confirm_modal.no"
 
-const YES_COLOR := Color("#67e8f9")
-const YES_HOVER_COLOR := Color("#9bf2ff")
-const DANGER_COLOR := Color("#ef4444")
-const DANGER_HOVER_COLOR := Color("#f87171")
-const NEUTRAL_COLOR := Color("#263241")
-const NEUTRAL_HOVER_COLOR := Color("#334155")
-const BUTTON_BORDER := Color("#d7e0e8")
-
 @onready var _message_label: Label = %MessageLabel
 @onready var _yes_button: Button = %YesButton
 @onready var _no_button: Button = %NoButton
@@ -90,40 +82,9 @@ func _close() -> void:
 
 
 func _apply_button_styles(danger: bool) -> void:
-	var yes_color := DANGER_COLOR if danger else YES_COLOR
-	var yes_hover_color := DANGER_HOVER_COLOR if danger else YES_HOVER_COLOR
-	_yes_button.add_theme_stylebox_override("normal", _button_style(yes_color))
-	_yes_button.add_theme_stylebox_override("hover", _button_style(yes_hover_color))
-	_yes_button.add_theme_stylebox_override("pressed", _button_style(yes_hover_color.darkened(0.12)))
-	_yes_button.add_theme_color_override("font_color", Color("#071018"))
-	_yes_button.add_theme_color_override("font_hover_color", Color("#071018"))
-	_yes_button.add_theme_color_override("font_pressed_color", Color("#071018"))
-
-	_no_button.add_theme_stylebox_override("normal", _button_style(NEUTRAL_COLOR))
-	_no_button.add_theme_stylebox_override("hover", _button_style(NEUTRAL_HOVER_COLOR))
-	_no_button.add_theme_stylebox_override("pressed", _button_style(NEUTRAL_HOVER_COLOR.darkened(0.12)))
-	_no_button.add_theme_color_override("font_color", Color("#eef5f8"))
-	_no_button.add_theme_color_override("font_hover_color", Color("#ffffff"))
-	_no_button.add_theme_color_override("font_pressed_color", Color("#ffffff"))
-
-
-func _button_style(color: Color) -> StyleBoxFlat:
-	var style := StyleBoxFlat.new()
-	style.bg_color = color
-	style.border_width_left = 1
-	style.border_width_top = 1
-	style.border_width_right = 1
-	style.border_width_bottom = 1
-	style.border_color = BUTTON_BORDER
-	style.corner_radius_top_left = 4
-	style.corner_radius_top_right = 4
-	style.corner_radius_bottom_right = 4
-	style.corner_radius_bottom_left = 4
-	style.content_margin_left = 14.0
-	style.content_margin_top = 8.0
-	style.content_margin_right = 14.0
-	style.content_margin_bottom = 8.0
-	return style
+	var yes_variant := PixelButtonStyle.VARIANT_DANGER if danger else PixelButtonStyle.VARIANT_PRIMARY
+	PixelButtonStyle.apply(_yes_button, yes_variant, Vector2(132.0, 50.0))
+	PixelButtonStyle.apply(_no_button, PixelButtonStyle.VARIANT_SECONDARY, Vector2(132.0, 50.0))
 
 
 func _is_escape_key(event: InputEvent) -> bool:
