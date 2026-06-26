@@ -55,6 +55,50 @@ func test_gyeongbokgung_layout_validates_fixed_route() -> void:
 	_runner.assert_eq(layout.get_next_room_id(&"friend_1", cleared), &"final_1", "friend room leads to final")
 
 
+func test_gyeongbokgung_combat_rooms_apply_distinct_encounter_configs() -> void:
+	var layout := load("res://resources/layouts/gyeongbokgung.tres") as RoomLayout
+	var first_config_value: Variant = layout.get_room(&"combat_1").get("room_config")
+	var second_config_value: Variant = layout.get_room(&"combat_2").get("room_config")
+	var container := Node2D.new()
+	var actor := (load("res://scenes/actors/sample_actor.tscn") as PackedScene).instantiate() as Node2D
+	var manager := RoomManager.new()
+
+	add_child(container)
+	add_child(actor)
+	add_child(manager)
+	manager.configure(layout, container, actor)
+
+	_runner.assert_true(first_config_value is Dictionary, "first combat room exposes room_config")
+	_runner.assert_true(second_config_value is Dictionary, "second combat room exposes room_config")
+	if not (first_config_value is Dictionary and second_config_value is Dictionary):
+		return
+	var first_config := first_config_value as Dictionary
+	var second_config := second_config_value as Dictionary
+	_runner.assert_true(first_config.size() > 0, "first combat room has authored encounter config")
+	_runner.assert_true(second_config.size() > 0, "second combat room has authored encounter config")
+	_runner.assert_true(_encounter_total(second_config) > _encounter_total(first_config), "second combat room is configured stronger")
+
+	_runner.assert_true(manager.start_layout(), "manager starts fixed layout")
+	_runner.assert_true(manager.request_next_room(), "manager enters first combat room")
+	_runner.assert_eq(manager.current_room_id, &"combat_1", "first combat room entered")
+	_runner.assert_true(manager.current_room.has_method("get_encounter_summary"), "combat room exposes applied summary")
+	if not manager.current_room.has_method("get_encounter_summary"):
+		return
+	var first_summary: Dictionary = manager.current_room.call("get_encounter_summary")
+	_resolve_current_room(manager, actor)
+	_runner.assert_true(manager.request_next_room(), "manager enters treasure bridge room")
+	_runner.assert_eq(manager.current_room_id, &"treasure_1", "treasure room sits between combat rooms")
+	_resolve_current_room(manager, actor)
+	_runner.assert_true(manager.request_next_room(), "manager enters second combat room")
+	_runner.assert_eq(manager.current_room_id, &"combat_2", "second combat room entered")
+	var second_summary: Dictionary = manager.current_room.call("get_encounter_summary")
+
+	_runner.assert_eq(first_summary["total_count"], _encounter_total(first_config), "first room applies layout config")
+	_runner.assert_eq(second_summary["total_count"], _encounter_total(second_config), "second room applies layout config")
+	_runner.assert_true(second_summary["total_count"] > first_summary["total_count"], "runtime encounter curve gets stronger")
+	_runner.assert_true(second_summary["elite_chaser_count"] + second_summary["elite_ranged_count"] > 0, "later room includes elite pressure")
+
+
 func test_room_manager_runs_layout_with_interactive_rooms() -> void:
 	var layout := load("res://resources/layouts/gyeongbokgung.tres") as RoomLayout
 	var container := Node2D.new()
@@ -223,6 +267,15 @@ func _resolve_current_room(manager: RoomManager, actor: Node2D) -> void:
 				friend.emit_signal("purified", friend)
 	elif room.has_method("complete_boss_encounter"):
 		room.call("complete_boss_encounter")
+
+
+func _encounter_total(config: Dictionary) -> int:
+	return (
+		int(config.get("chaser_count", 0))
+		+ int(config.get("ranged_count", 0))
+		+ int(config.get("elite_chaser_count", 0))
+		+ int(config.get("elite_ranged_count", 0))
+	)
 
 
 func _assert_grid_connections_are_adjacent(layout: RoomLayout) -> void:

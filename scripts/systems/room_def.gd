@@ -7,6 +7,7 @@ extends Resource
 @export var connections: Array[StringName] = []
 @export var grid_pos := Vector2i.ZERO
 @export var hidden := false
+@export var room_config: Dictionary = {}
 
 
 func has_connection(target_room_id: StringName) -> bool:
@@ -20,4 +21,5 @@ func to_payload() -> Dictionary:
 		"connections": connections.duplicate(),
 		"grid_pos": grid_pos,
 		"hidden": hidden,
+		"room_config": room_config.duplicate(true),
 	}

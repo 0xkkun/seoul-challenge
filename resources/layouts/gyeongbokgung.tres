@@ -18,6 +18,12 @@ room_type = &"combat"
 scene_path = "res://scenes/interactables/combat_room.tscn"
 connections = Array[StringName]([&"start", &"treasure_1"])
 grid_pos = Vector2i(1, 0)
+room_config = {
+"chaser_count": 2,
+"elite_chaser_count": 0,
+"elite_ranged_count": 0,
+"ranged_count": 0
+}
 
 [sub_resource type="Resource" id="Resource_treasure_1"]
 script = ExtResource("2_def")
@@ -34,6 +40,12 @@ room_type = &"combat"
 scene_path = "res://scenes/interactables/combat_room.tscn"
 connections = Array[StringName]([&"treasure_1", &"event_1"])
 grid_pos = Vector2i(3, 0)
+room_config = {
+"chaser_count": 2,
+"elite_chaser_count": 1,
+"elite_ranged_count": 0,
+"ranged_count": 1
+}
 
 [sub_resource type="Resource" id="Resource_event_1"]
 script = ExtResource("2_def")
