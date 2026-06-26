@@ -1,0 +1,173 @@
+extends CharacterBody2D
+## #17 최종 보스 — 텔레그래프 패턴(돌진 + 탄막 버스트)을 번갈아 사용. 처치=탈출.
+##
+## 사이클: RECOVER(느린 추적) → TELEGRAPH(정지·경고) → 패턴 실행(CHARGE 대시 / BURST 부채꼴 탄막) → RECOVER.
+## 패턴 선택·돌진 방향·탄막 방향은 순수 함수로 단위 테스트한다. 처치 시 defeated 방출(런 탈출 트리거).
+
+## 처치됨 — 탈출/런 클리어 트리거(계약).
+signal defeated(boss)
+## 패턴 경고 시작 — UI 텔레그래프용.
+signal telegraph_started
+
+const ENEMY_BULLET := preload("res://scenes/enemies/enemy_bullet.tscn")
+
+enum Phase { RECOVER, TELEGRAPH, CHARGE, BURST }
+
+@export var max_hp: int = 30
+@export var move_speed: float = 70.0       ## 평상시(RECOVER) 추적 속도
+@export var charge_speed: float = 360.0     ## 돌진 속도
+@export var recover_time: float = 1.0
+@export var telegraph_time: float = 0.6
+@export var charge_time: float = 0.7
+@export var burst_count: int = 7
+@export var burst_spread: float = 1.2       ## 부채꼴 전체 각(rad)
+@export var contact_damage: int = 1
+@export var contact_range: float = 34.0
+@export var contact_cooldown: float = 0.5
+@export var target_group: StringName = &"player"
+
+var _hp: int = 0
+var _phase: Phase = Phase.RECOVER
+var _phase_timer: float = 0.0
+var _pattern_index: int = 1   ## 다음 패턴 (0=돌진, 1=탄막) — 첫 사이클은 돌진부터
+var _charge_dir: Vector2 = Vector2.ZERO
+var _contact_timer: float = 0.0
+
+
+func _ready() -> void:
+	_hp = max_hp
+	add_to_group(&"enemy")
+	add_to_group(&"boss")
+	_phase_timer = recover_time
+
+
+func _physics_process(delta: float) -> void:
+	_phase_timer -= delta
+	_contact_timer = maxf(0.0, _contact_timer - delta)
+	var target := _find_target()
+	match _phase:
+		Phase.RECOVER:
+			_slow_follow(target)
+			if _phase_timer <= 0.0:
+				_begin_telegraph()
+		Phase.TELEGRAPH:
+			velocity = Vector2.ZERO
+			if _phase_timer <= 0.0:
+				_begin_pattern(target)
+		Phase.CHARGE:
+			velocity = _charge_dir * charge_speed
+			move_and_slide()
+			_try_contact(target)
+			if _phase_timer <= 0.0:
+				_begin_recover()
+		Phase.BURST:
+			velocity = Vector2.ZERO
+			if _phase_timer <= 0.0:
+				_begin_recover()
+
+
+# --- 순수 함수(테스트 대상) ---
+
+func charge_velocity(from: Vector2, to: Vector2, speed: float) -> Vector2:
+	var dir := to - from
+	return dir.normalized() * speed if dir.length() > 0.001 else Vector2.ZERO
+
+
+## 패턴 인덱스 토글(0↔1).
+func pick_next_pattern(current: int) -> int:
+	return (current + 1) % 2
+
+
+## 조준 방향 기준 부채꼴 발사 방향 배열.
+func burst_directions(aim_dir: Vector2, count: int, spread: float) -> Array:
+	var result: Array = []
+	if count <= 0:
+		return result
+	var base := aim_dir.angle() if aim_dir.length() > 0.001 else 0.0
+	if count == 1:
+		result.append(Vector2.from_angle(base))
+		return result
+	var start := base - spread * 0.5
+	var step_angle := spread / float(count - 1)
+	for i in count:
+		result.append(Vector2.from_angle(start + step_angle * i))
+	return result
+
+
+# --- 피격/처치 ---
+
+func take_damage(amount: int) -> void:
+	_hp -= amount
+	if _hp <= 0:
+		_die()
+
+
+func _die() -> void:
+	defeated.emit(self)
+	queue_free()
+
+
+# --- 패턴 진행 (I/O) ---
+
+func _begin_telegraph() -> void:
+	_phase = Phase.TELEGRAPH
+	_phase_timer = telegraph_time
+	_pattern_index = pick_next_pattern(_pattern_index)
+	telegraph_started.emit()
+
+
+func _begin_pattern(target: Node2D) -> void:
+	if _pattern_index == 0:
+		_charge_dir = _aim_to(target)
+		_phase = Phase.CHARGE
+		_phase_timer = charge_time
+	else:
+		_fire_burst(target)
+		_phase = Phase.BURST
+		_phase_timer = 0.4
+
+
+func _fire_burst(target: Node2D) -> void:
+	var aim := _aim_to(target)
+	var parent := get_parent()
+	if parent == null:
+		return
+	for dir: Vector2 in burst_directions(aim, burst_count, burst_spread):
+		var bullet := ENEMY_BULLET.instantiate()
+		parent.add_child(bullet)
+		bullet.call("launch", global_position, dir)
+
+
+func _begin_recover() -> void:
+	_phase = Phase.RECOVER
+	_phase_timer = recover_time
+
+
+func _slow_follow(target: Node2D) -> void:
+	if target == null:
+		velocity = Vector2.ZERO
+		return
+	velocity = charge_velocity(global_position, target.global_position, move_speed)
+	move_and_slide()
+	_try_contact(target)
+
+
+func _aim_to(target: Node2D) -> Vector2:
+	if target == null:
+		return Vector2.RIGHT
+	var d := target.global_position - global_position
+	return d.normalized() if d.length() > 0.001 else Vector2.RIGHT
+
+
+func _find_target() -> Node2D:
+	return get_tree().get_first_node_in_group(target_group) as Node2D
+
+
+func _try_contact(target: Node2D) -> void:
+	if _contact_timer > 0.0 or target == null:
+		return
+	if global_position.distance_to(target.global_position) > contact_range:
+		return
+	if target.has_method("take_damage"):
+		target.call("take_damage", contact_damage)
+	_contact_timer = contact_cooldown
