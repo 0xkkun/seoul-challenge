@@ -49,6 +49,8 @@ func generate(layout_seed: int, params: Dictionary = {}) -> RoomLayout:
 	var event_index := _pick_special_room_index(cells, adjacency, distances, [0, final_index])
 	var treasure_index := _pick_special_room_index(cells, adjacency, distances, [0, final_index, event_index])
 	var shop_index := _pick_special_room_index(cells, adjacency, distances, [0, final_index, event_index, treasure_index])
+	var special_indices := [0, final_index, event_index, treasure_index, shop_index]
+	var max_combat_distance := _max_distance_excluding(distances, special_indices)
 	var room_ids := _assign_room_ids(cells.size(), final_index, event_index, treasure_index, shop_index)
 
 	var layout := RoomLayout.new()
@@ -65,6 +67,11 @@ func generate(layout_seed: int, params: Dictionary = {}) -> RoomLayout:
 		room_def.hidden = index == final_index
 		room_def.connections = _connection_ids_for_index(index, cells, adjacency, room_ids)
 		room_def.grid_pos = cells[index] - cells[0]
+		room_def.room_config = _room_config_for_type(
+			room_def.room_type,
+			int(distances.get(index, 0)),
+			max_combat_distance
+		)
 		layout.room_defs.append(room_def)
 
 	return layout
@@ -253,6 +260,55 @@ func _compute_distances(adjacency: Dictionary, start_index: int) -> Dictionary:
 			queue.append(neighbor)
 
 	return distances
+
+
+func _max_distance(distances: Dictionary) -> int:
+	var max_value := 0
+	for value: Variant in distances.values():
+		max_value = maxi(max_value, int(value))
+	return max_value
+
+
+func _max_distance_excluding(distances: Dictionary, excluded: Array) -> int:
+	var max_value := 0
+	for index: Variant in distances.keys():
+		if excluded.has(int(index)):
+			continue
+		max_value = maxi(max_value, int(distances[index]))
+	return max_value
+
+
+func _room_config_for_type(room_type: StringName, distance_from_start: int, max_distance: int) -> Dictionary:
+	if room_type != RoomLayout.TYPE_COMBAT:
+		return {}
+	return _combat_room_config(distance_from_start, max_distance)
+
+
+func _combat_room_config(distance_from_start: int, max_distance: int) -> Dictionary:
+	var progress := 0.0
+	if max_distance > 0:
+		progress = clampf(float(distance_from_start) / float(max_distance), 0.0, 1.0)
+
+	if progress >= 0.7:
+		return {
+			"chaser_count": 2,
+			"ranged_count": 2,
+			"elite_chaser_count": 1,
+			"elite_ranged_count": 0,
+		}
+	if progress >= 0.4:
+		return {
+			"chaser_count": 2,
+			"ranged_count": 1,
+			"elite_chaser_count": 0,
+			"elite_ranged_count": 0,
+		}
+	return {
+		"chaser_count": 2,
+		"ranged_count": 0,
+		"elite_chaser_count": 0,
+		"elite_ranged_count": 0,
+	}
 
 
 func _pick_special_room_index(

@@ -77,6 +77,49 @@ func test_combat_room_emits_ingame_rewards_for_enemy_defeats_and_clear() -> void
 	_runner.assert_eq(CurrencySystem.get_ingame(), 6, "three enemy defeats plus combat clear reward ingame currency")
 
 
+func test_combat_room_applies_room_config_and_elite_variants() -> void:
+	var room := _instantiate_combat_room()
+	if room == null:
+		return
+	_runner.assert_true(room.has_method("apply_room_config"), "combat room accepts room config")
+	_runner.assert_true(room.has_method("get_encounter_summary"), "combat room exposes encounter summary")
+	if not room.has_method("apply_room_config") or not room.has_method("get_encounter_summary"):
+		return
+
+	room.call("apply_room_config", {
+		"chaser_count": 1,
+		"ranged_count": 1,
+		"elite_chaser_count": 1,
+		"elite_ranged_count": 1,
+	})
+	add_child(room)
+
+	room.enter()
+
+	var summary: Dictionary = room.call("get_encounter_summary")
+	_runner.assert_eq(summary["chaser_count"], 1, "config keeps normal chaser count")
+	_runner.assert_eq(summary["ranged_count"], 1, "config keeps normal ranged count")
+	_runner.assert_eq(summary["elite_chaser_count"], 1, "config keeps elite chaser count")
+	_runner.assert_eq(summary["elite_ranged_count"], 1, "config keeps elite ranged count")
+	_runner.assert_eq(summary["total_count"], 4, "summary includes all configured enemies")
+	_runner.assert_eq(room.call("get_remaining_enemy_count"), 4, "room spawns every configured enemy")
+
+	var elite_count := 0
+	var elite_chaser_hp := 0
+	var normal_chaser_hp := 0
+	for enemy: Node in room.call("get_active_enemies"):
+		if String(enemy.name).begins_with("Chaser"):
+			normal_chaser_hp = int(enemy.get("max_hp"))
+		if String(enemy.name).begins_with("EliteChaser"):
+			elite_chaser_hp = int(enemy.get("max_hp"))
+		if enemy.get_meta("encounter_variant", &"normal") == &"elite":
+			elite_count += 1
+			_runner.assert_true(enemy.is_in_group(&"elite_enemy"), "elite enemies join elite group")
+
+	_runner.assert_eq(elite_count, 2, "elite chaser and elite ranged are marked")
+	_runner.assert_true(elite_chaser_hp > normal_chaser_hp, "elite chaser has more hp than normal chaser")
+
+
 func _instantiate_combat_room() -> Node:
 	_runner.assert_true(ResourceLoader.exists("res://scenes/interactables/combat_room.tscn"), "combat room scene exists")
 	if not ResourceLoader.exists("res://scenes/interactables/combat_room.tscn"):

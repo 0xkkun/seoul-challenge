@@ -97,6 +97,37 @@ func test_generated_layout_reveals_boss_before_full_clear() -> void:
 	_runner.assert_true(layout.is_room_visible(final_room.room_id, cleared), "boss reveals after threshold clears")
 
 
+func test_generated_combat_room_configs_scale_by_route_distance() -> void:
+	var generator := RoomLayoutGenerator.new()
+	var layout := generator.generate(40, {"room_count": 15})
+	var nearest_combat := _nearest_combat_room(layout)
+	var farthest_combat := _farthest_combat_room(layout)
+	_runner.assert_not_null(nearest_combat, "generated layout has a nearest combat room")
+	_runner.assert_not_null(farthest_combat, "generated layout has a farthest combat room")
+	if nearest_combat == null or farthest_combat == null:
+		return
+
+	var nearest_config_value: Variant = nearest_combat.get("room_config")
+	var farthest_config_value: Variant = farthest_combat.get("room_config")
+
+	_runner.assert_true(nearest_config_value is Dictionary, "nearest combat exposes room_config")
+	_runner.assert_true(farthest_config_value is Dictionary, "farthest combat exposes room_config")
+	if not (nearest_config_value is Dictionary and farthest_config_value is Dictionary):
+		return
+	var nearest_config := nearest_config_value as Dictionary
+	var farthest_config := farthest_config_value as Dictionary
+	_runner.assert_true(nearest_config.size() > 0, "nearest combat gets encounter config")
+	_runner.assert_true(farthest_config.size() > 0, "farthest combat gets encounter config")
+	_runner.assert_true(
+		_encounter_total(farthest_config) > _encounter_total(nearest_config),
+		"combat rooms farther from start get larger encounters"
+	)
+	_runner.assert_true(
+		_elite_total(farthest_config) > 0,
+		"late generated combat rooms can include elite enemies"
+	)
+
+
 func test_sixty_four_room_layout_preserves_requested_count() -> void:
 	var generator := RoomLayoutGenerator.new()
 	var layout := generator.generate(40, {"room_count": 64})
@@ -333,6 +364,45 @@ func _shortest_path_length(layout: RoomLayout, start_room_id: StringName, target
 	if path.is_empty():
 		return -1
 	return path.size() - 1
+
+
+func _nearest_combat_room(layout: RoomLayout) -> RoomDef:
+	var best_room: RoomDef = null
+	var best_distance := 999999
+	for room_def: RoomDef in layout.room_defs:
+		if room_def.room_type != RoomLayout.TYPE_COMBAT:
+			continue
+		var distance := _shortest_path_length(layout, layout.start_room_id, room_def.room_id)
+		if distance < best_distance:
+			best_room = room_def
+			best_distance = distance
+	return best_room
+
+
+func _farthest_combat_room(layout: RoomLayout) -> RoomDef:
+	var best_room: RoomDef = null
+	var best_distance := -1
+	for room_def: RoomDef in layout.room_defs:
+		if room_def.room_type != RoomLayout.TYPE_COMBAT:
+			continue
+		var distance := _shortest_path_length(layout, layout.start_room_id, room_def.room_id)
+		if distance > best_distance:
+			best_room = room_def
+			best_distance = distance
+	return best_room
+
+
+func _encounter_total(config: Dictionary) -> int:
+	return (
+		int(config.get("chaser_count", 0))
+		+ int(config.get("ranged_count", 0))
+		+ int(config.get("elite_chaser_count", 0))
+		+ int(config.get("elite_ranged_count", 0))
+	)
+
+
+func _elite_total(config: Dictionary) -> int:
+	return int(config.get("elite_chaser_count", 0)) + int(config.get("elite_ranged_count", 0))
 
 
 func _junction_count(layout: RoomLayout) -> int:
