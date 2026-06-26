@@ -46,3 +46,37 @@ func test_health_is_clamped_to_valid_range() -> void:
 	_hud.set_health(-5, 3)
 	_runner.assert_eq(_hud.get_current_health(), 0, "현재 체력은 0 미만으로 내려가지 않는다")
 	_runner.assert_eq(_hud.get_filled_heart_count(), 0, "체력 0이면 채워진 하트가 없다")
+
+
+func test_skill_state_renders_uses_and_cooldown() -> void:
+	_runner.assert_true(_hud.has_method("set_skill_state"), "HUD exposes skill state setter")
+	_runner.assert_true(_hud.has_method("get_skill_text"), "HUD exposes skill text for tests")
+	if not _hud.has_method("set_skill_state") or not _hud.has_method("get_skill_text"):
+		return
+	_hud.set_skill_state({
+		"skill_id": &"emergency_dodge",
+		"uses_remaining": 2,
+		"max_uses": 3,
+		"cooldown_remaining": 0.5,
+	})
+
+	var text: String = _hud.get_skill_text()
+	_runner.assert_true(text.contains("회피"), "HUD names the emergency dodge skill")
+	_runner.assert_true(text.contains("2/3"), "HUD renders remaining skill uses")
+	_runner.assert_true(text.contains("0.5"), "HUD renders cooldown")
+
+
+func test_skill_state_event_updates_skill_slot() -> void:
+	_runner.assert_true(EventBus.has_method("emit_special_skill_state_changed"), "EventBus exposes skill state wrapper")
+	_runner.assert_true(_hud.has_method("get_skill_text"), "HUD exposes skill text for tests")
+	if not EventBus.has_method("emit_special_skill_state_changed") or not _hud.has_method("get_skill_text"):
+		return
+
+	EventBus.emit_special_skill_state_changed({
+		"skill_id": &"emergency_dodge",
+		"uses_remaining": 1,
+		"max_uses": 3,
+		"cooldown_remaining": 0.0,
+	})
+
+	_runner.assert_true(_hud.get_skill_text().contains("1/3"), "skill event updates HUD")
