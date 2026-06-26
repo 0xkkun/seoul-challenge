@@ -37,6 +37,7 @@ func test_minimap_marks_current_cleared_adjacent_unknown_and_hidden_rooms() -> v
 	_runner.assert_eq(entries[&"final_1"]["minimap_type"], &"unknown", "hidden boss hides its type")
 	_runner.assert_eq(entries[&"final_1"]["actual_minimap_type"], &"boss", "source boss type remains available for diagnostics")
 	_runner.assert_eq(entries[&"final_1"]["label"], "?", "hidden boss uses unknown label")
+	_runner.assert_eq(entries[&"final_1"]["icon_path"], "", "hidden boss does not expose its boss icon")
 
 
 func test_minimap_keeps_boss_unknown_until_explicit_reveal() -> void:
@@ -54,6 +55,7 @@ func test_minimap_keeps_boss_unknown_until_explicit_reveal() -> void:
 	var entries := _entries_by_room_id(minimap.get_room_draw_entries())
 	_runner.assert_false(entries[&"final_1"]["visible"], "boss stays unknown even when reachable")
 	_runner.assert_eq(entries[&"final_1"]["label"], "?", "reachable boss still uses unknown label")
+	_runner.assert_eq(entries[&"final_1"]["icon_path"], "", "reachable hidden boss still hides its icon")
 
 	var frontier := _frontier_by_room_id(minimap.get_frontier_draw_entries())
 	_runner.assert_true(frontier.has(&"final_1"), "reachable hidden boss is still pinged")
@@ -63,7 +65,13 @@ func test_minimap_keeps_boss_unknown_until_explicit_reveal() -> void:
 	entries = _entries_by_room_id(minimap.get_room_draw_entries())
 	_runner.assert_true(entries[&"final_1"]["visible"], "explicit reveal shows boss room")
 	_runner.assert_eq(entries[&"final_1"]["minimap_type"], &"boss", "revealed boss exposes boss type")
-	_runner.assert_eq(entries[&"final_1"]["label"], "B", "revealed boss uses boss label")
+	_runner.assert_eq(entries[&"final_1"]["label"], "", "revealed boss replaces text label with icon")
+	_runner.assert_eq(
+		entries[&"final_1"]["icon_path"],
+		Minimap.BOSS_ROOM_ICON_PATH,
+		"revealed boss uses the skull boss icon"
+	)
+	_runner.assert_not_null(entries[&"final_1"]["icon_texture"], "revealed boss icon texture is loaded")
 
 
 func test_minimap_uses_minimap_data_types_for_special_rooms() -> void:
@@ -83,6 +91,7 @@ func test_minimap_uses_minimap_data_types_for_special_rooms() -> void:
 	_runner.assert_eq(entries[&"final_1"]["minimap_type"], &"unknown", "unvisited final room hides boss type")
 	_runner.assert_false(entries[&"final_1"]["visible"], "hidden boss stays hidden")
 	_runner.assert_eq(entries[&"final_1"]["label"], "?", "hidden boss remains unknown")
+	_runner.assert_eq(entries[&"final_1"]["icon_path"], "", "hidden boss does not expose its boss icon")
 
 
 func test_minimap_frontier_ping_tracks_current_and_cleared_connections() -> void:
