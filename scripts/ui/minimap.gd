@@ -4,6 +4,8 @@ extends Control
 const MinimapDataScript = preload("res://scripts/systems/minimap_data.gd")
 const RoomPalette = preload("res://scripts/constants/room_palette.gd")
 
+const BOSS_ROOM_ICON_PATH := "res://assets/ui/minimap/boss_skull.png"
+const BOSS_ROOM_ICON = preload(BOSS_ROOM_ICON_PATH)
 const GRAPH_DIRECTIONS: Array[Vector2i] = [
 	Vector2i(1, 0),
 	Vector2i(0, 1),
@@ -15,6 +17,9 @@ const PANEL_BORDER_COLOR := Color(0.145098, 0.172549, 0.219608, 0.9)
 const UNKNOWN_ROOM_COLOR := Color(0.12549, 0.145098, 0.180392, 0.92)
 const UNKNOWN_TEXT_COLOR := Color(0.564706, 0.615686, 0.694118, 1.0)
 const CONNECTION_COLOR := Color(0.266667, 0.305882, 0.364706, 0.78)
+const UNKNOWN_MINIMAP_TYPE := &"unknown"
+const ROOM_GAP_MIN := 4.0
+const ROOM_SIZE_MIN := Vector2(12.0, 12.0)
 
 @export var room_size := Vector2(34.0, 34.0)
 @export var cell_spacing := Vector2(44.0, 44.0)
@@ -36,7 +41,8 @@ var _minimap_rooms_by_id := {}
 
 
 func _ready() -> void:
-	custom_minimum_size = Vector2(196.0, 144.0)
+	if custom_minimum_size == Vector2.ZERO:
+		custom_minimum_size = Vector2(196.0, 144.0)
 	_connect_event_bus()
 	set_process(true)
 	if room_manager != null:
@@ -143,23 +149,30 @@ func _draw() -> void:
 
 	var font := get_theme_default_font()
 	var font_size := get_theme_default_font_size()
-	for entry: Dictionary in _build_room_entries():
+	var room_entries := _build_room_entries()
+	for entry: Dictionary in room_entries:
 		var rect: Rect2 = entry["rect"]
 		if entry["frontier"]:
 			var pulse := 0.55 + sin(float(Time.get_ticks_msec()) / 150.0) * 0.25
 			var ping_color := RoomPalette.MINIMAP_PING_COLOR
 			ping_color.a = pulse
-			draw_rect(rect.grow(4.0), ping_color, false, 2.0)
+			var ping_margin := maxf(2.0, minf(rect.size.x, rect.size.y) * 0.12)
+			draw_rect(rect.grow(ping_margin), ping_color, false, 2.0)
 		draw_rect(rect, entry["fill_color"], true)
 		draw_rect(rect, entry["border_color"], false, entry["border_width"])
-		if entry["label"] != "":
+		var icon_texture := entry["icon_texture"] as Texture2D
+		if icon_texture != null:
+			var icon_margin := minf(rect.size.x, rect.size.y) * 0.18
+			draw_texture_rect(icon_texture, rect.grow(-icon_margin), false, entry["icon_color"])
+		elif entry["label"] != "":
+			var label_font := maxi(8, int(minf(float(font_size), rect.size.y * 0.7)))
 			draw_string(
 				font,
-				Vector2(rect.position.x, rect.position.y + room_size.y * 0.64),
+				Vector2(rect.position.x, rect.position.y + rect.size.y * 0.66),
 				entry["label"],
 				HORIZONTAL_ALIGNMENT_CENTER,
-				room_size.x,
-				font_size,
+				rect.size.x,
+				label_font,
 				entry["text_color"]
 			)
 
@@ -191,14 +204,22 @@ func _build_room_entries() -> Array[Dictionary]:
 		var is_problem := bool(problem_room_ids.get(room_id, false))
 		var is_frontier := _is_frontier_room(room_id)
 		var center := get_room_position(room_id)
-		var rect := Rect2(center - room_size * 0.5, room_size)
+		var draw_room_size := _effective_room_size()
+		var rect := Rect2(center - draw_room_size * 0.5, draw_room_size)
+		var actual_minimap_type := _minimap_type_for_room(room_def)
+		var display_minimap_type := actual_minimap_type if room_visible else UNKNOWN_MINIMAP_TYPE
 		var fill_color := _fill_color_for_room(room_def, room_visible, is_visited)
 		var border_color := _border_color_for_room(is_current, is_cleared, is_problem)
-		var label := _label_for_room(room_def, room_visible)
+		var icon_texture := _icon_texture_for_room(room_def, room_visible)
+		var label := "" if icon_texture != null else _label_for_room(room_def, room_visible)
 		entries.append({
 			"room_id": room_id,
 			"room_type": room_def.room_type,
-			"minimap_type": _minimap_type_for_room(room_def),
+			"minimap_type": display_minimap_type,
+			"actual_minimap_type": actual_minimap_type,
+			"icon_path": BOSS_ROOM_ICON_PATH if icon_texture != null else "",
+			"icon_texture": icon_texture,
+			"icon_color": Color.WHITE if room_visible else UNKNOWN_TEXT_COLOR,
 			"hidden": room_def.hidden,
 			"visible": room_visible,
 			"layout_visible": _is_layout_visible(room_def),
@@ -336,13 +357,9 @@ func _is_room_visible(room_def: RoomDef) -> bool:
 		return false
 	if reveal_hidden_rooms:
 		return true
-	if _is_always_visible_room(room_def):
-		return true
 	if _is_known_room(room_def.room_id):
 		return true
-	if room_def.hidden:
-		return false
-	return _is_adjacent_to_known_room(room_def.room_id)
+	return false
 
 
 func _is_layout_visible(room_def: RoomDef) -> bool:
@@ -361,27 +378,6 @@ func _is_known_room(room_id: StringName) -> bool:
 	if bool(cleared_room_ids.get(room_id, false)):
 		return true
 	return layout != null and room_id == layout.start_room_id
-
-
-func _is_adjacent_to_known_room(room_id: StringName) -> bool:
-	if layout == null:
-		return false
-	var room_def := layout.get_room(room_id)
-	if room_def == null:
-		return false
-	for connected_room_id: StringName in room_def.connections:
-		if _is_known_room(connected_room_id):
-			return true
-	for other_room_def: RoomDef in layout.room_defs:
-		if other_room_def == null:
-			continue
-		if other_room_def.connections.has(room_id) and _is_known_room(other_room_def.room_id):
-			return true
-	return false
-
-
-func _is_always_visible_room(room_def: RoomDef) -> bool:
-	return _minimap_type_for_room(room_def) == RoomLayout.TYPE_SHOP
 
 
 func _is_frontier_room(room_id: StringName) -> bool:
@@ -459,8 +455,6 @@ func _border_color_for_room(is_current: bool, is_cleared: bool, is_problem: bool
 
 
 func _label_for_room(room_def: RoomDef, room_visible: bool) -> String:
-	if room_def.hidden and not reveal_hidden_rooms and not _is_known_room(room_def.room_id):
-		return "?"
 	if show_hidden_as_unknown and not room_visible:
 		return "?"
 	match _minimap_type_for_room(room_def):
@@ -483,6 +477,14 @@ func _color_for_minimap_type(minimap_type: StringName) -> Color:
 	if minimap_type == &"boss":
 		return RoomPalette.FINAL_ROOM_FLOOR_COLOR
 	return RoomPalette.get_room_floor_color(minimap_type)
+
+
+func _icon_texture_for_room(room_def: RoomDef, room_visible: bool) -> Texture2D:
+	if not room_visible:
+		return null
+	if _minimap_type_for_room(room_def) == &"boss":
+		return BOSS_ROOM_ICON
+	return null
 
 
 func _derive_room_positions() -> Dictionary:
@@ -572,19 +574,58 @@ func _grid_to_canvas(grid_position: Vector2i) -> Vector2:
 	var min_position: Vector2i = bounds["min"]
 	var max_position: Vector2i = bounds["max"]
 	var grid_size := Vector2(max_position - min_position + Vector2i.ONE)
+	var draw_room_size := _effective_room_size()
+	var step := _effective_cell_spacing(draw_room_size)
+	var map_size := Vector2(
+		(grid_size.x - 1.0) * step.x + draw_room_size.x,
+		(grid_size.y - 1.0) * step.y + draw_room_size.y
+	)
+	var origin := (_canvas_size() - map_size) * 0.5 + draw_room_size * 0.5
+	var relative := Vector2(grid_position - min_position)
+	return origin + relative * step
+
+
+func _effective_room_size() -> Vector2:
+	var bounds := _grid_bounds()
+	var min_position: Vector2i = bounds["min"]
+	var max_position: Vector2i = bounds["max"]
+	var grid_size := Vector2(max_position - min_position + Vector2i.ONE)
+	var available := _canvas_size() - Vector2(panel_padding * 2.0, panel_padding * 2.0)
+	var max_width := room_size.x
+	var max_height := room_size.y
+	if grid_size.x > 1.0:
+		max_width = minf(max_width, (available.x - ROOM_GAP_MIN * (grid_size.x - 1.0)) / grid_size.x)
+	else:
+		max_width = minf(max_width, available.x)
+	if grid_size.y > 1.0:
+		max_height = minf(max_height, (available.y - ROOM_GAP_MIN * (grid_size.y - 1.0)) / grid_size.y)
+	else:
+		max_height = minf(max_height, available.y)
+	var room_scale := minf(minf(max_width / room_size.x, max_height / room_size.y), 1.0)
+	return Vector2(
+		maxf(room_size.x * room_scale, ROOM_SIZE_MIN.x),
+		maxf(room_size.y * room_scale, ROOM_SIZE_MIN.y)
+	)
+
+
+func _effective_cell_spacing(draw_room_size: Vector2) -> Vector2:
+	var bounds := _grid_bounds()
+	var min_position: Vector2i = bounds["min"]
+	var max_position: Vector2i = bounds["max"]
+	var grid_size := Vector2(max_position - min_position + Vector2i.ONE)
 	var available := _canvas_size() - Vector2(panel_padding * 2.0, panel_padding * 2.0)
 	var step := cell_spacing
 	if grid_size.x > 1.0:
-		step.x = minf(cell_spacing.x, maxf(room_size.x + 8.0, (available.x - room_size.x) / (grid_size.x - 1.0)))
+		step.x = minf(
+			cell_spacing.x,
+			maxf(draw_room_size.x + ROOM_GAP_MIN, (available.x - draw_room_size.x) / (grid_size.x - 1.0))
+		)
 	if grid_size.y > 1.0:
-		step.y = minf(cell_spacing.y, maxf(room_size.y + 8.0, (available.y - room_size.y) / (grid_size.y - 1.0)))
-	var map_size := Vector2(
-		(grid_size.x - 1.0) * step.x + room_size.x,
-		(grid_size.y - 1.0) * step.y + room_size.y
-	)
-	var origin := (_canvas_size() - map_size) * 0.5 + room_size * 0.5
-	var relative := Vector2(grid_position - min_position)
-	return origin + relative * step
+		step.y = minf(
+			cell_spacing.y,
+			maxf(draw_room_size.y + ROOM_GAP_MIN, (available.y - draw_room_size.y) / (grid_size.y - 1.0))
+		)
+	return step
 
 
 func _grid_bounds() -> Dictionary:

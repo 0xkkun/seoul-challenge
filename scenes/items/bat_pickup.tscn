@@ -1,0 +1,18 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/items/bat_pickup.gd" id="1_bat"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_bat"]
+radius = 18.0
+
+[node name="BatPickup" type="Area2D"]
+collision_layer = 0
+collision_mask = 2
+script = ExtResource("1_bat")
+
+[node name="Collision" type="CollisionShape2D" parent="."]
+shape = SubResource("CircleShape2D_bat")
+
+[node name="Placeholder" type="Polygon2D" parent="."]
+color = Color(0.65, 0.45, 0.25, 1)
+polygon = PackedVector2Array(-4, -18, 4, -18, 7, 18, -7, 18)

@@ -68,3 +68,16 @@ func test_double_release_does_not_duplicate_available_instance() -> void:
 	_runner.assert_true(first == second, "first available instance is reused")
 	_runner.assert_true(third != second, "second acquire creates a different active instance")
 	_runner.assert_eq(PoolManager.get_active_count(&"sample_marker"), 2)
+
+
+func test_clear_all_ignores_nodes_freed_by_parent_cleanup() -> void:
+	var scene := load("res://scenes/interactables/sample_pooled_marker.tscn") as PackedScene
+	var parent := Node2D.new()
+	add_child(parent)
+	PoolManager.register_scene(&"sample_marker", scene, 0, parent)
+
+	var marker := PoolManager.acquire(&"sample_marker", parent)
+	marker.free()
+	PoolManager.clear_all()
+
+	_runner.assert_eq(PoolManager.get_active_count(&"sample_marker"), 0, "clear all drops freed active references")

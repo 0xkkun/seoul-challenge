@@ -62,8 +62,10 @@ func reset_for_pool() -> void:
 
 
 func _on_hit(other: Node) -> void:
+	# 충돌 콜백(물리 플러시) 중 방 클리어 → 문 monitoring 변경이 막히므로
+	# 피해 적용을 deferred 로 미뤄 클리어 체인이 idle 에서 일어나게 한다.
 	if other != null and other.has_method("take_damage"):
-		other.call("take_damage", damage)
+		other.call_deferred("take_damage", damage)
 	call_deferred("_release")
 
 

@@ -52,11 +52,39 @@ func test_room_count_param_expands_connected_layout() -> void:
 	_assert_grid_positions_unique_and_adjacent(layout)
 
 
+func test_fifteen_room_layout_preserves_generation_contracts() -> void:
+	var generator := RoomLayoutGenerator.new()
+	var layout := generator.generate(40, {"room_count": 15})
+
+	_assert_layout_invariants(layout, 15)
+
+
+func test_sixty_four_room_layout_preserves_requested_count() -> void:
+	var generator := RoomLayoutGenerator.new()
+	var layout := generator.generate(40, {"room_count": 64})
+
+	_assert_layout_invariants(layout, 64)
+
+
 func test_two_hundred_seed_fuzz_preserves_layout_invariants() -> void:
 	var generator := RoomLayoutGenerator.new()
 	for layout_seed: int in range(200):
 		var layout := generator.generate(layout_seed)
 		_assert_layout_invariants(layout, 5)
+
+
+func test_fifty_seed_fuzz_preserves_fifteen_room_layout_invariants() -> void:
+	var generator := RoomLayoutGenerator.new()
+	for layout_seed: int in range(50):
+		var layout := generator.generate(layout_seed, {"room_count": 15})
+		_assert_layout_invariants(layout, 15)
+
+
+func test_twenty_seed_fuzz_preserves_sixty_four_room_layout_invariants() -> void:
+	var generator := RoomLayoutGenerator.new()
+	for layout_seed: int in range(20):
+		var layout := generator.generate(layout_seed, {"room_count": 64})
+		_assert_layout_invariants(layout, 64)
 
 
 func _assert_layout_invariants(layout: RoomLayout, expected_count: int) -> void:
@@ -88,7 +116,7 @@ func _assert_layout_invariants(layout: RoomLayout, expected_count: int) -> void:
 
 	_runner.assert_eq(type_counts[RoomLayout.TYPE_START], 1, "one start room")
 	_runner.assert_true(type_counts[RoomLayout.TYPE_COMBAT] >= 2, "at least two combat rooms")
-	_runner.assert_true(type_counts[RoomLayout.TYPE_COMBAT] <= 3, "at most three combat rooms")
+	_runner.assert_eq(type_counts[RoomLayout.TYPE_COMBAT], expected_count - 3, "remaining generated rooms are combat")
 	_runner.assert_eq(type_counts[RoomLayout.TYPE_EVENT], 1, "one event room")
 	_runner.assert_eq(type_counts[RoomLayout.TYPE_FINAL], 1, "one final room")
 	_runner.assert_eq(final_rooms.size(), 1, "final room exists")

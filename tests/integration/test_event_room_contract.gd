@@ -42,11 +42,11 @@ func test_rescue_room_clears_after_all_students_are_rescued() -> void:
 	room.enter()
 
 	var students := room.get_active_students()
-	var north_door := room.get_door(&"N")
+	var exit_door := room.get_door(&"E")
 	_runner.assert_eq(students.size(), 2, "rescue room spawns the required students")
 	_runner.assert_false(room.is_cleared(), "room waits for every student")
-	_runner.assert_not_null(north_door, "rescue room has a north door")
-	_runner.assert_true(north_door.is_locked(), "door stays locked before completion")
+	_runner.assert_not_null(exit_door, "rescue room has an exit door")
+	_runner.assert_true(exit_door.is_locked(), "door stays locked before completion")
 
 	(students[0] as RescueStudent).rescue(actor)
 
@@ -58,7 +58,7 @@ func test_rescue_room_clears_after_all_students_are_rescued() -> void:
 
 	_runner.assert_true(room.is_cleared(), "room clears after all students")
 	_runner.assert_true(room.has_been_cleared(), "room marks base contract cleared")
-	_runner.assert_true(north_door.is_open(), "door opens after rescue completion")
+	_runner.assert_true(exit_door.is_open(), "door opens after rescue completion")
 	_runner.assert_eq(cleared_rooms.size(), 1, "room emits cleared once")
 	_runner.assert_eq(rescued_payloads.size(), 2, "each student rescue emits an event")
 	_runner.assert_eq(currency_payloads.size(), 2, "each student rescue emits a reward event")

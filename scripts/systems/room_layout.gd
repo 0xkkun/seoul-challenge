@@ -7,6 +7,8 @@ const TYPE_EVENT := &"event"
 const TYPE_FINAL := &"final"
 const TYPE_TREASURE := &"treasure"
 const TYPE_SHOP := &"shop"
+const MIN_ROOM_COUNT := 5
+const MAX_ROOM_COUNT := 64
 
 @export var layout_id: StringName = &"layout"
 @export var start_room_id: StringName = TYPE_START
@@ -105,8 +107,8 @@ func validate_layout() -> PackedStringArray:
 	var rooms_by_id := {}
 	var grid_positions := {}
 
-	if room_defs.size() < 3 or room_defs.size() > 5:
-		errors.append("layout must contain 3 to 5 rooms")
+	if room_defs.size() < MIN_ROOM_COUNT or room_defs.size() > MAX_ROOM_COUNT:
+		errors.append("layout must contain %d to %d rooms" % [MIN_ROOM_COUNT, MAX_ROOM_COUNT])
 
 	for room_def: RoomDef in room_defs:
 		if room_def == null:
@@ -152,8 +154,8 @@ func validate_layout() -> PackedStringArray:
 		errors.append("start room is missing: %s" % start_room_id)
 	if type_counts[TYPE_START] != 1:
 		errors.append("layout must contain exactly one start room")
-	if type_counts[TYPE_COMBAT] < 2 or type_counts[TYPE_COMBAT] > 3:
-		errors.append("layout must contain two or three combat rooms")
+	if type_counts[TYPE_COMBAT] < 2:
+		errors.append("layout must contain at least two combat rooms")
 	if type_counts[TYPE_EVENT] != 1:
 		errors.append("layout must contain exactly one event room")
 	if type_counts[TYPE_FINAL] != 1:

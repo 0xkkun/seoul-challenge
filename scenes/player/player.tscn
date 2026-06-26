@@ -1,7 +1,8 @@
-[gd_scene load_steps=4 format=3]
+[gd_scene load_steps=5 format=3]
 
 [ext_resource type="Script" path="res://scripts/player/player.gd" id="1_player"]
 [ext_resource type="Script" path="res://scripts/player/projectile_launcher.gd" id="2_launcher"]
+[ext_resource type="SpriteFrames" path="res://assets/sprites/player/player_walk_frames.tres" id="3_walk"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_player"]
 radius = 14.0
@@ -14,9 +15,15 @@ script = ExtResource("1_player")
 [node name="Collision" type="CollisionShape2D" parent="."]
 shape = SubResource("CircleShape2D_player")
 
-[node name="Placeholder" type="Polygon2D" parent="."]
-color = Color(0.36, 0.66, 0.95, 1)
-polygon = PackedVector2Array(-14, -14, 14, -14, 14, 14, -14, 14)
+[node name="Sprite" type="AnimatedSprite2D" parent="."]
+sprite_frames = ExtResource("3_walk")
+animation = &"walk"
+autoplay = "walk"
+
+[node name="MeleeSwing" type="Polygon2D" parent="."]
+visible = false
+color = Color(1, 1, 1, 0.45)
+polygon = PackedVector2Array(8, -22, 44, -10, 48, 0, 44, 10, 8, 22)
 
 [node name="ProjectileLauncher" type="Node" parent="."]
 script = ExtResource("2_launcher")

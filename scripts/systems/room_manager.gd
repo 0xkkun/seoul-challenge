@@ -85,6 +85,8 @@ func enter_room(room_id: StringName) -> bool:
 	current_room = instance as Node2D
 	current_room_def = room_def
 	current_room_id = room_def.room_id
+	# 문 방향을 레이아웃 연결(grid 인접)에서 도출해 미니맵 배치와 항상 일치시킨다.
+	current_room.set("door_dirs", _door_dirs_for_room(room_def))
 	container.add_child(current_room)
 	_apply_room_def(current_room, room_def)
 	_configure_actor(current_room)
@@ -160,6 +162,48 @@ func _apply_room_def(room: Node2D, room_def: RoomDef) -> void:
 	room.set("room_type", room_def.room_type)
 
 
+## 연결된 방의 grid 위치 차이로 문 방향(N/S/E/W)을 도출한다.
+## validate_layout이 연결=인접(거리 1)을 강제하므로 델타는 항상 단위 방향이다.
+## 결과적으로 문은 미니맵의 연결 엣지와 정확히 일치한다(상하 연결이면 N/S 문이 생김).
+func _door_dirs_for_room(room_def: RoomDef) -> Array[StringName]:
+	var dirs: Array[StringName] = []
+	if layout == null:
+		return dirs
+	for connected_id: StringName in room_def.connections:
+		var connected := layout.get_room(connected_id)
+		if connected == null:
+			continue
+		var delta := connected.grid_pos - room_def.grid_pos
+		var door_dir := _door_dir_for_delta(delta)
+		if door_dir != &"":
+			dirs.append(door_dir)
+	return dirs
+
+
+func _connected_room_id_for_door_dir(room_def: RoomDef, door_dir: StringName) -> StringName:
+	if layout == null:
+		return &""
+	for connected_id: StringName in room_def.connections:
+		var connected := layout.get_room(connected_id)
+		if connected == null:
+			continue
+		if _door_dir_for_delta(connected.grid_pos - room_def.grid_pos) == door_dir:
+			return connected_id
+	return &""
+
+
+func _door_dir_for_delta(delta: Vector2i) -> StringName:
+	if delta.x > 0:
+		return &"E"
+	if delta.x < 0:
+		return &"W"
+	if delta.y > 0:
+		return &"S"
+	if delta.y < 0:
+		return &"N"
+	return &""
+
+
 func _configure_actor(room: Node2D) -> void:
 	if _actor != null and room.has_method("configure_actor"):
 		room.call("configure_actor", _actor)
@@ -184,7 +228,8 @@ func _on_room_cleared(room_id: StringName) -> void:
 	cleared_room_ids[room_id] = true
 
 
-func _on_room_transition_requested(room_id: StringName, _door_dir: StringName) -> void:
+func _on_room_transition_requested(room_id: StringName, door_dir: StringName) -> void:
 	if room_id != current_room_id:
 		return
-	request_next_room()
+	var preferred_room_id := _connected_room_id_for_door_dir(current_room_def, door_dir)
+	request_next_room(preferred_room_id)
