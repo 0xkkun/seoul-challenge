@@ -4,6 +4,7 @@ const RenderLayers = preload("res://scripts/constants/render_layers.gd")
 const POOLED_MARKER_SCENE = preload("res://scenes/interactables/sample_pooled_marker.tscn")
 const BOSS_SCENE = preload("res://scenes/enemies/boss.tscn")
 const RoomPalette = preload("res://scripts/constants/room_palette.gd")
+const MapItemCatalog = preload("res://scripts/items/map_item_catalog.gd")
 
 const RUN_LAYOUT_SEED_MAX := 2147483647
 const RUN_LAYOUT_ROOM_COUNT := 15
@@ -48,6 +49,9 @@ var _paused_before_exit_modal := false
 var _friend_ids: Array[StringName] = []
 var _unlocks: Array[StringName] = []
 var _camera_feedback_tween: Tween = null
+var _rewarded_room_ids := {}
+var _pending_reward_room_id: StringName = &""
+var _paused_before_reward_choice := false
 
 
 func _ready() -> void:
@@ -63,6 +67,7 @@ func _ready() -> void:
 	death_return_controller.game_over_callable = Callable(self, "_show_death_summary")
 	_connect_progression_events()
 	_connect_combat_feedback_events()
+	_connect_run_reward_events()
 	room_manager.room_changed.connect(_on_room_changed)
 	room_manager.configure(_build_run_layout(), room_layer, actor)
 	room_manager.start_layout()
@@ -86,6 +91,7 @@ func _apply_render_layers() -> void:
 func _exit_tree() -> void:
 	_disconnect_progression_events()
 	_disconnect_combat_feedback_events()
+	_disconnect_run_reward_events()
 	if has_node("/root/PoolManager"):
 		PoolManager.clear_all()
 	if not _handoff_session_on_exit and has_node("/root/GameManager") and GameManager.is_session_active():
@@ -245,6 +251,30 @@ func _disconnect_combat_feedback_events() -> void:
 		EventBus.combat_feedback.disconnect(callback)
 
 
+func _connect_run_reward_events() -> void:
+	if session_ui_root != null and session_ui_root.has_signal("reward_choice_selected"):
+		var choice_callback := Callable(self, "_on_reward_choice_selected")
+		if not session_ui_root.reward_choice_selected.is_connected(choice_callback):
+			session_ui_root.reward_choice_selected.connect(choice_callback)
+	if not has_node("/root/EventBus") or not EventBus.has_signal(&"room_cleared"):
+		return
+	var room_callback := Callable(self, "_on_room_cleared_for_reward")
+	if not EventBus.room_cleared.is_connected(room_callback):
+		EventBus.room_cleared.connect(room_callback)
+
+
+func _disconnect_run_reward_events() -> void:
+	if session_ui_root != null and session_ui_root.has_signal("reward_choice_selected"):
+		var choice_callback := Callable(self, "_on_reward_choice_selected")
+		if session_ui_root.reward_choice_selected.is_connected(choice_callback):
+			session_ui_root.reward_choice_selected.disconnect(choice_callback)
+	if not has_node("/root/EventBus") or not EventBus.has_signal(&"room_cleared"):
+		return
+	var room_callback := Callable(self, "_on_room_cleared_for_reward")
+	if EventBus.room_cleared.is_connected(room_callback):
+		EventBus.room_cleared.disconnect(room_callback)
+
+
 func _on_combat_feedback(payload: Dictionary) -> void:
 	if player_camera == null:
 		return
@@ -255,6 +285,80 @@ func _on_combat_feedback(payload: Dictionary) -> void:
 	var intensity := float(payload.get("intensity", 2.0))
 	player_camera.offset = camera_feedback_offset(direction, intensity)
 	_start_camera_feedback_recover()
+
+
+func _on_room_cleared_for_reward(payload: Dictionary) -> void:
+	var room_id := StringName(payload.get("room_id", &""))
+	var room_type := StringName(payload.get("room_type", &""))
+	if room_id == &"" or room_type != &"combat":
+		return
+	if room_id != room_manager.current_room_id:
+		return
+	if _rewarded_room_ids.has(room_id) or _pending_reward_room_id != &"":
+		return
+	_show_room_reward_choices(room_id)
+
+
+func _show_room_reward_choices(room_id: StringName) -> void:
+	var choices := _build_reward_choice_models(room_id)
+	if choices.is_empty():
+		return
+	_pending_reward_room_id = room_id
+	_paused_before_reward_choice = get_tree().paused
+	get_tree().paused = true
+	session_ui_root.call("show_reward_choices", room_id, choices)
+	session_ui_root.set_status("전투 보상")
+
+
+func _on_reward_choice_selected(item_id: StringName) -> void:
+	if _pending_reward_room_id == &"":
+		return
+	var room_id := _pending_reward_room_id
+	_pending_reward_room_id = &""
+	_rewarded_room_ids[room_id] = true
+	var applied := false
+	if actor != null and actor.has_method("apply_run_modifier"):
+		applied = bool(actor.call("apply_run_modifier", item_id))
+	if session_ui_root.has_method("hide_reward_choices"):
+		session_ui_root.call("hide_reward_choices")
+	get_tree().paused = _paused_before_reward_choice
+	session_ui_root.set_status("보상 획득")
+	if has_node("/root/EventBus"):
+		EventBus.emit_interaction_completed({
+			"kind": "run_reward_selected",
+			"room_id": room_id,
+			"room_type": &"combat",
+			"item_id": item_id,
+			"item_display_name": MapItemCatalog.get_display_name(item_id),
+			"applied": applied,
+		})
+
+
+func _build_reward_choice_models(room_id: StringName) -> Array[Dictionary]:
+	var models: Array[Dictionary] = []
+	for item_id: StringName in _reward_choice_ids(room_id, 3):
+		models.append({
+			"item_id": item_id,
+			"display_name": MapItemCatalog.get_display_name(item_id),
+			"flavor": MapItemCatalog.get_flavor(item_id),
+		})
+	return models
+
+
+func _reward_choice_ids(room_id: StringName, count: int) -> Array[StringName]:
+	var ids := MapItemCatalog.item_ids()
+	var result: Array[StringName] = []
+	if ids.is_empty() or count <= 0:
+		return result
+	var start_index := absi(String(room_id).hash()) % ids.size()
+	for offset: int in range(ids.size()):
+		var item_id := ids[(start_index + offset) % ids.size()]
+		if result.has(item_id):
+			continue
+		result.append(item_id)
+		if result.size() >= count:
+			break
+	return result
 
 
 func camera_feedback_offset(direction: Vector2, intensity: float) -> Vector2:

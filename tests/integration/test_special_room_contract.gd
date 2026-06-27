@@ -120,7 +120,6 @@ func test_treasure_room_pickup_marks_room_cleared() -> void:
 	add_child(actor)
 	add_child(interaction_system)
 	interaction_system.configure(actor, room_container)
-	room.enter()
 
 	var north_door := room.get_door(&"N")
 	var pickup_visual := room.get_node("PickupSpot/PickupVisual") as ColorRect
@@ -144,6 +143,22 @@ func test_treasure_room_pickup_marks_room_cleared() -> void:
 		_runner.assert_true(pickup_events[0]["applied"], "pickup payload records player stat application")
 
 	EventBus.interaction_completed.disconnect(on_interaction_completed)
+
+
+func test_treasure_room_auto_picks_up_on_enter_to_avoid_softlock() -> void:
+	var room := (load("res://scenes/interactables/treasure_room.tscn") as PackedScene).instantiate() as TreasureRoom
+	var actor := (load("res://scenes/player/player.tscn") as PackedScene).instantiate() as Node2D
+	add_child(room)
+	add_child(actor)
+	room.configure_actor(actor)
+
+	room.enter()
+
+	var north_door := room.get_door(&"N")
+	_runner.assert_true(room.has_picked_up(), "treasure room grants its item immediately on entry")
+	_runner.assert_true(room.has_been_cleared(), "treasure room auto clear prevents locked-room softlock")
+	_runner.assert_true(north_door.is_open(), "treasure room opens exits without requiring hidden interaction input")
+	_runner.assert_eq(actor.get("melee_damage"), 2, "auto pickup applies the run item to the player")
 
 
 func test_shop_room_bat_purchase_spends_ingame_and_equips_player() -> void:

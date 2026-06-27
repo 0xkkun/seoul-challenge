@@ -29,6 +29,12 @@ func _ready() -> void:
 	_add_interactable_group()
 
 
+func enter() -> void:
+	super.enter()
+	if not _picked_up:
+		pick_up(_actor)
+
+
 func is_cleared() -> bool:
 	return _picked_up
 
