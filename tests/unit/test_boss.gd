@@ -44,6 +44,21 @@ func test_swing_arc_hits_forward_target_only() -> void:
 	b.free()
 
 
+func test_strong_attack_hit_ready_waits_for_animation_contact_frame() -> void:
+	var b = BossScene.instantiate()
+	_runner.assert_true(b.has_method("strong_attack_hit_ready"), "강공격 타격 타이밍은 테스트 가능한 순수 함수로 노출된다")
+	if not b.has_method("strong_attack_hit_ready"):
+		b.free()
+		return
+	var fps: float = b.strong_attack_animation_fps
+	var hit_frame: int = b.strong_attack_hit_frame
+	var hit_time := float(hit_frame) / fps
+	_runner.assert_false(b.strong_attack_hit_ready(0.0, hit_frame, fps), "강공격 시작 프레임은 아직 피해 판정 전이다")
+	_runner.assert_false(b.strong_attack_hit_ready(hit_time - 0.01, hit_frame, fps), "타격 프레임 직전까지는 피해 판정 전이다")
+	_runner.assert_true(b.strong_attack_hit_ready(hit_time, hit_frame, fps), "타격 프레임부터 강공격 피해 판정이 열린다")
+	b.free()
+
+
 func test_dies_at_zero_hp() -> void:
 	var b = BossScene.instantiate()
 	add_child(b)  # _ready → _hp = max_hp
@@ -99,13 +114,43 @@ func test_strong_attack_hits_before_body_overlap() -> void:
 	var target := DamageTarget.new()
 	add_child(b)
 	add_child(target)
+	b.target_group = &"boss_timing_test_player"
+	target.add_to_group(&"boss_timing_test_player")
+	b.charge_speed = 0.0
 	b.global_position = Vector2.ZERO
 	target.global_position = Vector2.RIGHT * 120.0
 
 	b.set("_pattern_index", 0)
 	b.call("_begin_pattern", target)
 
+	_runner.assert_eq(target.damage_taken, 0, "보스 강공격은 애니메이션 시작 즉시 피해를 주지 않는다")
+	b.call("_tick_strong_attack_hit", target, (float(b.strong_attack_hit_frame) / b.strong_attack_animation_fps) - 0.01)
+	_runner.assert_eq(target.damage_taken, 0, "보스 강공격은 방망이가 내려오기 전까지 피해를 주지 않는다")
+	b.call("_tick_strong_attack_hit", target, 0.02)
 	_runner.assert_true(target.damage_taken >= b.contact_damage, "보스 강공격은 몸통 접촉 전 스윙 범위에서 피해를 준다")
 	_runner.assert_true(target.global_position.distance_to(b.global_position) > b.contact_range, "테스트 대상은 기존 접촉 판정보다 멀리 있다")
+	b.queue_free()
+	target.queue_free()
+
+
+func test_strong_attack_hit_window_closes_after_contact_frame() -> void:
+	var b = BossScene.instantiate()
+	var target := DamageTarget.new()
+	add_child(b)
+	add_child(target)
+	b.target_group = &"boss_timing_test_player"
+	target.add_to_group(&"boss_timing_test_player")
+	b.charge_speed = 0.0
+	b.global_position = Vector2.ZERO
+	target.global_position = Vector2.RIGHT * 220.0
+
+	b.set("_pattern_index", 0)
+	b.call("_begin_pattern", target)
+	b.call("_tick_strong_attack_hit", target, float(b.strong_attack_hit_frame) / b.strong_attack_animation_fps)
+	_runner.assert_eq(target.damage_taken, 0, "강공격 임팩트 프레임에 범위 밖이면 피해를 받지 않는다")
+
+	target.global_position = Vector2.RIGHT * 120.0
+	b.call("_tick_strong_attack_hit", target, 0.2)
+	_runner.assert_eq(target.damage_taken, 0, "강공격 임팩트 프레임을 놓친 뒤 늦게 들어와도 피해 판정은 다시 열리지 않는다")
 	b.queue_free()
 	target.queue_free()
