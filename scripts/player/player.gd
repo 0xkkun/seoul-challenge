@@ -54,6 +54,7 @@ var _dodge_timer: float = 0.0
 var _dodge_direction: Vector2 = Vector2.ZERO
 var _was_special_pressed := false
 var _has_bat: bool = false   ## 야구배트 장착 여부(맵 클리어 보상). 기본 맨손.
+var _bat_awakened: bool = false
 var _facing: Vector2 = Vector2.DOWN
 var _health: int = 0
 var _invuln_timer: float = 0.0
@@ -70,6 +71,7 @@ func _ready() -> void:
 	_capture_base_run_stats()
 	_health = max_health
 	_connect_run_session_events()
+	_refresh_bat_awakened_from_progression()
 	if not touch_controls_path.is_empty():
 		_touch = get_node_or_null(touch_controls_path)
 	# HUD·죽음 컨트롤러가 연결된 뒤 초기 체력을 알리도록 지연 발신.
@@ -359,14 +361,24 @@ func _connect_run_session_events() -> void:
 	var finished_callback := Callable(self, "_on_session_finished")
 	if not EventBus.session_finished.is_connected(finished_callback):
 		EventBus.session_finished.connect(finished_callback)
+	var unlock_callback := Callable(self, "_on_unlock_changed")
+	if EventBus.has_signal(&"unlock_changed") and not EventBus.unlock_changed.is_connected(unlock_callback):
+		EventBus.unlock_changed.connect(unlock_callback)
 
 
 func _on_session_started(_config: Dictionary) -> void:
 	reset_run_modifiers(true)
+	_refresh_bat_awakened_from_progression()
 
 
 func _on_session_finished(_result: Dictionary) -> void:
 	reset_run_modifiers(false)
+
+
+func _on_unlock_changed(payload: Dictionary) -> void:
+	for unlock: Variant in payload.get("unlocks", []):
+		if StringName(unlock) == &"awakened_bat":
+			set_bat_awakened(true)
 
 
 func _capture_base_run_stats() -> void:
@@ -480,7 +492,10 @@ func _attack_melee(dir: Vector2) -> void:
 			if _has_bat:
 				e.global_position += knockback_vector(global_position, e.global_position, bat_knockback)
 	if _has_bat:
-		_deflect_bullets_in_arc(dir, rng, arc)
+		if _bat_awakened:
+			_deflect_bullets_in_arc(dir, rng, arc)
+		else:
+			_clear_bullets_in_arc(dir, rng, arc)
 	_show_swing(dir, rng, arc)
 
 
@@ -521,15 +536,29 @@ func _build_swing_polygon(dir: Vector2, rng: float, arc: float) -> PackedVector2
 ## 야구배트 장착(맵 클리어 보상). 통합 단계에서 보상 지급 시 호출.
 func equip_bat() -> void:
 	ranged_enabled = false
+	_refresh_bat_awakened_from_progression()
 	if _has_bat:
 		return
 	_has_bat = true
 	weapon_changed.emit(current_weapon_name())
 
 
+func set_bat_awakened(is_awakened: bool) -> void:
+	_bat_awakened = is_awakened
+
+
+func is_bat_awakened() -> bool:
+	return _bat_awakened
+
+
 ## 현재 무기 이름(UI용).
 func current_weapon_name() -> String:
 	return "야구배트" if _has_bat else "맨손"
+
+
+func _refresh_bat_awakened_from_progression() -> void:
+	if is_inside_tree() and has_node("/root/ProgressionSystem"):
+		_bat_awakened = ProgressionSystem.is_weapon_unlocked(&"awakened_bat")
 
 
 ## 앞쪽 부채꼴 안의 적 투사체(enemy_projectile)를 swing 방향으로 되받아친다(deflect). (배트 전용)
@@ -550,3 +579,14 @@ func _deflect_bullets_in_arc(dir: Vector2, rng: float, arc: float) -> void:
 				node.queue_free()
 	if deflected:
 		HapticManager.on_deflect()
+
+
+func _clear_bullets_in_arc(dir: Vector2, rng: float, arc: float) -> void:
+	for b: Node in get_tree().get_nodes_in_group(&"enemy_projectile"):
+		var node := b as Node2D
+		if node == null or not is_instance_valid(node):
+			continue
+		var to := node.global_position - global_position
+		var to_us := Vector2(to.x, to.y / swing_vertical_factor)
+		if to_us.length() <= rng and in_melee_arc(dir, to_us, arc):
+			node.queue_free()

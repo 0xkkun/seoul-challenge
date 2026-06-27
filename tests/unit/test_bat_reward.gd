@@ -28,6 +28,7 @@ func test_knockback_pushes_away() -> void:
 func test_default_is_barehands_then_bat() -> void:
 	var p = PlayerScript.new()
 	_runner.assert_eq(p.current_weapon_name(), "맨손", "기본은 맨손")
+	_runner.assert_false(p.is_bat_awakened(), "기본 배트 각성은 잠김")
 	p.equip_bat()
 	_runner.assert_eq(p.current_weapon_name(), "야구배트", "보상 후 배트")
 	p.free()
@@ -55,6 +56,14 @@ func test_barehands_damage() -> void:
 	p._attack_melee(Vector2.RIGHT)
 	_runner.assert_eq(e.taken, p.melee_damage, "맨손 피해")
 	e.free()
+	p.free()
+
+
+func test_bat_awakened_state_is_explicit_for_progression_gate() -> void:
+	var p = PlayerScript.new()
+	_runner.assert_false(p.is_bat_awakened(), "progression 해금 전엔 미각성")
+	p.set_bat_awakened(true)
+	_runner.assert_true(p.is_bat_awakened(), "progression 해금 후 각성 상태를 켤 수 있음")
 	p.free()
 
 
