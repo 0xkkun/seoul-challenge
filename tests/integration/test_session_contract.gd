@@ -313,6 +313,43 @@ func test_baseball_onboarding_friend_purification_finishes_run_and_sets_reward_f
 	session.queue_free()
 
 
+func test_baseball_onboarding_combat_reward_explains_first_reward_choice() -> void:
+	GameManager.start_session({
+		"source": "intro_reward_onboarding",
+		SceneTransition.RUN_CONFIG_ONBOARDING_KIND: SceneTransition.ONBOARDING_KIND_BASEBALL_CAPTAIN,
+	})
+	var packed := load("res://scenes/session/session_root.tscn") as PackedScene
+	var session := packed.instantiate()
+	add_child(session)
+
+	var manager := session.get_node("%RoomManager") as RoomManager
+	var session_ui: CanvasLayer = session.get_node("%SessionUIRoot")
+	_runner.assert_true(manager.enter_room(&"combat_1"), "test enters the onboarding combat room")
+
+	_defeat_all_combat_waves(manager.current_room)
+
+	_runner.assert_true(manager.is_current_room_cleared(), "onboarding combat room clears before reward onboarding")
+	_runner.assert_true(session.has_method("flush_pending_reward_choice_for_tests"), "session exposes deterministic reward delay flush")
+	if not session.has_method("flush_pending_reward_choice_for_tests"):
+		session.queue_free()
+		return
+	_runner.assert_true(session.call("flush_pending_reward_choice_for_tests"), "onboarding combat opens the reward cards")
+
+	var snapshot: Dictionary = session_ui.call("get_reward_choice_snapshot")
+	_runner.assert_true(bool(snapshot.get("visible", false)), "reward choice overlay is visible")
+	_runner.assert_true(bool(snapshot.get("onboarding_hint_visible", false)), "first onboarding combat reward includes reward-choice guidance")
+	_runner.assert_eq(snapshot.get("onboarding_hint_title", ""), "전투 보상", "reward onboarding title names the moment")
+	_runner.assert_true(String(snapshot.get("onboarding_hint_body", "")).contains("하나"), "reward onboarding tells the player to choose one card")
+	_runner.assert_eq(int(snapshot.get("onboarding_hint_target_count", 0)), 3, "reward onboarding points at all three reward cards")
+
+	var choice_ids: Array = snapshot.get("choice_ids", []) as Array
+	if not choice_ids.is_empty():
+		session_ui.call("select_reward_choice", choice_ids[0])
+	get_tree().paused = false
+	GameManager.reset_session()
+	session.free()
+
+
 func test_session_generated_layout_omits_disabled_shop_and_event_rooms() -> void:
 	var packed := load("res://scenes/session/session_root.tscn") as PackedScene
 	var session := packed.instantiate()
@@ -1067,6 +1104,37 @@ func test_session_finish_request_confirms_abandon_to_school() -> void:
 	session.queue_free()
 
 
+func test_baseball_onboarding_abandon_returns_to_lobby_not_corridor() -> void:
+	GameManager.start_session({
+		"source": "intro_abandon_test",
+		"stage_id": &"gyeongbokgung",
+		"stage_name": "경복궁",
+		SceneTransition.RUN_CONFIG_ONBOARDING_KIND: SceneTransition.ONBOARDING_KIND_BASEBALL_CAPTAIN,
+	})
+	var packed := load("res://scenes/session/session_root.tscn") as PackedScene
+	var session := packed.instantiate()
+	var action_counts := {"school": 0, "lobby": 0}
+	session.return_to_school_callable = func() -> void:
+		action_counts["school"] += 1
+	_runner.assert_true(_has_property(session, "return_to_lobby_callable"), "session can inject a lobby return for incomplete onboarding exits")
+	if _has_property(session, "return_to_lobby_callable"):
+		session.set("return_to_lobby_callable", func() -> void:
+			action_counts["lobby"] += 1
+		)
+	add_child(session)
+
+	session._on_finish_requested()
+	_runner.assert_true(session.is_exit_confirm_visible(), "onboarding abandon still asks for confirmation")
+	_runner.assert_true(UiTestHarness.press_by_test_id(session, ConfirmModal.TEST_ID_YES), "yes confirms onboarding abandon")
+	_runner.assert_eq(action_counts["school"], 0, "incomplete onboarding does not return to the day corridor")
+	_runner.assert_eq(action_counts["lobby"], 1, "incomplete onboarding returns to the lobby")
+	_runner.assert_false(GameManager.is_session_active(), "onboarding abandon resets the active run")
+	_runner.assert_false(SaveManager.get_flag(SceneTransition.FLAG_ONBOARDING_BASEBALL_COMPLETE), "abandon does not mark onboarding complete")
+
+	remove_child(session)
+	session.free()
+
+
 func test_room_base_lifecycle_opens_door_and_requests_transition() -> void:
 	var packed := load("res://scenes/session/room_base.tscn") as PackedScene
 	var room := packed.instantiate() as Room
@@ -1304,6 +1372,13 @@ func _room_def(
 	room_def.hidden = hidden
 	room_def.scene_path = "res://scenes/session/room_base.tscn"
 	return room_def
+
+
+func _has_property(node: Object, property_name: String) -> bool:
+	for property: Dictionary in node.get_property_list():
+		if String(property.get("name", "")) == property_name:
+			return true
+	return false
 
 
 func _layout_signature(layout: RoomLayout) -> String:

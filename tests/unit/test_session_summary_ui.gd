@@ -267,6 +267,47 @@ func test_reward_choices_render_three_actions_and_emit_selected_id() -> void:
 	_runner.assert_false(_ui.is_reward_choice_visible(), "selection hides reward choice overlay")
 
 
+func test_reward_choice_onboarding_hint_explains_first_combat_reward() -> void:
+	_runner.assert_true(_ui.has_method("set_reward_choice_onboarding_hint"), "reward UI can enable first-reward onboarding copy")
+	if not _ui.has_method("set_reward_choice_onboarding_hint"):
+		return
+
+	_ui.call("set_reward_choice_onboarding_hint", true)
+	_ui.show_reward_choices(&"combat_1", [
+		{
+			"item_id": &"dokkaebi_fire",
+			"display_name": "도깨비불",
+			"effect": "근접 공격 속도 +19% / 투척 속도 +19%",
+		},
+		{
+			"item_id": &"wind_step",
+			"display_name": "바람 매듭",
+			"effect": "이동 속도 +15%",
+		},
+		{
+			"item_id": &"moon_guard",
+			"display_name": "달빛 호신부",
+			"effect": "최대 체력 +1",
+		},
+	])
+
+	var snapshot: Dictionary = _ui.get_reward_choice_snapshot()
+	_runner.assert_true(snapshot.has("onboarding_hint_visible"), "reward snapshot exposes onboarding hint visibility")
+	_runner.assert_true(snapshot.has("onboarding_hint_title"), "reward snapshot exposes onboarding hint title")
+	_runner.assert_true(snapshot.has("onboarding_hint_body"), "reward snapshot exposes onboarding hint body")
+	_runner.assert_true(snapshot.has("onboarding_hint_target_count"), "reward snapshot exposes how many cards the hint covers")
+	if not snapshot.has("onboarding_hint_visible"):
+		return
+	_runner.assert_true(snapshot["onboarding_hint_visible"], "first reward onboarding hint is visible when enabled")
+	_runner.assert_eq(snapshot.get("onboarding_hint_title", ""), "전투 보상", "hint title names the new reward moment")
+	_runner.assert_true(String(snapshot.get("onboarding_hint_body", "")).contains("하나"), "hint body tells the player to choose one card")
+	_runner.assert_eq(int(snapshot.get("onboarding_hint_target_count", 0)), 3, "hint points at the visible reward cards")
+
+	_ui.hide_reward_choices()
+	var hidden_snapshot: Dictionary = _ui.get_reward_choice_snapshot()
+	_runner.assert_false(bool(hidden_snapshot.get("onboarding_hint_visible", true)), "hiding rewards hides the onboarding hint too")
+
+
 func test_reward_choice_open_starts_slide_fade_animation() -> void:
 	get_tree().paused = true
 

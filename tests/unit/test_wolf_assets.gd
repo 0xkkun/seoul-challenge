@@ -152,6 +152,27 @@ func test_wolf_dash_state_machine_prepares_charges_and_recovers() -> void:
 	_runner.assert_eq(enemy.call("get_dash_state"), &"chase", "wolf returns to chase after recovery")
 
 
+func test_wolf_dash_direction_locks_during_windup() -> void:
+	_runner.assert_true(ResourceLoader.exists(WOLF_SCENE_PATH), "wolf dash enemy scene exists")
+	if not ResourceLoader.exists(WOLF_SCENE_PATH):
+		return
+
+	var enemy := (load(WOLF_SCENE_PATH) as PackedScene).instantiate()
+	add_child(enemy)
+
+	enemy.call("tick_dash_ai", 0.1, Vector2.ZERO, Vector2.RIGHT * enemy.dash_trigger_range)
+	var dash_velocity: Vector2 = enemy.call(
+		"tick_dash_ai",
+		enemy.dash_windup_time,
+		Vector2.ZERO,
+		Vector2.DOWN * enemy.dash_trigger_range
+	)
+
+	_runner.assert_eq(enemy.call("get_dash_state"), &"dash", "wolf enters dash after windup")
+	_runner.assert_true(dash_velocity.x > 0.0, "wolf keeps the windup direction instead of reacquiring the dashed player")
+	_runner.assert_true(absf(dash_velocity.y) < 0.001, "wolf dash direction stays locked through windup")
+
+
 func test_wolf_dash_hit_applies_damage_once_per_dash() -> void:
 	_runner.assert_true(ResourceLoader.exists(WOLF_SCENE_PATH), "wolf dash enemy scene exists")
 	if not ResourceLoader.exists(WOLF_SCENE_PATH):

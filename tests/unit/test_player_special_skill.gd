@@ -26,7 +26,8 @@ func test_default_dodge_cooldown_is_three_seconds() -> void:
 func test_default_dash_visual_time_covers_four_frame_animation_without_extending_dodge_motion() -> void:
 	var player = PlayerScript.new()
 	_runner.assert_true(is_equal_approx(player.dodge_duration, 0.14), "기본 대시 이동 시간은 기존 돌진 거리를 유지한다")
-	_runner.assert_true(is_equal_approx(player.dash_animation_visual_time, 0.5), "기본 대시 애니메이션은 4프레임을 0.5초 동안 보여준다")
+	_runner.assert_true(is_equal_approx(player.dash_animation_visual_time, 0.5), "기본 대시 애니메이션은 active dash 프레임을 0.5초 동안 보여준다")
+	_runner.assert_eq(player.dash_animation_start_frame, 2, "대시 애니메이션은 입력 즉시 준비 자세를 건너뛰고 active dash 프레임에서 시작한다")
 	_runner.assert_true(
 		is_equal_approx(
 			player.dash_animation_duration(player.dodge_duration, player.dash_animation_visual_time),
@@ -237,7 +238,7 @@ func test_start_dodge_plays_character_dash_animation() -> void:
 	_runner.assert_not_null(sprite, "player scene includes animated character sprite")
 	if sprite != null:
 		_runner.assert_eq(sprite.animation, &"dash", "dodge button starts the character dash animation")
-		_runner.assert_eq(sprite.frame, 0, "dash animation starts from the first frame")
+		_runner.assert_eq(sprite.frame, 2, "dash animation starts from the first active dash frame")
 		_runner.assert_false(sprite.flip_h, "right dodge keeps the dash sprite facing right")
 	player.queue_free()
 
@@ -253,11 +254,16 @@ func test_start_dodge_slows_character_dash_sheet_to_readable_visual_time() -> vo
 	var sprite := player.get_node_or_null("Sprite") as AnimatedSprite2D
 	_runner.assert_not_null(sprite, "player scene includes animated character sprite")
 	if sprite != null:
-		var base_duration: float = player.animation_duration_seconds(sprite.sprite_frames, &"dash")
+		_runner.assert_true(player.has_method("animation_duration_seconds_from_frame"), "player exposes remaining animation duration math")
+		var base_duration: float = player.animation_duration_seconds_from_frame(
+			sprite.sprite_frames,
+			&"dash",
+			player.dash_animation_start_frame
+		)
 		var visual_duration: float = player.dash_animation_duration(player.dodge_duration, player.dash_animation_visual_time)
 		var expected_scale: float = player.dash_animation_speed_scale(base_duration, visual_duration)
 		_runner.assert_true(is_equal_approx(visual_duration, 0.5), "dash visual target lasts 0.5 seconds")
-		_runner.assert_true(is_equal_approx(sprite.speed_scale, expected_scale), "dash sheet slows to the configured visual time")
+		_runner.assert_true(is_equal_approx(sprite.speed_scale, expected_scale), "active dash frames slow to the configured visual time")
 	player.queue_free()
 
 
@@ -397,7 +403,7 @@ func test_touch_skill_press_starts_dash_feedback_before_physics_poll() -> void:
 	_runner.assert_not_null(sprite, "player scene includes animated character sprite")
 	if sprite != null:
 		_runner.assert_eq(sprite.animation, &"dash", "touch skill press immediately starts dash animation")
-		_runner.assert_eq(sprite.frame, 0, "touch skill press starts dash animation from the first frame")
+		_runner.assert_eq(sprite.frame, 2, "touch skill press starts on the first active dash frame")
 	_runner.assert_not_null(dust_root, "player scene includes dash dust root")
 	if dust_root != null:
 		_runner.assert_true(dust_root.visible, "touch skill press immediately reveals dash dust")

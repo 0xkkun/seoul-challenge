@@ -41,6 +41,7 @@ enum State { CHASING, STUNNED, PURIFIED }
 @export var contact_range: float = 30.0
 @export var contact_cooldown: float = 0.7
 @export var hit_invuln_time: float = 0.12
+@export var visual_idle_fps: float = 6.0
 @export var target_group: StringName = &"player"
 
 var _state: State = State.CHASING
@@ -59,6 +60,7 @@ var _purify_visual_state: StringName = &"hidden"
 var _purify_in_range := false
 var _purify_channeling := false
 var _purify_completion_spawned := false
+var _visual_elapsed := 0.0
 
 
 func _ready() -> void:
@@ -78,6 +80,7 @@ func is_purified() -> bool:
 
 
 func _physics_process(delta: float) -> void:
+	_animate_visual(delta)
 	tick_hit_reaction(delta)
 	match _state:
 		State.CHASING:
@@ -140,7 +143,7 @@ func _ensure_hit_reaction() -> Node:
 	_hit_reaction = HitReactionController.new()
 	_hit_reaction.name = "HitReaction"
 	add_child(_hit_reaction)
-	var visual := get_node_or_null(^"Placeholder") as CanvasItem
+	var visual := _get_visual_node()
 	if visual != null:
 		_hit_reaction.call("bind_visual", visual)
 	return _hit_reaction
@@ -180,6 +183,18 @@ func get_purify_visual_snapshot() -> Dictionary:
 		"beam_visible": _beam_line.visible if _beam_line != null else false,
 		"beam_glow_visible": _beam_glow.visible if _beam_glow != null else false,
 		"has_text_prompt": _has_visible_text_prompt(),
+	}
+
+
+func get_visual_snapshot() -> Dictionary:
+	var sprite := get_node_or_null(^"Sprite") as Sprite2D
+	var placeholder := get_node_or_null(^"Placeholder") as CanvasItem
+	return {
+		"has_sprite": sprite != null,
+		"texture_path": sprite.texture.resource_path if sprite != null and sprite.texture != null else "",
+		"frame_count": sprite.hframes * sprite.vframes if sprite != null else 0,
+		"sprite_visible": sprite.visible if sprite != null else false,
+		"placeholder_visible": placeholder.visible if placeholder != null else false,
 	}
 
 
@@ -368,10 +383,28 @@ func _circle_points(radius: float, segments: int) -> PackedVector2Array:
 
 
 func _set_stunned_visual(enabled: bool) -> void:
-	var visual := get_node_or_null(^"Placeholder") as CanvasItem
+	var visual := _get_visual_node()
 	if visual == null:
 		return
 	visual.modulate = PURIFY_STUNNED_MODULATE if enabled else Color.WHITE
+
+
+func _get_visual_node() -> CanvasItem:
+	var sprite := get_node_or_null(^"Sprite") as CanvasItem
+	if sprite != null:
+		return sprite
+	return get_node_or_null(^"Placeholder") as CanvasItem
+
+
+func _animate_visual(delta: float) -> void:
+	var sprite := get_node_or_null(^"Sprite") as Sprite2D
+	if sprite == null:
+		return
+	var frame_count := sprite.hframes * sprite.vframes
+	if frame_count <= 1 or visual_idle_fps <= 0.0:
+		return
+	_visual_elapsed += delta
+	sprite.frame = int(floor(_visual_elapsed * visual_idle_fps)) % frame_count
 
 
 func _spawn_completion_burst() -> void:

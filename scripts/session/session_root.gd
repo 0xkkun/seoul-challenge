@@ -50,6 +50,7 @@ const REWARD_CHOICE_DELAY_SECONDS := 1.0
 
 var completed_interactions := 0
 var return_to_school_callable: Callable
+var return_to_lobby_callable: Callable
 var retry_session_callable: Callable
 var quit_game_callable: Callable
 var _handoff_session_on_exit := false
@@ -240,7 +241,16 @@ func _make_room_def(
 
 func _is_baseball_onboarding_run() -> bool:
 	var config := GameManager.get_active_config()
-	return StringName(config.get(SceneTransition.RUN_CONFIG_ONBOARDING_KIND, &"")) == SceneTransition.ONBOARDING_KIND_BASEBALL_CAPTAIN
+	var is_onboarding_config := StringName(config.get(SceneTransition.RUN_CONFIG_ONBOARDING_KIND, &"")) == SceneTransition.ONBOARDING_KIND_BASEBALL_CAPTAIN
+	if not is_onboarding_config:
+		return false
+	# Fallback guard: once the baseball onboarding is recorded complete, never treat a run
+	# as onboarding again — even if a stale active config still carries the onboarding kind
+	# (e.g. retrying from the result screen reuses the previous config). Without this the
+	# captain re-spawns and the onboarding can be re-cleared after it was already finished.
+	if has_node("/root/SaveManager") and SaveManager.get_flag(SceneTransition.FLAG_ONBOARDING_BASEBALL_COMPLETE):
+		return false
+	return true
 
 
 func _resolve_run_layout_seed() -> int:
@@ -565,6 +575,8 @@ func _show_room_reward_choices(room_id: StringName) -> void:
 	_release_combat_touch_inputs()
 	_hide_touch_controls_for_reward_choice()
 	get_tree().paused = true
+	if session_ui_root.has_method("set_reward_choice_onboarding_hint"):
+		session_ui_root.call("set_reward_choice_onboarding_hint", _should_show_reward_choice_onboarding(room_id))
 	session_ui_root.call("show_reward_choices", room_id, choices)
 	session_ui_root.set_status("전투 보상")
 
@@ -580,6 +592,8 @@ func _on_reward_choice_selected(item_id: StringName) -> void:
 		applied = bool(actor.call("apply_run_modifier", item_id))
 	if session_ui_root.has_method("hide_reward_choices"):
 		session_ui_root.call("hide_reward_choices")
+	if session_ui_root.has_method("set_reward_choice_onboarding_hint"):
+		session_ui_root.call("set_reward_choice_onboarding_hint", false)
 	get_tree().paused = _paused_before_reward_choice
 	_restore_touch_controls_after_reward_choice()
 	_reset_current_room_door_transition_latches()
@@ -593,6 +607,10 @@ func _on_reward_choice_selected(item_id: StringName) -> void:
 			"item_display_name": MapItemCatalog.get_display_name(item_id),
 			"applied": applied,
 		})
+
+
+func _should_show_reward_choice_onboarding(room_id: StringName) -> bool:
+	return _is_baseball_onboarding_run() and room_id == &"combat_1"
 
 
 func _build_reward_choice_models(room_id: StringName) -> Array[Dictionary]:
@@ -1005,12 +1023,31 @@ func _request_abandon_run() -> void:
 
 func _abandon_run_to_school() -> void:
 	get_tree().paused = false
+	var force_lobby := _should_force_lobby_for_incomplete_onboarding_exit()
 	if has_node("/root/GameManager"):
 		GameManager.reset_session()
+	if force_lobby:
+		_return_to_lobby()
+		return
 	if return_to_school_callable.is_valid():
 		return_to_school_callable.call()
 	else:
 		SceneTransition.go_to_day_lobby()
+
+
+func _should_force_lobby_for_incomplete_onboarding_exit() -> bool:
+	if not _is_baseball_onboarding_run():
+		return false
+	if has_node("/root/SaveManager") and SaveManager.get_flag(SceneTransition.FLAG_ONBOARDING_BASEBALL_COMPLETE):
+		return false
+	return true
+
+
+func _return_to_lobby() -> void:
+	if return_to_lobby_callable.is_valid():
+		return_to_lobby_callable.call()
+	else:
+		SceneTransition.go_to_lobby()
 
 
 func _request_quit_game() -> void:

@@ -1,9 +1,16 @@
 extends Node
-## #17 최종 보스 — 패턴 선택/돌진/탄막 방향 + 처치 단위 테스트.
+## #17 최종 보스 — 패턴 선택/돌진/스윙 판정 + 처치 단위 테스트.
 
 const BossScene := preload("res://scenes/enemies/boss.tscn")
 
 var _runner: Node
+
+
+class DamageTarget extends Node2D:
+	var damage_taken := 0
+
+	func take_damage(amount: int) -> void:
+		damage_taken += amount
 
 
 func _set_runner(runner: Node) -> void:
@@ -20,17 +27,20 @@ func test_charge_points_toward_target() -> void:
 
 func test_pattern_alternates() -> void:
 	var b = BossScene.instantiate()
-	_runner.assert_eq(b.pick_next_pattern(0), 1, "0→1(돌진→탄막)")
-	_runner.assert_eq(b.pick_next_pattern(1), 0, "1→0(탄막→돌진)")
+	_runner.assert_eq(b.pick_next_pattern(0), 1, "0→1(돌진→약공격)")
+	_runner.assert_eq(b.pick_next_pattern(1), 0, "1→0(약공격→돌진)")
 	b.free()
 
 
-func test_burst_directions_fan_around_aim() -> void:
+func test_swing_arc_hits_forward_target_only() -> void:
 	var b = BossScene.instantiate()
-	var dirs: Array = b.burst_directions(Vector2.RIGHT, 3, PI / 2.0)
-	_runner.assert_eq(dirs.size(), 3, "3발 부채꼴")
-	_runner.assert_true(is_equal_approx(dirs[1].x, 1.0), "가운데는 조준 방향")
-	_runner.assert_true(abs(dirs[0].length() - 1.0) < 0.001, "단위벡터")
+	_runner.assert_true(b.has_method("in_swing_arc"), "보스 스윙 판정은 테스트 가능한 순수 함수로 노출된다")
+	if not b.has_method("in_swing_arc"):
+		b.free()
+		return
+	_runner.assert_true(b.in_swing_arc(Vector2.RIGHT, Vector2(80.0, 0.0), 120.0, 1.6), "정면 목표는 스윙에 맞는다")
+	_runner.assert_false(b.in_swing_arc(Vector2.RIGHT, Vector2(-20.0, 0.0), 120.0, 1.6), "뒤쪽 목표는 스윙에 맞지 않는다")
+	_runner.assert_false(b.in_swing_arc(Vector2.RIGHT, Vector2(140.0, 0.0), 120.0, 1.6), "사거리 밖 목표는 스윙에 맞지 않는다")
 	b.free()
 
 
@@ -47,7 +57,10 @@ func test_hit_reaction_blocks_repeat_damage_and_restores_visual() -> void:
 	var b = BossScene.instantiate()
 	b.max_hp = 2
 	add_child(b)
-	var visual := b.get_node("Placeholder") as CanvasItem
+	var visual := b.get_node_or_null("Sprite") as CanvasItem
+	_runner.assert_not_null(visual, "보스 피격 플래시는 실제 보스 스프라이트에 적용된다")
+	if visual == null:
+		return
 	var base_modulate := visual.modulate
 	var defeated := {"count": 0}
 	b.defeated.connect(func(_boss): defeated["count"] += 1)
@@ -61,3 +74,38 @@ func test_hit_reaction_blocks_repeat_damage_and_restores_visual() -> void:
 	_runner.assert_eq(visual.modulate, base_modulate, "무적 종료 후 보스 시각 효과 복구")
 	b.take_damage(1)
 	_runner.assert_eq(defeated["count"], 1, "무적 종료 후 보스 피해는 적용된다")
+
+
+func test_weak_attack_is_melee_swing_not_projectile_burst() -> void:
+	var b = BossScene.instantiate()
+	var target := DamageTarget.new()
+	add_child(b)
+	add_child(target)
+	b.global_position = Vector2.ZERO
+	target.global_position = Vector2.RIGHT * 80.0
+	var child_count_before := get_child_count()
+
+	b.set("_pattern_index", 1)
+	b.call("_begin_pattern", target)
+
+	_runner.assert_eq(target.damage_taken, b.contact_damage, "보스 약공격은 전방 근접 스윙으로 피해를 준다")
+	_runner.assert_eq(get_child_count(), child_count_before, "보스 약공격은 원거리 투사체를 생성하지 않는다")
+	b.queue_free()
+	target.queue_free()
+
+
+func test_strong_attack_hits_before_body_overlap() -> void:
+	var b = BossScene.instantiate()
+	var target := DamageTarget.new()
+	add_child(b)
+	add_child(target)
+	b.global_position = Vector2.ZERO
+	target.global_position = Vector2.RIGHT * 120.0
+
+	b.set("_pattern_index", 0)
+	b.call("_begin_pattern", target)
+
+	_runner.assert_true(target.damage_taken >= b.contact_damage, "보스 강공격은 몸통 접촉 전 스윙 범위에서 피해를 준다")
+	_runner.assert_true(target.global_position.distance_to(b.global_position) > b.contact_range, "테스트 대상은 기존 접촉 판정보다 멀리 있다")
+	b.queue_free()
+	target.queue_free()
