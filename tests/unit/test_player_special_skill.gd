@@ -48,7 +48,7 @@ func test_special_recharge_restores_one_charge_per_cooldown() -> void:
 	player.free()
 
 
-func test_special_use_requires_charge_and_ready_cooldown() -> void:
+func test_special_use_requires_charge_and_inactive_dodge() -> void:
 	var player = PlayerScript.new()
 	_runner.assert_true(player.has_method("can_use_special_skill"), "player exposes special use gate")
 	if not player.has_method("can_use_special_skill"):
@@ -56,7 +56,7 @@ func test_special_use_requires_charge_and_ready_cooldown() -> void:
 		return
 	_runner.assert_true(player.can_use_special_skill(1, 0.0, false), "charge and ready cooldown allows skill")
 	_runner.assert_false(player.can_use_special_skill(0, 0.0, false), "no charges blocks skill")
-	_runner.assert_false(player.can_use_special_skill(1, 0.1, false), "cooldown blocks skill")
+	_runner.assert_true(player.can_use_special_skill(1, 0.1, false), "recharge cooldown does not block a stored dash")
 	_runner.assert_false(player.can_use_special_skill(1, 0.0, true), "active dodge blocks duplicate skill")
 	player.free()
 
@@ -107,6 +107,24 @@ func test_start_dodge_consumes_charge_sets_cooldown_and_invuln() -> void:
 	_runner.assert_true(player.get_invuln_remaining() >= 0.24, "dodge grants short invulnerability")
 
 
+func test_stored_dodge_charge_can_chain_before_recharge_cooldown_finishes() -> void:
+	var player = PlayerScript.new()
+	add_child(player)
+	player.special_skill_max_uses = 3
+	player.special_skill_uses_remaining = 3
+	player.special_skill_cooldown = 3.0
+	player.dodge_duration = 0.0
+	player.dodge_invuln_time = 0.0
+
+	_runner.assert_true(player.try_start_special_skill(Vector2.RIGHT), "first stored dash starts")
+	_runner.assert_eq(player.special_skill_uses_remaining, 2, "first dash consumes one stored charge")
+	_runner.assert_true(player.get_special_cooldown_remaining() > 0.0, "spent dash starts recharge cooldown")
+
+	_runner.assert_true(player.try_start_special_skill(Vector2.RIGHT), "second stored dash can start before recharge cooldown ends")
+	_runner.assert_eq(player.special_skill_uses_remaining, 1, "second dash consumes the next stored charge")
+	_runner.assert_true(player.get_special_cooldown_remaining() > 0.0, "recharge cooldown keeps running after chained dash")
+
+
 func test_spent_dodge_charge_recharges_and_becomes_usable_again() -> void:
 	var player = PlayerScript.new()
 	add_child(player)
@@ -124,12 +142,8 @@ func test_spent_dodge_charge_recharges_and_becomes_usable_again() -> void:
 
 	player._process_special_skill(0.2, Vector2.ZERO)
 
-	_runner.assert_eq(player.special_skill_uses_remaining, 0, "lockout completion does not instantly recharge the spent dodge")
-	_runner.assert_true(is_equal_approx(player.get_special_recharge_remaining(), 0.2), "recharge starts after the use lockout")
-
-	player._process_special_skill(0.2, Vector2.ZERO)
-
 	_runner.assert_eq(player.special_skill_uses_remaining, 1, "cooldown completion recharges one dodge")
+	_runner.assert_true(is_equal_approx(player.get_special_recharge_remaining(), 0.2), "partial charges keep recharging after one dodge returns")
 	_runner.assert_true(player.can_use_special_skill(
 		player.special_skill_uses_remaining,
 		player.get_special_cooldown_remaining(),
@@ -142,7 +156,7 @@ func test_spent_dodge_charge_recharges_and_becomes_usable_again() -> void:
 	_runner.assert_true(is_equal_approx(player.get_special_recharge_remaining(), 0.0), "full dodge charges stop recharge")
 
 
-func test_dodge_recharge_waits_for_lockout_so_extra_charges_can_deplete() -> void:
+func test_dodge_recharge_timer_does_not_block_extra_charges() -> void:
 	var player = PlayerScript.new()
 	add_child(player)
 	player.special_skill_max_uses = 2
@@ -154,14 +168,17 @@ func test_dodge_recharge_waits_for_lockout_so_extra_charges_can_deplete() -> voi
 	_runner.assert_true(player.try_start_special_skill(Vector2.RIGHT), "first dodge starts from full")
 	_runner.assert_eq(player.special_skill_uses_remaining, 1, "first dodge spends one charge")
 
-	player._process_special_skill(0.2, Vector2.ZERO)
+	player._process_special_skill(0.1, Vector2.ZERO)
 
-	_runner.assert_eq(player.special_skill_uses_remaining, 1, "spent charge does not refill as soon as next dodge is available")
+	_runner.assert_eq(player.special_skill_uses_remaining, 1, "partial recharge does not restore the spent charge yet")
 	_runner.assert_true(player.can_use_special_skill(
 		player.special_skill_uses_remaining,
 		player.get_special_cooldown_remaining(),
 		player.is_dodging()
-	), "remaining charge can still be spent after lockout")
+	), "remaining stored charge is usable while recharge timer runs")
+
+	_runner.assert_true(player.try_start_special_skill(Vector2.RIGHT), "second stored dodge starts before recharge finishes")
+	_runner.assert_eq(player.special_skill_uses_remaining, 0, "second dodge spends the remaining stored charge")
 
 
 func test_start_dodge_opens_dash_power_attack_window() -> void:
