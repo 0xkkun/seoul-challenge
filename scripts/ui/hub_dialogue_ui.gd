@@ -6,6 +6,10 @@ extends CanvasLayer
 signal choice_selected(choice_id: StringName)
 signal unlock_hidden
 
+## 전투 씬 재사용 모드. true 면 _ready 의 학교 전용 자동 콘텐츠/진행도 구독을 건너뛴다.
+## instantiate() 직후, add_child() 전에 설정할 것.
+var battle_mode := false
+
 const REFERENCE_SIZE := Vector2(844.0, 390.0)
 const DIALOGUE_BAR_HEIGHT := 152.0
 const UNLOCK_POPUP_SIZE := Vector2(338.0, 148.0)
@@ -103,14 +107,21 @@ func _ready() -> void:
 	_choice_row.set_meta("test_id", "hub_dialogue.choice_row")
 	_apply_landscape_safe_area()
 	_apply_static_styles()
+	_unlock_dimmer = _unlock_overlay.get_node("Dimmer") as ColorRect
+	_unlock_overlay.visible = false
+	# battle_mode: 전투 씬에서 재사용할 때 학교 전용 부수효과를 격리한다.
+	# - 야구부 기본 대사/단계 row/선택지를 자동으로 채우지 않는다(호출부가 set_dialogue 로 채움).
+	# - EventBus.unlock_changed 를 구독하지 않는다(전투 중 강화배트 해금 팝업이 끼어들지 않게).
+	# instantiate() → battle_mode = true → add_child() 순서로 설정해야 _ready 가 읽는다.
+	if battle_mode:
+		set_stage_row_visible(false)
+		return
 	set_dialogue("야구부 주장", "\"몸 조심해. 무리하지 마.\"", "")
 	set_stage(2)
 	set_choices([
 		{"id": CHOICE_ASK, "text": "물어보기", "emphasized": false},
 		{"id": CHOICE_ACCEPT, "text": "받기", "emphasized": true},
 	])
-	_unlock_dimmer = _unlock_overlay.get_node("Dimmer") as ColorRect
-	_unlock_overlay.visible = false
 	_connect_progression_events()
 	apply_baseball_progress(false)
 
