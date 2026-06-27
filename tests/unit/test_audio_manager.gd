@@ -43,3 +43,13 @@ func test_scene_transition_school_bell_helper_uses_transition_variants() -> void
 		AudioManager.get_session_transition_sfx_ids().has(played_sfx[0]),
 		"scene transition helper uses a registered school bell variant"
 	)
+
+
+func test_session_transition_school_bell_stops_lobby_bgm() -> void:
+	AudioManager.play_bgm(AudioManager.LOBBY_BGM_DEFAULT)
+	_runner.assert_eq(AudioManager.get_current_bgm(), AudioManager.LOBBY_BGM_DEFAULT, "test starts with lobby BGM selected")
+
+	SceneTransition._play_session_transition_sfx()
+
+	_runner.assert_eq(AudioManager.get_current_bgm(), &"", "session transition clears lobby BGM before the bell")
+	_runner.assert_false(AudioManager.is_bgm_playing(), "session transition bell is not masked by lobby BGM")
