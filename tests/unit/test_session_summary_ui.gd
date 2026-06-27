@@ -56,6 +56,11 @@ func test_death_result_keeps_same_layout_without_loss_copy() -> void:
 	var snapshot: Dictionary = _ui.get_summary_snapshot()
 	_runner.assert_eq(snapshot["title"], "쓰러짐", "death state uses its own header")
 	_runner.assert_true(snapshot["narrative"].contains("혼 조각은 손에 남아 있다"), "death summary reassures retained progress")
+	_runner.assert_eq(
+		snapshot["narrative"],
+		"새벽 종소리와 함께 교실에서 눈을 떴다.\n혼 조각은 손에 남아 있다.",
+		"death summary breaks after waking in the classroom"
+	)
 	_runner.assert_eq(snapshot["memory_amount"], "+5", "death still foregrounds earned memory")
 	_runner.assert_eq(snapshot["students"], "1", "death keeps the record stack")
 	_runner.assert_eq(snapshot["friends"], "정화 0", "zero values stay aligned in the same chip")
@@ -81,6 +86,77 @@ func test_death_summary_modal_and_key_record_areas_are_transparent() -> void:
 		"Root/SummaryOverlay/SummaryPanel/SummaryMargin/SummaryStack/SummaryContent/RecordsStack/RoomsRecordPanel",
 		"rooms record area"
 	)
+
+
+func test_summary_record_rows_keep_clear_background_and_color_numbers_only() -> void:
+	_ui.show_summary({
+		"outcome": "death",
+		"memory_reward": 5,
+		"students_rescued": 1,
+		"friends_purified": 0,
+		"rooms_cleared": 7,
+	})
+
+	_assert_transparent_panel_style(
+		"Root/SummaryOverlay/SummaryPanel/SummaryMargin/SummaryStack/SummaryContent/RecordsStack/StudentsRecordPanel",
+		"rescued students record area"
+	)
+	_assert_transparent_panel_style(
+		"Root/SummaryOverlay/SummaryPanel/SummaryMargin/SummaryStack/SummaryContent/RecordsStack/RoomsRecordPanel",
+		"rooms record area"
+	)
+	var students_title := _ui.get_node("Root/SummaryOverlay/SummaryPanel/SummaryMargin/SummaryStack/SummaryContent/RecordsStack/StudentsRecordPanel/StudentsRow/StudentsTitle") as Label
+	var rooms_title := _ui.get_node("Root/SummaryOverlay/SummaryPanel/SummaryMargin/SummaryStack/SummaryContent/RecordsStack/RoomsRecordPanel/RoomsRow/RoomsTitle") as Label
+	var students_value := _ui.get_node("%StudentsRecordLabel") as Label
+	var rooms_value := _ui.get_node("%RoomsRecordLabel") as Label
+	var student_number_color := Color(0.596078, 0.811765, 0.490196, 1.0)
+	var room_number_color := Color(0.760784, 0.462745, 0.956863, 1.0)
+
+	_runner.assert_eq(students_title.get_theme_color("font_color"), DungeonUiTheme.COLOR_TEXT, "rescue label stays neutral")
+	_runner.assert_eq(rooms_title.get_theme_color("font_color"), DungeonUiTheme.COLOR_TEXT, "room label stays neutral")
+	_runner.assert_eq(students_value.get_theme_color("font_color"), student_number_color, "only rescued count uses the green accent")
+	_runner.assert_eq(rooms_value.get_theme_color("font_color"), room_number_color, "only room count uses the purple accent")
+	_runner.assert_false(students_title.get_theme_color("font_color") == student_number_color, "rescue label does not inherit the number accent")
+	_runner.assert_false(rooms_title.get_theme_color("font_color") == room_number_color, "room label does not inherit the number accent")
+
+
+func test_death_summary_reward_uses_locker_weapon_card_layout() -> void:
+	_ui.show_summary({
+		"outcome": "death",
+		"memory_reward": 5,
+		"students_rescued": 1,
+		"friends_purified": 0,
+		"rooms_cleared": 7,
+	})
+
+	var reward_panel := _ui.get_node("Root/SummaryOverlay/SummaryPanel/SummaryMargin/SummaryStack/SummaryContent/RewardPanel") as PanelContainer
+	_assert_card_frame_style(
+		reward_panel.get_theme_stylebox("panel"),
+		Color(1.0, 0.93, 0.62),
+		DungeonUiTheme.CARD_FRAME_TEXTURE_MARGIN,
+		Vector2(28.0, 22.0),
+		"death memory shard card"
+	)
+	var reward_row := _ui.get_node("Root/SummaryOverlay/SummaryPanel/SummaryMargin/SummaryStack/SummaryContent/RewardPanel/RewardMargin/RewardRow") as HBoxContainer
+	var memory_chip := _ui.get_node("Root/SummaryOverlay/SummaryPanel/SummaryMargin/SummaryStack/SummaryContent/RewardPanel/RewardMargin/RewardRow/MemoryChip") as TextureRect
+	var reward_text := _ui.get_node("Root/SummaryOverlay/SummaryPanel/SummaryMargin/SummaryStack/SummaryContent/RewardPanel/RewardMargin/RewardRow/RewardTextStack") as VBoxContainer
+	var memory_amount := _ui.get_node("%MemoryAmountLabel") as Label
+
+	_runner.assert_eq(reward_row.alignment, BoxContainer.ALIGNMENT_CENTER, "memory shard row centers icon and number together")
+	_runner.assert_true(memory_chip.custom_minimum_size.y <= 56.0, "memory shard icon leaves vertical breathing room")
+	_runner.assert_eq(memory_chip.size_flags_vertical, Control.SIZE_SHRINK_CENTER, "memory shard icon stays vertically centered")
+	_runner.assert_eq(reward_text.size_flags_horizontal, Control.SIZE_SHRINK_CENTER, "memory amount sits next to the shard instead of filling the right side")
+	_runner.assert_eq(reward_text.size_flags_vertical, Control.SIZE_SHRINK_CENTER, "memory amount stays vertically centered")
+	_runner.assert_true(memory_amount.get_theme_font_size("font_size") <= 42, "memory amount no longer fills the full card height")
+	_runner.assert_eq(memory_amount.horizontal_alignment, HORIZONTAL_ALIGNMENT_CENTER, "memory amount is centered in its own compact stack")
+
+
+func test_summary_return_button_is_compact_red_action() -> void:
+	var return_button := _ui.get_node("%ReturnButton") as Button
+
+	_assert_pixel_button_style(return_button, PixelButtonStyle.VARIANT_DANGER, "return")
+	_runner.assert_true(return_button.custom_minimum_size.y <= 52.0, "return button is shorter than the previous oversized result CTA")
+	_runner.assert_true(return_button.get_theme_font_size("font_size") <= 24, "return button text is scaled down with the smaller button")
 
 
 func test_run_result_contract_derives_records_from_existing_payload() -> void:
@@ -424,7 +500,7 @@ func test_summary_hides_unlock_records_for_mvp_result_layout() -> void:
 
 func test_visible_session_actions_use_pixel_button_skin() -> void:
 	_assert_pixel_button_style(_ui.get_node("%MapTabButton") as Button, PixelButtonStyle.VARIANT_PRIMARY, "map tab")
-	_assert_pixel_button_style(_ui.get_node("%ReturnButton") as Button, PixelButtonStyle.VARIANT_PRIMARY, "return")
+	_assert_pixel_button_style(_ui.get_node("%ReturnButton") as Button, PixelButtonStyle.VARIANT_DANGER, "return")
 	_assert_pixel_button_style(_ui.get_node("%RetryButton") as Button, PixelButtonStyle.VARIANT_SECONDARY, "retry")
 	_runner.assert_eq(_ui.get_node_or_null("%PauseButton"), null, "old bottom pause button is removed")
 	_runner.assert_eq(_ui.get_node_or_null("%ResumeButton"), null, "old bottom resume button is removed")
@@ -453,6 +529,24 @@ func _assert_pixel_button_texture(style: StyleBox, texture_path: String, message
 	_runner.assert_eq(texture_style.texture.resource_path, texture_path, message)
 	_runner.assert_eq(texture_style.texture_margin_left, 60.0, "%s left 9-slice margin" % message)
 	_runner.assert_eq(texture_style.texture_margin_bottom, 12.0, "%s bottom 9-slice margin" % message)
+
+
+func _assert_card_frame_style(
+	style: StyleBox,
+	expected_modulate: Color,
+	expected_texture_margin: float,
+	expected_content_margin: Vector2,
+	message: String
+) -> void:
+	var texture_style := style as StyleBoxTexture
+	_runner.assert_not_null(texture_style, "%s uses the shared textured card frame" % message)
+	if texture_style == null:
+		return
+	_runner.assert_eq(texture_style.texture.resource_path, "res://assets/ui/panels/card_frame.png", "%s texture" % message)
+	_runner.assert_eq(texture_style.texture_margin_left, expected_texture_margin, "%s left 9-slice margin" % message)
+	_runner.assert_eq(texture_style.content_margin_left, expected_content_margin.x, "%s horizontal content padding" % message)
+	_runner.assert_eq(texture_style.content_margin_top, expected_content_margin.y, "%s vertical content padding" % message)
+	_runner.assert_eq(texture_style.modulate_color, expected_modulate, "%s selected weapon-card tint" % message)
 
 
 func _assert_transparent_panel_style(path: String, label: String) -> void:

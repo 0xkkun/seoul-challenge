@@ -37,6 +37,9 @@ const REWARD_CHOICE_CARD_TITLE_OUTLINE := 4
 const REWARD_CHOICE_CARD_EFFECT_OUTLINE := 1
 const REWARD_CHOICE_CARD_TITLE_COLOR := Color(1.0, 0.835294, 0.258824, 1.0)
 const REWARD_CHOICE_CARD_EFFECT_COLOR := Color(0.88, 0.86, 0.66, 0.94)
+const SUMMARY_RECORD_TITLE_COLOR := DungeonUiTheme.COLOR_TEXT
+const STUDENTS_RECORD_NUMBER_COLOR := Color(0.596078, 0.811765, 0.490196, 1.0)
+const ROOMS_RECORD_NUMBER_COLOR := Color(0.760784, 0.462745, 0.956863, 1.0)
 const REWARD_CHOICE_OPEN_DURATION := 0.18
 const REWARD_CHOICE_CARD_STAGGER := 0.045
 const REWARD_CHOICE_CARD_START_SCALE := Vector2(0.94, 0.94)
@@ -112,14 +115,7 @@ func _apply_result_panel_styles() -> void:
 	const CONTENT := PANEL + "/SummaryMargin/SummaryStack/SummaryContent"
 	const RECORDS := CONTENT + "/RecordsStack"
 	_style_summary_panel(false)
-	# Reward panel was a flat green fill (read as plain next to the textured frame); give
-	# it the card-frame texture with a warm tint so it gains wood-grain + gold trim detail
-	# and ties to the gold crystal / +120.
-	var reward_panel := get_node_or_null(CONTENT + "/RewardPanel") as PanelContainer
-	if reward_panel != null:
-		reward_panel.add_theme_stylebox_override(
-			"panel", DungeonUiTheme.card_style(12.0, 10.0, Color(1.05, 0.98, 0.8))
-		)
+	_style_reward_panel(false)
 	# Only the still-hidden legacy rows keep their tinted bar skin. The visible rescue
 	# and room rows are clear for now.
 	const FILL_GREEN := Color(0.18, 0.27, 0.15)
@@ -128,6 +124,7 @@ func _apply_result_panel_styles() -> void:
 	_style_record_panel(RECORDS + "/FriendsRecordPanel", FILL_BLUE)
 	_style_transparent_record_panel(RECORDS + "/RoomsRecordPanel")
 	_style_record_panel(RECORDS + "/UnlocksRecordPanel", FILL_GREEN)
+	_apply_record_label_colors(RECORDS)
 
 
 func _style_panel(path: String, bg: Color, border: Color, width: int, corner: int) -> void:
@@ -156,10 +153,37 @@ func _style_summary_panel(is_death_result: bool) -> void:
 	panel.add_theme_stylebox_override("panel", style)
 
 
+func _style_reward_panel(is_death_result: bool) -> void:
+	var panel := get_node_or_null(
+		"Root/SummaryOverlay/SummaryPanel/SummaryMargin/SummaryStack/SummaryContent/RewardPanel"
+	) as PanelContainer
+	if panel == null:
+		return
+	var style := (
+		DungeonUiTheme.card_style(28.0, 22.0, Color(1.0, 0.93, 0.62))
+		if is_death_result
+		else DungeonUiTheme.card_style(12.0, 10.0, Color(1.05, 0.98, 0.8))
+	)
+	panel.add_theme_stylebox_override("panel", style)
+
+
 func _style_transparent_record_panel(path: String) -> void:
 	var panel := get_node_or_null(path) as PanelContainer
 	if panel != null:
 		panel.add_theme_stylebox_override("panel", _transparent_panel_style(0.0, 0.0, 4))
+
+
+func _apply_record_label_colors(records_path: String) -> void:
+	_style_record_label(records_path + "/StudentsRecordPanel/StudentsRow/StudentsTitle", SUMMARY_RECORD_TITLE_COLOR)
+	_style_record_label(records_path + "/StudentsRecordPanel/StudentsRow/StudentsRecordLabel", STUDENTS_RECORD_NUMBER_COLOR)
+	_style_record_label(records_path + "/RoomsRecordPanel/RoomsRow/RoomsTitle", SUMMARY_RECORD_TITLE_COLOR)
+	_style_record_label(records_path + "/RoomsRecordPanel/RoomsRow/RoomsRecordLabel", ROOMS_RECORD_NUMBER_COLOR)
+
+
+func _style_record_label(path: String, color: Color) -> void:
+	var label := get_node_or_null(path) as Label
+	if label != null:
+		label.add_theme_color_override("font_color", color)
 
 
 func _transparent_panel_style(margin_x := 0.0, margin_y := 0.0, corner_radius := 0) -> StyleBoxFlat:
@@ -205,7 +229,9 @@ func show_summary(result: Dictionary) -> void:
 		return
 
 	var summary := _build_summary(result)
-	_style_summary_panel(_is_death_result(result))
+	var is_death_result := _is_death_result(result)
+	_style_summary_panel(is_death_result)
+	_style_reward_panel(is_death_result)
 	result_title_label.text = summary["title"]
 	narrative_label.text = summary["narrative"]
 	memory_label.text = "혼 조각"
@@ -378,8 +404,8 @@ func get_reward_choice_animation_snapshot() -> Dictionary:
 
 func _apply_button_styles() -> void:
 	PixelButtonStyle.apply(map_tab_button, PixelButtonStyle.VARIANT_PRIMARY, Vector2(144.0, 50.0))
-	PixelButtonStyle.apply(return_button, PixelButtonStyle.VARIANT_PRIMARY, Vector2(0.0, 58.0))
-	PixelButtonStyle.apply(retry_button, PixelButtonStyle.VARIANT_SECONDARY, Vector2(0.0, 58.0))
+	PixelButtonStyle.apply(return_button, PixelButtonStyle.VARIANT_DANGER, Vector2(0.0, 52.0))
+	PixelButtonStyle.apply(retry_button, PixelButtonStyle.VARIANT_SECONDARY, Vector2(0.0, 52.0))
 
 
 func _ensure_reward_choice_overlay() -> void:
@@ -837,7 +863,7 @@ func _result_narrative(result: Dictionary) -> String:
 	var outcome := String(result.get("outcome", "")).to_lower()
 	var reason := String(result.get("reason", ""))
 	if outcome in ["death", "dead", "failed"] or bool(result.get("died", false)):
-		return "새벽 종소리와 함께 교실에서 눈을 떴다. 혼 조각은 손에 남아 있다."
+		return "새벽 종소리와 함께 교실에서 눈을 떴다.\n혼 조각은 손에 남아 있다."
 	if reason == "onboarding_friend_purified":
 		return "야구부 주장이 제정신을 되찾았다. 학교로 돌아가 배트와 단서를 받자."
 	if reason == "boss_resolved":
