@@ -153,7 +153,7 @@ func _actor_has_bat_equipped() -> bool:
 	if _actor.has_method("has_bat"):
 		return bool(_actor.call("has_bat"))
 	if _actor.has_method("current_weapon_name"):
-		return String(_actor.call("current_weapon_name")) in ["금 간 알루미늄 배트", "마지막 시즌의 배트", "야구배트"]
+		return String(_actor.call("current_weapon_name")) in ["금 간 나무 배트", "마지막 시즌의 배트", "야구배트"]
 	return false
 
 
@@ -238,7 +238,7 @@ func _offer_text(offer_id: StringName) -> String:
 func _offer_display_name(offer_id: StringName) -> String:
 	match offer_id:
 		OFFER_BAT:
-			return "금 간 알루미늄 배트"
+			return "금 간 나무 배트"
 		OFFER_DODGE_REFILL:
 			return "회피부적"
 	return ""

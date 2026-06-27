@@ -95,7 +95,7 @@ Behavior:
   - `STAGE 2 보상`
 - Show item cards:
   - `낡은 야구공`
-  - `금 간 알루미늄 배트`
+  - `금 간 나무 배트`
 
 The popup is a reward confirmation layer. It should be more prominent than the
 dialogue bar, but it should not permanently replace the dialogue layout.

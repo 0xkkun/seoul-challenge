@@ -153,6 +153,6 @@ func _weapon_display_name(weapon_id: StringName) -> String:
 		&"baseball":
 			return "낡은 야구공"
 		&"bat":
-			return "금 간 알루미늄 배트"
+			return "금 간 나무 배트"
 		_:
 			return "미정"

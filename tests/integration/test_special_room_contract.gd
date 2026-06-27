@@ -177,7 +177,7 @@ func test_shop_room_bat_purchase_spends_ingame_and_equips_player() -> void:
 
 	_runner.assert_eq(CurrencySystem.get_ingame(), 2, "bat purchase spends its ingame cost")
 	_runner.assert_true(player.call("has_bat"), "bat purchase equips the stronger melee item")
-	_runner.assert_eq(player.call("current_weapon_name"), "금 간 알루미늄 배트", "bat purchase shows the cracked bat name")
+	_runner.assert_eq(player.call("current_weapon_name"), "금 간 나무 배트", "bat purchase shows the cracked bat name")
 	_runner.assert_true(room.call("is_offer_sold", &"bat"), "bat offer is marked sold")
 	_runner.assert_true(String(room.call("get_offer_text", &"bat")).contains("구매 완료"), "shop label shows sold state")
 

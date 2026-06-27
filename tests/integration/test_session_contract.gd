@@ -140,7 +140,7 @@ func test_session_interaction_scope_reaches_current_shop_room() -> void:
 
 	_runner.assert_eq(CurrencySystem.get_ingame(), 2, "session interaction can purchase from current shop room")
 	_runner.assert_true(actor.call("has_bat"), "session shop interaction equips purchased item")
-	_runner.assert_eq(actor.call("current_weapon_name"), "금 간 알루미늄 배트", "session shop interaction shows cracked bat label")
+	_runner.assert_eq(actor.call("current_weapon_name"), "금 간 나무 배트", "session shop interaction shows cracked bat label")
 
 	session.queue_free()
 
@@ -362,7 +362,7 @@ func test_session_root_applies_locker_weapon_config() -> void:
 	var actor: Node = session.get_node("%Player")
 
 	_runner.assert_true(actor.call("has_bat"), "bat locker selection equips the run actor")
-	_runner.assert_eq(actor.call("current_weapon_name"), "금 간 알루미늄 배트", "bat locker selection shows cracked bat label")
+	_runner.assert_eq(actor.call("current_weapon_name"), "금 간 나무 배트", "bat locker selection shows cracked bat label")
 	_runner.assert_false(bool(actor.get("ranged_enabled")), "bat locker selection keeps ranged baseball disabled")
 
 	session.queue_free()
@@ -377,8 +377,8 @@ func test_session_player_refreshes_awakened_bat_after_baseball_friend_purified()
 	var actor: Node = session.get_node("%Player")
 	var combat_hud := session.get_node("%CombatHud") as CanvasLayer
 	actor.call("equip_bat")
-	_runner.assert_eq(actor.call("current_weapon_name"), "금 간 알루미늄 배트", "run starts with regular bat")
-	_runner.assert_true(combat_hud.call("get_weapon_text").contains("금 간 알루미늄 배트"), "HUD shows regular bat after equip")
+	_runner.assert_eq(actor.call("current_weapon_name"), "금 간 나무 배트", "run starts with regular bat")
+	_runner.assert_true(combat_hud.call("get_weapon_text").contains("금 간 나무 배트"), "HUD shows regular bat after equip")
 	var friend_room_def := _first_room_of_type(manager.layout, RoomLayout.TYPE_FRIEND)
 	_runner.assert_not_null(friend_room_def, "session run layout includes a friend room")
 	if friend_room_def == null:
