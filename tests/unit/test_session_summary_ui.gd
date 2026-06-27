@@ -16,6 +16,7 @@ func before_each() -> void:
 
 
 func after_each() -> void:
+	get_tree().paused = false
 	if is_instance_valid(_ui):
 		_ui.free()
 	_ui = null
@@ -110,6 +111,44 @@ func test_summary_actions_emit_distinct_flow_signals() -> void:
 	_runner.assert_eq(counts["retry"], 1, "retry button emits retry flow")
 
 
+func test_map_tab_replaces_bottom_action_panel() -> void:
+	var map_tab := _ui.get_node("%MapTabButton") as Button
+	_runner.assert_eq(map_tab.text, "경복궁", "session map tab defaults to the current MVP map name")
+	_runner.assert_eq(map_tab.get_meta("test_id", ""), "session.map_tab", "map tab has stable test id")
+	_runner.assert_eq(map_tab.get_meta("uat_action", ""), "session.map_tab", "map tab has stable UAT action")
+	_runner.assert_false(_ui.is_action_panel_visible(), "bottom action panel is not visible during gameplay")
+
+	_ui.show_reward_choices(&"combat_1", [
+		{"item_id": &"gung_talisman", "display_name": "궁 부적"},
+	])
+	_runner.assert_false(_ui.is_action_panel_visible(), "reward overlay does not restore bottom action buttons")
+	_ui.hide_reward_choices()
+	_runner.assert_false(_ui.is_action_panel_visible(), "closing overlays keeps bottom action buttons removed")
+
+
+func test_map_tab_uses_configured_map_name_and_toggles_pause_resume_signals() -> void:
+	var counts := {
+		"pause": 0,
+		"resume": 0,
+	}
+	_ui.pause_requested.connect(func() -> void: counts["pause"] += 1)
+	_ui.resume_requested.connect(func() -> void: counts["resume"] += 1)
+
+	_ui.set_map_name("창덕궁")
+	var map_tab := _ui.get_node("%MapTabButton") as Button
+	_runner.assert_eq(map_tab.text, "창덕궁", "map tab renders the configured map name")
+
+	get_tree().paused = false
+	map_tab.pressed.emit()
+	_runner.assert_eq(counts["pause"], 1, "map tab requests pause while the run is active")
+	_runner.assert_eq(counts["resume"], 0, "map tab does not request resume while active")
+
+	get_tree().paused = true
+	map_tab.pressed.emit()
+	_runner.assert_eq(counts["pause"], 1, "map tab does not request a second pause while paused")
+	_runner.assert_eq(counts["resume"], 1, "map tab requests resume while the run is paused")
+
+
 func test_reward_choices_render_three_actions_and_emit_selected_id() -> void:
 	var selected_ids: Array[StringName] = []
 	_ui.reward_choice_selected.connect(func(item_id: StringName) -> void: selected_ids.append(item_id))
@@ -159,12 +198,13 @@ func test_summary_renders_baseball_unlocks_when_present() -> void:
 	_runner.assert_true(snapshot["unlocks"].contains("마지막 시즌의 배트"), "awakened bat unlock is shown")
 
 
-func test_action_buttons_use_pixel_button_skin() -> void:
-	_assert_pixel_button_style(_ui.get_node("%PauseButton") as Button, PixelButtonStyle.VARIANT_SECONDARY, "pause")
-	_assert_pixel_button_style(_ui.get_node("%ResumeButton") as Button, PixelButtonStyle.VARIANT_PRIMARY, "resume")
-	_assert_pixel_button_style(_ui.get_node("%FinishButton") as Button, PixelButtonStyle.VARIANT_DANGER, "finish")
+func test_visible_session_actions_use_pixel_button_skin() -> void:
+	_assert_pixel_button_style(_ui.get_node("%MapTabButton") as Button, PixelButtonStyle.VARIANT_PRIMARY, "map tab")
 	_assert_pixel_button_style(_ui.get_node("%ReturnButton") as Button, PixelButtonStyle.VARIANT_PRIMARY, "return")
 	_assert_pixel_button_style(_ui.get_node("%RetryButton") as Button, PixelButtonStyle.VARIANT_SECONDARY, "retry")
+	_runner.assert_eq(_ui.get_node_or_null("%PauseButton"), null, "old bottom pause button is removed")
+	_runner.assert_eq(_ui.get_node_or_null("%ResumeButton"), null, "old bottom resume button is removed")
+	_runner.assert_eq(_ui.get_node_or_null("%FinishButton"), null, "old bottom finish button is removed")
 
 
 func _assert_no_explainer_copy(snapshot: Dictionary) -> void:

@@ -15,6 +15,7 @@ const TREASURE_ROOM_SCENE_PATH := "res://scenes/interactables/treasure_room.tscn
 const SHOP_ROOM_SCENE_PATH := "res://scenes/interactables/shop_room.tscn"
 const FRIEND_ROOM_SCENE_PATH := "res://scenes/interactables/friend_room.tscn"
 const FINAL_ROOM_SCENE_PATH := "res://scenes/interactables/boss_room.tscn"
+const DEFAULT_STAGE_NAME := "경복궁"
 const ABANDON_RUN_MESSAGE := "런을 포기할까요? 이번 밤 보상은 사라지고 영구 재화는 유지됩니다"
 const QUIT_GAME_MESSAGE := "게임을 종료할까요?"
 const WEAPON_BASEBALL := &"baseball"
@@ -72,6 +73,7 @@ func _ready() -> void:
 	room_manager.configure(_build_run_layout(), room_layer, actor)
 	room_manager.start_layout()
 	_minimap.configure_from_manager(room_manager)
+	session_ui_root.set_map_name(_resolve_stage_name())
 	sample_interactable.interaction_triggered.connect(_on_interaction_triggered)
 	session_ui_root.pause_requested.connect(_on_pause_requested)
 	session_ui_root.resume_requested.connect(_on_resume_requested)
@@ -139,6 +141,12 @@ func _random_run_layout_seed() -> int:
 	if mixed_seed <= 0:
 		mixed_seed += RUN_LAYOUT_SEED_MAX
 	return mixed_seed
+
+
+func _resolve_stage_name() -> String:
+	var config := GameManager.get_active_config()
+	var stage_name := String(config.get("stage_name", DEFAULT_STAGE_NAME)).strip_edges()
+	return stage_name if stage_name != "" else DEFAULT_STAGE_NAME
 
 
 func _apply_session_loadout() -> void:

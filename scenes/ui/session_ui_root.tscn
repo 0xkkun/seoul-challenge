@@ -1,6 +1,7 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://scripts/ui/session_ui_root.gd" id="1_ui"]
+[ext_resource type="Texture2D" path="res://assets/ui/icons/gear.svg" id="2_gear"]
 
 [node name="SessionUIRoot" type="CanvasLayer"]
 unique_name_in_owner = true
@@ -14,11 +15,25 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 
+[node name="MapTabButton" type="Button" parent="Root"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(144, 50)
+layout_mode = 1
+anchors_preset = 0
+offset_left = 12.0
+offset_top = 12.0
+offset_right = 156.0
+offset_bottom = 62.0
+theme_override_font_sizes/font_size = 18
+text = "경복궁"
+icon = ExtResource("2_gear")
+expand_icon = true
+
 [node name="TopPanel" type="HBoxContainer" parent="Root"]
 layout_mode = 1
 anchors_preset = 10
 anchor_right = 1.0
-offset_left = 12.0
+offset_left = 172.0
 offset_top = 12.0
 offset_right = -12.0
 offset_bottom = 44.0
@@ -35,42 +50,6 @@ text = "밤런 준비"
 unique_name_in_owner = true
 layout_mode = 2
 text = "진행 0"
-
-[node name="ActionPanel" type="HBoxContainer" parent="Root"]
-unique_name_in_owner = true
-layout_mode = 1
-anchors_preset = 12
-anchor_top = 1.0
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_left = 12.0
-offset_top = -70.0
-offset_right = -12.0
-offset_bottom = -12.0
-grow_horizontal = 2
-grow_vertical = 0
-theme_override_constants/separation = 8
-
-[node name="PauseButton" type="Button" parent="Root/ActionPanel"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 58)
-layout_mode = 2
-size_flags_horizontal = 3
-text = "일시정지"
-
-[node name="ResumeButton" type="Button" parent="Root/ActionPanel"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 58)
-layout_mode = 2
-size_flags_horizontal = 3
-text = "계속하기"
-
-[node name="FinishButton" type="Button" parent="Root/ActionPanel"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 58)
-layout_mode = 2
-size_flags_horizontal = 3
-text = "포기"
 
 [node name="SummaryOverlay" type="Control" parent="Root"]
 unique_name_in_owner = true
