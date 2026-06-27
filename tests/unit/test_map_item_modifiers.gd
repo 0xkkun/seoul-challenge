@@ -11,7 +11,7 @@ func test_catalog_exposes_multiple_run_items() -> void:
 	var catalog := _load_catalog()
 	if catalog == null:
 		return
-	_runner.assert_true(catalog.call("has_item", &"gung_talisman"), "catalog includes damage talisman")
+	_runner.assert_true(catalog.call("has_item", &"gung_talisman"), "catalog keeps damage talisman for authored pickups")
 	_runner.assert_true(catalog.call("has_item", &"nurse_bandage"), "catalog includes health recovery reward")
 	var item_ids: Array[StringName] = catalog.call("item_ids")
 	_runner.assert_true(item_ids.size() >= 3, "catalog exposes at least three map items")
@@ -19,6 +19,17 @@ func test_catalog_exposes_multiple_run_items() -> void:
 	_runner.assert_eq(item_def.get("display_name", ""), "강타 부적", "damage item has readable attack name")
 	_runner.assert_true(String(item_def.get("flavor", "")).contains("힘"), "damage item flavor explains hit power")
 	_runner.assert_true((item_def.get("modifiers", {}) as Dictionary).has("melee_damage_add"), "item carries stat modifiers")
+
+
+func test_room_clear_reward_pool_excludes_damage_talisman() -> void:
+	var catalog := _load_catalog()
+	if catalog == null:
+		return
+	var reward_item_ids: Array[StringName] = catalog.call("reward_item_ids")
+
+	_runner.assert_false(reward_item_ids.has(&"gung_talisman"), "room clear rewards exclude direct attack damage")
+	_runner.assert_true(reward_item_ids.has(&"dokkaebi_fire"), "room clear rewards keep attack speed option")
+	_runner.assert_true(reward_item_ids.size() >= 3, "room clear rewards still offer enough options")
 
 
 func test_compose_modifiers_stacks_damage_speed_and_health() -> void:
@@ -61,7 +72,7 @@ func test_effect_text_describes_visible_stat_changes() -> void:
 		return
 
 	_runner.assert_eq(catalog.call("get_effect_text", &"gung_talisman"), "근접 피해 +1 / 배트 피해 +1", "damage reward explains both attack stats")
-	_runner.assert_eq(catalog.call("get_effect_text", &"dokkaebi_fire"), "근접 공격 간격 -16% / 투척 간격 -16%", "tempo reward explains cooldown reduction")
+	_runner.assert_eq(catalog.call("get_effect_text", &"dokkaebi_fire"), "근접 공격 속도 +16% / 투척 속도 +16%", "tempo reward explains speed gain in player-facing terms")
 	_runner.assert_eq(catalog.call("get_effect_text", &"wind_step"), "이동 속도 +15%", "speed reward explains movement stat")
 	_runner.assert_eq(catalog.call("get_effect_text", &"moon_guard"), "최대 체력 +1", "health reward explains health stat")
 	_runner.assert_eq(catalog.call("get_effect_text", &"nurse_bandage"), "체력 회복 +2", "health recovery reward explains current health restore")
@@ -76,7 +87,7 @@ func _load_catalog() -> GDScript:
 	_runner.assert_not_null(script, "map item catalog script exists")
 	if script == null:
 		return null
-	for method_name: String in ["has_item", "item_ids", "get_item_def", "compose_modifiers", "apply_modifiers_to_stats", "get_effect_text"]:
+	for method_name: String in ["has_item", "item_ids", "reward_item_ids", "get_item_def", "compose_modifiers", "apply_modifiers_to_stats", "get_effect_text"]:
 		_runner.assert_true(script.has_method(method_name), "catalog exposes %s" % method_name)
 		if not script.has_method(method_name):
 			return null

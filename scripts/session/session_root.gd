@@ -577,7 +577,7 @@ func _build_reward_choice_models(room_id: StringName) -> Array[Dictionary]:
 
 
 func _reward_choice_ids(room_id: StringName, count: int) -> Array[StringName]:
-	var ids := MapItemCatalog.item_ids()
+	var ids := MapItemCatalog.reward_item_ids()
 	var result: Array[StringName] = []
 	if ids.is_empty() or count <= 0:
 		return result
