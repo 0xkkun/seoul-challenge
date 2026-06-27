@@ -4,6 +4,7 @@ const LOBBY_BGM_DEFAULT := &"lobby_bgm_default"
 const LOBBY_BGM_ALTERNATE := &"lobby_bgm_alternate"
 const SCHOOL_HALLWAY_BGM := &"school_hallway_bgm"
 const NIGHT_RUN_SUSPENSE_BGM := &"night_run_suspense_bgm"
+const BOSS_BATTLE_BGM := &"boss_battle_bgm"
 const SCHOOL_BELL_TRANSITION_FRONT := &"school_bell_transition_front"
 const SCHOOL_BELL_TRANSITION_BACK := &"school_bell_transition_back"
 const SCHOOL_SCENE_PAGE_FLIP := &"school_scene_page_flip"
@@ -36,6 +37,7 @@ const _BGM_STREAM_PATHS := {
 	LOBBY_BGM_ALTERNATE: "res://assets/audio/bgm/lobby_bgm_alternate.ogg",
 	SCHOOL_HALLWAY_BGM: "res://assets/audio/bgm/school_hallway_bgm.ogg",
 	NIGHT_RUN_SUSPENSE_BGM: "res://assets/audio/bgm/night_run_suspense_bgm.ogg",
+	BOSS_BATTLE_BGM: "res://assets/audio/bgm/boss_battle_bgm.ogg",
 }
 # BGM ids that use the fade-out → silent gap → fade-in loop so repeat listens
 # breathe instead of hard-looping. Others (e.g. SCHOOL_HALLWAY_BGM) keep a seamless engine loop.

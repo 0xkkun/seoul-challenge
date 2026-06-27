@@ -184,6 +184,28 @@ func test_night_run_suspense_bgm_is_registered_for_gap_loop() -> void:
 	_runner.assert_false(prepared_stream.loop, "night run suspense BGM uses the fade-out/gap/fade-in loop")
 
 
+func test_boss_battle_bgm_is_registered_with_seamless_loop() -> void:
+	var stream_path := AudioManager.get_bgm_stream_path(AudioManager.BOSS_BATTLE_BGM)
+
+	_runner.assert_true(AudioManager.has_bgm(AudioManager.BOSS_BATTLE_BGM), "boss battle BGM is registered")
+	_runner.assert_eq(stream_path, "res://assets/audio/bgm/boss_battle_bgm.ogg", "boss battle BGM path is stable")
+	_runner.assert_true(ResourceLoader.exists(stream_path), "boss battle BGM resource exists")
+	var source_stream := load(stream_path) as AudioStreamOggVorbis
+	_runner.assert_not_null(source_stream, "boss battle BGM loads as OGG Vorbis")
+
+	AudioManager.play_bgm(AudioManager.BOSS_BATTLE_BGM)
+
+	var player := AudioManager.get_node_or_null("BgmPlayer") as AudioStreamPlayer
+	_runner.assert_not_null(player, "boss battle BGM prepares a playback stream")
+	if player == null:
+		return
+	var prepared_stream := player.stream as AudioStreamOggVorbis
+	_runner.assert_not_null(prepared_stream, "boss battle BGM keeps the OGG stream type")
+	if prepared_stream == null:
+		return
+	_runner.assert_true(prepared_stream.loop, "boss battle BGM uses a seamless engine loop during the fight")
+
+
 func test_random_session_transition_school_bell_records_one_variant() -> void:
 	var sfx_id := AudioManager.play_random_session_transition_sfx()
 	var sfx_ids := AudioManager.get_session_transition_sfx_ids()

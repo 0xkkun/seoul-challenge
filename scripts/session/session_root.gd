@@ -922,6 +922,10 @@ func _on_boss_spawn_requested(room_id: StringName, boss_id: StringName, spawn_po
 	if boss is Node2D:
 		(boss as Node2D).global_position = spawn_position
 	_active_boss = boss
+	# Swap the run's suspense BGM for the boss-battle track now that the fight has begun.
+	# On defeat the session finishes and the destination scene starts its own BGM, matching
+	# how the suspense track is replaced rather than explicitly stopped.
+	AudioManager.play_bgm(AudioManager.BOSS_BATTLE_BGM)
 	if boss.has_signal("defeated"):
 		boss.connect("defeated", Callable(self, "_on_boss_defeated").bind(parent))
 
