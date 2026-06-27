@@ -899,8 +899,8 @@ func _attack_ranged(dir: Vector2) -> void:
 
 func _melee_feedback_intensity(power_attack: bool) -> float:
 	if power_attack:
-		return 5.0
-	return 3.5 if _has_bat else 2.4
+		return 7.0
+	return 5.5 if _has_bat else 3.0
 
 
 func _emit_combat_feedback(kind: StringName, dir: Vector2, hit_count: int, intensity: float) -> void:

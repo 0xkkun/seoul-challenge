@@ -2,6 +2,7 @@ extends Node
 
 const WOLF_SCENE_PATH := "res://scenes/enemies/wolf.tscn"
 const COMBAT_ROOM_SCENE_PATH := "res://scenes/interactables/combat_room.tscn"
+const L_STRONG := 2
 
 var _runner: Node
 
@@ -161,6 +162,35 @@ func test_wolf_dash_can_be_parried_into_recovery() -> void:
 
 	enemy.call("_try_dash_hit", target)
 	_runner.assert_eq(target.damage_taken, 0, "parried wolf dash cannot damage after being stopped")
+
+
+func test_wolf_dash_parry_vibrates() -> void:
+	_runner.assert_true(ResourceLoader.exists(WOLF_SCENE_PATH), "wolf dash enemy scene exists")
+	if not ResourceLoader.exists(WOLF_SCENE_PATH):
+		return
+
+	HapticManager.test_mode = true
+	HapticManager.test_log.clear()
+	HapticManager._enabled = true
+	HapticManager._last_any_ms = -100000
+	HapticManager._last_cat_ms.clear()
+	HapticManager._test_now = 1000
+
+	var enemy := (load(WOLF_SCENE_PATH) as PackedScene).instantiate()
+	var target := DamageTarget.new()
+	add_child(enemy)
+	add_child(target)
+	enemy.global_position = Vector2.ZERO
+	target.global_position = Vector2.RIGHT * 8.0
+	enemy.call("tick_dash_ai", 0.1, enemy.global_position, target.global_position)
+	enemy.call("tick_dash_ai", enemy.dash_windup_time, enemy.global_position, target.global_position)
+
+	enemy.call("parry_dash", Vector2.LEFT)
+
+	_runner.assert_eq(HapticManager.test_log, [L_STRONG], "늑대 돌격 패링은 강한 진동을 준다")
+	HapticManager.test_mode = false
+	HapticManager.test_log.clear()
+	HapticManager._test_now = -1
 
 
 func test_combat_room_can_spawn_wolf_dash_enemy_from_config() -> void:

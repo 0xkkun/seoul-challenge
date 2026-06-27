@@ -193,6 +193,32 @@ func test_melee_hit_emits_combat_feedback() -> void:
 	p.free()
 
 
+func test_bat_melee_hit_feedback_is_visible_enough_for_camera_kick() -> void:
+	var payloads: Array[Dictionary] = []
+	var callback := func(payload: Dictionary) -> void:
+		payloads.append(payload)
+	EventBus.combat_feedback.connect(callback)
+
+	var p = PlayerScript.new()
+	add_child(p)
+	p.position = Vector2.ZERO
+	p.equip_bat()
+	var e := StubEnemy.new()
+	e.position = Vector2(50.0, 0.0)
+	e.add_to_group(&"enemy")
+	add_child(e)
+
+	p._attack_melee(Vector2.RIGHT)
+
+	_runner.assert_eq(payloads.size(), 1, "배트 타격은 전투 피드백 이벤트를 1회 낸다")
+	if payloads.size() == 1:
+		_runner.assert_true(float(payloads[0].get("intensity", 0.0)) >= 5.0, "배트 타격 화면 흔들림은 실기기에서 보일 만큼 강해야 한다")
+
+	EventBus.combat_feedback.disconnect(callback)
+	e.free()
+	p.free()
+
+
 func test_bat_attack_plays_swing_sfx() -> void:
 	AudioManager.reset()
 	var p = PlayerScript.new()

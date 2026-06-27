@@ -2,6 +2,7 @@ extends Node
 
 const AKGWI_SCENE_PATH := "res://scenes/enemies/akgwi.tscn"
 const COMBAT_ROOM_SCENE_PATH := "res://scenes/interactables/combat_room.tscn"
+const PlayerScript := preload("res://scripts/player/player.gd")
 
 var _runner: Node
 
@@ -60,6 +61,20 @@ func test_akgwi_contact_damage_plays_attack_animation() -> void:
 	_runner.assert_not_null(sprite, "akgwi sprite remains mounted after contact")
 	if sprite != null:
 		_runner.assert_eq(sprite.animation, &"attack", "akgwi switches to attack animation on melee contact")
+
+
+func test_akgwi_takes_three_default_bat_hits() -> void:
+	_runner.assert_true(ResourceLoader.exists(AKGWI_SCENE_PATH), "akgwi melee enemy scene exists")
+	if not ResourceLoader.exists(AKGWI_SCENE_PATH):
+		return
+
+	var player := PlayerScript.new()
+	var enemy := (load(AKGWI_SCENE_PATH) as PackedScene).instantiate()
+	add_child(player)
+	add_child(enemy)
+
+	_runner.assert_true(enemy.max_hp > player.bat_damage * 2, "akgwi should survive two default bat hits")
+	_runner.assert_true(enemy.max_hp <= player.bat_damage * 3, "akgwi should die by the third default bat hit")
 
 
 func test_akgwi_sprite_flips_with_horizontal_movement_and_holds_when_idle() -> void:
