@@ -3,6 +3,9 @@ extends Node2D
 const RenderLayers = preload("res://scripts/constants/render_layers.gd")
 const POOLED_MARKER_SCENE = preload("res://scenes/interactables/sample_pooled_marker.tscn")
 const BOSS_SCENE = preload("res://scenes/enemies/boss.tscn")
+const HUB_DIALOGUE_SCENE = preload("res://scenes/ui/hub_dialogue_ui.tscn")
+const PalaceBossIntro = preload("res://resources/dialogue/palace_boss_intro.gd")
+const BOSS_INTRO_DIALOG_LAYER := 200  # SessionUIRoot(10) 위, ConfirmModal(240) 아래
 const RoomPalette = preload("res://scripts/constants/room_palette.gd")
 const MapItemCatalog = preload("res://scripts/items/map_item_catalog.gd")
 const MobileSafeArea = preload("res://scripts/ui/mobile_safe_area.gd")
@@ -71,6 +74,9 @@ var _paused_before_reward_choice := false
 var _pause_modal_open := false
 var _reward_choice_delay_timer: Timer = null
 var _touch_controls_visible_before_reward_choice := true
+var _boss_intro_active := false
+var _paused_before_boss_intro := false
+var _boss_intro_ui: HubDialogueUi = null
 
 
 func _ready() -> void:
@@ -145,6 +151,8 @@ func _configure_ingame_control_onboarding() -> void:
 
 
 func _exit_tree() -> void:
+	# (e) 보스 인트로 도중 세션이 끝나면 pause/터치 입력을 복원한다(스턱 pause 방지).
+	_finish_boss_intro()
 	_cancel_reward_choice_delay()
 	if room_manager != null:
 		room_manager.transition_blocked_callable = Callable()
@@ -928,6 +936,66 @@ func _on_boss_spawn_requested(room_id: StringName, boss_id: StringName, spawn_po
 	AudioManager.play_bgm(AudioManager.BOSS_BATTLE_BGM)
 	if boss.has_signal("defeated"):
 		boss.connect("defeated", Callable(self, "_on_boss_defeated").bind(parent))
+	# 보스를 띄운 뒤 인게임 대사를 재생한다(없으면 즉시 반환). 보스는 화면에 등장한 채로
+	# get_tree().paused 에 의해 정지하고, 대사가 끝나면 전투가 시작된다(#5: 스폰과 대사 분리).
+	# 보스가 먼저 존재하므로 "적 없는 미클리어 방=빈 방" 오분류(d)도 발생하지 않는다.
+	await _play_boss_intro(boss_id)
+
+
+## 보스 등장 직전 인게임 대사 시퀀스를 재생한다(코루틴). 비트가 없으면 즉시 반환.
+## pause/터치 컨트롤은 보상 선택과 동일 패턴으로 잠그고(_release/_hide), 종료 시 복원한다.
+func _play_boss_intro(_boss_id: StringName) -> void:
+	var first_shown := SaveManager.get_flag(PalaceBossIntro.FIRST_INTRO_FLAG)
+	var beats := PalaceBossIntro.collect_beats(first_shown)
+	if beats.is_empty():
+		return
+	var includes_first := PalaceBossIntro.includes_first_intro(first_shown)
+	_boss_intro_active = true
+	_paused_before_boss_intro = get_tree().paused
+	_release_combat_touch_inputs()
+	_hide_touch_controls_for_reward_choice()
+	get_tree().paused = true
+	_boss_intro_ui = HUB_DIALOGUE_SCENE.instantiate()
+	_boss_intro_ui.battle_mode = true  # add_child 전에 설정 — 학교 부수효과 격리
+	_boss_intro_ui.layer = BOSS_INTRO_DIALOG_LAYER
+	add_child(_boss_intro_ui)
+	for beat: Dictionary in beats:
+		if not is_instance_valid(_boss_intro_ui):
+			break
+		_boss_intro_ui.set_dialogue(
+			String(beat.get("speaker", "")),
+			String(beat.get("text", "")),
+			"",
+			HubDialogueUi.PORTRAIT_COLOR,
+			beat.get("portrait") as Texture2D,
+			int(beat.get("frame", 0)),
+			false,
+		)
+		var continue_choice: Array[Dictionary] = [{
+			"id": &"continue",
+			"tap_to_continue": true,
+			"text": HubDialogueUi.CONTINUE_HINT_TOUCH,
+		}]
+		_boss_intro_ui.set_choices(continue_choice)
+		await _boss_intro_ui.choice_selected
+	# (f) 첫 조우 플래그는 전체 시퀀스 완료 후에만 set — 중도 이탈 시 다음 입장에 다시 재생.
+	if includes_first:
+		SaveManager.set_flag(PalaceBossIntro.FIRST_INTRO_FLAG, true)
+	_finish_boss_intro()
+
+
+## 보스 인트로 정리 — pause/터치 컨트롤 복원 + UI free. _exit_tree 안전 경로에서도 호출.
+func _finish_boss_intro() -> void:
+	if not _boss_intro_active:
+		return
+	_boss_intro_active = false
+	if is_instance_valid(_boss_intro_ui):
+		_boss_intro_ui.queue_free()
+	_boss_intro_ui = null
+	var tree := get_tree()
+	if tree != null:
+		tree.paused = _paused_before_boss_intro
+	_restore_touch_controls_after_reward_choice()
 
 
 func _on_boss_defeated(_boss: Node, room: Node) -> void:
