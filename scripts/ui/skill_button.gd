@@ -11,6 +11,13 @@ func is_held() -> bool:
 	return _active_index != -1
 
 
+func release() -> void:
+	if _active_index == -1:
+		return
+	_active_index = -1
+	queue_redraw()
+
+
 func get_cooldown_ratio() -> float:
 	if _cooldown <= 0.0:
 		return 0.0
