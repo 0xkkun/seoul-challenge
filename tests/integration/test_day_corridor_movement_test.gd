@@ -41,6 +41,7 @@ func test_day_corridor_scene_uses_mobile_landscape_plate() -> void:
 	_runner.assert_not_null(scene.get_node("%TouchControls"), "touch controls are mounted")
 	_runner.assert_not_null(scene.get_node("%HubDialogueUi"), "hub dialogue UI is mounted")
 	_runner.assert_false(scene.is_dialogue_ui_visible(), "dialogue UI starts hidden")
+	_runner.assert_eq(scene.get_objective_text(), "목표: 야구부 주장과 대화하고 밤의 궁으로 나갈 준비를 하자", "first objective tells the player who to talk to")
 
 
 func test_day_corridor_shows_only_day_character_visual_under_player() -> void:
@@ -207,6 +208,7 @@ func test_day_corridor_dialogue_signal_updates_state() -> void:
 	scene.trigger_dialogue()
 
 	_runner.assert_eq(scene.get_dialogue_count(), 1, "dialogue count increments")
+	_runner.assert_eq(scene.get_objective_text(), "목표: 복도 끝 사물함에서 기억 무기를 정비하자", "objective advances after the first memory beat")
 	_runner.assert_true(scene.is_dialogue_ui_visible(), "dialogue trigger opens the hub dialogue UI")
 	_runner.assert_false(scene.is_touch_controls_visible(), "touch controls hide while the dialogue bar is open")
 	_runner.assert_false(scene.get_node("%TalkButtonLabel").visible, "talk button helper label hides behind dialogue UI")

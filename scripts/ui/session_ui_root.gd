@@ -19,6 +19,7 @@ const UNLOCK_LABELS := {
 @onready var action_panel: Control = %ActionPanel
 @onready var summary_overlay: Control = %SummaryOverlay
 @onready var result_title_label: Label = %ResultTitleLabel
+@onready var narrative_label: Label = %NarrativeLabel
 @onready var memory_label: Label = %MemoryLabel
 @onready var memory_amount_label: Label = %MemoryAmountLabel
 @onready var students_record_label: Label = %StudentsRecordLabel
@@ -52,7 +53,7 @@ func _ready() -> void:
 	finish_button.pressed.connect(_on_finish_button_pressed)
 	return_button.pressed.connect(_on_return_button_pressed)
 	retry_button.pressed.connect(_on_retry_button_pressed)
-	set_status("Ready")
+	set_status("밤런 준비")
 	set_interaction_count(0)
 	show_summary({})
 
@@ -62,7 +63,7 @@ func set_status(text: String) -> void:
 
 
 func set_interaction_count(count: int) -> void:
-	interaction_label.text = "Interactions: %d" % count
+	interaction_label.text = "진행 %d" % count
 
 
 func show_summary(result: Dictionary) -> void:
@@ -73,6 +74,7 @@ func show_summary(result: Dictionary) -> void:
 
 	var summary := _build_summary(result)
 	result_title_label.text = summary["title"]
+	narrative_label.text = summary["narrative"]
 	memory_label.text = "기억 조각"
 	memory_amount_label.text = "+%d" % int(summary["memory_reward"])
 	students_record_label.text = "구출 %d" % int(summary["students_rescued"])
@@ -89,6 +91,7 @@ func get_summary_snapshot() -> Dictionary:
 	return {
 		"visible": summary_overlay.visible,
 		"title": result_title_label.text,
+		"narrative": narrative_label.text,
 		"memory_label": memory_label.text,
 		"memory_amount": memory_amount_label.text,
 		"students": students_record_label.text,
@@ -113,6 +116,7 @@ func _apply_button_styles() -> void:
 func _build_summary(result: Dictionary) -> Dictionary:
 	return {
 		"title": _result_title(result),
+		"narrative": _result_narrative(result),
 		"memory_reward": _memory_reward(result),
 		"students_rescued": _count_from_keys(result, [
 			"students_rescued",
@@ -142,6 +146,15 @@ func _result_title(result: Dictionary) -> String:
 	if outcome in ["success", "escaped", "complete", "completed"]:
 		return "탈출 성공"
 	return "런 종료"
+
+
+func _result_narrative(result: Dictionary) -> String:
+	var outcome := String(result.get("outcome", "")).to_lower()
+	if outcome in ["death", "dead", "failed"] or bool(result.get("died", false)):
+		return "새벽 종소리와 함께 교실에서 눈을 떴다. 기억 조각은 손에 남아 있다."
+	if bool(result.get("completed", false)) or String(result.get("reason", "")) == "boss_resolved" or outcome in ["success", "escaped", "complete", "completed"]:
+		return "친구의 기억이 조금 돌아왔다. 학교로 돌아가 말을 걸어보자."
+	return "오늘 밤의 기록을 챙겼다. 학교에서 정비하고 다시 나갈 수 있다."
 
 
 func _memory_reward(result: Dictionary) -> int:

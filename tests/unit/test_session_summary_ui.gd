@@ -33,6 +33,7 @@ func test_success_result_renders_player_facing_summary() -> void:
 	var snapshot: Dictionary = _ui.get_summary_snapshot()
 	_runner.assert_true(snapshot["visible"], "result panel is shown")
 	_runner.assert_eq(snapshot["title"], "탈출 성공", "success header uses player-facing copy")
+	_runner.assert_true(snapshot["narrative"].contains("친구의 기억"), "success summary explains the next narrative beat")
 	_runner.assert_eq(snapshot["memory_label"], "기억 조각", "permanent reward label is concise")
 	_runner.assert_eq(snapshot["memory_amount"], "+42", "permanent reward is the largest result number")
 	_runner.assert_eq(snapshot["students"], "구출 3", "rescued students render as a record chip")
@@ -53,6 +54,7 @@ func test_death_result_keeps_same_layout_without_loss_copy() -> void:
 
 	var snapshot: Dictionary = _ui.get_summary_snapshot()
 	_runner.assert_eq(snapshot["title"], "쓰러짐", "death state uses its own header")
+	_runner.assert_true(snapshot["narrative"].contains("기억 조각은 손에 남아 있다"), "death summary reassures retained progress")
 	_runner.assert_eq(snapshot["memory_amount"], "+5", "death still foregrounds earned memory")
 	_runner.assert_eq(snapshot["students"], "구출 1", "death keeps the record stack")
 	_runner.assert_eq(snapshot["friends"], "친구 0", "zero values stay aligned in the same chip")
@@ -99,8 +101,8 @@ func test_summary_actions_emit_distinct_flow_signals() -> void:
 
 	var return_button := _ui.get_node("%ReturnButton") as Button
 	var retry_button := _ui.get_node("%RetryButton") as Button
-	_runner.assert_eq(return_button.text, "학교로 귀환", "return action copy is stable")
-	_runner.assert_eq(retry_button.text, "재도전", "retry action copy is stable")
+	_runner.assert_eq(return_button.text, "학교로 돌아가기", "return action copy is stable")
+	_runner.assert_eq(retry_button.text, "다시 밤으로", "retry action copy is stable")
 	retry_button.pressed.emit()
 	return_button.pressed.emit()
 

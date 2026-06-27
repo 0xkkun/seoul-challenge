@@ -236,7 +236,7 @@ func _build_upgrade_panel() -> void:
 	vbox.add_child(header)
 
 	var title := Label.new()
-	title.text = "강화"
+	title.text = "기억 조각 강화"
 	title.add_theme_font_size_override("font_size", 24)
 	title.add_theme_color_override("font_color", Color(0.86, 0.80, 0.62, 1.0))
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -309,7 +309,7 @@ func _refresh_upgrades() -> void:
 	if _upgrade_balance_label == null:
 		return
 	var balance := _permanent_balance()
-	_upgrade_balance_label.text = "보유 ◆%d" % balance
+	_upgrade_balance_label.text = "기억 조각 ◆%d" % balance
 	for id: StringName in MetaUpgradeCatalog.upgrade_ids():
 		var level := _saved_upgrade_level(id)
 		var max_level := MetaUpgradeCatalog.max_level(id)
@@ -375,17 +375,13 @@ func _pip_bbcode(level: int, max_level: int) -> String:
 
 
 func _build_action_bar() -> void:
-	_return_button = _make_action_button("ReturnButton", "복도\n나가기", Rect2(0.06, 0.82, 0.24, 0.13), ACTION_RETURN)
+	_return_button = _make_action_button("ReturnButton", "복도로\n돌아가기", Rect2(0.06, 0.82, 0.30, 0.13), ACTION_RETURN)
 	add_child(_return_button)
 
-	_weapon_button = _make_action_button("WeaponButton", "무기\n전환", Rect2(0.36, 0.82, 0.24, 0.13), ACTION_CYCLE_WEAPON)
-	add_child(_weapon_button)
-
-	_map_button = _make_action_button("MapButton", "지도\n열기", Rect2(0.66, 0.82, 0.28, 0.13), ACTION_OPEN_MAP)
+	_map_button = _make_action_button("MapButton", "밤 지도\n펼치기", Rect2(0.61, 0.82, 0.33, 0.13), ACTION_OPEN_MAP)
 	add_child(_map_button)
 
 	_return_button.pressed.connect(_on_return_pressed)
-	_weapon_button.pressed.connect(_on_cycle_weapon_pressed)
 	_map_button.pressed.connect(_on_map_pressed)
 
 

@@ -28,11 +28,11 @@ func test_locker_maintenance_focuses_on_memory_weapons_and_single_map_entry() ->
 	_runner.assert_eq(screen.get_selected_weapon_id(), LockerMaintenanceScript.WEAPON_BASEBALL, "locker maintenance starts with baseball selected")
 	_runner.assert_eq(screen.get_map_entry_count(), 1, "locker maintenance exposes exactly one map entry")
 	_runner.assert_not_null(UiTestHarness.find_by_uat_action(screen, LockerMaintenanceScript.ACTION_RETURN), "return action is available")
-	_runner.assert_not_null(UiTestHarness.find_by_uat_action(screen, LockerMaintenanceScript.ACTION_CYCLE_WEAPON), "weapon action is available")
+	_runner.assert_eq(UiTestHarness.find_by_uat_action(screen, LockerMaintenanceScript.ACTION_CYCLE_WEAPON), null, "bottom CTA no longer competes with weapon cards")
 	var map_button := UiTestHarness.find_by_uat_action(screen, LockerMaintenanceScript.ACTION_OPEN_MAP) as Button
 	_runner.assert_not_null(map_button, "map action is available only as the bottom button")
 	if map_button != null:
-		_runner.assert_eq(map_button.text, "지도\n열기", "map button opens the separate map screen")
+		_runner.assert_eq(map_button.text, "밤 지도\n펼치기", "map button opens the separate map screen")
 	_runner.assert_false(screen.has_node("TodayPrepPanel"), "today prep checklist panel is intentionally absent")
 	_runner.assert_false(screen.has_node("MapPreviewPanel"), "map preview panel is intentionally absent")
 	_runner.assert_false(screen.has_node("StudentIdCard"), "student id slot is intentionally removed from the maintenance layout")
@@ -56,7 +56,7 @@ func test_locker_maintenance_uses_dungeon_ui_loadout_hierarchy() -> void:
 	_assert_flat_style_border(baseball_card.get_theme_stylebox("normal"), 4, "selected weapon slot uses a thick border")
 	_assert_flat_style_border(bat_card.get_theme_stylebox("normal"), 2, "unselected weapon slot uses a quieter border")
 	_assert_pixel_button_style(return_button, PixelButtonStyle.VARIANT_SECONDARY, "return")
-	_assert_pixel_button_style(weapon_button, PixelButtonStyle.VARIANT_SECONDARY, "weapon")
+	_runner.assert_eq(weapon_button, null, "weapon cycle CTA is removed; selecting a weapon card is the weapon action")
 	_assert_pixel_button_style(map_button, PixelButtonStyle.VARIANT_PRIMARY, "map entry")
 
 
@@ -81,8 +81,8 @@ func test_locker_maintenance_buttons_emit_flow_signals() -> void:
 	_runner.assert_eq(screen.get_selected_weapon_id(), LockerMaintenanceScript.WEAPON_BAT, "bat selection updates screen state")
 	_runner.assert_eq(weapon_ids, [LockerMaintenanceScript.WEAPON_BAT], "bat selection emits weapon id")
 
-	_runner.assert_true(UiTestHarness.press_by_uat_action(screen, LockerMaintenanceScript.ACTION_CYCLE_WEAPON), "weapon action cycles the selected weapon")
-	_runner.assert_eq(screen.get_selected_weapon_id(), LockerMaintenanceScript.WEAPON_BASEBALL, "cycle returns to baseball")
+	_runner.assert_true(UiTestHarness.press_by_uat_action(screen, LockerMaintenanceScript.ACTION_SELECT_BASEBALL), "baseball card returns selection to baseball")
+	_runner.assert_eq(screen.get_selected_weapon_id(), LockerMaintenanceScript.WEAPON_BASEBALL, "baseball card returns to baseball")
 	var weapon_status := screen.get_node("LoadoutSummaryPanel/WeaponStatusLabel") as Label
 	_runner.assert_true(weapon_status.text.contains("낡은 야구공"), "loadout summary follows the cycled weapon")
 
@@ -116,9 +116,10 @@ func test_night_map_select_is_separate_from_locker_maintenance() -> void:
 	_runner.assert_not_null(UiTestHarness.find_by_uat_action(screen, NightMapSelectScript.ACTION_SELECT_GYEONGBOKGUNG), "map screen exposes Gyeongbokgung as the run entry")
 	var map_label := screen.get_node("RouteMapPanel/MapLabel") as Label
 	var destination_label := screen.get_node("DestinationPanel/DestinationLabel") as Label
-	_runner.assert_true(map_label.text.contains("출입 가능 경로"), "map screen frames the MVP route as a route board")
-	_runner.assert_true(map_label.text.contains("봉인됨"), "future locations are shown as locked, not competing choices")
+	_runner.assert_true(map_label.text.contains("학교 정비실"), "map screen frames the MVP route as a node path")
+	_runner.assert_true(map_label.text.contains("잠김"), "future locations are shown as locked, not competing choices")
 	_runner.assert_true(destination_label.text.contains("선택됨"), "destination panel confirms the active stage")
+	_runner.assert_true(destination_label.text.contains("친구 정화와 탈출"), "destination panel states the night objective")
 	var departure_config: Dictionary = screen.get_departure_config()
 	_runner.assert_eq(departure_config[SceneTransition.RUN_CONFIG_SELECTED_WEAPON_ID], LockerMaintenanceScript.WEAPON_BAT, "map departure keeps the locker weapon")
 	_runner.assert_eq(departure_config["stage_id"], NightMapSelectScript.STAGE_GYEONGBOKGUNG, "map departure includes selected stage")
@@ -130,7 +131,7 @@ func test_night_map_select_is_separate_from_locker_maintenance() -> void:
 	var departure_button := UiTestHarness.find_by_uat_action(screen, NightMapSelectScript.ACTION_SELECT_GYEONGBOKGUNG) as Button
 	_runner.assert_not_null(departure_button, "departure button remains addressable for UAT")
 	if departure_button != null:
-		_runner.assert_eq(departure_button.text, "경복궁\n진입", "departure CTA is short and explicit")
+		_runner.assert_eq(departure_button.text, "밤의 경복궁\n진입", "departure CTA is short and explicit")
 		_runner.assert_true(departure_button.disabled, "departure button disables after the first request")
 		_assert_pixel_button_style(departure_button, PixelButtonStyle.VARIANT_PRIMARY, "departure")
 	var map_return_button := UiTestHarness.find_by_uat_action(screen, NightMapSelectScript.ACTION_RETURN) as Button
