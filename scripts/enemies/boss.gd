@@ -13,6 +13,7 @@ const HitReactionController = preload("res://scripts/combat/hit_reaction_control
 const EnemyDeathFade = preload("res://scripts/combat/enemy_death_fade.gd")
 const EnemyHealthBar = preload("res://scripts/enemies/enemy_health_bar.gd")
 const FACING_DEADZONE := 0.05
+const HIT_TIMING_EPSILON := 0.0001
 
 enum Phase { RECOVER, TELEGRAPH, CHARGE, SWING }
 
@@ -28,6 +29,8 @@ enum Phase { RECOVER, TELEGRAPH, CHARGE, SWING }
 @export var weak_attack_arc: float = 1.6
 @export var strong_attack_range: float = 144.0
 @export var strong_attack_arc: float = 1.8
+@export_range(0, 7, 1) var strong_attack_hit_frame := 3
+@export var strong_attack_animation_fps: float = 12.0
 @export var contact_cooldown: float = 0.5
 @export var hit_invuln_time: float = 0.12
 @export var target_group: StringName = &"player"
@@ -43,6 +46,8 @@ var _phase: Phase = Phase.RECOVER
 var _phase_timer: float = 0.0
 var _pattern_index: int = 1   ## 다음 패턴 (0=돌진, 1=약공격) — 첫 사이클은 돌진부터
 var _charge_dir: Vector2 = Vector2.ZERO
+var _charge_elapsed: float = 0.0
+var _pattern_target: Node2D = null
 var _contact_timer: float = 0.0
 var _hit_reaction: Node = null
 var _health_bar: RefCounted = null
@@ -75,10 +80,10 @@ func _physics_process(delta: float) -> void:
 			if _phase_timer <= 0.0:
 				_begin_pattern(target)
 		Phase.CHARGE:
+			var charge_target := _current_pattern_target(target)
 			velocity = _charge_dir * charge_speed
 			move_and_slide()
-			_try_swing_attack(target, _charge_dir, strong_attack_range, strong_attack_arc)
-			_try_contact(target)
+			_tick_strong_attack_hit(charge_target, delta)
 			if _phase_timer <= 0.0:
 				_begin_recover()
 		Phase.SWING:
@@ -111,6 +116,12 @@ func in_swing_arc(facing: Vector2, to_target: Vector2, swing_range: float, arc: 
 	if facing.length() <= 0.001:
 		return true
 	return absf(facing.normalized().angle_to(to_target.normalized())) <= arc * 0.5
+
+
+func strong_attack_hit_ready(elapsed: float, hit_frame: int, animation_speed: float) -> bool:
+	if hit_frame <= 0 or animation_speed <= 0.0:
+		return true
+	return elapsed + HIT_TIMING_EPSILON >= float(hit_frame) / animation_speed
 
 
 # --- 피격 반응 (계약 #136) ---
@@ -182,12 +193,13 @@ func _begin_telegraph() -> void:
 
 
 func _begin_pattern(target: Node2D) -> void:
+	_pattern_target = target
 	if _pattern_index == 0:
 		_charge_dir = _aim_to(target)
+		_charge_elapsed = 0.0
 		_phase = Phase.CHARGE
 		_phase_timer = charge_time
 		_play_attack_animation(strong_attack_animation, _charge_dir)
-		_try_swing_attack(target, _charge_dir, strong_attack_range, strong_attack_arc)
 	else:
 		var aim := _aim_to(target)
 		_play_attack_animation(attack_animation, aim)
@@ -199,6 +211,8 @@ func _begin_pattern(target: Node2D) -> void:
 func _begin_recover() -> void:
 	_phase = Phase.RECOVER
 	_phase_timer = recover_time
+	_charge_elapsed = 0.0
+	_pattern_target = null
 	_play_move_animation()
 
 
@@ -221,6 +235,24 @@ func _aim_to(target: Node2D) -> Vector2:
 
 func _find_target() -> Node2D:
 	return get_tree().get_first_node_in_group(target_group) as Node2D
+
+
+func _strong_attack_hit_ready_now() -> bool:
+	return strong_attack_hit_ready(_charge_elapsed, strong_attack_hit_frame, strong_attack_animation_fps)
+
+
+func _tick_strong_attack_hit(target: Node2D, delta: float) -> void:
+	_charge_elapsed += delta
+	if not _strong_attack_hit_ready_now():
+		return
+	_try_swing_attack(target, _charge_dir, strong_attack_range, strong_attack_arc)
+	_try_contact(target)
+
+
+func _current_pattern_target(fallback: Node2D) -> Node2D:
+	if _pattern_target != null and is_instance_valid(_pattern_target):
+		return _pattern_target
+	return fallback
 
 
 func _update_move_animation() -> void:
