@@ -128,8 +128,8 @@ func _apply_session_loadout() -> void:
 				actor.call("equip_bat")
 
 
-func finish_session() -> Dictionary:
-	var result := _build_session_result()
+func finish_session(overrides: Dictionary = {}) -> Dictionary:
+	var result := _build_session_result(overrides)
 	GameManager.finish_session(result)
 	session_ui_root.show_summary(result)
 	return result
@@ -290,13 +290,32 @@ func _on_room_changed(_room_id: StringName, _room_type: StringName) -> void:
 	_play_room_fade()
 	var current_room := room_manager.current_room
 	if current_room != null and actor != null:
-		actor.global_position = current_room.global_position + Vector2(-RoomPalette.ROOM_HALF_SIZE.x + 140.0, 0.0)
+		_configure_actor_for_room(current_room)
 	_connect_boss_room(current_room)
+
+
+func _configure_actor_for_room(room: Node2D) -> void:
+	if actor.has_method("set_movement_bounds"):
+		actor.call("set_movement_bounds", _room_movement_bounds(room))
+	actor.global_position = room.global_position + Vector2(-RoomPalette.ROOM_HALF_SIZE.x + 140.0, 0.0)
+	if actor.has_method("clamp_to_movement_bounds"):
+		actor.call("clamp_to_movement_bounds")
+	if actor.has_method("reset_motion"):
+		actor.call("reset_motion")
+	elif actor is CharacterBody2D:
+		(actor as CharacterBody2D).velocity = Vector2.ZERO
+
+
+func _room_movement_bounds(room: Node2D) -> Rect2:
+	var room_bounds := RoomPalette.get_room_bounds()
+	return Rect2(room.global_position + room_bounds.position, room_bounds.size)
 
 
 func _connect_boss_room(room: Node) -> void:
 	if room == null or not room.has_signal("boss_spawn_requested"):
 		return
+	if room.has_method("set_finish_session_on_resolve"):
+		room.call("set_finish_session_on_resolve", false)
 	var callback := Callable(self, "_on_boss_spawn_requested")
 	if not room.is_connected("boss_spawn_requested", callback):
 		room.connect("boss_spawn_requested", callback)
@@ -325,7 +344,13 @@ func _on_boss_defeated(_boss: Node, room: Node) -> void:
 	if _active_boss == _boss:
 		_active_boss = null
 	if room != null and is_instance_valid(room) and room.has_method("complete_boss_encounter"):
-		room.call("complete_boss_encounter")
+		var completed := bool(room.call("complete_boss_encounter"))
+		if completed and has_node("/root/GameManager") and GameManager.is_session_active():
+			finish_session({
+				"reason": "boss_resolved",
+				"room_id": StringName(room.get("room_id")),
+				"boss_id": StringName(room.get("boss_id")),
+			})
 
 
 func _is_layout_complete() -> bool:

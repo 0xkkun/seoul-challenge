@@ -41,3 +41,16 @@ func test_no_input_decelerates() -> void:
 	var stopped: Vector2 = p.step_velocity(moving, Vector2.ZERO, 1.0)
 	_runner.assert_true(stopped.length() < moving.length(), "입력이 없으면 감속한다")
 	p.free()
+
+
+func test_room_bounds_clamps_horizontal_exit() -> void:
+	var p = PlayerScript.new()
+	_runner.assert_true(p.has_method("clamp_position_to_bounds"), "플레이어는 방 경계 클램프 수학을 제공한다")
+	if not p.has_method("clamp_position_to_bounds"):
+		p.free()
+		return
+
+	var bounds := Rect2(Vector2(-960.0, -320.0), Vector2(1920.0, 640.0))
+	var clamped: Vector2 = p.call("clamp_position_to_bounds", Vector2(1220.0, 12.0), bounds)
+	_runner.assert_eq(clamped, Vector2(960.0, 12.0), "오른쪽 방 경계 밖 위치는 바닥 끝으로 제한된다")
+	p.free()

@@ -37,6 +37,10 @@ signal run_modifiers_changed(payload: Dictionary)
 @export var bat_knockback: float = 64.0    ## 배트 넉백 거리 (px)
 @export var swing_vertical_factor: float = 0.6  ## 스윙 세로(깊이) 압축 — 위/아래 사거리를 좌우보다 짧게(벨트 원근감)
 @export var swing_visual_time: float = 0.12  ## 휘두르기 시각 표시 시간 (s)
+@export var dash_power_attack_grace_time: float = 0.15  ## 대시 직후 강화 근접 공격 입력 허용 시간(s)
+@export_range(0, 9, 1) var dash_power_attack_damage_bonus := 1
+@export var dash_power_attack_range_multiplier: float = 1.15
+@export var dash_power_attack_knockback_multiplier: float = 1.5
 @export var max_health: int = 5            ## 최대 체력(하트)
 @export var invuln_time: float = 0.5       ## 피격 후 무적 시간 (s) — 보스 탄막 원샷 방지
 @export var special_skill_id: StringName = &"emergency_dodge"
@@ -54,6 +58,8 @@ var _is_attacking: bool = false   ## 공격 모션 재생 중(애니 끝날 때�
 var _special_cooldown_timer: float = 0.0
 var _dodge_timer: float = 0.0
 var _dodge_direction: Vector2 = Vector2.ZERO
+var _dash_power_attack_timer: float = 0.0
+var _dash_power_attack_consumed: bool = false
 var _was_special_pressed := false
 var _has_bat: bool = false   ## 야구배트 장착 여부(맵 클리어 보상). 기본 맨손.
 var _bat_awakened: bool = false
@@ -64,9 +70,12 @@ var _touch: Node = null
 var _base_run_stats := {}
 var _run_modifier_ids: Array[StringName] = []
 var _hit_reaction: Node = null
+var _movement_bounds := Rect2()
+var _movement_bounds_enabled := false
 var _status_effects: Node = null
 
 @onready var _swing_visual: Node2D = get_node_or_null(^"MeleeSwing")
+@onready var _power_impact_visual: Node2D = get_node_or_null(^"PowerImpact")
 @onready var _sprite: AnimatedSprite2D = get_node_or_null(^"Sprite")
 
 
@@ -90,6 +99,7 @@ func _ready() -> void:
 func _physics_process(delta: float) -> void:
 	tick_status_effects(delta)
 	tick_hit_reaction(delta)
+	_dash_power_attack_timer = step_dash_power_attack_window(_dash_power_attack_timer, delta)
 	var move := read_input_vector()
 	var movement_blocked := is_status_movement_blocked()
 	if movement_blocked:
@@ -111,6 +121,7 @@ func _physics_process(delta: float) -> void:
 		move.y *= vertical_speed_factor
 		velocity = step_velocity(velocity, move, delta, get_status_speed_multiplier())
 	move_and_slide()
+	clamp_to_movement_bounds()
 	_process_attack(delta)
 	_update_animation(move)
 
@@ -130,6 +141,53 @@ func step_velocity(current: Vector2, input_vector: Vector2, delta: float, speed_
 	var target := desired_velocity(input_vector, speed_multiplier)
 	var rate := acceleration if input_vector.length() > 0.01 else friction
 	return current.move_toward(target, rate * delta)
+
+
+func clamp_position_to_bounds(position: Vector2, bounds: Rect2) -> Vector2:
+	if bounds.size.x <= 0.0 or bounds.size.y <= 0.0:
+		return position
+	return Vector2(
+		clampf(position.x, bounds.position.x, bounds.end.x),
+		clampf(position.y, bounds.position.y, bounds.end.y)
+	)
+
+
+func set_movement_bounds(bounds: Rect2) -> void:
+	_movement_bounds = bounds
+	_movement_bounds_enabled = bounds.size.x > 0.0 and bounds.size.y > 0.0
+	clamp_to_movement_bounds()
+
+
+func clear_movement_bounds() -> void:
+	_movement_bounds = Rect2()
+	_movement_bounds_enabled = false
+
+
+func has_movement_bounds() -> bool:
+	return _movement_bounds_enabled
+
+
+func get_movement_bounds() -> Rect2:
+	return _movement_bounds
+
+
+func clamp_to_movement_bounds() -> bool:
+	if not _movement_bounds_enabled:
+		return false
+	var before := global_position
+	var clamped := clamp_position_to_bounds(before, _movement_bounds)
+	global_position = clamped
+	if not is_equal_approx(before.x, clamped.x):
+		velocity.x = 0.0
+	if not is_equal_approx(before.y, clamped.y):
+		velocity.y = 0.0
+	return not before.is_equal_approx(clamped)
+
+
+func reset_motion() -> void:
+	velocity = Vector2.ZERO
+	_dodge_timer = 0.0
+	_dodge_direction = Vector2.ZERO
 
 
 ## 이동 입력이 있으면 그 방향으로 facing 갱신, 없으면 마지막 facing 유지.
@@ -172,6 +230,14 @@ func dodge_velocity(direction: Vector2, speed: float) -> Vector2:
 	if direction.length() < 0.001:
 		return Vector2.ZERO
 	return direction.normalized() * speed
+
+
+func step_dash_power_attack_window(timer: float, delta: float) -> float:
+	return maxf(0.0, timer - delta)
+
+
+func is_dash_power_attack_window_active(dodge_timer: float, grace_timer: float) -> bool:
+	return dodge_timer > 0.0 or grace_timer > 0.0
 
 
 ## 발사 반동 속도(조준 반대 방향).
@@ -293,6 +359,10 @@ func is_dodging() -> bool:
 	return _dodge_timer > 0.0
 
 
+func get_dash_power_attack_remaining() -> float:
+	return _dash_power_attack_timer
+
+
 # --- 상태이상 (계약 #51) ---
 
 func apply_status_effect(effect_id: StringName, duration: float, params: Dictionary = {}) -> void:
@@ -403,6 +473,8 @@ func try_start_special_skill(input_vector: Vector2 = Vector2.ZERO) -> bool:
 		return false
 	_dodge_direction = choose_dodge_direction(input_vector, _facing)
 	_dodge_timer = dodge_duration
+	_dash_power_attack_timer = dodge_duration + dash_power_attack_grace_time
+	_dash_power_attack_consumed = false
 	_invuln_timer = maxf(_invuln_timer, dodge_invuln_time)
 	special_skill_uses_remaining = consume_special_use(special_skill_uses_remaining)
 	_special_cooldown_timer = special_skill_cooldown
@@ -417,6 +489,8 @@ func equip_special_skill(skill_id: StringName, max_uses: int = 3, cooldown: floa
 	special_skill_cooldown = maxf(0.0, cooldown)
 	_special_cooldown_timer = 0.0
 	_dodge_timer = 0.0
+	_dash_power_attack_timer = 0.0
+	_dash_power_attack_consumed = false
 	_broadcast_special_skill_state()
 
 
@@ -529,6 +603,8 @@ func _process_attack(delta: float) -> void:
 	_swing_timer = maxf(0.0, _swing_timer - delta)
 	if _swing_timer <= 0.0 and _swing_visual != null:
 		_swing_visual.visible = false
+	if _swing_timer <= 0.0 and _power_impact_visual != null:
+		_power_impact_visual.visible = false
 	if is_status_action_blocked():
 		return
 	if _attack_timer > 0.0 or not is_firing():
@@ -580,6 +656,15 @@ func _attack_melee(dir: Vector2) -> void:
 	var dmg := bat_damage if _has_bat else melee_damage
 	var rng := bat_range if _has_bat else melee_range
 	var arc := bat_arc if _has_bat else melee_arc
+	var power_attack := (
+		not _dash_power_attack_consumed
+		and is_dash_power_attack_window_active(_dodge_timer, _dash_power_attack_timer)
+	)
+	var knockback_distance := bat_knockback
+	if power_attack:
+		dmg += dash_power_attack_damage_bonus
+		rng *= dash_power_attack_range_multiplier
+		knockback_distance *= dash_power_attack_knockback_multiplier
 	for enemy: Node in get_tree().get_nodes_in_group(&"enemy"):
 		var e := enemy as Node2D
 		if e == null or not is_instance_valid(e):
@@ -590,13 +675,17 @@ func _attack_melee(dir: Vector2) -> void:
 			if enemy.has_method("take_damage"):
 				enemy.call("take_damage", dmg)
 			if _has_bat:
-				e.global_position += knockback_vector(global_position, e.global_position, bat_knockback)
+				e.global_position += knockback_vector(global_position, e.global_position, knockback_distance)
 	if _has_bat:
 		if _bat_awakened:
 			_deflect_bullets_in_arc(dir, rng, arc)
 		else:
 			_clear_bullets_in_arc(dir, rng, arc)
 	_show_swing(dir, rng, arc)
+	if power_attack:
+		_dash_power_attack_consumed = true
+		_dash_power_attack_timer = 0.0
+		_show_power_impact(dir, rng, arc)
 
 
 ## 원거리 발사(야구공) — 보존된 무기. ranged_enabled 일 때만 사용. fired → ProjectileLauncher 가 스폰.
@@ -615,6 +704,15 @@ func _show_swing(dir: Vector2, rng: float, arc: float) -> void:
 	_swing_visual.rotation = 0.0
 	_swing_visual.visible = true
 	_swing_timer = swing_visual_time
+
+
+func _show_power_impact(dir: Vector2, rng: float, arc: float) -> void:
+	if _power_impact_visual == null:
+		return
+	if _power_impact_visual is Polygon2D:
+		(_power_impact_visual as Polygon2D).polygon = _build_swing_polygon(dir, rng * 1.06, arc)
+	_power_impact_visual.rotation = 0.0
+	_power_impact_visual.visible = true
 
 
 ## 타격 부채꼴 폴리곤 — dir 기준 ±arc/2, 반지름 rng 의 팬을 월드 정렬로 만들고

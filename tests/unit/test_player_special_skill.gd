@@ -49,6 +49,22 @@ func test_dodge_direction_prefers_move_then_facing() -> void:
 	player.free()
 
 
+func test_dash_power_attack_window_uses_active_dodge_or_grace_timer() -> void:
+	var player = PlayerScript.new()
+	_runner.assert_true(player.has_method("is_dash_power_attack_window_active"), "player exposes dash power attack window math")
+	_runner.assert_true(player.has_method("step_dash_power_attack_window"), "player exposes dash power attack timer math")
+	if not player.has_method("is_dash_power_attack_window_active") or not player.has_method("step_dash_power_attack_window"):
+		player.free()
+		return
+
+	_runner.assert_true(player.is_dash_power_attack_window_active(0.1, 0.0), "active dodge enables power attack")
+	_runner.assert_true(player.is_dash_power_attack_window_active(0.0, 0.1), "post-dodge grace enables power attack")
+	_runner.assert_false(player.is_dash_power_attack_window_active(0.0, 0.0), "no dodge and no grace disables power attack")
+	_runner.assert_true(is_equal_approx(player.step_dash_power_attack_window(0.15, 0.05), 0.1), "grace timer steps down")
+	_runner.assert_true(is_equal_approx(player.step_dash_power_attack_window(0.05, 0.1), 0.0), "grace timer clamps to zero")
+	player.free()
+
+
 func test_start_dodge_consumes_charge_sets_cooldown_and_invuln() -> void:
 	var player = PlayerScript.new()
 	add_child(player)
@@ -66,3 +82,17 @@ func test_start_dodge_consumes_charge_sets_cooldown_and_invuln() -> void:
 	_runner.assert_eq(player.special_skill_uses_remaining, 1, "dodge consumes one charge")
 	_runner.assert_true(is_equal_approx(player.get_special_cooldown_remaining(), 1.25), "dodge starts cooldown")
 	_runner.assert_true(player.get_invuln_remaining() >= 0.24, "dodge grants short invulnerability")
+
+
+func test_start_dodge_opens_dash_power_attack_window() -> void:
+	var player = PlayerScript.new()
+	add_child(player)
+	_runner.assert_true(player.has_method("get_dash_power_attack_remaining"), "player exposes dash power attack window state")
+	if not player.has_method("get_dash_power_attack_remaining"):
+		return
+	player.dodge_duration = 0.16
+	player.dash_power_attack_grace_time = 0.15
+
+	_runner.assert_true(player.try_start_special_skill(Vector2.RIGHT), "ready dodge starts")
+
+	_runner.assert_true(player.get_dash_power_attack_remaining() >= 0.15, "dodge opens post-dodge power attack grace")
