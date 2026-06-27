@@ -302,7 +302,7 @@ func test_reward_choice_open_starts_slide_fade_animation() -> void:
 	_runner.assert_true((card_scales[0] as Vector2).x < 1.0, "reward card starts slightly smaller for pop-in")
 
 
-func test_summary_renders_baseball_unlocks_when_present() -> void:
+func test_summary_hides_unlock_records_for_mvp_result_layout() -> void:
 	_ui.show_summary({
 		"completed": true,
 		"memory_reward": 8,

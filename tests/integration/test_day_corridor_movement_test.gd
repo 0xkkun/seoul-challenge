@@ -363,6 +363,15 @@ func test_day_corridor_post_reward_guides_player_to_gyeongbokgung_entry_with_bla
 		_runner.assert_true(arrow_label.visible, "post-reward state shows the Gyeongbokgung run navigation arrow")
 		_runner.assert_eq(arrow_label.text, ">>>", "navigation uses the requested triple arrow")
 		_runner.assert_eq(arrow_label.get_theme_color("font_color"), Color.BLACK, "navigation arrow is black")
+		var glow_color := arrow_label.get_theme_color("font_shadow_color")
+		_runner.assert_true(glow_color.r > 0.8 and glow_color.g > 0.55 and glow_color.b < 0.35, "navigation arrow uses a warm glow color")
+		_runner.assert_true(glow_color.a >= 0.65, "navigation arrow glow is visible enough")
+		_runner.assert_true(arrow_label.get_theme_constant("shadow_outline_size") >= 16, "navigation arrow has a broad glow halo")
+		_runner.assert_eq(arrow_label.get_theme_constant("shadow_offset_x"), 0, "navigation glow is centered horizontally")
+		_runner.assert_eq(arrow_label.get_theme_constant("shadow_offset_y"), 0, "navigation glow is centered vertically")
+		_runner.assert_true(scene.has_method("is_run_navigation_arrow_glow_active"), "scene exposes arrow glow animation state")
+		if scene.has_method("is_run_navigation_arrow_glow_active"):
+			_runner.assert_true(scene.call("is_run_navigation_arrow_glow_active"), "navigation arrow glow pulse runs while visible")
 		_runner.assert_true(arrow_label.anchor_left >= 0.85, "navigation arrow sits on the right side of the mobile landscape view")
 		var arrow_right_edge: float = arrow_label.anchor_right * scene.get_reference_viewport_size().x + arrow_label.offset_right
 		_runner.assert_true(arrow_right_edge <= scene.get_reference_viewport_size().x - 60.0, "navigation arrow respects the right phone safe-area inset")

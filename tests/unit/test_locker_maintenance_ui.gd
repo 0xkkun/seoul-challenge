@@ -6,6 +6,7 @@ const NightMapSelectScene := preload("res://scenes/ui/night_map_select.tscn")
 const NightMapSelectScript := preload("res://scripts/ui/night_map_select.gd")
 const UiTestHarness := preload("res://tests/support/ui_test_harness.gd")
 const MobileSafeArea := preload("res://scripts/ui/mobile_safe_area.gd")
+const DungeonTheme := preload("res://scripts/ui/dungeon_ui_theme.gd")
 
 var _runner: Node
 
@@ -60,7 +61,7 @@ func test_locker_maintenance_uses_dungeon_ui_loadout_hierarchy() -> void:
 	_runner.assert_eq(return_button.text, "복도", "return CTA uses text-only copy")
 	_runner.assert_eq(map_button.text, "지도", "map CTA uses text-only copy")
 	_runner.assert_eq(weapon_status.text, "선택한 기억\n\n금 간 나무 배트\n\n지도에서\n경복궁으로 이동", "selected loadout is summarized beside the slot")
-	_assert_flat_style_border(bat_card.get_theme_stylebox("normal"), 4, "selected weapon slot uses a thick border")
+	_assert_texture_slot_style(bat_card.get_theme_stylebox("normal"), Color(1.0, 0.93, 0.62), "selected weapon slot uses the selected card frame")
 	_assert_pixel_button_style(return_button, PixelButtonStyle.VARIANT_SECONDARY, "return")
 	_runner.assert_eq(weapon_button, null, "weapon cycle CTA is removed; selecting a weapon card is the weapon action")
 	_assert_pixel_button_style(map_button, PixelButtonStyle.VARIANT_PRIMARY, "map entry")
@@ -174,20 +175,15 @@ func test_night_map_departure_uses_bell_without_generic_press_sfx() -> void:
 		"departure action leaves room for the session bell instead of playing generic press SFX"
 	)
 
-
-func _assert_flat_style_border(style: StyleBox, expected_width: int, message: String) -> void:
+func _assert_texture_slot_style(style: StyleBox, expected_modulate: Color, message: String) -> void:
 	var texture_style := style as StyleBoxTexture
-	if texture_style != null:
-		_runner.assert_eq(texture_style.texture.resource_path, "res://assets/ui/panels/card_frame.png", "%s uses the shared card frame texture" % message)
-		_runner.assert_eq(texture_style.texture_margin_left, DungeonUiTheme.CARD_FRAME_TEXTURE_MARGIN, "%s uses card 9-slice margin" % message)
-		_runner.assert_true(texture_style.modulate_color.r >= 0.9, "%s uses selected warm trim" % message)
+	_runner.assert_not_null(texture_style, "%s is a textured dungeon UI style" % message)
+	if texture_style == null:
 		return
-	var flat_style := style as StyleBoxFlat
-	_runner.assert_not_null(flat_style, "%s is a flat dungeon UI style" % message)
-	if flat_style == null:
-		return
-	_runner.assert_eq(flat_style.get_border_width(SIDE_LEFT), expected_width, message)
-	_runner.assert_eq(flat_style.corner_radius_top_left, 0, "%s keeps square pixel corners" % message)
+	_runner.assert_eq(texture_style.texture.resource_path, "res://assets/ui/panels/card_frame.png", "%s uses the shared card frame" % message)
+	_runner.assert_eq(texture_style.texture_margin_left, DungeonTheme.CARD_FRAME_TEXTURE_MARGIN, "%s keeps the card 9-slice margin" % message)
+	_runner.assert_eq(texture_style.content_margin_left, 12.0, "%s keeps slot content padding" % message)
+	_runner.assert_eq(texture_style.modulate_color, expected_modulate, "%s applies selected tint" % message)
 
 
 func _assert_pixel_button_style(button: Button, variant: StringName, label: String) -> void:
