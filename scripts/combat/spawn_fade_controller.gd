@@ -7,6 +7,7 @@ var _visual: CanvasItem = null
 var _base_modulate := Color.WHITE
 var _duration := DEFAULT_DURATION
 var _remaining := 0.0
+var _was_active := false
 
 
 func bind_visual(visual: CanvasItem) -> void:
@@ -20,6 +21,7 @@ func start(duration: float = DEFAULT_DURATION, visual: CanvasItem = null) -> voi
 		bind_visual(visual)
 	_duration = maxf(0.001, duration)
 	_remaining = maxf(0.0, duration)
+	_was_active = _remaining > 0.0
 	if _visual != null:
 		_base_modulate = _visual.modulate
 	_apply_visual()
@@ -29,7 +31,9 @@ func tick(delta: float) -> void:
 	if delta <= 0.0:
 		return
 	if _remaining <= 0.0:
-		_restore_visual()
+		if _was_active:
+			_was_active = false
+			_restore_visual()
 		return
 	_remaining = maxf(0.0, _remaining - delta)
 	_apply_visual()
@@ -37,6 +41,7 @@ func tick(delta: float) -> void:
 
 func clear() -> void:
 	_remaining = 0.0
+	_was_active = false
 	_restore_visual()
 
 
@@ -52,6 +57,7 @@ func _apply_visual() -> void:
 	if _visual == null:
 		return
 	if _remaining <= 0.0:
+		_was_active = false
 		_restore_visual()
 		return
 	var progress := 1.0 - (_remaining / _duration)

@@ -106,3 +106,20 @@ func test_spawn_fade_blocks_contact_damage_and_restores_visual() -> void:
 	_runner.assert_eq(visual.modulate, base_modulate, "등장 페이드 종료 후 원래 시각 상태로 복구")
 	e.call("_try_contact", target)
 	_runner.assert_eq(target.damage_taken, e.contact_damage, "보호 종료 후 접촉 피해는 정상 적용된다")
+
+
+func test_inactive_spawn_fade_does_not_override_later_hit_reaction_visual() -> void:
+	var e = ChaserScene.instantiate()
+	e.max_hp = 2
+	add_child(e)
+	var visual := e.get_node("Placeholder") as CanvasItem
+	var base_modulate := visual.modulate
+
+	e.call("start_spawn_fade", 0.1)
+	e.call("tick_spawn_fade", 0.2)
+	_runner.assert_eq(visual.modulate, base_modulate, "등장 페이드 종료 후 원래 시각 상태")
+
+	e.take_damage(1)
+	_runner.assert_true(visual.modulate != base_modulate, "피격 직후 플래시가 적용된다")
+	e.call("tick_spawn_fade", 0.1)
+	_runner.assert_true(visual.modulate != base_modulate, "비활성 등장 tick은 피격 플래시를 덮어쓰지 않는다")
