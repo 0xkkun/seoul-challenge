@@ -5,7 +5,17 @@ const MinimapDataScript = preload("res://scripts/systems/minimap_data.gd")
 const RoomPalette = preload("res://scripts/constants/room_palette.gd")
 
 const BOSS_ROOM_ICON_PATH := "res://assets/ui/minimap/boss_skull.png"
+const START_ROOM_ICON_PATH := "res://assets/ui/minimap/nodes/start_home.png"
+const COMBAT_ROOM_ICON_PATH := "res://assets/ui/minimap/nodes/combat_target.png"
+const EVENT_ROOM_ICON_PATH := "res://assets/ui/minimap/nodes/event_info.png"
+const TREASURE_ROOM_ICON_PATH := "res://assets/ui/minimap/nodes/treasure_key.png"
+const SHOP_ROOM_ICON_PATH := "res://assets/ui/minimap/nodes/shop_trophy.png"
 const BOSS_ROOM_ICON = preload(BOSS_ROOM_ICON_PATH)
+const START_ROOM_ICON = preload(START_ROOM_ICON_PATH)
+const COMBAT_ROOM_ICON = preload(COMBAT_ROOM_ICON_PATH)
+const EVENT_ROOM_ICON = preload(EVENT_ROOM_ICON_PATH)
+const TREASURE_ROOM_ICON = preload(TREASURE_ROOM_ICON_PATH)
+const SHOP_ROOM_ICON = preload(SHOP_ROOM_ICON_PATH)
 const GRAPH_DIRECTIONS: Array[Vector2i] = [
 	Vector2i(1, 0),
 	Vector2i(0, 1),
@@ -199,6 +209,7 @@ func _build_room_entries() -> Array[Dictionary]:
 		var display_minimap_type := actual_minimap_type if room_visible else UNKNOWN_MINIMAP_TYPE
 		var fill_color := _fill_color_for_room(room_def, room_visible, is_visited)
 		var border_color := _border_color_for_room(is_current, is_cleared, is_problem)
+		var icon_path := _icon_path_for_room(room_def, room_visible)
 		var icon_texture := _icon_texture_for_room(room_def, room_visible)
 		var label := "" if icon_texture != null else _label_for_room(room_def, room_visible)
 		entries.append({
@@ -206,7 +217,7 @@ func _build_room_entries() -> Array[Dictionary]:
 			"room_type": room_def.room_type,
 			"minimap_type": display_minimap_type,
 			"actual_minimap_type": actual_minimap_type,
-			"icon_path": BOSS_ROOM_ICON_PATH if icon_texture != null else "",
+			"icon_path": icon_path,
 			"icon_texture": icon_texture,
 			"icon_color": Color.WHITE if room_visible else UNKNOWN_TEXT_COLOR,
 			"hidden": room_def.hidden,
@@ -461,9 +472,39 @@ func _color_for_minimap_type(minimap_type: StringName) -> Color:
 func _icon_texture_for_room(room_def: RoomDef, room_visible: bool) -> Texture2D:
 	if not room_visible:
 		return null
-	if _minimap_type_for_room(room_def) == &"boss":
-		return BOSS_ROOM_ICON
+	match _minimap_type_for_room(room_def):
+		RoomLayout.TYPE_START:
+			return START_ROOM_ICON
+		RoomLayout.TYPE_COMBAT:
+			return COMBAT_ROOM_ICON
+		RoomLayout.TYPE_EVENT, RoomLayout.TYPE_FRIEND:
+			return EVENT_ROOM_ICON
+		RoomLayout.TYPE_TREASURE:
+			return TREASURE_ROOM_ICON
+		RoomLayout.TYPE_SHOP:
+			return SHOP_ROOM_ICON
+		&"boss":
+			return BOSS_ROOM_ICON
 	return null
+
+
+func _icon_path_for_room(room_def: RoomDef, room_visible: bool) -> String:
+	if not room_visible:
+		return ""
+	match _minimap_type_for_room(room_def):
+		RoomLayout.TYPE_START:
+			return START_ROOM_ICON_PATH
+		RoomLayout.TYPE_COMBAT:
+			return COMBAT_ROOM_ICON_PATH
+		RoomLayout.TYPE_EVENT, &"friend":
+			return EVENT_ROOM_ICON_PATH
+		RoomLayout.TYPE_TREASURE:
+			return TREASURE_ROOM_ICON_PATH
+		RoomLayout.TYPE_SHOP:
+			return SHOP_ROOM_ICON_PATH
+		&"boss":
+			return BOSS_ROOM_ICON_PATH
+	return ""
 
 
 func _derive_room_positions() -> Dictionary:
