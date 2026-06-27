@@ -1,6 +1,14 @@
 extends Control
 
 const BACKGROUND_CROP_ANCHOR := Vector2(0.5, 0.0)
+const NightIntroCutscene := preload("res://scripts/cutscene/night_intro_cutscene.gd")
+
+## 최초 1회 게임 시작 시 밤 인트로 콜드오픈을 재생했는지 표시하는 세이브 플래그.
+const FLAG_SEEN_NIGHT_INTRO := &"seen_night_intro"
+## 인트로 직후 바로 진입할 첫 밤(경복궁) 세션 설정.
+const FIRST_NIGHT_STAGE_ID := &"gyeongbokgung"
+const FIRST_NIGHT_STAGE_NAME := "경복궁"
+const FIRST_NIGHT_WEAPON_ID := &"bat"
 
 @onready var background: TextureRect = $Background
 @onready var start_button: Button = %StartButton
@@ -51,7 +59,46 @@ func _on_start_pressed() -> void:
 		return
 	_start_requested = true
 	start_button.disabled = true
-	call_deferred("_go_to_day_lobby")
+	if _should_play_intro():
+		call_deferred("_play_intro_then_first_night")
+	else:
+		call_deferred("_go_to_day_lobby")
+
+
+## 최초 1회(세이브 플래그 미설정)만 인트로를 재생한다.
+func _should_play_intro() -> bool:
+	return has_node("/root/SaveManager") and not SaveManager.get_flag(FLAG_SEEN_NIGHT_INTRO)
+
+
+## 게임 시작 → 밤 콜드오픈 → 곧바로 첫 밤(경복궁) 세션으로 진입(낮 플로우 건너뜀).
+func _play_intro_then_first_night() -> void:
+	var intro := NightIntroCutscene.new()
+	add_child(intro)
+	intro.play()
+	await intro.finished
+	if has_node("/root/SaveManager"):
+		SaveManager.set_flag(FLAG_SEEN_NIGHT_INTRO, true)
+	# 인트로의 검은 화면을 유지한 채 곧장 세션으로 전환한다. 여기서 intro 를
+	# 직접 free 하면 전환 페이드가 도는 동안 로비가 한 프레임 드러나므로,
+	# 씬 전환이 로비와 함께 인트로까지 정리하도록 둔다.
+	var result := SceneTransition.start_session(_first_night_config())
+	if result == OK:
+		return
+	# 전환 실패 시에만 인트로를 정리하고 로비로 복귀.
+	if is_instance_valid(intro):
+		intro.queue_free()
+	_start_requested = false
+	start_button.disabled = false
+	push_error("Failed to start first night session: %s" % result)
+
+
+func _first_night_config() -> Dictionary:
+	return {
+		"source": "intro",
+		"stage_id": FIRST_NIGHT_STAGE_ID,
+		"stage_name": FIRST_NIGHT_STAGE_NAME,
+		SceneTransition.RUN_CONFIG_SELECTED_WEAPON_ID: FIRST_NIGHT_WEAPON_ID,
+	}
 
 
 func _go_to_day_lobby() -> void:
