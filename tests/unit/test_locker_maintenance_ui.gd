@@ -54,9 +54,11 @@ func test_locker_maintenance_uses_dungeon_ui_loadout_hierarchy() -> void:
 	var map_button := UiTestHarness.find_by_uat_action(screen, LockerMaintenanceScript.ACTION_OPEN_MAP) as Button
 
 	_runner.assert_eq(baseball_card.focus_mode, Control.FOCUS_NONE, "weapon slots do not show desktop focus chrome")
+	_runner.assert_eq(screen.get_weapon_card_icon_path(LockerMaintenanceScript.WEAPON_BASEBALL), LockerMaintenanceScript.BASEBALL_BAT_ICON_PATH, "discarded baseball copy uses the real bat icon asset")
+	_runner.assert_true(baseball_card.text.contains("야구방망이"), "무기 카드는 야구방망이 카피를 표시한다")
 	_runner.assert_eq(return_button.text, "↩ 복도", "return CTA uses short icon copy")
 	_runner.assert_eq(map_button.text, "☾ 지도", "map CTA uses short icon copy")
-	_runner.assert_eq(weapon_status.text, "선택된 기억\n\n낡은 야구공\n\n지도에서\n경복궁 선택", "selected loadout is summarized beside the slots")
+	_runner.assert_eq(weapon_status.text, "선택된 기억\n\n야구방망이\n\n지도에서\n경복궁 선택", "selected loadout is summarized beside the slots")
 	_assert_flat_style_border(baseball_card.get_theme_stylebox("normal"), 4, "selected weapon slot uses a thick border")
 	_assert_flat_style_border(bat_card.get_theme_stylebox("normal"), 2, "unselected weapon slot uses a quieter border")
 	_assert_pixel_button_style(return_button, PixelButtonStyle.VARIANT_SECONDARY, "return")
@@ -103,7 +105,7 @@ func test_locker_maintenance_buttons_emit_flow_signals() -> void:
 	_runner.assert_true(UiTestHarness.press_by_uat_action(screen, LockerMaintenanceScript.ACTION_SELECT_BASEBALL), "baseball card returns selection to baseball")
 	_runner.assert_eq(screen.get_selected_weapon_id(), LockerMaintenanceScript.WEAPON_BASEBALL, "baseball card returns to baseball")
 	var weapon_status := screen.get_node("LoadoutSummaryPanel/WeaponStatusLabel") as Label
-	_runner.assert_true(weapon_status.text.contains("낡은 야구공"), "loadout summary follows the cycled weapon")
+	_runner.assert_true(weapon_status.text.contains("야구방망이"), "loadout summary follows the cycled weapon")
 
 	_runner.assert_true(UiTestHarness.press_by_uat_action(screen, LockerMaintenanceScript.ACTION_RETURN), "return button can be pressed")
 	_runner.assert_eq(return_count[0], 1, "return button emits return request")

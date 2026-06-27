@@ -197,7 +197,7 @@ func test_choices_are_horizontal_models_and_emit_selected_id() -> void:
 
 func test_unlock_popup_tracks_reward_items() -> void:
 	var items: Array[Dictionary] = [
-		{"id": &"old_baseball", "name": "낡은 야구공", "color": HUB_DIALOGUE_SCRIPT.DEFAULT_BALL_COLOR},
+		{"id": &"baseball_bat", "name": "야구방망이", "color": HUB_DIALOGUE_SCRIPT.DEFAULT_BALL_COLOR},
 		{"id": &"cracked_bat", "name": "금 간 알루미늄 배트", "color": HUB_DIALOGUE_SCRIPT.DEFAULT_BAT_COLOR},
 	]
 
@@ -205,7 +205,7 @@ func test_unlock_popup_tracks_reward_items() -> void:
 
 	_runner.assert_true(_ui.is_unlock_visible(), "받는다 이후 중앙 해금 팝업을 표시한다")
 	_runner.assert_eq(_ui.get_unlock_items().size(), 2, "해금 아이템 두 개를 표시할 수 있다")
-	_runner.assert_eq(_ui.get_unlock_items()[0]["name"], "낡은 야구공", "첫 번째 해금 아이템 이름 보관")
+	_runner.assert_eq(_ui.get_unlock_items()[0]["name"], "야구방망이", "첫 번째 해금 아이템 이름 보관")
 	_runner.assert_eq(_ui.get_unlock_items()[1]["name"], "금 간 알루미늄 배트", "두 번째 해금 아이템 이름 보관")
 
 	_ui.hide_unlock()
@@ -220,7 +220,7 @@ func test_unlock_hidden_only_emits_after_visible_popup_is_hidden() -> void:
 	_runner.assert_eq(hidden_count[0], 0, "초기 비표시 상태를 숨겨도 dismiss 신호를 보내지 않는다")
 
 	var items: Array[Dictionary] = [
-		{"id": &"old_baseball", "name": "낡은 야구공", "color": HUB_DIALOGUE_SCRIPT.DEFAULT_BALL_COLOR},
+		{"id": &"baseball_bat", "name": "야구방망이", "color": HUB_DIALOGUE_SCRIPT.DEFAULT_BALL_COLOR},
 	]
 	_ui.show_unlock("아이템을 얻었다", "STAGE 2 보상", items)
 	_ui.hide_unlock()

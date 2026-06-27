@@ -37,6 +37,6 @@ func test_spin_advances_rotation() -> void:
 func test_weapon_identity_is_baseball() -> void:
 	var l = LauncherScript.new()
 	var info: Dictionary = l.weapon_info()
-	_runner.assert_eq(info.get("name"), "낡은 야구공")
+	_runner.assert_eq(info.get("name"), "야구방망이")
 	_runner.assert_true(String(info.get("flavor")).length() > 0, "기억 플레이버 텍스트 존재")
 	l.free()

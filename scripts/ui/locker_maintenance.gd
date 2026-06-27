@@ -19,6 +19,7 @@ const ACTION_SELECT_BAT := "locker_maintenance.weapon.bat"
 const ACTION_CYCLE_WEAPON := "locker_maintenance.weapon.cycle"
 const ACTION_OPEN_MAP := "locker_maintenance.map"
 const ACTION_UPGRADE_PREFIX := "locker_maintenance.upgrade."
+const BASEBALL_BAT_ICON_PATH := "res://assets/ui/icons/tailbound/baseball_bat.png"
 
 @export var scene_transition_enabled := true
 
@@ -48,6 +49,13 @@ func get_selected_weapon_id() -> StringName:
 
 func get_map_entry_count() -> int:
 	return _count_action_entries(self, ACTION_OPEN_MAP)
+
+
+func get_weapon_card_icon_path(weapon_id: StringName) -> String:
+	var card := _baseball_card if weapon_id == WEAPON_BASEBALL else _bat_card
+	if card == null or card.icon == null:
+		return ""
+	return card.icon.resource_path
 
 
 func select_weapon(weapon_id: StringName) -> void:
@@ -173,7 +181,7 @@ func _build_title() -> void:
 func _build_weapon_cards() -> void:
 	_baseball_card = _make_weapon_card(
 		"BaseballCard",
-		"낡은 야구공\n\n원거리 / 빠른 연사\n위력  ■■■□□\n속도  ■■■■□\n\n작은 충격파",
+		"야구방망이\n\n원거리 / 빠른 연사\n위력  ■■■□□\n속도  ■■■■□\n\n작은 충격파",
 		Rect2(0.06, 0.32, 0.265, 0.36),
 		ACTION_SELECT_BASEBALL
 	)
@@ -397,6 +405,9 @@ func _make_weapon_card(node_name: String, text: String, relative_rect: Rect2, ac
 	card.anchor_right = relative_rect.position.x + relative_rect.size.x
 	card.anchor_bottom = relative_rect.position.y + relative_rect.size.y
 	card.text = text
+	card.icon = load(BASEBALL_BAT_ICON_PATH)
+	card.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	card.expand_icon = false
 	card.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	card.alignment = HORIZONTAL_ALIGNMENT_CENTER
 	card.focus_mode = Control.FOCUS_NONE
@@ -451,7 +462,7 @@ func _apply_weapon_card_state() -> void:
 		"normal",
 		_make_weapon_state_style(_selected_weapon_id == WEAPON_BAT)
 	)
-	var weapon_name := "낡은 야구공" if _selected_weapon_id == WEAPON_BASEBALL else "금 간 배트"
+	var weapon_name := "야구방망이" if _selected_weapon_id == WEAPON_BASEBALL else "금 간 배트"
 	_weapon_status_label.text = "선택된 기억\n\n%s\n\n지도에서\n경복궁 선택" % weapon_name
 
 
