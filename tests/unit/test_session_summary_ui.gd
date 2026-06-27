@@ -88,6 +88,38 @@ func test_death_summary_modal_and_key_record_areas_are_transparent() -> void:
 	)
 
 
+func test_summary_record_rows_keep_clear_background_and_color_numbers_only() -> void:
+	_ui.show_summary({
+		"outcome": "death",
+		"memory_reward": 5,
+		"students_rescued": 1,
+		"friends_purified": 0,
+		"rooms_cleared": 7,
+	})
+
+	_assert_transparent_panel_style(
+		"Root/SummaryOverlay/SummaryPanel/SummaryMargin/SummaryStack/SummaryContent/RecordsStack/StudentsRecordPanel",
+		"rescued students record area"
+	)
+	_assert_transparent_panel_style(
+		"Root/SummaryOverlay/SummaryPanel/SummaryMargin/SummaryStack/SummaryContent/RecordsStack/RoomsRecordPanel",
+		"rooms record area"
+	)
+	var students_title := _ui.get_node("Root/SummaryOverlay/SummaryPanel/SummaryMargin/SummaryStack/SummaryContent/RecordsStack/StudentsRecordPanel/StudentsRow/StudentsTitle") as Label
+	var rooms_title := _ui.get_node("Root/SummaryOverlay/SummaryPanel/SummaryMargin/SummaryStack/SummaryContent/RecordsStack/RoomsRecordPanel/RoomsRow/RoomsTitle") as Label
+	var students_value := _ui.get_node("%StudentsRecordLabel") as Label
+	var rooms_value := _ui.get_node("%RoomsRecordLabel") as Label
+	var student_number_color := Color(0.596078, 0.811765, 0.490196, 1.0)
+	var room_number_color := Color(0.760784, 0.462745, 0.956863, 1.0)
+
+	_runner.assert_eq(students_title.get_theme_color("font_color"), DungeonUiTheme.COLOR_TEXT, "rescue label stays neutral")
+	_runner.assert_eq(rooms_title.get_theme_color("font_color"), DungeonUiTheme.COLOR_TEXT, "room label stays neutral")
+	_runner.assert_eq(students_value.get_theme_color("font_color"), student_number_color, "only rescued count uses the green accent")
+	_runner.assert_eq(rooms_value.get_theme_color("font_color"), room_number_color, "only room count uses the purple accent")
+	_runner.assert_false(students_title.get_theme_color("font_color") == student_number_color, "rescue label does not inherit the number accent")
+	_runner.assert_false(rooms_title.get_theme_color("font_color") == room_number_color, "room label does not inherit the number accent")
+
+
 func test_death_summary_reward_uses_locker_weapon_card_layout() -> void:
 	_ui.show_summary({
 		"outcome": "death",

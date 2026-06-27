@@ -37,6 +37,9 @@ const REWARD_CHOICE_CARD_TITLE_OUTLINE := 4
 const REWARD_CHOICE_CARD_EFFECT_OUTLINE := 1
 const REWARD_CHOICE_CARD_TITLE_COLOR := Color(1.0, 0.835294, 0.258824, 1.0)
 const REWARD_CHOICE_CARD_EFFECT_COLOR := Color(0.88, 0.86, 0.66, 0.94)
+const SUMMARY_RECORD_TITLE_COLOR := DungeonUiTheme.COLOR_TEXT
+const STUDENTS_RECORD_NUMBER_COLOR := Color(0.596078, 0.811765, 0.490196, 1.0)
+const ROOMS_RECORD_NUMBER_COLOR := Color(0.760784, 0.462745, 0.956863, 1.0)
 const REWARD_CHOICE_OPEN_DURATION := 0.18
 const REWARD_CHOICE_CARD_STAGGER := 0.045
 const REWARD_CHOICE_CARD_START_SCALE := Vector2(0.94, 0.94)
@@ -121,6 +124,7 @@ func _apply_result_panel_styles() -> void:
 	_style_record_panel(RECORDS + "/FriendsRecordPanel", FILL_BLUE)
 	_style_transparent_record_panel(RECORDS + "/RoomsRecordPanel")
 	_style_record_panel(RECORDS + "/UnlocksRecordPanel", FILL_GREEN)
+	_apply_record_label_colors(RECORDS)
 
 
 func _style_panel(path: String, bg: Color, border: Color, width: int, corner: int) -> void:
@@ -167,6 +171,19 @@ func _style_transparent_record_panel(path: String) -> void:
 	var panel := get_node_or_null(path) as PanelContainer
 	if panel != null:
 		panel.add_theme_stylebox_override("panel", _transparent_panel_style(0.0, 0.0, 4))
+
+
+func _apply_record_label_colors(records_path: String) -> void:
+	_style_record_label(records_path + "/StudentsRecordPanel/StudentsRow/StudentsTitle", SUMMARY_RECORD_TITLE_COLOR)
+	_style_record_label(records_path + "/StudentsRecordPanel/StudentsRow/StudentsRecordLabel", STUDENTS_RECORD_NUMBER_COLOR)
+	_style_record_label(records_path + "/RoomsRecordPanel/RoomsRow/RoomsTitle", SUMMARY_RECORD_TITLE_COLOR)
+	_style_record_label(records_path + "/RoomsRecordPanel/RoomsRow/RoomsRecordLabel", ROOMS_RECORD_NUMBER_COLOR)
+
+
+func _style_record_label(path: String, color: Color) -> void:
+	var label := get_node_or_null(path) as Label
+	if label != null:
+		label.add_theme_color_override("font_color", color)
 
 
 func _transparent_panel_style(margin_x := 0.0, margin_y := 0.0, corner_radius := 0) -> StyleBoxFlat:
