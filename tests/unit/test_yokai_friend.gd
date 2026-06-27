@@ -3,6 +3,11 @@ extends Node
 
 const FriendScene := preload("res://scenes/enemies/yokai_friend.tscn")
 const TEST_PLAYER_GROUP := &"test_purify_player"
+const YOKAI_FRAMES_PATH := "res://assets/sprites/enemies/yokai_friend/yokai_friend_frames.tres"
+const YOKAI_MOVE_SHEET_PATH := "res://assets/sprites/enemies/yokai_friend/yokai_friend_move.png"
+const YOKAI_ATTACK_SHEET_PATH := "res://assets/sprites/enemies/yokai_friend/yokai_friend_attack.png"
+const YOKAI_MOVE_SHEET_SHA256 := "872da21e9272d7ca735012c03f383bede9190819a611a0f411178473556cf996"
+const YOKAI_ATTACK_SHEET_SHA256 := "16671ae53a00c5d4d45e107d15ef41316b656d6f59f6f4fe0fa47f52128ecedf"
 
 class PurifyTarget:
 	extends Node2D
@@ -11,6 +16,15 @@ class PurifyTarget:
 
 	func is_firing() -> bool:
 		return firing
+
+
+class DamageTarget:
+	extends Node2D
+
+	var damage_taken := 0
+
+	func take_damage(amount: int) -> void:
+		damage_taken += amount
 
 var _runner: Node
 
@@ -54,15 +68,86 @@ func test_damage_ignored_while_stunned() -> void:
 	f.free()
 
 
-func test_visual_uses_baseball_captain_sprite_instead_of_placeholder() -> void:
+func test_yokai_friend_png_sources_match_latest_download_assets() -> void:
+	_runner.assert_eq(
+		FileAccess.get_sha256(YOKAI_MOVE_SHEET_PATH),
+		YOKAI_MOVE_SHEET_SHA256,
+		"yokai friend move source sheet matches the provided asset"
+	)
+	_runner.assert_eq(
+		FileAccess.get_sha256(YOKAI_ATTACK_SHEET_PATH),
+		YOKAI_ATTACK_SHEET_SHA256,
+		"yokai friend attack source sheet matches the provided asset"
+	)
+
+
+func test_visual_uses_yokai_sprite_frames_instead_of_human_portrait() -> void:
 	var f = FriendScene.instantiate()
+	add_child(f)
 	var snapshot: Dictionary = f.call("get_visual_snapshot")
-	_runner.assert_true(bool(snapshot["has_sprite"]), "요괴 친구는 실제 야구부 주장 스프라이트를 가진다")
-	_runner.assert_eq(snapshot["texture_path"], "res://assets/characters/school/baseball_captain.png", "온보딩 정화 대상은 야구부 주장 에셋을 사용한다")
-	_runner.assert_eq(snapshot["frame_count"], 6, "야구부 주장 에셋은 6프레임으로 분할된다")
+	_runner.assert_true(bool(snapshot["has_sprite"]), "요괴 친구는 실제 요괴 상태 스프라이트를 가진다")
+	_runner.assert_eq(snapshot["sprite_type"], "AnimatedSprite2D", "요괴 친구는 기존 적들과 같은 AnimatedSprite2D visual을 쓴다")
+	_runner.assert_eq(snapshot["sprite_frames_path"], YOKAI_FRAMES_PATH, "온보딩 정화 대상은 요괴 상태 SpriteFrames를 사용한다")
+	_runner.assert_eq(snapshot["texture_path"], YOKAI_MOVE_SHEET_PATH, "move animation은 요괴 상태 이동 시트를 사용한다")
+	_runner.assert_eq(snapshot["move_frame_count"], 6, "요괴 상태 이동 시트는 6프레임으로 분할된다")
+	_runner.assert_eq(snapshot["attack_frame_count"], 8, "요괴 상태 공격 시트는 8프레임으로 분할된다")
+	_runner.assert_true(bool(snapshot["move_loops"]), "이동 애니메이션은 루프한다")
+	_runner.assert_false(bool(snapshot["attack_loops"]), "공격 애니메이션은 루프하지 않는다")
 	_runner.assert_true(bool(snapshot["sprite_visible"]), "정화 대상 스프라이트는 보인다")
 	_runner.assert_false(bool(snapshot["placeholder_visible"]), "임시 네모 placeholder는 숨긴다")
-	f.free()
+
+	var sprite := f.get_node_or_null("Sprite") as AnimatedSprite2D
+	_runner.assert_not_null(sprite, "요괴 친구는 AnimatedSprite2D 노드를 유지한다")
+	if sprite == null or sprite.sprite_frames == null:
+		return
+	var frames := sprite.sprite_frames
+	var last_move := frames.get_frame_texture(&"move", 5) as AtlasTexture
+	var last_attack := frames.get_frame_texture(&"attack", 7) as AtlasTexture
+	_runner.assert_not_null(last_move, "마지막 이동 프레임은 AtlasTexture다")
+	_runner.assert_not_null(last_attack, "마지막 공격 프레임은 AtlasTexture다")
+	if last_move != null:
+		_runner.assert_eq(last_move.atlas.resource_path, YOKAI_MOVE_SHEET_PATH, "마지막 이동 프레임은 이동 시트를 참조한다")
+		_runner.assert_eq(last_move.region, Rect2(640, 0, 128, 128), "이동 시트 마지막 프레임 region이 맞다")
+	if last_attack != null:
+		_runner.assert_eq(last_attack.atlas.resource_path, YOKAI_ATTACK_SHEET_PATH, "마지막 공격 프레임은 공격 시트를 참조한다")
+		_runner.assert_eq(last_attack.region, Rect2(896, 0, 128, 128), "공격 시트 마지막 프레임 region이 맞다")
+
+
+func test_contact_damage_plays_attack_animation() -> void:
+	var f = FriendScene.instantiate()
+	var target := DamageTarget.new()
+	add_child(f)
+	add_child(target)
+	f.global_position = Vector2.ZERO
+	target.global_position = Vector2.RIGHT
+
+	f.call("_try_contact", target)
+
+	_runner.assert_eq(target.damage_taken, f.contact_damage, "요괴 친구 접촉 피해가 유지된다")
+	var sprite := f.get_node_or_null("Sprite") as AnimatedSprite2D
+	_runner.assert_not_null(sprite, "요괴 친구 sprite remains mounted after contact")
+	if sprite != null:
+		_runner.assert_eq(sprite.animation, &"attack", "요괴 친구는 접촉 피해 때 공격 애니메이션을 재생한다")
+
+
+func test_yokai_friend_sprite_flips_with_horizontal_movement_and_attack_direction() -> void:
+	var f = FriendScene.instantiate()
+	add_child(f)
+	var sprite := f.get_node_or_null("Sprite") as AnimatedSprite2D
+	_runner.assert_not_null(sprite, "요괴 친구는 AnimatedSprite2D visual을 가진다")
+	if sprite == null:
+		return
+
+	f.velocity = Vector2.LEFT
+	f.call("_update_animation")
+	_runner.assert_true(sprite.flip_h, "왼쪽 이동 중에는 왼쪽을 본다")
+
+	f.velocity = Vector2.DOWN
+	f.call("_update_animation")
+	_runner.assert_true(sprite.flip_h, "수직 이동 중에는 마지막 수평 방향을 유지한다")
+
+	f.call("_play_attack_animation", Vector2.RIGHT)
+	_runner.assert_false(sprite.flip_h, "오른쪽 대상 공격 시 오른쪽을 본다")
 
 
 func test_hit_reaction_blocks_repeat_stun_accumulation_and_restores_visual() -> void:

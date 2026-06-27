@@ -34,7 +34,11 @@ func test_friend_room_spawns_friend_and_clears_after_purify() -> void:
 		var friend := friends[0] as Node
 		_runner.assert_true(friend.has_signal("purified"), "spawned friend keeps purified contract")
 		var visual_snapshot: Dictionary = friend.call("get_visual_snapshot") if friend.has_method("get_visual_snapshot") else {}
-		_runner.assert_eq(visual_snapshot.get("texture_path", ""), "res://assets/characters/school/baseball_captain.png", "onboarding friend room shows the baseball captain asset")
+		_runner.assert_eq(
+			visual_snapshot.get("sprite_frames_path", ""),
+			"res://assets/sprites/enemies/yokai_friend/yokai_friend_frames.tres",
+			"onboarding friend room shows the yokai-state captain asset"
+		)
 		friend.emit_signal("purified", friend)
 
 	_runner.assert_true(room.call("is_cleared"), "purifying the friend clears the room")
