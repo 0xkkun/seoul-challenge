@@ -239,9 +239,12 @@ func test_reward_choices_render_three_actions_and_emit_selected_id() -> void:
 	if not snapshot.has("visible_card_count") or not snapshot.has("has_backdrop") or not snapshot.has("has_outer_panel") or not snapshot.has("has_title"):
 		return
 	_runner.assert_eq(snapshot["visible_card_count"], 3, "reward choice renders only the three visible cards")
-	_runner.assert_false(snapshot["has_backdrop"], "reward choice removes the dark outer backdrop")
+	_runner.assert_true(snapshot["has_backdrop"], "reward choice dims the full gameplay view behind the cards")
 	_runner.assert_false(snapshot["has_outer_panel"], "reward choice removes the framed outer panel")
-	_runner.assert_false(snapshot["has_title"], "reward choice removes the wrapper title so only cards remain")
+	_runner.assert_true(snapshot["has_title"], "reward choice keeps a visible room-clear reward title")
+	_runner.assert_eq(snapshot.get("title", ""), "방 클리어 보상", "reward title names the modal purpose")
+	_runner.assert_true(float(snapshot.get("dim_alpha", 0.0)) > 0.0, "reward backdrop is visible")
+	_runner.assert_true(float(snapshot.get("dim_alpha", 0.0)) <= 0.35, "reward backdrop stays lightly dimmed")
 
 	_runner.assert_true(_ui.select_reward_choice(&"dokkaebi_fire"), "reward choice can be selected by id")
 	_runner.assert_eq(selected_ids, [&"dokkaebi_fire"], "selection emits item id once")
@@ -272,8 +275,10 @@ func test_reward_choice_open_starts_slide_fade_animation() -> void:
 	_runner.assert_true(snapshot.has("card_scales"), "reward animation snapshot exposes card scale values")
 	if not snapshot.has("has_backdrop") or not snapshot.has("has_outer_panel") or not snapshot.has("card_alphas") or not snapshot.has("card_scales"):
 		return
-	_runner.assert_false(snapshot["has_backdrop"], "reward animation has no backdrop layer")
+	_runner.assert_true(snapshot["has_backdrop"], "reward animation includes the dimmed full-screen backdrop")
 	_runner.assert_false(snapshot["has_outer_panel"], "reward animation has no outer panel frame")
+	_runner.assert_eq(snapshot.get("title", ""), "방 클리어 보상", "reward animation snapshot exposes the visible title")
+	_runner.assert_true(float(snapshot.get("dim_alpha", 0.0)) <= 0.35, "reward animation keeps the backdrop subtle")
 	var card_alphas: Array = snapshot["card_alphas"]
 	var card_scales: Array = snapshot["card_scales"]
 	_runner.assert_eq(card_alphas.size(), 1, "animation tracks the rendered reward card")
