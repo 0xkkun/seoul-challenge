@@ -5,6 +5,7 @@ const POOLED_MARKER_SCENE = preload("res://scenes/interactables/sample_pooled_ma
 const BOSS_SCENE = preload("res://scenes/enemies/boss.tscn")
 const RoomPalette = preload("res://scripts/constants/room_palette.gd")
 const MapItemCatalog = preload("res://scripts/items/map_item_catalog.gd")
+const MobileSafeArea = preload("res://scripts/ui/mobile_safe_area.gd")
 
 const RUN_LAYOUT_SEED_MAX := 2147483647
 const RUN_LAYOUT_ROOM_COUNT := 15
@@ -73,6 +74,7 @@ func _ready() -> void:
 	room_manager.configure(_build_run_layout(), room_layer, actor)
 	room_manager.start_layout()
 	_minimap.configure_from_manager(room_manager)
+	_apply_landscape_safe_area()
 	session_ui_root.set_map_name(_resolve_stage_name())
 	sample_interactable.interaction_triggered.connect(_on_interaction_triggered)
 	session_ui_root.pause_requested.connect(_on_pause_requested)
@@ -88,6 +90,11 @@ func _apply_render_layers() -> void:
 	actor_layer.z_index = RenderLayers.WORLD_ACTOR_Z
 	interactable_layer.z_index = RenderLayers.WORLD_INTERACTABLE_Z
 	pooled_object_layer.z_index = RenderLayers.WORLD_EFFECT_Z
+
+
+func _apply_landscape_safe_area() -> void:
+	var insets := MobileSafeArea.landscape_minimum_insets()
+	MobileSafeArea.apply_edge_offsets(_minimap, -1.0, float(insets["top"]), float(insets["right"]), -1.0)
 
 
 func _exit_tree() -> void:

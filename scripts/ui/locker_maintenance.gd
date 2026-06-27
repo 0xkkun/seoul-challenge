@@ -8,6 +8,7 @@ signal map_requested
 const DungeonTheme := preload("res://scripts/ui/dungeon_ui_theme.gd")
 const PixelButton := preload("res://scripts/ui/pixel_button_style.gd")
 const MetaUpgradeCatalog := preload("res://scripts/items/meta_upgrade_catalog.gd")
+const MobileSafeArea := preload("res://scripts/ui/mobile_safe_area.gd")
 
 const WEAPON_BASEBALL := &"baseball"
 const WEAPON_BAT := &"bat"
@@ -375,10 +376,12 @@ func _pip_bbcode(level: int, max_level: int) -> String:
 
 
 func _build_action_bar() -> void:
-	_return_button = _make_action_button("ReturnButton", "↩ 복도", Rect2(0.06, 0.82, 0.30, 0.13), ACTION_RETURN)
+	var return_rect := MobileSafeArea.bottom_anchored_rect(0.06, 0.30, 0.13)
+	var map_rect := MobileSafeArea.bottom_anchored_rect(0.61, 0.33, 0.13)
+	_return_button = _make_action_button("ReturnButton", "↩ 복도", return_rect, ACTION_RETURN)
 	add_child(_return_button)
 
-	_map_button = _make_action_button("MapButton", "☾ 지도", Rect2(0.61, 0.82, 0.33, 0.13), ACTION_OPEN_MAP)
+	_map_button = _make_action_button("MapButton", "☾ 지도", map_rect, ACTION_OPEN_MAP)
 	add_child(_map_button)
 
 	_return_button.pressed.connect(_on_return_pressed)

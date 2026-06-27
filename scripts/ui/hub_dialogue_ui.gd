@@ -39,6 +39,7 @@ const DEFAULT_BAT_COLOR := Color(0.54, 0.55, 0.6)
 const BASEBALL_CAPTAIN := &"baseball_captain"
 const BASEBALL_STAGE_3 := &"baseball_stage_3"
 const AWAKENED_BAT := &"awakened_bat"
+const MobileSafeArea := preload("res://scripts/ui/mobile_safe_area.gd")
 
 @onready var _dialogue_dimmer: ColorRect = %DialogueDimmer
 @onready var _portrait_panel: ColorRect = %PortraitPanel
@@ -76,6 +77,7 @@ func _ready() -> void:
 	_dialogue_dimmer.set_meta("test_id", "hub_dialogue.overlay")
 	_dialogue_bar.set_meta("test_id", "hub_dialogue.bar")
 	_choice_row.set_meta("test_id", "hub_dialogue.choice_row")
+	_apply_landscape_safe_area()
 	_apply_static_styles()
 	set_dialogue("야구부 주장", "\"스윙은 겁먹으면 늦어. 밤의 궁에선 더 그렇겠지.\"", "기억: 손바닥의 희미한 배트 자국")
 	set_stage(2)
@@ -97,6 +99,16 @@ func _process(delta: float) -> void:
 
 func get_reference_size() -> Vector2:
 	return REFERENCE_SIZE
+
+
+func _apply_landscape_safe_area() -> void:
+	var insets := MobileSafeArea.landscape_minimum_insets()
+	var bottom := float(insets["bottom"])
+	MobileSafeArea.apply_edge_offsets(_dialogue_bar, float(insets["left"]), -1.0, float(insets["right"]), bottom)
+	_dialogue_bar.offset_top = -DIALOGUE_BAR_HEIGHT - bottom
+	MobileSafeArea.apply_edge_offsets(_portrait_panel, float(insets["left"]), -1.0, -1.0, -1.0)
+	_portrait_sprite.position.x = _portrait_panel.offset_left + ((_portrait_panel.offset_right - _portrait_panel.offset_left) * 0.5)
+	MobileSafeArea.apply_edge_offsets(_choice_row, -1.0, -1.0, float(insets["right"]), -1.0)
 
 
 func get_dialogue_bar_reference_rect() -> Rect2:

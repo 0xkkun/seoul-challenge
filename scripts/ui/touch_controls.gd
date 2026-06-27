@@ -4,6 +4,7 @@ extends CanvasLayer
 
 const CONTROL_CATEGORY_COMBAT := "combat"
 const CONTROL_CATEGORY_DAY_DIALOGUE := "day_dialogue"
+const MobileSafeArea := preload("res://scripts/ui/mobile_safe_area.gd")
 
 var _control_category := CONTROL_CATEGORY_COMBAT
 
@@ -19,6 +20,7 @@ var _control_category := CONTROL_CATEGORY_COMBAT
 
 
 func _ready() -> void:
+	_apply_landscape_safe_area()
 	_apply_control_category()
 	if has_node("/root/EventBus") and not EventBus.special_skill_state_changed.is_connected(set_skill_state):
 		EventBus.special_skill_state_changed.connect(set_skill_state)
@@ -89,3 +91,12 @@ func _apply_control_category() -> void:
 
 func _are_controls_ready() -> bool:
 	return _joystick != null and _attack != null and _skill != null
+
+
+func _apply_landscape_safe_area() -> void:
+	if not _are_controls_ready():
+		return
+	var touch_insets := MobileSafeArea.touch_insets()
+	MobileSafeArea.apply_edge_offsets(_joystick, float(touch_insets["left"]), -1.0, -1.0, float(touch_insets["bottom"]))
+	MobileSafeArea.apply_edge_offsets(_attack, -1.0, -1.0, float(touch_insets["right"]), float(touch_insets["bottom"]))
+	MobileSafeArea.apply_edge_offsets(_skill, -1.0, -1.0, -1.0, float(touch_insets["bottom"]))

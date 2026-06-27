@@ -13,12 +13,14 @@ const DEFAULT_MEMORY_REWARD_PER_ROOM := 1
 const DEFAULT_MAP_NAME := "경복궁"
 const MAP_TAB_TEST_ID := "session.map_tab"
 const MAP_TAB_ACTION := "session.map_tab"
+const MobileSafeArea := preload("res://scripts/ui/mobile_safe_area.gd")
 const UNLOCK_LABELS := {
 	&"baseball_stage_3": "야구부 STAGE 3",
 	&"awakened_bat": "마지막 시즌의 배트",
 }
 
 @onready var map_tab_button: Button = %MapTabButton
+@onready var top_panel: HBoxContainer = $Root/TopPanel
 @onready var status_label: Label = %StatusLabel
 @onready var interaction_label: Label = %InteractionLabel
 @onready var summary_overlay: Control = %SummaryOverlay
@@ -50,6 +52,7 @@ func _ready() -> void:
 	return_button.set_meta("uat_action", "session.return_to_school")
 	retry_button.set_meta("test_id", "session.retry_button")
 	retry_button.set_meta("uat_action", "session.retry")
+	_apply_landscape_safe_area()
 	_apply_button_styles()
 	_apply_result_panel_styles()
 	map_tab_button.pressed.connect(_on_map_tab_button_pressed)
@@ -59,6 +62,13 @@ func _ready() -> void:
 	set_status("밤런 준비")
 	set_interaction_count(0)
 	show_summary({})
+
+
+func _apply_landscape_safe_area() -> void:
+	var insets := MobileSafeArea.landscape_minimum_insets()
+	MobileSafeArea.apply_edge_offsets(map_tab_button, float(insets["left"]), float(insets["top"]), -1.0, -1.0)
+	MobileSafeArea.apply_edge_offsets(top_panel, -1.0, float(insets["top"]), float(insets["right"]), -1.0)
+	top_panel.offset_left = map_tab_button.offset_right + 16.0
 
 
 func _apply_result_panel_styles() -> void:

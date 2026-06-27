@@ -5,6 +5,7 @@ const LockerMaintenanceScript := preload("res://scripts/ui/locker_maintenance.gd
 const NightMapSelectScene := preload("res://scenes/ui/night_map_select.tscn")
 const NightMapSelectScript := preload("res://scripts/ui/night_map_select.gd")
 const UiTestHarness := preload("res://tests/support/ui_test_harness.gd")
+const MobileSafeArea := preload("res://scripts/ui/mobile_safe_area.gd")
 
 var _runner: Node
 
@@ -60,6 +61,9 @@ func test_locker_maintenance_uses_dungeon_ui_loadout_hierarchy() -> void:
 	_assert_pixel_button_style(return_button, PixelButtonStyle.VARIANT_SECONDARY, "return")
 	_runner.assert_eq(weapon_button, null, "weapon cycle CTA is removed; selecting a weapon card is the weapon action")
 	_assert_pixel_button_style(map_button, PixelButtonStyle.VARIANT_PRIMARY, "map entry")
+	var expected_bottom := 1.0 - (MobileSafeArea.cta_bottom_margin() / MobileSafeArea.DESIGN_VIEWPORT.y)
+	_runner.assert_true(return_button.anchor_bottom <= expected_bottom, "return CTA stays above landscape phone home indicator")
+	_runner.assert_true(map_button.anchor_bottom <= expected_bottom, "map CTA stays above landscape phone home indicator")
 
 
 func test_locker_maintenance_title_and_subtitle_have_breathing_room() -> void:
@@ -150,6 +154,9 @@ func test_night_map_select_is_separate_from_locker_maintenance() -> void:
 		_assert_pixel_button_style(departure_button, PixelButtonStyle.VARIANT_PRIMARY, "departure")
 	var map_return_button := UiTestHarness.find_by_uat_action(screen, NightMapSelectScript.ACTION_RETURN) as Button
 	_assert_pixel_button_style(map_return_button, PixelButtonStyle.VARIANT_SECONDARY, "map return")
+	var expected_bottom := 1.0 - (MobileSafeArea.cta_bottom_margin() / MobileSafeArea.DESIGN_VIEWPORT.y)
+	_runner.assert_true(map_return_button.anchor_bottom <= expected_bottom, "map return CTA stays above landscape phone home indicator")
+	_runner.assert_true(departure_button.anchor_bottom <= expected_bottom, "departure CTA stays above landscape phone home indicator")
 	_runner.assert_true(UiTestHarness.press_by_uat_action(screen, NightMapSelectScript.ACTION_SELECT_GYEONGBOKGUNG), "test harness can still reach the disabled button")
 	_runner.assert_eq(selected_stages, [NightMapSelectScript.STAGE_GYEONGBOKGUNG], "double departure does not emit another stage")
 

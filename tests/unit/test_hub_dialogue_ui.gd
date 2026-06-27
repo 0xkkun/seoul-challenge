@@ -4,6 +4,7 @@ extends Node
 const HUB_DIALOGUE_SCENE := preload("res://scenes/ui/hub_dialogue_ui.tscn")
 const HUB_DIALOGUE_SCRIPT := preload("res://scripts/ui/hub_dialogue_ui.gd")
 const DAY_FRIEND_TEXTURE := preload("res://assets/characters/school/day_friend.png")
+const MobileSafeArea := preload("res://scripts/ui/mobile_safe_area.gd")
 
 var _runner: Node
 # HubDialogueUi 글로벌 클래스 등록(에디터 import) 순서에 의존하지 않도록 타입 주석 없이 둔다.
@@ -124,20 +125,25 @@ func test_dialogue_bar_uses_inset_rule_without_outer_border() -> void:
 	var dialogue_bar := _ui.get_node("%DialogueBar") as PanelContainer
 	var panel_style := dialogue_bar.get_theme_stylebox("panel") as StyleBoxFlat
 	var top_rule := _ui.get_node("%DialogueTopRule") as ColorRect
+	var insets := MobileSafeArea.landscape_minimum_insets()
 
 	_runner.assert_not_null(panel_style, "대화 패널 스타일을 제공한다")
 	if panel_style != null:
 		_runner.assert_eq(panel_style.get_border_width(SIDE_TOP), 0, "대화 패널 상단 바깥 테두리를 쓰지 않는다")
 		_runner.assert_eq(panel_style.get_border_width(SIDE_BOTTOM), 0, "대화 패널 하단 바깥 테두리를 쓰지 않는다")
+	_runner.assert_eq(dialogue_bar.offset_left, insets["left"], "대화 바는 좌측 가로폰 safe-area 안쪽에서 시작한다")
+	_runner.assert_eq(dialogue_bar.offset_right, -float(insets["right"]), "대화 바는 우측 가로폰 safe-area 안쪽에서 끝난다")
+	_runner.assert_eq(dialogue_bar.offset_bottom, -float(insets["bottom"]), "대화 바는 홈 인디케이터 위에 뜬다")
 	_runner.assert_true(top_rule.size.y >= 0.0, "대화 패널 내부 구분선 노드를 제공한다")
 
 
 func test_choice_row_is_anchored_to_dialogue_end() -> void:
 	var choice_row := _ui.get_node("%ChoiceRow") as HBoxContainer
+	var insets := MobileSafeArea.landscape_minimum_insets()
 
 	_runner.assert_eq(choice_row.anchor_left, 1.0, "선택지 행은 우측 기준으로 배치한다")
 	_runner.assert_eq(choice_row.anchor_right, 1.0, "선택지 행은 우측 끝에 고정된다")
-	_runner.assert_true(choice_row.offset_right < 0.0, "선택지 행은 화면 끝에서 안쪽 여백만 둔다")
+	_runner.assert_eq(choice_row.offset_right, -float(insets["right"]), "선택지 행은 가로폰 우측 safe-area를 피한다")
 
 
 func test_stage_row_tracks_completed_current_and_locked_states() -> void:
