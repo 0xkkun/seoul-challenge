@@ -36,6 +36,7 @@ const COMBAT_FEEDBACK_MAX_OFFSET := 7.0
 @onready var room_manager: RoomManager = %RoomManager
 @onready var death_return_controller: DeathReturnController = %DeathReturnController
 @onready var touch_controls: Node = %TouchControls
+@onready var combat_hud: CanvasLayer = %CombatHud
 @onready var session_ui_root: CanvasLayer = %SessionUIRoot
 @onready var player_camera: Camera2D = %PlayerCamera
 @onready var _fade_rect: ColorRect = $FadeLayer/FadeRect
@@ -65,6 +66,7 @@ func _ready() -> void:
 	if not GameManager.is_session_active():
 		GameManager.start_session({"source": "session_root"})
 	_apply_session_loadout()
+	_connect_player_weapon_events()
 	PoolManager.register_scene(&"sample_marker", POOLED_MARKER_SCENE, 1, pooled_object_layer)
 	interaction_system.configure(actor, self)
 	_configure_player_camera()
@@ -104,6 +106,7 @@ func _exit_tree() -> void:
 	_disconnect_progression_events()
 	_disconnect_combat_feedback_events()
 	_disconnect_run_reward_events()
+	_disconnect_player_weapon_events()
 	if has_node("/root/PoolManager"):
 		PoolManager.clear_all()
 	if not _handoff_session_on_exit and has_node("/root/GameManager") and GameManager.is_session_active():
@@ -171,6 +174,29 @@ func _apply_session_loadout() -> void:
 			actor.set("ranged_enabled", false)
 			if actor.has_method("equip_bat"):
 				actor.call("equip_bat")
+
+
+func _connect_player_weapon_events() -> void:
+	if actor == null or not actor.has_signal("weapon_changed"):
+		return
+	var callback := Callable(self, "_on_actor_weapon_changed")
+	if not actor.is_connected("weapon_changed", callback):
+		actor.connect("weapon_changed", callback)
+	if actor.has_method("has_bat") and bool(actor.call("has_bat")) and combat_hud.has_method("set_weapon_name"):
+		combat_hud.call("set_weapon_name", actor.call("current_weapon_name"))
+
+
+func _disconnect_player_weapon_events() -> void:
+	if actor == null or not actor.has_signal("weapon_changed"):
+		return
+	var callback := Callable(self, "_on_actor_weapon_changed")
+	if actor.is_connected("weapon_changed", callback):
+		actor.disconnect("weapon_changed", callback)
+
+
+func _on_actor_weapon_changed(weapon_name: String) -> void:
+	if combat_hud.has_method("set_weapon_name"):
+		combat_hud.call("set_weapon_name", weapon_name)
 
 
 func finish_session(overrides: Dictionary = {}) -> Dictionary:

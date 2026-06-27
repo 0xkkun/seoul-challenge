@@ -176,9 +176,28 @@ func test_shop_room_bat_purchase_spends_ingame_and_equips_player() -> void:
 	_runner.assert_true(room.call("purchase_offer", &"bat", player), "bat offer can be purchased with enough ingame currency")
 
 	_runner.assert_eq(CurrencySystem.get_ingame(), 2, "bat purchase spends its ingame cost")
-	_runner.assert_eq(player.call("current_weapon_name"), "야구배트", "bat purchase equips the stronger melee item")
+	_runner.assert_true(player.call("has_bat"), "bat purchase equips the stronger melee item")
+	_runner.assert_eq(player.call("current_weapon_name"), "금 간 나무 배트", "bat purchase shows the cracked bat name")
 	_runner.assert_true(room.call("is_offer_sold", &"bat"), "bat offer is marked sold")
 	_runner.assert_true(String(room.call("get_offer_text", &"bat")).contains("구매 완료"), "shop label shows sold state")
+
+
+func test_shop_room_syncs_sold_bat_from_equipped_player_without_name_match() -> void:
+	var room := _instantiate_shop_room()
+	if room == null:
+		return
+	var player := _instantiate_player()
+	if player == null:
+		return
+	add_child(room)
+	add_child(player)
+	player.call("equip_bat")
+
+	room.configure_actor(player)
+	room.enter()
+
+	_runner.assert_true(room.call("is_offer_sold", &"bat"), "shop checks equipped state instead of display name")
+	_runner.assert_true(String(room.call("get_offer_text", &"bat")).contains("구매 완료"), "shop label stays sold after entering with a bat")
 
 
 func test_shop_room_dodge_refill_purchase_spends_ingame_and_upgrades_special() -> void:

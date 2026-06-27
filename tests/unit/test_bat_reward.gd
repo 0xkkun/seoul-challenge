@@ -29,8 +29,21 @@ func test_default_is_barehands_then_bat() -> void:
 	var p = PlayerScript.new()
 	_runner.assert_eq(p.current_weapon_name(), "맨손", "기본은 맨손")
 	_runner.assert_false(p.is_bat_awakened(), "기본 배트 각성은 잠김")
+	_runner.assert_false(p.has_bat(), "기본은 배트를 장착하지 않음")
 	p.equip_bat()
-	_runner.assert_eq(p.current_weapon_name(), "야구배트", "보상 후 배트")
+	_runner.assert_true(p.has_bat(), "보상 후 배트 장착 상태를 노출")
+	_runner.assert_eq(p.current_weapon_name(), "금 간 나무 배트", "보상 후 일반 배트 이름")
+	p.free()
+
+
+func test_awakened_bat_uses_final_season_name() -> void:
+	var p = PlayerScript.new()
+	p.equip_bat()
+	p.set_bat_awakened(true)
+
+	_runner.assert_true(p.has_bat(), "각성 배트도 배트 장착 상태")
+	_runner.assert_true(p.is_bat_awakened(), "각성 상태가 켜짐")
+	_runner.assert_eq(p.current_weapon_name(), "마지막 시즌의 배트", "각성 배트는 최종 이름으로 표시")
 	p.free()
 
 
@@ -41,7 +54,7 @@ func test_equip_bat_disables_baseball_ranged_mode() -> void:
 	p.equip_bat()
 
 	_runner.assert_false(p.ranged_enabled, "bat equip turns off baseball ranged mode")
-	_runner.assert_eq(p.current_weapon_name(), "야구배트", "bat equip still updates weapon name")
+	_runner.assert_eq(p.current_weapon_name(), "금 간 나무 배트", "bat equip still updates weapon name")
 	p.free()
 
 

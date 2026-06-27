@@ -137,7 +137,7 @@ func _apply_offer(offer_id: StringName, buyer: Node) -> bool:
 func _sync_sold_offers_from_actor() -> void:
 	if _actor == null:
 		return
-	if _actor.has_method("current_weapon_name") and String(_actor.call("current_weapon_name")) == "야구배트":
+	if _actor_has_bat_equipped():
 		_sold_offers[OFFER_BAT] = true
 	if not _has_actor_property("special_skill_max_uses") or not _has_actor_property("special_skill_cooldown"):
 		return
@@ -145,6 +145,16 @@ func _sync_sold_offers_from_actor() -> void:
 	var cooldown := float(_actor.get("special_skill_cooldown"))
 	if max_uses >= 5 and cooldown <= 1.0:
 		_sold_offers[OFFER_DODGE_REFILL] = true
+
+
+func _actor_has_bat_equipped() -> bool:
+	if _actor == null:
+		return false
+	if _actor.has_method("has_bat"):
+		return bool(_actor.call("has_bat"))
+	if _actor.has_method("current_weapon_name"):
+		return String(_actor.call("current_weapon_name")) in ["금 간 나무 배트", "마지막 시즌의 배트", "야구배트"]
+	return false
 
 
 func _has_actor_property(property_name: String) -> bool:
@@ -228,7 +238,7 @@ func _offer_text(offer_id: StringName) -> String:
 func _offer_display_name(offer_id: StringName) -> String:
 	match offer_id:
 		OFFER_BAT:
-			return "야구배트"
+			return "금 간 나무 배트"
 		OFFER_DODGE_REFILL:
 			return "회피부적"
 	return ""

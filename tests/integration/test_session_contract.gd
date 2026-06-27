@@ -139,7 +139,8 @@ func test_session_interaction_scope_reaches_current_shop_room() -> void:
 	session.trigger_sample_interaction()
 
 	_runner.assert_eq(CurrencySystem.get_ingame(), 2, "session interaction can purchase from current shop room")
-	_runner.assert_eq(actor.call("current_weapon_name"), "야구배트", "session shop interaction equips purchased item")
+	_runner.assert_true(actor.call("has_bat"), "session shop interaction equips purchased item")
+	_runner.assert_eq(actor.call("current_weapon_name"), "금 간 나무 배트", "session shop interaction shows cracked bat label")
 
 	session.queue_free()
 
@@ -332,6 +333,27 @@ func test_session_map_tab_uses_stage_name_and_replaces_bottom_actions() -> void:
 	session.queue_free()
 
 
+func test_session_combat_hud_avoids_top_right_minimap() -> void:
+	GameManager.start_session({
+		"source": "hud_layout_test",
+		SceneTransition.RUN_CONFIG_SELECTED_WEAPON_ID: &"bat",
+	})
+
+	var packed := load("res://scenes/session/session_root.tscn") as PackedScene
+	var session := packed.instantiate()
+	add_child(session)
+
+	var hud_panel := session.get_node("%CombatHud/Root/StubPanel") as Control
+	var minimap := session.get_node("MinimapLayer/Minimap") as Control
+	if not hud_panel.visible:
+		_runner.assert_false(hud_panel.visible, "hidden combat HUD text cannot overlap the minimap")
+		session.queue_free()
+		return
+	_runner.assert_false(hud_panel.get_global_rect().intersects(minimap.get_global_rect()), "combat HUD text does not overlap the minimap")
+
+	session.queue_free()
+
+
 func test_session_root_applies_locker_weapon_config() -> void:
 	GameManager.start_session({
 		"source": "night_map_select",
@@ -343,8 +365,40 @@ func test_session_root_applies_locker_weapon_config() -> void:
 	add_child(session)
 	var actor: Node = session.get_node("%Player")
 
-	_runner.assert_eq(actor.call("current_weapon_name"), "야구배트", "bat locker selection equips the run actor")
+	_runner.assert_true(actor.call("has_bat"), "bat locker selection equips the run actor")
+	_runner.assert_eq(actor.call("current_weapon_name"), "금 간 나무 배트", "bat locker selection shows cracked bat label")
 	_runner.assert_false(bool(actor.get("ranged_enabled")), "bat locker selection keeps ranged baseball disabled")
+
+	session.queue_free()
+
+
+func test_session_player_refreshes_awakened_bat_after_baseball_friend_purified() -> void:
+	var packed := load("res://scenes/session/session_root.tscn") as PackedScene
+	var session := packed.instantiate()
+	add_child(session)
+
+	var manager := session.get_node("%RoomManager") as RoomManager
+	var actor: Node = session.get_node("%Player")
+	var combat_hud := session.get_node("%CombatHud") as CanvasLayer
+	actor.call("equip_bat")
+	_runner.assert_eq(actor.call("current_weapon_name"), "금 간 나무 배트", "run starts with regular bat")
+	_runner.assert_true(combat_hud.call("get_weapon_text").contains("금 간 나무 배트"), "HUD shows regular bat after equip")
+	var friend_room_def := _first_room_of_type(manager.layout, RoomLayout.TYPE_FRIEND)
+	_runner.assert_not_null(friend_room_def, "session run layout includes a friend room")
+	if friend_room_def == null:
+		session.queue_free()
+		return
+	_runner.assert_true(manager.enter_room(friend_room_def.room_id), "test enters generated friend room")
+	var friends: Array = manager.current_room.call("get_active_friends")
+	_runner.assert_eq(friends.size(), 1, "friend room spawns the purification target")
+	if friends.size() == 1:
+		var friend := friends[0] as Node
+		friend.emit_signal("purified", friend)
+
+	_runner.assert_true(ProgressionSystem.is_weapon_unlocked(&"awakened_bat"), "purification unlocks awakened bat")
+	_runner.assert_true(actor.call("is_bat_awakened"), "session player receives the unlock event")
+	_runner.assert_eq(actor.call("current_weapon_name"), "마지막 시즌의 배트", "session player shows awakened bat label")
+	_runner.assert_true(combat_hud.call("get_weapon_text").contains("마지막 시즌의 배트"), "HUD updates to awakened bat label")
 
 	session.queue_free()
 
