@@ -66,7 +66,15 @@ func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_VISIBILITY_CHANGED and not visible:
+		release()
+
+
 func _input(event: InputEvent) -> void:
+	if not is_visible_in_tree():
+		release()
+		return
 	if event is InputEventScreenTouch:
 		_on_touch(event.index, event.position, event.pressed)
 

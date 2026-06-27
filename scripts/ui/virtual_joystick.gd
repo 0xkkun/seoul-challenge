@@ -16,11 +16,23 @@ func get_value() -> Vector2:
 	return _value
 
 
+func release() -> void:
+	if _active_index == -1 and _knob_offset == Vector2.ZERO and _value == Vector2.ZERO:
+		return
+	_active_index = -1
+	_knob_offset = Vector2.ZERO
+	_value = Vector2.ZERO
+	queue_redraw()
+
+
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 
 func _input(event: InputEvent) -> void:
+	if not is_visible_in_tree():
+		release()
+		return
 	if event is InputEventScreenTouch:
 		_on_press(event.index, event.position, event.pressed)
 	elif event is InputEventScreenDrag and event.index == _active_index:
@@ -34,10 +46,12 @@ func _on_press(index: int, pos: Vector2, pressed: bool) -> void:
 			_origin = get_global_rect().get_center()
 			_on_move(pos)
 	elif index == _active_index:
-		_active_index = -1
-		_knob_offset = Vector2.ZERO
-		_value = Vector2.ZERO
-		queue_redraw()
+		release()
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_VISIBILITY_CHANGED and not visible:
+		release()
 
 
 func _on_move(pos: Vector2) -> void:
