@@ -727,10 +727,7 @@ func _attack_melee(dir: Vector2) -> void:
 			if applied_knockback > 0.0:
 				e.global_position += knockback_vector(global_position, e.global_position, applied_knockback)
 	if _has_bat:
-		if _bat_awakened:
-			_deflect_bullets_in_arc(dir, rng, arc)
-		else:
-			_clear_bullets_in_arc(dir, rng, arc)
+		_deflect_bullets_in_arc(dir, rng, arc)
 	if _has_bat:
 		_hide_swing()
 		if power_attack:

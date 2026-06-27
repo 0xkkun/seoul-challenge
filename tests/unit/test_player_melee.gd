@@ -211,7 +211,7 @@ func test_bat_does_not_deflect_projectile_behind() -> void:
 	p.free()
 
 
-func test_unawakened_bat_clears_enemy_projectile_without_deflecting() -> void:
+func test_default_bat_deflects_enemy_projectile_without_awakening() -> void:
 	var p = PlayerScript.new()
 	add_child(p)
 	p.position = Vector2.ZERO
@@ -222,8 +222,9 @@ func test_unawakened_bat_clears_enemy_projectile_without_deflecting() -> void:
 	b.add_to_group(&"enemy_projectile")
 	add_child(b)
 	p._attack_melee(Vector2.RIGHT)
-	_runner.assert_eq(b.deflect_count, 0, "미각성 배트는 적탄을 되받아치지 않는다")
-	_runner.assert_true(b.is_queued_for_deletion(), "미각성 배트는 방어 보상으로 적탄만 제거한다")
+	_runner.assert_eq(b.deflect_count, 1, "기본 배트도 적탄을 되받아친다")
+	_runner.assert_eq(b.deflected_dir, Vector2.RIGHT, "기본 배트도 스윙 방향으로 반사한다")
+	_runner.assert_false(b.is_queued_for_deletion(), "deflect 지원 적탄은 삭제하지 않고 반사탄으로 유지한다")
 	p.free()
 
 
