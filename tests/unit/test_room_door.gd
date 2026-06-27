@@ -45,13 +45,20 @@ func test_open_and_lock_emit_state_changes_once_per_change() -> void:
 	door.open()
 
 	var ping_marker := door.get_node("PingMarker") as Label
+	var portal_visual := door.get_node_or_null("PortalVisual") as Node2D
 	_runner.assert_true(ping_marker.visible, "open door shows exit ping")
+	_runner.assert_not_null(portal_visual, "open door creates a portal visual")
+	if portal_visual != null:
+		_runner.assert_true(portal_visual.visible, "open door shows portal visual")
+	_runner.assert_true(visual.color.a < 0.01, "open door hides the old flat green rectangle")
 
 	door.lock()
 
 	_runner.assert_true(door.is_locked(), "door returns to locked state")
 	_runner.assert_eq(visual.color, RoomPalette.DOOR_LOCKED_COLOR, "locked color reapplies")
 	_runner.assert_false(ping_marker.visible, "locked door hides exit ping again")
+	if portal_visual != null:
+		_runner.assert_false(portal_visual.visible, "locked door hides portal visual again")
 	_runner.assert_eq(states, [RoomDoor.DoorState.OPEN, RoomDoor.DoorState.LOCKED], "state signal emits only on changes")
 
 

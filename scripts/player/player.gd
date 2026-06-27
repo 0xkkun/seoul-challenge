@@ -45,7 +45,7 @@ signal run_modifiers_changed(payload: Dictionary)
 @export var special_skill_id: StringName = &"emergency_dodge"
 @export_range(0, 9, 1) var special_skill_max_uses := 3
 @export_range(0, 9, 1) var special_skill_uses_remaining := 3
-@export var special_skill_cooldown: float = 1.4
+@export var special_skill_cooldown: float = 3.0
 @export var dodge_duration: float = 0.14
 @export var dodge_speed: float = 520.0
 @export var dodge_invuln_time: float = 0.24
