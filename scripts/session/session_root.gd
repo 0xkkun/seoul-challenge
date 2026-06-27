@@ -58,6 +58,7 @@ var _friend_ids: Array[StringName] = []
 var _unlocks: Array[StringName] = []
 var _camera_feedback_tween: Tween = null
 var _rewarded_room_ids := {}
+var _room_clear_modifier_room_ids := {}
 var _pending_reward_room_id: StringName = &""
 var _paused_before_reward_choice := false
 var _pause_modal_open := false
@@ -438,12 +439,21 @@ func _on_room_cleared_for_reward(payload: Dictionary) -> void:
 		return
 	if room_id != room_manager.current_room_id:
 		return
+	_apply_room_clear_modifier_effects(room_id)
 	if _rewarded_room_ids.has(room_id) or _pending_reward_room_id != &"":
 		return
 	if _build_reward_choice_models(room_id).is_empty():
 		return
 	_pending_reward_room_id = room_id
 	_start_reward_choice_delay()
+
+
+func _apply_room_clear_modifier_effects(room_id: StringName) -> void:
+	if _room_clear_modifier_room_ids.has(room_id):
+		return
+	_room_clear_modifier_room_ids[room_id] = true
+	if actor != null and actor.has_method("apply_room_clear_modifier_effects"):
+		actor.call("apply_room_clear_modifier_effects")
 
 
 func _start_reward_choice_delay() -> void:

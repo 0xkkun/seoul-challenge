@@ -346,6 +346,36 @@ func test_combat_clear_requires_reward_choice_before_room_transition() -> void:
 	session.queue_free()
 
 
+func test_breathing_room_heals_when_later_combat_room_clears() -> void:
+	GameManager.start_session({
+		"source": "breathing_room_clear_test",
+		SceneTransition.RUN_CONFIG_LAYOUT_SEED: 40,
+	})
+	var packed := load("res://scenes/session/session_root.tscn") as PackedScene
+	var session := packed.instantiate()
+	add_child(session)
+
+	var manager := session.get_node("%RoomManager") as RoomManager
+	var actor := session.get_node("%Player") as Node
+	var combat_room_def := _first_room_of_type(manager.layout, RoomLayout.TYPE_COMBAT)
+	_runner.assert_not_null(combat_room_def, "session run layout includes combat room")
+	if combat_room_def == null:
+		session.queue_free()
+		return
+	_runner.assert_true(manager.enter_room(combat_room_def.room_id), "test enters combat room")
+	actor.call("take_damage", 2)
+	_runner.assert_eq(actor.call("get_health"), 3, "test starts with damaged player health")
+	_runner.assert_true(actor.call("apply_run_modifier", &"breathing_room"), "breathing room reward applies before a later room clear")
+	_runner.assert_eq(actor.call("get_health"), 3, "breathing room does not heal immediately on pickup")
+
+	_defeat_all_combat_waves(manager.current_room)
+
+	_runner.assert_true(manager.is_current_room_cleared(), "combat room is cleared")
+	_runner.assert_eq(actor.call("get_health"), 4, "breathing room heals one heart when a later combat room clears")
+
+	session.queue_free()
+
+
 func test_combat_reward_delay_waits_for_pause_modal_to_close() -> void:
 	GameManager.start_session({
 		"source": "reward_pause_modal_test",

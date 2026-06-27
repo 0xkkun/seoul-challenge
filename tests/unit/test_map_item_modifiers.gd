@@ -29,7 +29,10 @@ func test_room_clear_reward_pool_excludes_damage_talisman() -> void:
 
 	_runner.assert_false(reward_item_ids.has(&"gung_talisman"), "room clear rewards exclude direct attack damage")
 	_runner.assert_true(reward_item_ids.has(&"dokkaebi_fire"), "room clear rewards keep attack speed option")
-	_runner.assert_true(reward_item_ids.size() >= 3, "room clear rewards still offer enough options")
+	_runner.assert_true(reward_item_ids.has(&"shadow_knot"), "room clear rewards include dodge invulnerability augment")
+	_runner.assert_true(reward_item_ids.has(&"full_swing_stance"), "room clear rewards include bat knockback augment")
+	_runner.assert_true(reward_item_ids.has(&"breathing_room"), "room clear rewards include room clear sustain augment")
+	_runner.assert_true(reward_item_ids.size() >= 6, "room clear rewards expose a richer augment pool")
 
 
 func test_compose_modifiers_stacks_damage_speed_and_health() -> void:
@@ -54,9 +57,11 @@ func test_apply_modifiers_to_stats_changes_combat_numbers() -> void:
 		"fire_cooldown": 0.22,
 		"melee_damage": 1,
 		"bat_damage": 2,
+		"bat_knockback": 64.0,
+		"dodge_invuln_time": 0.24,
 		"max_health": 5,
 	}
-	var modifiers: Dictionary = catalog.call("compose_modifiers", [&"gung_talisman", &"dokkaebi_fire", &"wind_step"])
+	var modifiers: Dictionary = catalog.call("compose_modifiers", [&"gung_talisman", &"dokkaebi_fire", &"wind_step", &"shadow_knot", &"full_swing_stance"])
 	var stats: Dictionary = catalog.call("apply_modifiers_to_stats", base_stats, modifiers)
 
 	_runner.assert_eq(stats["melee_damage"], 2, "damage modifier changes melee damage")
@@ -64,6 +69,8 @@ func test_apply_modifiers_to_stats_changes_combat_numbers() -> void:
 	_runner.assert_true(float(stats["move_speed"]) > float(base_stats["move_speed"]), "speed modifier changes movement")
 	_runner.assert_true(float(stats["attack_cooldown"]) < float(base_stats["attack_cooldown"]), "tempo modifier speeds melee swings")
 	_runner.assert_true(float(stats["fire_cooldown"]) < float(base_stats["fire_cooldown"]), "tempo modifier speeds ranged throws")
+	_runner.assert_true(float(stats["bat_knockback"]) > float(base_stats["bat_knockback"]), "full swing modifier changes bat knockback")
+	_runner.assert_true(float(stats["dodge_invuln_time"]) > float(base_stats["dodge_invuln_time"]), "shadow knot modifier extends dodge invulnerability")
 
 
 func test_effect_text_describes_visible_stat_changes() -> void:
@@ -76,6 +83,9 @@ func test_effect_text_describes_visible_stat_changes() -> void:
 	_runner.assert_eq(catalog.call("get_effect_text", &"wind_step"), "이동 속도 +15%", "speed reward explains movement stat")
 	_runner.assert_eq(catalog.call("get_effect_text", &"moon_guard"), "최대 체력 +1", "health reward explains health stat")
 	_runner.assert_eq(catalog.call("get_effect_text", &"nurse_bandage"), "체력 회복 +2", "health recovery reward explains current health restore")
+	_runner.assert_eq(catalog.call("get_effect_text", &"shadow_knot"), "회피 무적 +0.25초", "shadow knot explains dodge invulnerability gain")
+	_runner.assert_eq(catalog.call("get_effect_text", &"full_swing_stance"), "배트 넉백 +40% / 근접 공격 속도 -10%", "full swing explains tradeoff")
+	_runner.assert_eq(catalog.call("get_effect_text", &"breathing_room"), "방 클리어 시 체력 +1", "breathing room explains recurring clear sustain")
 
 
 func _load_catalog() -> GDScript:

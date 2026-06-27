@@ -85,3 +85,51 @@ func test_health_restore_modifier_heals_current_health_without_raising_max() -> 
 	_runner.assert_eq(player.get_health(), 5, "health recovery clamps to max health")
 	_runner.assert_eq(health_events[health_events.size() - 1]["current"], 5, "clamped health recovery broadcasts the clamped value")
 	EventBus.player_health_changed.disconnect(on_health_changed)
+
+
+func test_shadow_knot_extends_dodge_invulnerability() -> void:
+	var player = PlayerScript.new()
+	add_child(player)
+	var base_invuln: float = player.dodge_invuln_time
+
+	_runner.assert_true(player.apply_run_modifier(&"shadow_knot"), "shadow knot item applies")
+	_runner.assert_true(is_equal_approx(player.dodge_invuln_time, base_invuln + 0.25), "shadow knot extends dodge invulnerability by 0.25 seconds")
+
+	_runner.assert_true(player.try_start_special_skill(Vector2.RIGHT), "dodge starts after shadow knot is applied")
+	_runner.assert_true(is_equal_approx(player.get_invuln_remaining(), player.dodge_invuln_time), "dodge uses the extended invulnerability window")
+
+
+func test_full_swing_stance_boosts_bat_knockback_with_attack_speed_tradeoff() -> void:
+	var player = PlayerScript.new()
+	add_child(player)
+	var base_knockback: float = player.bat_knockback
+	var base_attack_cooldown: float = player.attack_cooldown
+
+	_runner.assert_true(player.apply_run_modifier(&"full_swing_stance"), "full swing stance applies")
+	_runner.assert_true(is_equal_approx(player.bat_knockback, base_knockback * 1.4), "full swing increases bat knockback")
+	_runner.assert_true(player.attack_cooldown > base_attack_cooldown, "full swing slows melee attack cadence")
+
+
+func test_breathing_room_heals_on_later_room_clear_without_instant_heal() -> void:
+	var player = PlayerScript.new()
+	var health_events: Array[Dictionary] = []
+	var on_health_changed := func(payload: Dictionary) -> void:
+		health_events.append(payload)
+	EventBus.player_health_changed.connect(on_health_changed)
+	add_child(player)
+
+	player.take_damage(2)
+	_runner.assert_eq(player.get_health(), 3, "test starts from damaged health")
+	_runner.assert_true(player.apply_run_modifier(&"breathing_room"), "breathing room applies")
+	_runner.assert_eq(player.get_health(), 3, "breathing room does not heal immediately on pickup")
+	_runner.assert_true(player.has_method("apply_room_clear_modifier_effects"), "player exposes room clear modifier hook")
+	if not player.has_method("apply_room_clear_modifier_effects"):
+		EventBus.player_health_changed.disconnect(on_health_changed)
+		return
+
+	_runner.assert_true(player.call("apply_room_clear_modifier_effects"), "breathing room heals on room clear")
+	_runner.assert_eq(player.get_health(), 4, "breathing room restores one heart after a later room clear")
+	_runner.assert_eq(health_events[health_events.size() - 1]["current"], 4, "room clear healing broadcasts HUD health update")
+	_runner.assert_true(player.call("apply_room_clear_modifier_effects"), "breathing room can heal on each later room clear")
+	_runner.assert_eq(player.get_health(), 5, "room clear healing clamps to max health")
+	EventBus.player_health_changed.disconnect(on_health_changed)

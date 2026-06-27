@@ -405,6 +405,18 @@ func get_run_modifier_ids() -> Array[StringName]:
 	return _run_modifier_ids.duplicate()
 
 
+func apply_room_clear_modifier_effects() -> bool:
+	var modifiers := MapItemCatalog.compose_modifiers(_run_modifier_ids)
+	var restore_amount := int(modifiers.get("room_clear_health_restore_add", 0))
+	if restore_amount <= 0:
+		return false
+	var previous_health := _health
+	_health = restored_health(_health, restore_amount, max_health)
+	if previous_health != _health:
+		_broadcast_health()
+	return previous_health != _health
+
+
 ## 적/적탄이 호출한다(계약). 무적시간이 아니면 체력 감소 후 EventBus로 발신.
 ## 체력 0 → 귀환 처리는 death_return_controller 가 player_health_changed 를 듣고 담당.
 func take_damage(amount: int) -> void:
@@ -717,6 +729,8 @@ func _capture_base_run_stats() -> void:
 		"fire_cooldown": fire_cooldown,
 		"melee_damage": melee_damage,
 		"bat_damage": bat_damage,
+		"bat_knockback": bat_knockback,
+		"dodge_invuln_time": dodge_invuln_time,
 		"max_health": max_health,
 		"special_skill_max_uses": special_skill_max_uses,
 	}
@@ -776,6 +790,8 @@ func _apply_stats(stats: Dictionary) -> void:
 	fire_cooldown = float(stats.get("fire_cooldown", fire_cooldown))
 	melee_damage = int(stats.get("melee_damage", melee_damage))
 	bat_damage = int(stats.get("bat_damage", bat_damage))
+	bat_knockback = float(stats.get("bat_knockback", bat_knockback))
+	dodge_invuln_time = float(stats.get("dodge_invuln_time", dodge_invuln_time))
 	max_health = int(stats.get("max_health", max_health))
 	special_skill_max_uses = int(stats.get("special_skill_max_uses", special_skill_max_uses))
 
