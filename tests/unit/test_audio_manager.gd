@@ -64,3 +64,23 @@ func test_session_transition_school_bell_stops_lobby_bgm() -> void:
 
 	_runner.assert_eq(AudioManager.get_current_bgm(), &"", "session transition clears lobby BGM before the bell")
 	_runner.assert_false(AudioManager.is_bgm_playing(), "session transition bell is not masked by lobby BGM")
+
+
+func test_prepare_bgm_stream_disables_loop_only_for_fade_tracks() -> void:
+	var stream := load(AudioManager.get_bgm_stream_path(AudioManager.LOBBY_BGM_DEFAULT)) as AudioStreamOggVorbis
+	_runner.assert_true(stream != null, "lobby BGM imports as Ogg Vorbis (loops on Android, unlike a looping WAV)")
+
+	var fade := AudioManager._prepare_bgm_stream(stream, true) as AudioStreamOggVorbis
+	_runner.assert_false(fade.loop, "fade-loop tracks disable stream loop so _run_bgm_cycle owns fade-out/gap/fade-in")
+
+	var seamless := AudioManager._prepare_bgm_stream(stream, false) as AudioStreamOggVorbis
+	_runner.assert_true(seamless.loop, "non-fade tracks (e.g. school hallway) keep a seamless engine loop")
+
+
+func test_play_bgm_with_unknown_id_does_not_start_playback() -> void:
+	_runner.assert_eq(AudioManager.get_bgm_stream_path(&"does_not_exist"), "", "unknown BGM id resolves to no path")
+
+	AudioManager.play_bgm(&"does_not_exist")
+
+	_runner.assert_false(AudioManager.is_bgm_playing(), "unknown BGM id does not start the fade loop")
+	_runner.assert_eq(AudioManager.get_current_bgm_path(), "", "unknown BGM id leaves no active stream path")
