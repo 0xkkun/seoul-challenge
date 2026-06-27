@@ -24,6 +24,7 @@ const OBJECTIVE_TALK := "목표: 야구부 주장과 이야기하고, 밤의 궁
 const OBJECTIVE_LOCKER := "목표: 복도 끝 사물함에서 기억 무기를 챙기자"
 const OBJECTIVE_BASEBALL_REWARD := "목표: 야구부 주장에게 돌아가 배트와 단서를 받자"
 const OBJECTIVE_REENTER_GYEONGBOKGUNG := "목표: 복도 끝 사물함에서 배트를 챙기고 경복궁으로 다시 가자"
+const RUN_NAVIGATION_ARROW_TEXT := ">>>"
 const RETURN_TO_LOBBY_MESSAGE := "로비로 돌아갈까요? 진행 상황은 자동으로 저장됩니다."
 const QUIT_GAME_MESSAGE := "게임을 종료할까요?"
 const BASEBALL_CAPTAIN_DISPLAY_NAME := "야구부 주장"
@@ -99,6 +100,7 @@ const BASEBALL_REWARD_LINES := [
 @onready var _interaction_prompt: Label = %InteractionPrompt
 @onready var _talk_button_label: Label = %TalkButtonLabel
 @onready var _objective_label: Label = %ObjectiveLabel
+@onready var _gyeongbokgung_run_arrow_label: Label = %GyeongbokgungRunArrowLabel
 @onready var _hub_dialogue_ui: HubDialogueUi = %HubDialogueUi
 @onready var _fade_overlay: ColorRect = %FadeOverlay
 @onready var _exit_button: Button = %ExitButton
@@ -150,6 +152,7 @@ func _ready() -> void:
 	_hub_dialogue_ui.set_stage_row_visible(false)
 	_hub_dialogue_ui.choice_selected.connect(_on_hub_dialogue_choice_selected)
 	_update_objective_label()
+	_update_run_navigation_arrow()
 	_interaction_prompt.visible = false
 	_update_talk_target_callout()
 	_apply_ui_automation_metadata()
@@ -665,6 +668,7 @@ func _request_locker_maintenance(edge_id: StringName) -> void:
 		return
 	_is_maintenance_requested = true
 	_last_maintenance_edge = edge_id
+	_update_run_navigation_arrow()
 	_player.velocity = Vector2.ZERO
 	SceneTransition.set_pending_day_corridor_context({
 		SceneTransition.DAY_CORRIDOR_CONTEXT_ROOM_ID: _current_room_id,
@@ -1011,6 +1015,7 @@ func _open_dialogue_ui() -> void:
 	_update_character_sprite(0.0)
 	_sync_talk_target_visibility()
 	_update_talk_target_callout()
+	_update_run_navigation_arrow()
 
 
 func _show_dialogue_line(line_index: int) -> void:
@@ -1105,13 +1110,32 @@ func _on_quest_unlock_hidden() -> void:
 func _update_objective_label() -> void:
 	if _objective_label == null:
 		return
+	var objective_text := OBJECTIVE_LOCKER if _dialogue_count > 0 else OBJECTIVE_TALK
 	if _needs_baseball_reward_dialogue():
-		_objective_label.text = OBJECTIVE_BASEBALL_REWARD
+		objective_text = OBJECTIVE_BASEBALL_REWARD
+	elif _has_claimed_baseball_reward():
+		objective_text = OBJECTIVE_REENTER_GYEONGBOKGUNG
+	_objective_label.text = objective_text
+	_update_run_navigation_arrow()
+
+
+func _update_run_navigation_arrow() -> void:
+	if _gyeongbokgung_run_arrow_label == null:
 		return
-	if _has_claimed_baseball_reward():
-		_objective_label.text = OBJECTIVE_REENTER_GYEONGBOKGUNG
-		return
-	_objective_label.text = OBJECTIVE_LOCKER if _dialogue_count > 0 else OBJECTIVE_TALK
+	_gyeongbokgung_run_arrow_label.text = RUN_NAVIGATION_ARROW_TEXT
+	_gyeongbokgung_run_arrow_label.visible = _should_show_run_navigation_arrow()
+
+
+func _should_show_run_navigation_arrow() -> bool:
+	if not _has_claimed_baseball_reward():
+		return false
+	if _needs_baseball_reward_dialogue():
+		return false
+	if is_dialogue_ui_visible():
+		return false
+	if _confirm_modal != null and _confirm_modal.is_open():
+		return false
+	return not _is_maintenance_requested
 
 
 func _needs_baseball_reward_dialogue() -> bool:
@@ -1173,8 +1197,9 @@ func _request_return_to_lobby() -> void:
 	_confirm_modal.open(
 		RETURN_TO_LOBBY_MESSAGE,
 		Callable(self, "_return_to_lobby"),
-		Callable()
+		Callable(self, "_update_run_navigation_arrow")
 	)
+	_update_run_navigation_arrow()
 
 
 func _return_to_lobby() -> void:
@@ -1191,8 +1216,9 @@ func _request_quit_game() -> void:
 	_confirm_modal.open(
 		QUIT_GAME_MESSAGE,
 		Callable(self, "_quit_game"),
-		Callable()
+		Callable(self, "_update_run_navigation_arrow")
 	)
+	_update_run_navigation_arrow()
 
 
 func _quit_game() -> void:
