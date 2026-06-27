@@ -4,17 +4,7 @@ signal dialogue_requested(payload: Dictionary)
 signal maintenance_requested(payload: Dictionary)
 
 const REFERENCE_VIEWPORT_SIZE := Vector2(960.0, 540.0)
-const DIALOGUE_SPEAKER := "반 친구"
-const DIALOGUE_LINES: Array[String] = [
-	"낮엔 뛰지 말고, 얘기부터 하자.",
-	"복도 끝 교실에 들르면 준비가 끝나.",
-	"밤에 나가기 전에 여기서 필요한 얘기를 끝내자.",
-]
-const DIALOGUE_MEMORY_LINES: Array[String] = [
-	"기억: 창밖으로 밀려드는 낮빛",
-	"기억: 복도 끝 교실 문손잡이",
-	"기억: 야자 시작 전의 짧은 정적",
-]
+# people2 대사/기억은 DaySchoolRumors 데이터 모듈에서 진행도 tier로 선택한다 (Issue #202).
 const ROOM_LEFT := &"left"
 const ROOM_RIGHT := &"right"
 const EDGE_OUTER_LEFT := &"outer_left"
@@ -82,6 +72,7 @@ const QUIT_GAME_MESSAGE := "게임을 종료할까요?"
 
 var _dialogue_count := 0
 var _dialogue_line_index := -1
+var _dialogue_lines: Array[Dictionary] = []
 var _was_dialogue_pressed := false
 var _walk_elapsed := 0.0
 var _idle_elapsed := 0.0
@@ -386,10 +377,45 @@ func perform_uat_action(action_name: String) -> bool:
 
 func trigger_dialogue() -> void:
 	if is_dialogue_ui_visible():
-		_show_dialogue_line((_dialogue_line_index + 1) % DIALOGUE_LINES.size())
+		if _dialogue_lines.is_empty():
+			return
+		_show_dialogue_line((_dialogue_line_index + 1) % _dialogue_lines.size())
+		return
+	_resolve_dialogue_lines()
+	if _dialogue_lines.is_empty():
 		return
 	_open_dialogue_ui()
 	_show_dialogue_line(0)
+
+
+## people2 대사를 현재 진행도 tier + 컨텍스트로 해석한다. 대화 open 시점에 호출.
+func _resolve_dialogue_lines() -> void:
+	_dialogue_lines = DaySchoolRumors.pick_lines(
+		DaySchoolRumors.SPEAKER_PEOPLE2, _current_rumor_tier(), _rumor_context()
+	)
+
+
+func _current_rumor_tier() -> StringName:
+	return DaySchoolRumors.current_tier(get_node_or_null(^"/root/ProgressionSystem"))
+
+
+func _rumor_context() -> Dictionary:
+	return {"last_run": _last_run_outcome()}
+
+
+func _last_run_outcome() -> StringName:
+	if not has_node(^"/root/SaveManager"):
+		return &""
+	var results: Array = SaveManager.load_profile().get("session_results", [])
+	if results.is_empty():
+		return &""
+	var last: Dictionary = results[results.size() - 1]
+	var outcome := String(last.get("outcome", "")).to_lower()
+	if outcome in ["death", "dead", "failed"] or bool(last.get("died", false)):
+		return &"died"
+	if bool(last.get("completed", false)) or String(last.get("reason", "")) == "boss_resolved" or outcome in ["success", "escaped", "complete", "completed"]:
+		return &"cleared"
+	return &""
 
 
 func close_dialogue() -> void:
@@ -794,19 +820,25 @@ func _open_dialogue_ui() -> void:
 
 
 func _show_dialogue_line(line_index: int) -> void:
+	if _dialogue_lines.is_empty():
+		return
 	_dialogue_count += 1
-	_dialogue_line_index = posmod(line_index, DIALOGUE_LINES.size())
+	_dialogue_line_index = posmod(line_index, _dialogue_lines.size())
+	var entry: Dictionary = _dialogue_lines[_dialogue_line_index]
+	var line_text := String(entry.get("text", ""))
+	var memory_text := String(entry.get("memory", ""))
+	var meta := DaySchoolRumors.speaker_meta(DaySchoolRumors.SPEAKER_PEOPLE2)
 	_update_objective_label()
 	_hub_dialogue_ui.set_dialogue(
-		DIALOGUE_SPEAKER,
-		DIALOGUE_LINES[_dialogue_line_index],
-		DIALOGUE_MEMORY_LINES[_dialogue_line_index],
+		String(meta.get("display_name", "")),
+		line_text,
+		memory_text,
 		HubDialogueUi.PORTRAIT_COLOR,
 		dialogue_portrait_texture,
 		dialogue_portrait_frame,
 		false
 	)
-	var is_last_line := _dialogue_line_index >= DIALOGUE_LINES.size() - 1
+	var is_last_line := _dialogue_line_index >= _dialogue_lines.size() - 1
 	_hub_dialogue_ui.set_choices([
 		{
 			"id": CHOICE_CLOSE if is_last_line else CHOICE_NEXT,
@@ -818,9 +850,9 @@ func _show_dialogue_line(line_index: int) -> void:
 	])
 	dialogue_requested.emit({
 		"count": _dialogue_count,
-		"line": DIALOGUE_LINES[_dialogue_line_index],
+		"line": line_text,
 		"line_index": _dialogue_line_index,
-		"memory": DIALOGUE_MEMORY_LINES[_dialogue_line_index],
+		"memory": memory_text,
 		"source": &"day_corridor",
 	})
 
