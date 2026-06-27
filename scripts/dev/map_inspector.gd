@@ -90,7 +90,7 @@ func _build_ui() -> void:
 
 	var legend_label := Label.new()
 	legend_label.name = "LegendLabel"
-	legend_label.text = "S start | C combat | E event | T treasure | $ shop | ? fogged unexplored | cyan ping = reachable exit"
+	legend_label.text = "S start | C combat | E event | T treasure | $ shop | ? fogged unexplored | cyan ping = cleared current exit"
 	legend_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	root.add_child(legend_label)
 
@@ -118,6 +118,7 @@ func _load_layout() -> void:
 
 	var final_room := _final_room(_layout)
 	var cleared := {}
+	cleared[_layout.start_room_id] = true
 	if _reveal_toggle != null and _reveal_toggle.button_pressed:
 		for room_def: RoomDef in _layout.room_defs:
 			if room_def != null and not room_def.hidden:

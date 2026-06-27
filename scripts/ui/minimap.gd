@@ -176,17 +176,6 @@ func _draw() -> void:
 				entry["text_color"]
 			)
 
-	for frontier: Dictionary in _build_frontier_entries():
-		draw_string(
-			font,
-			frontier["arrow_position"] + Vector2(-7.0, 6.0),
-			frontier["arrow"],
-			HORIZONTAL_ALIGNMENT_CENTER,
-			14.0,
-			font_size,
-			RoomPalette.MINIMAP_PING_COLOR
-		)
-
 
 func _build_room_entries() -> Array[Dictionary]:
 	var entries: Array[Dictionary] = []
@@ -289,10 +278,8 @@ func _build_frontier_entries() -> Array[Dictionary]:
 			"room_id": room_def.room_id,
 			"from_room_id": source_room_id,
 			"direction": direction,
-			"arrow": _arrow_for_direction(direction),
 			"position": target_position,
 			"from_position": source_position,
-			"arrow_position": source_position.lerp(target_position, 0.5),
 			"color": RoomPalette.MINIMAP_PING_COLOR,
 		})
 	return entries
@@ -390,24 +377,16 @@ func _frontier_source_for_room(room_id: StringName) -> StringName:
 	var room_def := layout.get_room(room_id)
 	if room_def == null:
 		return &""
-	for source_room_id: StringName in _frontier_source_room_ids():
-		var source_room := layout.get_room(source_room_id)
-		if source_room == null:
-			continue
-		if source_room.connections.has(room_id) or room_def.connections.has(source_room_id):
-			return source_room_id
+	if not _is_layout_visible(room_def):
+		return &""
+	if current_room_id == &"" or not bool(cleared_room_ids.get(current_room_id, false)):
+		return &""
+	var source_room := layout.get_room(current_room_id)
+	if source_room == null:
+		return &""
+	if source_room.connections.has(room_id) or room_def.connections.has(current_room_id):
+		return current_room_id
 	return &""
-
-
-func _frontier_source_room_ids() -> Array[StringName]:
-	var room_ids: Array[StringName] = []
-	if current_room_id != &"":
-		room_ids.append(current_room_id)
-	for room_id: Variant in cleared_room_ids.keys():
-		var typed_room_id := StringName(room_id)
-		if not room_ids.has(typed_room_id):
-			room_ids.append(typed_room_id)
-	return room_ids
 
 
 func _is_frontier_connection(first_room_id: StringName, second_room_id: StringName) -> bool:
@@ -664,19 +643,6 @@ func _direction_between(from_room_id: StringName, to_room_id: StringName) -> Str
 	if delta == Vector2i(0, -1):
 		return &"N"
 	return &""
-
-
-func _arrow_for_direction(direction: StringName) -> String:
-	match direction:
-		&"N":
-			return "^"
-		&"S":
-			return "v"
-		&"W":
-			return "<"
-		&"E":
-			return ">"
-	return "."
 
 
 func _path_has_connection(from_room_id: StringName, to_room_id: StringName) -> bool:
