@@ -602,16 +602,28 @@ func test_attack_dust_state_places_effect_behind_facing_at_feet() -> void:
 		36.0,
 		52.0
 	)
+	var down_state: Dictionary = player.call(
+		"build_attack_dust_effect_state",
+		Vector2.DOWN,
+		Vector2(48.0, 72.0),
+		72.0,
+		36.0,
+		52.0
+	)
 
 	_runner.assert_true((right_state["position"] as Vector2).x < 0.0, "right-facing attack places dust behind the player")
 	_runner.assert_true(is_equal_approx((right_state["position"] as Vector2).y, 52.0), "dust keeps a foot-level downward offset")
 	_runner.assert_true(is_equal_approx(float(right_state["rotation"]), Vector2.LEFT.angle()), "dust points toward the opposite direction")
 	_runner.assert_true(is_equal_approx((right_state["scale"] as Vector2).x, 1.0), "dust uses a runtime-sized source frame without shrinking blocky source art")
-	_runner.assert_true((up_state["position"] as Vector2).y > 52.0, "up-facing attack places dust below the player's feet")
+	_runner.assert_true((up_state["position"] as Vector2).x < 0.0, "up-facing attack falls back to the left-side foot dust")
+	_runner.assert_true(is_equal_approx((up_state["position"] as Vector2).y, 52.0), "up-facing attack keeps dust on the foot line")
+	_runner.assert_true(is_equal_approx(float(up_state["rotation"]), Vector2.LEFT.angle()), "up-facing attack dust uses a horizontal rotation")
+	_runner.assert_true((down_state["position"] as Vector2).x < 0.0, "down-facing attack falls back to the left-side foot dust")
+	_runner.assert_true(is_equal_approx((down_state["position"] as Vector2).y, 52.0), "down-facing attack keeps dust on the foot line")
 	player.free()
 
 
-func test_attack_dust_diagonal_rotation_snaps_to_cardinal_angles() -> void:
+func test_attack_dust_diagonal_direction_uses_horizontal_axis_only() -> void:
 	var player = PlayerScript.new()
 	_runner.assert_true(player.has_method("build_attack_dust_effect_state"), "player exposes pure attack dust placement helper")
 	if not player.has_method("build_attack_dust_effect_state"):
@@ -626,11 +638,25 @@ func test_attack_dust_diagonal_rotation_snaps_to_cardinal_angles() -> void:
 		36.0,
 		52.0
 	)
+	var left_diagonal_state: Dictionary = player.call(
+		"build_attack_dust_effect_state",
+		Vector2(-1.0, 1.0),
+		Vector2(48.0, 72.0),
+		72.0,
+		36.0,
+		52.0
+	)
 	var position := diagonal_state["position"] as Vector2
 	var rotation := float(diagonal_state["rotation"])
+	var left_position := left_diagonal_state["position"] as Vector2
+	var left_rotation := float(left_diagonal_state["rotation"])
 
-	_runner.assert_true(position.x < 0.0 and position.y < 52.0, "diagonal attack still places dust behind the facing direction")
-	_runner.assert_true(_is_cardinal_rotation(rotation), "diagonal attack dust snaps rotation to 90-degree angles to avoid nearest-filter mosaic")
+	_runner.assert_true(position.x < 0.0, "right-leaning diagonal attack places dust on the left foot side")
+	_runner.assert_true(is_equal_approx(position.y, 52.0), "right-leaning diagonal attack ignores vertical facing for dust placement")
+	_runner.assert_true(is_equal_approx(rotation, Vector2.LEFT.angle()), "right-leaning diagonal attack dust uses left-facing rotation")
+	_runner.assert_true(left_position.x > 0.0, "left-leaning diagonal attack places dust on the right foot side")
+	_runner.assert_true(is_equal_approx(left_position.y, 52.0), "left-leaning diagonal attack ignores vertical facing for dust placement")
+	_runner.assert_true(is_equal_approx(left_rotation, Vector2.RIGHT.angle()), "left-leaning diagonal attack dust uses right-facing rotation")
 	player.free()
 
 
@@ -779,12 +805,6 @@ func _has_property(node: Object, property_name: String) -> bool:
 		if String(property.get("name", "")) == property_name:
 			return true
 	return false
-
-
-func _is_cardinal_rotation(rotation: float) -> bool:
-	var quarter_turn := PI * 0.5
-	var snapped := roundf(rotation / quarter_turn) * quarter_turn
-	return is_equal_approx(rotation, snapped)
 
 
 func _count_visible_color_steps(image: Image) -> int:
