@@ -116,9 +116,9 @@ func test_combat_room_applies_room_config_and_elite_variants() -> void:
 	var elite_chaser_hp := 0
 	var normal_chaser_hp := 0
 	for enemy: Node in room.call("get_active_enemies"):
-		if String(enemy.name).begins_with("Chaser"):
+		if String(enemy.name).begins_with("Akgwi"):
 			normal_chaser_hp = int(enemy.get("max_hp"))
-		if String(enemy.name).begins_with("EliteChaser"):
+		if String(enemy.name).begins_with("EliteAkgwi"):
 			elite_chaser_hp = int(enemy.get("max_hp"))
 		if enemy.get_meta("encounter_variant", &"normal") == &"elite":
 			elite_count += 1

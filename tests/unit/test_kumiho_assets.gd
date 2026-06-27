@@ -67,6 +67,52 @@ func test_kumiho_fires_fireball_and_plays_attack_animation() -> void:
 		_runner.assert_eq(sprite.animation, &"attack", "kumiho switches to attack animation when firing")
 
 
+func test_kumiho_attack_faces_target_even_while_retreating() -> void:
+	_runner.assert_true(ResourceLoader.exists(KUMIHO_SCENE_PATH), "kumiho ranged enemy scene exists")
+	if not ResourceLoader.exists(KUMIHO_SCENE_PATH):
+		return
+
+	var enemy := (load(KUMIHO_SCENE_PATH) as PackedScene).instantiate()
+	add_child(enemy)
+	var sprite := enemy.get_node_or_null("Sprite") as AnimatedSprite2D
+	_runner.assert_not_null(sprite, "kumiho uses an AnimatedSprite2D visual")
+	if sprite == null:
+		return
+
+	enemy.velocity = Vector2.RIGHT
+	var fired: bool = bool(enemy.tick_fire(enemy.fire_interval, Vector2.ZERO, Vector2.LEFT))
+
+	_runner.assert_true(fired, "kumiho fires when cooldown is ready")
+	_runner.assert_true(sprite.flip_h, "kumiho attack faces the target even when retreat velocity points away")
+	enemy.call("_update_animation")
+	_runner.assert_true(sprite.flip_h, "kumiho attack facing is not overwritten by retreat velocity while attack plays")
+
+
+func test_kumiho_sprite_flips_with_horizontal_movement_and_holds_when_idle() -> void:
+	_runner.assert_true(ResourceLoader.exists(KUMIHO_SCENE_PATH), "kumiho ranged enemy scene exists")
+	if not ResourceLoader.exists(KUMIHO_SCENE_PATH):
+		return
+
+	var enemy := (load(KUMIHO_SCENE_PATH) as PackedScene).instantiate()
+	add_child(enemy)
+	var sprite := enemy.get_node_or_null("Sprite") as AnimatedSprite2D
+	_runner.assert_not_null(sprite, "kumiho uses an AnimatedSprite2D visual")
+	if sprite == null:
+		return
+
+	enemy.velocity = Vector2.LEFT
+	enemy.call("_update_animation")
+	_runner.assert_true(sprite.flip_h, "kumiho flips left while moving left")
+
+	enemy.velocity = Vector2.UP
+	enemy.call("_update_animation")
+	_runner.assert_true(sprite.flip_h, "kumiho keeps the last horizontal facing while moving vertically")
+
+	enemy.velocity = Vector2.RIGHT
+	enemy.call("_update_animation")
+	_runner.assert_false(sprite.flip_h, "kumiho faces right while moving right")
+
+
 func test_combat_room_uses_kumiho_as_default_ranged_enemy() -> void:
 	var room := (load(COMBAT_ROOM_SCENE_PATH) as PackedScene).instantiate()
 	add_child(room)

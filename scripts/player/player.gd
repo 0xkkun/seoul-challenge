@@ -256,8 +256,8 @@ func step_special_cooldown(timer: float, delta: float) -> float:
 	return maxf(0.0, timer - delta)
 
 
-func can_use_special_skill(uses_remaining: int, cooldown_remaining: float, is_active: bool) -> bool:
-	return uses_remaining > 0 and cooldown_remaining <= 0.0 and not is_active
+func can_use_special_skill(uses_remaining: int, _cooldown_remaining: float, is_active: bool) -> bool:
+	return uses_remaining > 0 and not is_active
 
 
 func consume_special_use(uses_remaining: int) -> int:
@@ -366,11 +366,13 @@ func reset_run_modifiers(restore_health := false) -> void:
 		_health = max_health
 		special_skill_uses_remaining = special_skill_max_uses
 		_special_recharge_timer = 0.0
+		_special_cooldown_timer = 0.0
 	else:
 		_health = mini(_health, max_health)
 		special_skill_uses_remaining = mini(special_skill_uses_remaining, special_skill_max_uses)
 		if special_skill_uses_remaining >= special_skill_max_uses:
 			_special_recharge_timer = 0.0
+			_special_cooldown_timer = 0.0
 	if previous_health != _health or previous_max_health != max_health:
 		_broadcast_health()
 	_broadcast_special_skill_state()
@@ -562,7 +564,7 @@ func try_start_special_skill(input_vector: Vector2 = Vector2.ZERO) -> bool:
 	_dash_power_attack_consumed = false
 	_invuln_timer = maxf(_invuln_timer, dodge_invuln_time)
 	special_skill_uses_remaining = consume_special_use(special_skill_uses_remaining)
-	_special_cooldown_timer = special_skill_cooldown
+	_start_special_recharge_if_needed()
 	_broadcast_special_skill_state()
 	return true
 
@@ -584,11 +586,7 @@ func _process_special_skill(delta: float, move_input: Vector2) -> void:
 	var previous_cooldown := _special_cooldown_timer
 	var previous_recharge := _special_recharge_timer
 	var previous_uses := special_skill_uses_remaining
-	_special_cooldown_timer = step_special_cooldown(_special_cooldown_timer, delta)
-	var recharge_delta := delta
-	if previous_cooldown > 0.0:
-		recharge_delta = maxf(0.0, delta - previous_cooldown)
-	_step_special_recharge(recharge_delta)
+	_step_special_recharge(delta)
 	var pressed := is_special_pressed()
 	if is_status_action_blocked():
 		_was_special_pressed = pressed
@@ -606,8 +604,7 @@ func _process_special_skill(delta: float, move_input: Vector2) -> void:
 func _step_special_recharge(delta: float) -> void:
 	if special_skill_uses_remaining >= special_skill_max_uses:
 		_special_recharge_timer = 0.0
-		return
-	if _special_cooldown_timer > 0.0:
+		_special_cooldown_timer = 0.0
 		return
 	var state := step_special_recharge(
 		special_skill_uses_remaining,
@@ -618,13 +615,16 @@ func _step_special_recharge(delta: float) -> void:
 	)
 	special_skill_uses_remaining = int(state["uses_remaining"])
 	_special_recharge_timer = float(state["recharge_remaining"])
+	_special_cooldown_timer = _special_recharge_timer
 
 
 func _start_special_recharge_if_needed() -> void:
 	if special_skill_uses_remaining >= special_skill_max_uses:
 		_special_recharge_timer = 0.0
-	elif _special_recharge_timer <= 0.0 and _special_cooldown_timer <= 0.0:
-		_special_recharge_timer = special_skill_cooldown
+		_special_cooldown_timer = 0.0
+	elif _special_recharge_timer <= 0.0:
+		_special_recharge_timer = maxf(0.0, special_skill_cooldown)
+	_special_cooldown_timer = _special_recharge_timer
 
 
 func _special_state_changed(previous_cooldown: float, previous_recharge: float, previous_uses: int) -> bool:
@@ -724,6 +724,7 @@ func _apply_run_modifier_stats() -> void:
 		special_skill_uses_remaining = special_skill_max_uses
 	if special_skill_uses_remaining >= special_skill_max_uses:
 		_special_recharge_timer = 0.0
+		_special_cooldown_timer = 0.0
 	else:
 		_start_special_recharge_if_needed()
 	if previous_health != _health or previous_max_health != max_health:
@@ -780,7 +781,27 @@ func _play_attack_anim(dir: Vector2) -> void:
 		_sprite.flip_h = dir.x < 0.0
 	_is_attacking = true
 	_attack_movement_commit_timer = attack_movement_commit_time
+	var base_duration := animation_duration_seconds(_sprite.sprite_frames, &"attack")
+	_sprite.speed_scale = attack_animation_speed_scale(base_duration, attack_cooldown)
 	_sprite.play(&"attack")
+
+
+func animation_duration_seconds(frames: SpriteFrames, animation: StringName) -> float:
+	if frames == null or not frames.has_animation(animation):
+		return 0.0
+	var animation_speed := float(frames.get_animation_speed(animation))
+	if animation_speed <= 0.0:
+		return 0.0
+	var total_frame_duration := 0.0
+	for index in range(frames.get_frame_count(animation)):
+		total_frame_duration += float(frames.get_frame_duration(animation, index))
+	return total_frame_duration / animation_speed
+
+
+func attack_animation_speed_scale(base_duration: float, target_duration: float) -> float:
+	if base_duration <= 0.0 or target_duration <= 0.0:
+		return 1.0
+	return maxf(1.0, base_duration / target_duration)
 
 
 ## 입력 상태에 맞는 애니메이션 — 공격 중이면 유지, 이동하면 walk, 정지면 idle.
@@ -790,6 +811,7 @@ func _update_animation(move: Vector2) -> void:
 		return
 	if _is_attacking:
 		return  # 공격 중엔 조준 방향 반전을 유지(_play_attack_anim 이 설정)
+	_sprite.speed_scale = 1.0
 	if absf(_facing.x) > 0.05:
 		_sprite.flip_h = _facing.x < 0.0
 	var next: StringName = &"walk" if move.length() > 0.1 else &"idle"
@@ -801,6 +823,7 @@ func _on_sprite_animation_finished() -> void:
 	if _sprite != null and _sprite.animation == &"attack":
 		_is_attacking = false
 		_attack_movement_commit_timer = 0.0
+		_sprite.speed_scale = 1.0
 
 
 ## 근접 휘두르기 — 무기(맨손/배트)에 따라 사거리·각·피해가 다르다. 배트면 넉백 + 적탄 되받아침(deflect).
@@ -837,6 +860,7 @@ func _attack_melee(dir: Vector2) -> void:
 		else:
 			_clear_bullets_in_arc(dir, rng, arc)
 	if _has_bat:
+		_play_bat_swing_sfx()
 		_hide_swing()
 		if power_attack:
 			_hide_bat_swing()
@@ -875,6 +899,11 @@ func _emit_combat_feedback(kind: StringName, dir: Vector2, hit_count: int, inten
 		"intensity": intensity,
 		"source_position": global_position,
 	})
+
+
+func _play_bat_swing_sfx() -> void:
+	if has_node("/root/AudioManager"):
+		AudioManager.play_sfx(AudioManager.BAT_SWING)
 
 
 ## 휘두르기 시각 표시 — 실제 사거리(rng)·각(arc)으로 부채꼴을 그려 타격 범위와 일치시킨다.

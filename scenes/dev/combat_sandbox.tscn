@@ -2,7 +2,7 @@
 
 [ext_resource type="PackedScene" path="res://scenes/player/player.tscn" id="1_player"]
 [ext_resource type="PackedScene" path="res://scenes/ui/touch_controls.tscn" id="2_touch"]
-[ext_resource type="PackedScene" path="res://scenes/enemies/chaser.tscn" id="3_chaser"]
+[ext_resource type="PackedScene" path="res://scenes/enemies/akgwi.tscn" id="3_chaser"]
 [ext_resource type="PackedScene" path="res://scenes/enemies/yokai_friend.tscn" id="4_friend"]
 [ext_resource type="PackedScene" path="res://scenes/enemies/boss.tscn" id="5_boss"]
 [ext_resource type="PackedScene" path="res://scenes/enemies/kumiho.tscn" id="6_ranged"]
@@ -29,10 +29,10 @@ shape = SubResource("wall_shape")
 color = Color(0.4, 0.4, 0.45, 1)
 polygon = PackedVector2Array(-60, -60, 60, -60, 60, 60, -60, 60)
 
-[node name="Chaser" parent="." instance=ExtResource("3_chaser")]
+[node name="Akgwi" parent="." instance=ExtResource("3_chaser")]
 position = Vector2(820, 160)
 
-[node name="Chaser2" parent="." instance=ExtResource("3_chaser")]
+[node name="Akgwi2" parent="." instance=ExtResource("3_chaser")]
 position = Vector2(820, 420)
 
 [node name="YokaiFriend" parent="." instance=ExtResource("4_friend")]

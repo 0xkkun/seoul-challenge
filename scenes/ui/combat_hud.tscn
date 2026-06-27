@@ -1,6 +1,7 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://scripts/ui/combat_hud.gd" id="1_hud"]
+[ext_resource type="Texture2D" path="res://assets/ui/icons/currency/yeopjeon.png" id="2_yeopjeon"]
 
 [node name="CombatHud" type="CanvasLayer"]
 script = ExtResource("1_hud")
@@ -28,6 +29,7 @@ layout_mode = 2
 theme_override_constants/separation = 4
 
 [node name="StubPanel" type="HBoxContainer" parent="Root"]
+visible = false
 layout_mode = 1
 anchors_preset = 0
 offset_left = 206.0
@@ -38,15 +40,40 @@ theme_override_constants/separation = 12
 
 [node name="WeaponSlot" type="Label" parent="Root/StubPanel"]
 unique_name_in_owner = true
+visible = false
 layout_mode = 2
 text = "기억 무기: 준비중"
 
 [node name="SkillSlot" type="Label" parent="Root/StubPanel"]
 unique_name_in_owner = true
+visible = false
 layout_mode = 2
 text = "회피: 준비중"
 
-[node name="CurrencySlot" type="Label" parent="Root/StubPanel"]
+[node name="CurrencyPanel" type="HBoxContainer" parent="Root"]
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -456.0
+offset_top = 14.0
+offset_right = -336.0
+offset_bottom = 46.0
+grow_horizontal = 0
+theme_override_constants/separation = 6
+
+[node name="CurrencyIcon" type="TextureRect" parent="Root/CurrencyPanel"]
+unique_name_in_owner = true
+texture_filter = 1
+custom_minimum_size = Vector2(32, 32)
+layout_mode = 2
+texture = ExtResource("2_yeopjeon")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="CurrencyAmountLabel" type="Label" parent="Root/CurrencyPanel"]
 unique_name_in_owner = true
 layout_mode = 2
-text = "엽전: 0"
+theme_override_font_sizes/font_size = 18
+text = "0"
+vertical_alignment = 1

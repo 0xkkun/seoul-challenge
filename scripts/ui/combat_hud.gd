@@ -9,12 +9,17 @@ const HEART_EMPTY_COLOR := Color(0.25, 0.25, 0.28)
 const HEART_SIZE := Vector2(22, 22)
 const WEAPON_SLOT_STUB_TEXT := "기억 무기: 준비중"
 const SKILL_SLOT_STUB_TEXT := "회피: 준비중"
-const CURRENCY_SLOT_STUB_TEXT := "엽전: 0"
+const CURRENCY_ICON_PATH := "res://assets/ui/icons/currency/yeopjeon.png"
+const CURRENCY_SLOT_STUB_TEXT := "0"
+const MobileSafeArea := preload("res://scripts/ui/mobile_safe_area.gd")
 
 @onready var _hearts: HBoxContainer = %Hearts
+@onready var _health_panel: HBoxContainer = $Root/HealthPanel
+@onready var _stub_panel: HBoxContainer = $Root/StubPanel
 @onready var _weapon_slot: Label = %WeaponSlot
 @onready var _skill_slot: Label = %SkillSlot
-@onready var _currency_slot: Label = %CurrencySlot
+@onready var _currency_icon: TextureRect = %CurrencyIcon
+@onready var _currency_slot: Label = %CurrencyAmountLabel
 
 var _current_health := 0
 var _max_health := 0
@@ -22,6 +27,7 @@ var _max_health := 0
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	_apply_landscape_safe_area()
 	set_weapon_state(_initial_weapon_id())
 	_skill_slot.text = SKILL_SLOT_STUB_TEXT
 	_currency_slot.text = CURRENCY_SLOT_STUB_TEXT
@@ -100,11 +106,17 @@ func set_currency_state(payload: Dictionary) -> void:
 	if not payload.has("ingame"):
 		return
 	var ingame := maxi(0, int(payload.get("ingame", 0)))
-	_currency_slot.text = "엽전: %d" % ingame
+	_currency_slot.text = str(ingame)
 
 
 func get_currency_text() -> String:
 	return _currency_slot.text
+
+
+func get_currency_icon_path() -> String:
+	if _currency_icon.texture == null:
+		return ""
+	return _currency_icon.texture.resource_path
 
 
 func _on_player_health_changed(payload: Dictionary) -> void:
@@ -156,3 +168,9 @@ func _weapon_display_name(weapon_id: StringName) -> String:
 			return "금 간 나무 배트"
 		_:
 			return "미정"
+
+
+func _apply_landscape_safe_area() -> void:
+	var insets := MobileSafeArea.landscape_minimum_insets()
+	MobileSafeArea.apply_edge_offsets(_health_panel, float(insets["left"]), float(insets["top"]), -1.0, -1.0)
+	MobileSafeArea.apply_edge_offsets(_stub_panel, -1.0, float(insets["top"]), float(insets["right"]), -1.0)

@@ -4,6 +4,7 @@ extends CharacterBody2D
 
 const HitReactionController = preload("res://scripts/combat/hit_reaction_controller.gd")
 const StatusEffectController = preload("res://scripts/combat/status_effect_controller.gd")
+const FACING_DEADZONE := 0.01
 
 ## 처치됨 — RoomManager/전투방이 듣고 방 클리어 카운트에 사용한다(계약 #19).
 signal defeated(enemy)
@@ -15,6 +16,8 @@ signal defeated(enemy)
 @export var contact_cooldown: float = 0.6  ## 접촉 데미지 간격 (s)
 @export var hit_invuln_time: float = 0.12  ## 피격 직후 중복 피해 방지/플래시 시간
 @export var target_group: StringName = &"player"
+@export var move_animation: StringName = &"move"
+@export var attack_animation: StringName = &"attack"
 
 var _hp: int = 0
 var _contact_timer: float = 0.0
@@ -23,6 +26,7 @@ var _hit_reaction: Node = null
 var _status_effects: Node = null
 var _movement_bounds := Rect2()
 var _movement_bounds_enabled := false
+@onready var _sprite: AnimatedSprite2D = get_node_or_null(^"Sprite")
 
 
 func _ready() -> void:
@@ -38,21 +42,25 @@ func _physics_process(delta: float) -> void:
 	_contact_timer = maxf(0.0, _contact_timer - delta)
 	var target := _find_target()
 	if target == null:
+		_update_animation()
 		return
 	if is_status_action_blocked():
 		velocity = Vector2.ZERO
 		move_and_slide()
 		clamp_to_movement_bounds()
+		_update_animation()
 		return
 	if is_status_movement_blocked():
 		velocity = Vector2.ZERO
 		move_and_slide()
 		clamp_to_movement_bounds()
+		_update_animation()
 		_try_contact(target)
 		return
 	velocity = chase_velocity(global_position, target.global_position, move_speed * get_status_speed_multiplier())
 	move_and_slide()
 	clamp_to_movement_bounds()
+	_update_animation()
 	_try_contact(target)
 
 
@@ -129,7 +137,7 @@ func _ensure_hit_reaction() -> Node:
 	_hit_reaction = HitReactionController.new()
 	_hit_reaction.name = "HitReaction"
 	add_child(_hit_reaction)
-	var visual := get_node_or_null(^"Placeholder") as CanvasItem
+	var visual := _get_visual()
 	if visual != null:
 		_hit_reaction.call("bind_visual", visual)
 	return _hit_reaction
@@ -209,6 +217,43 @@ func _try_contact(target: Node2D) -> void:
 		return
 	if global_position.distance_to(target.global_position) > contact_range:
 		return
+	_play_attack_animation(target.global_position - global_position)
 	if target.has_method("take_damage"):
 		target.call("take_damage", contact_damage)
 	_contact_timer = contact_cooldown
+
+
+func _update_animation() -> void:
+	if _sprite == null or _sprite.sprite_frames == null:
+		return
+	if _sprite.animation == attack_animation and _sprite.is_playing():
+		return
+	_update_sprite_facing()
+	if _sprite.sprite_frames.has_animation(move_animation) and _sprite.animation != move_animation:
+		_sprite.play(move_animation)
+
+
+func _play_attack_animation(facing_direction: Vector2 = Vector2.ZERO) -> void:
+	if _sprite == null or _sprite.sprite_frames == null:
+		return
+	_set_sprite_facing_from_direction(facing_direction)
+	if _sprite.sprite_frames.has_animation(attack_animation):
+		_sprite.play(attack_animation)
+
+
+func _update_sprite_facing() -> void:
+	_set_sprite_facing_from_direction(velocity)
+
+
+func _set_sprite_facing_from_direction(direction: Vector2) -> void:
+	if direction.x < -FACING_DEADZONE:
+		_sprite.flip_h = true
+	elif direction.x > FACING_DEADZONE:
+		_sprite.flip_h = false
+
+
+func _get_visual() -> CanvasItem:
+	var sprite := get_node_or_null(^"Sprite") as CanvasItem
+	if sprite != null:
+		return sprite
+	return get_node_or_null(^"Placeholder") as CanvasItem

@@ -15,4 +15,4 @@ shape = SubResource("CircleShape2D_friend")
 
 [node name="Placeholder" type="Polygon2D" parent="."]
 color = Color(0.55, 0.3, 0.7, 1)
-polygon = PackedVector2Array(-20, -20, 20, -20, 20, 20, -20, 20)
+polygon = PackedVector2Array(-12, -22, 12, -22, 22, -12, 22, 12, 12, 22, -12, 22, -22, 12, -22, -12)

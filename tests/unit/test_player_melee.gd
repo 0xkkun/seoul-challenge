@@ -104,6 +104,73 @@ func test_melee_hit_emits_combat_feedback() -> void:
 	p.free()
 
 
+func test_bat_attack_plays_swing_sfx() -> void:
+	AudioManager.reset()
+	var p = PlayerScript.new()
+	add_child(p)
+	p.position = Vector2.ZERO
+	p.equip_bat()
+
+	p._attack_melee(Vector2.RIGHT)
+
+	_runner.assert_eq(AudioManager.get_played_sfx(), [&"bat_swing"], "bat melee attack plays the bat swing SFX once")
+	p.free()
+	AudioManager.reset()
+
+
+func test_barehand_attack_does_not_play_bat_swing_sfx() -> void:
+	AudioManager.reset()
+	var p = PlayerScript.new()
+	add_child(p)
+	p.position = Vector2.ZERO
+
+	p._attack_melee(Vector2.RIGHT)
+
+	_runner.assert_eq(AudioManager.get_played_sfx(), [], "barehand melee attack does not play the bat swing SFX")
+	p.free()
+	AudioManager.reset()
+
+
+func test_attack_animation_finishes_within_attack_cooldown() -> void:
+	var player := (load("res://scenes/player/player.tscn") as PackedScene).instantiate()
+	add_child(player)
+	var sprite := player.get_node_or_null("Sprite") as AnimatedSprite2D
+	_runner.assert_not_null(sprite, "player scene has an animated sprite")
+	_runner.assert_true(player.has_method("animation_duration_seconds"), "player exposes animation duration helper")
+	_runner.assert_true(player.has_method("attack_animation_speed_scale"), "player exposes attack animation speed helper")
+	if sprite == null or not player.has_method("animation_duration_seconds") or not player.has_method("attack_animation_speed_scale"):
+		player.queue_free()
+		return
+
+	var base_duration := float(player.call("animation_duration_seconds", sprite.sprite_frames, &"attack"))
+	var speed_scale := float(player.call("attack_animation_speed_scale", base_duration, player.attack_cooldown))
+
+	_runner.assert_true(base_duration > player.attack_cooldown, "baseline attack sheet is longer than the gameplay cooldown")
+	_runner.assert_true(speed_scale > 1.0, "attack animation speeds up to match gameplay cooldown")
+	_runner.assert_true(base_duration / speed_scale <= player.attack_cooldown + 0.001, "scaled attack animation ends before the next attack is ready")
+	player.queue_free()
+
+
+func test_play_attack_anim_applies_and_resets_speed_scale() -> void:
+	var player := (load("res://scenes/player/player.tscn") as PackedScene).instantiate()
+	add_child(player)
+	var sprite := player.get_node_or_null("Sprite") as AnimatedSprite2D
+	_runner.assert_not_null(sprite, "player scene has an animated sprite")
+	if sprite == null:
+		player.queue_free()
+		return
+
+	var base_duration := float(player.call("animation_duration_seconds", sprite.sprite_frames, &"attack"))
+	var expected_scale := float(player.call("attack_animation_speed_scale", base_duration, player.attack_cooldown))
+	player._play_attack_anim(Vector2.RIGHT)
+
+	_runner.assert_true(sprite.speed_scale > 1.0, "attack animation plays faster than the authored sheet")
+	_runner.assert_true(is_equal_approx(sprite.speed_scale, expected_scale), "attack animation uses cooldown-derived speed scale")
+	player._on_sprite_animation_finished()
+	_runner.assert_true(is_equal_approx(sprite.speed_scale, 1.0), "attack animation speed resets after the motion")
+	player.queue_free()
+
+
 func test_dash_power_attack_hits_farther_and_deals_bonus_damage() -> void:
 	var p = PlayerScript.new()
 	add_child(p)
