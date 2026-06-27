@@ -403,6 +403,10 @@ func test_slash_effect_state_places_sprite_in_attack_direction() -> void:
 	_runner.assert_true(is_equal_approx(float(right_state["rotation"]), 0.0), "right-facing slash uses the sheet's default orientation")
 	_runner.assert_true((right_state["scale"] as Vector2).x > 1.0, "slash state scales the 64px sheet up")
 	_runner.assert_true((down_state["position"] as Vector2).y > 0.0, "down-facing slash follows attack direction")
+	_runner.assert_true(
+		is_equal_approx((down_state["position"] as Vector2).y, 80.0 * player.swing_vertical_factor * 0.52),
+		"down-facing slash uses the same vertical compression as melee hit checks"
+	)
 	_runner.assert_true(is_equal_approx(float(down_state["rotation"]), PI * 0.5), "down-facing slash rotates with attack direction")
 	player.free()
 

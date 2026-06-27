@@ -868,9 +868,13 @@ func _configure_slash_effect(root: Node2D, slash_sprite: Sprite2D, dir: Vector2,
 func build_slash_effect_state(dir: Vector2, rng: float, frame_width: float, visual_scale: float) -> Dictionary:
 	var safe_dir := dir.normalized() if dir.length() > 0.001 else Vector2.RIGHT
 	var safe_frame_width := maxf(1.0, frame_width)
-	var scale_value := maxf(0.1, (rng / safe_frame_width) * visual_scale)
+	var safe_vertical_factor := maxf(0.001, swing_vertical_factor)
+	var directional_range := rng / maxf(0.001, sqrt(
+		(safe_dir.x * safe_dir.x) + ((safe_dir.y / safe_vertical_factor) * (safe_dir.y / safe_vertical_factor))
+	))
+	var scale_value := maxf(0.1, (directional_range / safe_frame_width) * visual_scale)
 	return {
-		"position": safe_dir * rng * 0.52,
+		"position": safe_dir * directional_range * 0.52,
 		"rotation": safe_dir.angle(),
 		"scale": Vector2(scale_value, scale_value),
 	}
