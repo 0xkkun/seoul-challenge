@@ -20,9 +20,9 @@ const ACTION_DIALOGUE_NEXT := "day_corridor.dialogue.next"
 const ACTION_DIALOGUE_CLOSE := "day_corridor.dialogue.close"
 const ACTION_DISMISS_UNLOCK := "day_corridor.dialogue.dismiss_unlock"
 const ACTION_EXIT_TO_LOBBY := "day_corridor.exit_to_lobby"
-const OBJECTIVE_TALK := "목표: 야구부 주장과 대화하고 밤의 궁으로 나갈 준비를 하자"
-const OBJECTIVE_LOCKER := "목표: 복도 끝 사물함에서 기억 무기를 정비하자"
-const RETURN_TO_LOBBY_MESSAGE := "로비로 돌아갈까요? 진행은 자동 저장됩니다"
+const OBJECTIVE_TALK := "목표: 야구부 주장과 이야기하고, 밤의 궁으로 갈 준비를 하자"
+const OBJECTIVE_LOCKER := "목표: 복도 끝 사물함에서 기억 무기를 챙기자"
+const RETURN_TO_LOBBY_MESSAGE := "로비로 돌아갈까요? 진행 상황은 자동으로 저장됩니다."
 const QUIT_GAME_MESSAGE := "게임을 종료할까요?"
 
 @export var corridor_size := Vector2(2172.0, 720.0)

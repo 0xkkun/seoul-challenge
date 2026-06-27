@@ -10,6 +10,7 @@ signal fired(origin: Vector2, direction: Vector2)
 
 const HitReactionController = preload("res://scripts/combat/hit_reaction_controller.gd")
 const StatusEffectController = preload("res://scripts/combat/status_effect_controller.gd")
+const EnemyDeathFade = preload("res://scripts/combat/enemy_death_fade.gd")
 const ENEMY_BULLET := preload("res://scenes/enemies/enemy_bullet.tscn")
 const FACING_DEADZONE := 0.01
 
@@ -26,6 +27,7 @@ const FACING_DEADZONE := 0.01
 
 var _hp: int = 0
 var _fire_timer: float = 0.0
+var _dead := false
 var _hit_reaction: Node = null
 var _status_effects: Node = null
 var _movement_bounds := Rect2()
@@ -236,7 +238,7 @@ func tick_fire(delta: float, origin: Vector2, target_position: Vector2) -> bool:
 
 ## 정화탄 등이 호출한다(계약). HP 감소 → 0 이하면 처치.
 func take_damage(amount: int) -> void:
-	if is_hit_invulnerable():
+	if _dead or is_hit_invulnerable():
 		return
 	HapticManager.on_enemy_hit()
 	_hp -= amount
@@ -247,8 +249,22 @@ func take_damage(amount: int) -> void:
 
 
 func _die() -> void:
+	if _dead:
+		return
+	_dead = true
+	_spawn_death_fade()
 	defeated.emit(self)
 	queue_free()
+
+
+func _spawn_death_fade() -> void:
+	var parent := get_parent()
+	if parent == null:
+		return
+	var fade := EnemyDeathFade.new()
+	parent.add_child(fade)
+	fade.global_position = global_position
+	fade.capture_visual(_get_visual())
 
 
 func _find_target() -> Node2D:

@@ -9,6 +9,7 @@ const ATTACK_ICON_PATH := "res://assets/ui/icons/combat/damage_1.png"
 const ICON_ALPHA := 0.56
 const ATTACK_ICON_SCALE := 0.44
 const DIALOGUE_ICON_SCALE := 0.34
+const DIALOGUE_TAIL_BLOCKS := 3
 const OUTER_RING_ALPHA := 0.28
 const OUTER_RING_PRESSED_ALPHA := 0.42
 const INNER_RING_ALPHA := 0.10
@@ -61,6 +62,8 @@ func get_visual_contract() -> Dictionary:
 		"icon_path": "" if _icon_mode == ICON_MODE_DIALOGUE else ATTACK_ICON_PATH,
 		"icon_alpha": ICON_ALPHA,
 		"icon_scale": _current_icon_scale(),
+		"dialogue_tail_blocks": DIALOGUE_TAIL_BLOCKS,
+		"label_text": "",
 		"outer_ring_alpha": OUTER_RING_ALPHA,
 		"inner_ring_alpha": INNER_RING_ALPHA,
 	}
@@ -144,10 +147,13 @@ func _draw_dialogue_icon(center: Vector2, radius: float) -> void:
 	)
 	draw_rect(bubble, fill, true)
 	draw_rect(bubble, color, false, pixel)
-	var tail_a := Rect2(Vector2(bubble.position.x + bubble.size.x * 0.22, bubble.end.y - pixel), Vector2(pixel * 2.0, pixel))
-	var tail_b := Rect2(Vector2(tail_a.position.x + pixel, tail_a.end.y), Vector2(pixel * 2.0, pixel))
-	draw_rect(tail_a, color, true)
-	draw_rect(tail_b, color, true)
+	var tail_origin_x := bubble.position.x + bubble.size.x * 0.22
+	for index in DIALOGUE_TAIL_BLOCKS:
+		var tail := Rect2(
+			Vector2(tail_origin_x + pixel * float(index), bubble.end.y - pixel + pixel * float(index)),
+			Vector2(pixel * 2.0, pixel)
+		)
+		draw_rect(tail, color, true)
 	var line_y := bubble.position.y + bubble.size.y * 0.42
 	draw_rect(Rect2(Vector2(bubble.position.x + pixel * 2.0, line_y), Vector2(bubble.size.x - pixel * 4.0, pixel)), color, true)
 	draw_rect(Rect2(Vector2(bubble.position.x + pixel * 2.0, line_y + pixel * 2.0), Vector2(bubble.size.x - pixel * 6.0, pixel)), color, true)

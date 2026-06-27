@@ -158,7 +158,7 @@ func _build_title() -> void:
 	subtitle.anchor_top = 0.155
 	subtitle.anchor_right = 0.72
 	subtitle.anchor_bottom = 0.22
-	subtitle.text = "밤의 경복궁으로 나가기 전, 들고 갈 기억을 고른다."
+	subtitle.text = "밤의 경복궁에 들어가기 전, 가져갈 기억을 고른다."
 	subtitle.add_theme_font_size_override("font_size", 18)
 	subtitle.add_theme_color_override("font_color", DungeonTheme.COLOR_MUTED_TEXT)
 	add_child(subtitle)
@@ -178,7 +178,7 @@ func _build_title() -> void:
 func _build_weapon_cards() -> void:
 	_bat_card = _make_weapon_card(
 		"BatCard",
-		"금 간 나무 배트\n\n근거리 / 큰 반동\n위력  ■■■■□\n속도  ■□□□□\n\n적 밀쳐냄",
+		"금 간 나무 배트\n\n근거리 / 큰 반동\n위력  ■■■■□\n속도  ■□□□□\n\n적을 밀쳐냄",
 		Rect2(0.06, 0.32, 0.42, 0.36),
 		ACTION_SELECT_BAT
 	)
@@ -448,7 +448,7 @@ func _apply_weapon_card_state() -> void:
 		"normal",
 		_make_weapon_state_style(true)
 	)
-	_weapon_status_label.text = "선택된 기억\n\n금 간 나무 배트\n\n지도에서\n경복궁 선택"
+	_weapon_status_label.text = "선택한 기억\n\n금 간 나무 배트\n\n지도에서\n경복궁으로 이동"
 
 
 func _make_weapon_state_style(selected: bool) -> StyleBoxFlat:

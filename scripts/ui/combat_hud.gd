@@ -7,8 +7,8 @@ class_name CombatHud
 const HEART_FILLED_COLOR := Color(0.86, 0.22, 0.27)
 const HEART_EMPTY_COLOR := Color(0.25, 0.25, 0.28)
 const HEART_SIZE := Vector2(22, 22)
-const WEAPON_SLOT_STUB_TEXT := "기억 무기: 준비중"
-const SKILL_SLOT_STUB_TEXT := "회피: 준비중"
+const WEAPON_SLOT_STUB_TEXT := "기억 무기: 준비 중"
+const SKILL_SLOT_STUB_TEXT := "회피: 준비 중"
 const CURRENCY_ICON_PATH := "res://assets/ui/icons/currency/yeopjeon.png"
 const CURRENCY_SLOT_STUB_TEXT := "0"
 const MobileSafeArea := preload("res://scripts/ui/mobile_safe_area.gd")
@@ -95,7 +95,7 @@ func set_weapon_state(weapon_id: StringName) -> void:
 
 func set_weapon_name(display_name: String) -> void:
 	var weapon_name := display_name.strip_edges()
-	_weapon_slot.text = "기억 무기: %s" % (weapon_name if weapon_name != "" else "미정")
+	_weapon_slot.text = "기억 무기: %s" % (weapon_name if weapon_name != "" else "없음")
 
 
 func get_weapon_text() -> String:
@@ -165,7 +165,7 @@ func _weapon_display_name(weapon_id: StringName) -> String:
 		&"bat":
 			return "금 간 나무 배트"
 		_:
-			return "미정"
+			return "없음"
 
 
 func _apply_landscape_safe_area() -> void:

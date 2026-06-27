@@ -74,7 +74,7 @@ func test_day_corridor_scene_uses_mobile_landscape_plate() -> void:
 	_runner.assert_not_null(scene.get_node("%TouchControls"), "touch controls are mounted")
 	_runner.assert_not_null(scene.get_node("%HubDialogueUi"), "hub dialogue UI is mounted")
 	_runner.assert_false(scene.is_dialogue_ui_visible(), "dialogue UI starts hidden")
-	_runner.assert_eq(scene.get_objective_text(), "목표: 야구부 주장과 대화하고 밤의 궁으로 나갈 준비를 하자", "first objective tells the player who to talk to")
+	_runner.assert_eq(scene.get_objective_text(), "목표: 야구부 주장과 이야기하고, 밤의 궁으로 갈 준비를 하자", "first objective tells the player who to talk to")
 
 
 func test_day_corridor_shows_only_day_character_visual_under_player() -> void:
@@ -108,11 +108,15 @@ func test_day_corridor_routes_touch_attack_to_dialogue_not_combat() -> void:
 	var touch_controls: Node = scene.get_node("%TouchControls")
 	var attack_button: Control = touch_controls.get_node("AttackButton")
 	var skill_button: Control = touch_controls.get_node("SkillButton")
+	var interaction_prompt := scene.get_node("%InteractionPrompt") as Label
+	var talk_button_label := scene.get_node("%TalkButtonLabel") as Label
 
 	_runner.assert_eq(player.get("touch_controls_path"), NodePath("../MoveOnlyTouchProxy"), "player reads touch movement through the move-only proxy")
 	_runner.assert_eq(touch_controls.get_control_category(), "day_dialogue", "day corridor uses the movement/dialogue touch control category")
 	_runner.assert_true(attack_button.visible, "day corridor keeps the touch dialogue button visible")
 	_runner.assert_false(skill_button.visible, "day corridor hides the dodge button")
+	_runner.assert_eq(interaction_prompt.text, "", "world interaction helper does not render the word 대화")
+	_runner.assert_eq(talk_button_label.text, "", "touch action helper does not render the word 대화")
 	_runner.assert_false(proxy.is_attack_pressed(), "proxy never forwards the touch attack button to player firing")
 	_runner.assert_false(touch_controls.is_skill_pressed(), "day corridor does not expose dodge input through touch controls")
 	_runner.assert_true(scene.is_combat_output_disabled(), "day scene removes projectile output and recoil")
@@ -280,7 +284,7 @@ func test_day_corridor_dialogue_signal_updates_state() -> void:
 	scene.trigger_dialogue()
 
 	_runner.assert_eq(scene.get_dialogue_count(), 1, "dialogue count increments")
-	_runner.assert_eq(scene.get_objective_text(), "목표: 복도 끝 사물함에서 기억 무기를 정비하자", "objective advances after the first memory beat")
+	_runner.assert_eq(scene.get_objective_text(), "목표: 복도 끝 사물함에서 기억 무기를 챙기자", "objective advances after the first memory beat")
 	_runner.assert_true(scene.is_dialogue_ui_visible(), "dialogue trigger opens the hub dialogue UI")
 	_runner.assert_false(scene.is_touch_controls_visible(), "touch controls hide while the dialogue bar is open")
 	_runner.assert_true(scene.is_talk_target_visible(), "world talk target remains visible behind the dialogue focus")
@@ -317,7 +321,7 @@ func test_day_corridor_exit_button_confirms_lobby_return() -> void:
 	_assert_pixel_button_style(exit_button, PixelButtonStyle.VARIANT_PRIMARY, "day exit")
 	_runner.assert_true(UiTestHarness.press_by_uat_action(scene, "day_corridor.exit_to_lobby"), "exit action opens confirmation")
 	_runner.assert_true(scene.is_return_confirm_visible(), "return confirmation opens")
-	_runner.assert_eq(scene.get_return_confirm_message(), "로비로 돌아갈까요? 진행은 자동 저장됩니다", "return copy matches issue")
+	_runner.assert_eq(scene.get_return_confirm_message(), "로비로 돌아갈까요? 진행 상황은 자동으로 저장됩니다.", "return copy matches issue")
 
 	_runner.assert_true(UiTestHarness.press_by_test_id(scene, ConfirmModal.TEST_ID_NO), "no keeps player in day corridor")
 	_runner.assert_false(scene.is_return_confirm_visible(), "no closes confirmation")
@@ -338,7 +342,7 @@ func test_day_corridor_dialogue_choices_advance_and_close_ui() -> void:
 	_runner.assert_true(UiTestHarness.press_by_uat_action(scene, "day_corridor.dialogue.next"), "harness presses next by action id")
 	_runner.assert_eq(scene.get_dialogue_count(), 2, "next choice advances the dialogue counter")
 	_runner.assert_eq(scene.get_active_dialogue_line_index(), 1, "next choice advances to the second line")
-	_runner.assert_eq(scene.get_active_dialogue_text(), "복도 끝 교실에 들르면 준비가 끝나.", "second dialogue line is rendered")
+	_runner.assert_eq(scene.get_active_dialogue_text(), "복도 끝 교실에 들르면 준비할 수 있어.", "second dialogue line is rendered")
 	_runner.assert_true(scene.is_dialogue_ui_visible(), "next choice keeps dialogue UI open")
 	_runner.assert_eq(scene.get_dialogue_choice_ids(), [&"next"], "middle dialogue line still exposes only next")
 

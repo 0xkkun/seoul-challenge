@@ -211,7 +211,6 @@ offset_bottom = -164.0
 grow_horizontal = 2
 grow_vertical = 2
 theme_override_font_sizes/font_size = 24
-text = "대화"
 horizontal_alignment = 1
 vertical_alignment = 1
 
@@ -243,7 +242,7 @@ mouse_filter = 2
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_font_sizes/font_size = 18
-text = "목표: 야구부 주장과 대화하고 밤의 궁으로 나갈 준비를 하자"
+text = "목표: 야구부 주장과 이야기하고, 밤의 궁으로 갈 준비를 하자"
 horizontal_alignment = 1
 vertical_alignment = 1
 autowrap_mode = 2
@@ -275,7 +274,6 @@ offset_bottom = -40.0
 grow_horizontal = 0
 grow_vertical = 0
 theme_override_font_sizes/font_size = 22
-text = "대화"
 horizontal_alignment = 1
 vertical_alignment = 1
 

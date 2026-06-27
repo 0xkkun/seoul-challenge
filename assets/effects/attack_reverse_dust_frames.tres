@@ -1,128 +1,76 @@
-[gd_resource type="SpriteFrames" load_steps=19 format=3]
+[gd_resource type="SpriteFrames" load_steps=18 format=3]
 
-[ext_resource type="Texture2D" path="res://assets/effects/attack_reverse_dust.png" id="1_dust"]
-
-[sub_resource type="AtlasTexture" id="dust0"]
-atlas = ExtResource("1_dust")
-region = Rect2(0, 0, 48, 72)
-
-[sub_resource type="AtlasTexture" id="dust1"]
-atlas = ExtResource("1_dust")
-region = Rect2(48, 0, 48, 72)
-
-[sub_resource type="AtlasTexture" id="dust2"]
-atlas = ExtResource("1_dust")
-region = Rect2(96, 0, 48, 72)
-
-[sub_resource type="AtlasTexture" id="dust3"]
-atlas = ExtResource("1_dust")
-region = Rect2(144, 0, 48, 72)
-
-[sub_resource type="AtlasTexture" id="dust4"]
-atlas = ExtResource("1_dust")
-region = Rect2(192, 0, 48, 72)
-
-[sub_resource type="AtlasTexture" id="dust5"]
-atlas = ExtResource("1_dust")
-region = Rect2(240, 0, 48, 72)
-
-[sub_resource type="AtlasTexture" id="dust6"]
-atlas = ExtResource("1_dust")
-region = Rect2(288, 0, 48, 72)
-
-[sub_resource type="AtlasTexture" id="dust7"]
-atlas = ExtResource("1_dust")
-region = Rect2(336, 0, 48, 72)
-
-[sub_resource type="AtlasTexture" id="dust8"]
-atlas = ExtResource("1_dust")
-region = Rect2(384, 0, 48, 72)
-
-[sub_resource type="AtlasTexture" id="dust9"]
-atlas = ExtResource("1_dust")
-region = Rect2(432, 0, 48, 72)
-
-[sub_resource type="AtlasTexture" id="dust10"]
-atlas = ExtResource("1_dust")
-region = Rect2(480, 0, 48, 72)
-
-[sub_resource type="AtlasTexture" id="dust11"]
-atlas = ExtResource("1_dust")
-region = Rect2(528, 0, 48, 72)
-
-[sub_resource type="AtlasTexture" id="dust12"]
-atlas = ExtResource("1_dust")
-region = Rect2(576, 0, 48, 72)
-
-[sub_resource type="AtlasTexture" id="dust13"]
-atlas = ExtResource("1_dust")
-region = Rect2(624, 0, 48, 72)
-
-[sub_resource type="AtlasTexture" id="dust14"]
-atlas = ExtResource("1_dust")
-region = Rect2(672, 0, 48, 72)
-
-[sub_resource type="AtlasTexture" id="dust15"]
-atlas = ExtResource("1_dust")
-region = Rect2(720, 0, 48, 72)
-
-[sub_resource type="AtlasTexture" id="dust16"]
-atlas = ExtResource("1_dust")
-region = Rect2(768, 0, 48, 72)
+[ext_resource type="Texture2D" path="res://assets/effects/attack_reverse_dust/frame_00.png" id="1_frame0"]
+[ext_resource type="Texture2D" path="res://assets/effects/attack_reverse_dust/frame_01.png" id="2_frame1"]
+[ext_resource type="Texture2D" path="res://assets/effects/attack_reverse_dust/frame_02.png" id="3_frame2"]
+[ext_resource type="Texture2D" path="res://assets/effects/attack_reverse_dust/frame_03.png" id="4_frame3"]
+[ext_resource type="Texture2D" path="res://assets/effects/attack_reverse_dust/frame_04.png" id="5_frame4"]
+[ext_resource type="Texture2D" path="res://assets/effects/attack_reverse_dust/frame_05.png" id="6_frame5"]
+[ext_resource type="Texture2D" path="res://assets/effects/attack_reverse_dust/frame_06.png" id="7_frame6"]
+[ext_resource type="Texture2D" path="res://assets/effects/attack_reverse_dust/frame_07.png" id="8_frame7"]
+[ext_resource type="Texture2D" path="res://assets/effects/attack_reverse_dust/frame_08.png" id="9_frame8"]
+[ext_resource type="Texture2D" path="res://assets/effects/attack_reverse_dust/frame_09.png" id="10_frame9"]
+[ext_resource type="Texture2D" path="res://assets/effects/attack_reverse_dust/frame_10.png" id="11_frame10"]
+[ext_resource type="Texture2D" path="res://assets/effects/attack_reverse_dust/frame_11.png" id="12_frame11"]
+[ext_resource type="Texture2D" path="res://assets/effects/attack_reverse_dust/frame_12.png" id="13_frame12"]
+[ext_resource type="Texture2D" path="res://assets/effects/attack_reverse_dust/frame_13.png" id="14_frame13"]
+[ext_resource type="Texture2D" path="res://assets/effects/attack_reverse_dust/frame_14.png" id="15_frame14"]
+[ext_resource type="Texture2D" path="res://assets/effects/attack_reverse_dust/frame_15.png" id="16_frame15"]
+[ext_resource type="Texture2D" path="res://assets/effects/attack_reverse_dust/frame_16.png" id="17_frame16"]
 
 [resource]
 animations = [{
 "frames": [{
 "duration": 1.0,
-"texture": SubResource("dust0")
+"texture": ExtResource("1_frame0")
 }, {
 "duration": 1.0,
-"texture": SubResource("dust1")
+"texture": ExtResource("2_frame1")
 }, {
 "duration": 1.0,
-"texture": SubResource("dust2")
+"texture": ExtResource("3_frame2")
 }, {
 "duration": 1.0,
-"texture": SubResource("dust3")
+"texture": ExtResource("4_frame3")
 }, {
 "duration": 1.0,
-"texture": SubResource("dust4")
+"texture": ExtResource("5_frame4")
 }, {
 "duration": 1.0,
-"texture": SubResource("dust5")
+"texture": ExtResource("6_frame5")
 }, {
 "duration": 1.0,
-"texture": SubResource("dust6")
+"texture": ExtResource("7_frame6")
 }, {
 "duration": 1.0,
-"texture": SubResource("dust7")
+"texture": ExtResource("8_frame7")
 }, {
 "duration": 1.0,
-"texture": SubResource("dust8")
+"texture": ExtResource("9_frame8")
 }, {
 "duration": 1.0,
-"texture": SubResource("dust9")
+"texture": ExtResource("10_frame9")
 }, {
 "duration": 1.0,
-"texture": SubResource("dust10")
+"texture": ExtResource("11_frame10")
 }, {
 "duration": 1.0,
-"texture": SubResource("dust11")
+"texture": ExtResource("12_frame11")
 }, {
 "duration": 1.0,
-"texture": SubResource("dust12")
+"texture": ExtResource("13_frame12")
 }, {
 "duration": 1.0,
-"texture": SubResource("dust13")
+"texture": ExtResource("14_frame13")
 }, {
 "duration": 1.0,
-"texture": SubResource("dust14")
+"texture": ExtResource("15_frame14")
 }, {
 "duration": 1.0,
-"texture": SubResource("dust15")
+"texture": ExtResource("16_frame15")
 }, {
 "duration": 1.0,
-"texture": SubResource("dust16")
+"texture": ExtResource("17_frame16")
 }],
 "loop": false,
 "name": &"burst",

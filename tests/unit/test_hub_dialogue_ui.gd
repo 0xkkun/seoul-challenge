@@ -195,14 +195,14 @@ func test_choices_are_horizontal_models_and_emit_selected_id() -> void:
 	var selected_ids: Array[StringName] = []
 	_ui.choice_selected.connect(func(choice_id: StringName) -> void: selected_ids.append(choice_id))
 	var choices: Array[Dictionary] = [
-		{"id": &"ask", "text": "물어본다"},
-		{"id": &"accept", "text": "받는다", "emphasized": true},
+		{"id": &"ask", "text": "물어보기"},
+		{"id": &"accept", "text": "받기", "emphasized": true},
 	]
 	_ui.set_choices(choices)
 
 	_runner.assert_eq(_ui.get_choice_ids(), [&"ask", &"accept"], "선택지는 좌우 순서로 유지된다")
-	_runner.assert_eq(_ui.get_choice_texts(), ["물어본다", "받는다"], "선택지 문구를 데이터로 보관한다")
-	_runner.assert_true(_ui.is_choice_emphasized(&"accept"), "받는다 선택지를 강조할 수 있다")
+	_runner.assert_eq(_ui.get_choice_texts(), ["물어보기", "받기"], "선택지 문구를 데이터로 보관한다")
+	_runner.assert_true(_ui.is_choice_emphasized(&"accept"), "받기 선택지를 강조할 수 있다")
 
 	_ui.select_choice(&"accept")
 	_runner.assert_eq(selected_ids, [&"accept"], "선택 시 id 신호를 방출한다")
@@ -214,9 +214,9 @@ func test_unlock_popup_tracks_reward_items() -> void:
 		{"id": &"cracked_bat", "name": "금 간 나무 배트", "color": HUB_DIALOGUE_SCRIPT.DEFAULT_BAT_COLOR},
 	]
 
-	_ui.show_unlock("아이템을 얻었다", "STAGE 2 보상", items)
+	_ui.show_unlock("새 기억", "2단계 보상", items)
 
-	_runner.assert_true(_ui.is_unlock_visible(), "받는다 이후 중앙 해금 팝업을 표시한다")
+	_runner.assert_true(_ui.is_unlock_visible(), "받기 이후 중앙 해금 팝업을 표시한다")
 	_runner.assert_eq(_ui.get_unlock_items().size(), 2, "해금 아이템 두 개를 표시할 수 있다")
 	_runner.assert_eq(_ui.get_unlock_items()[0]["name"], "기억 조각", "첫 번째 해금 아이템 이름 보관")
 	_runner.assert_eq(_ui.get_unlock_items()[1]["name"], "금 간 나무 배트", "두 번째 해금 아이템 이름 보관")
@@ -235,6 +235,6 @@ func test_unlock_hidden_only_emits_after_visible_popup_is_hidden() -> void:
 	var items: Array[Dictionary] = [
 		{"id": &"memory_fragment", "name": "기억 조각", "color": HUB_DIALOGUE_SCRIPT.DEFAULT_BALL_COLOR},
 	]
-	_ui.show_unlock("아이템을 얻었다", "STAGE 2 보상", items)
+	_ui.show_unlock("새 기억", "2단계 보상", items)
 	_ui.hide_unlock()
 	_runner.assert_eq(hidden_count[0], 1, "표시된 팝업을 닫을 때만 dismiss 신호를 보낸다")
