@@ -48,6 +48,23 @@ func test_session_interaction_and_summary() -> void:
 	session.queue_free()
 
 
+func test_session_hides_template_interactable_visual_during_gameplay() -> void:
+	var packed := load("res://scenes/session/session_root.tscn") as PackedScene
+	var session := packed.instantiate()
+	add_child(session)
+
+	var sample := session.get_node("%SampleInteractable")
+	var body := sample.get_node_or_null("Body") as CanvasItem
+	_runner.assert_not_null(body, "sample interactable keeps the harness body node")
+	if body != null:
+		_runner.assert_false(body.is_visible_in_tree(), "template sample interactable body is not rendered in gameplay")
+
+	var dispatched: int = session.trigger_sample_interaction()
+	_runner.assert_eq(dispatched, 1, "hidden sample interactable still keeps the interaction harness contract")
+
+	session.queue_free()
+
+
 func test_session_root_uses_new_layout_seed_without_config() -> void:
 	var packed := load("res://scenes/session/session_root.tscn") as PackedScene
 	var layout_ids := {}
@@ -138,6 +155,8 @@ func test_combat_clear_requires_reward_choice_before_room_transition() -> void:
 
 	var manager := session.get_node("%RoomManager") as RoomManager
 	var actor := session.get_node("%Player") as Node
+	var touch_controls: Node = session.get_node("%TouchControls")
+	var attack_button := touch_controls.get_node_or_null("AttackButton") as Control
 	var session_ui: CanvasLayer = session.get_node("%SessionUIRoot")
 	var combat_room_def := _first_room_of_type(manager.layout, RoomLayout.TYPE_COMBAT)
 	_runner.assert_not_null(combat_room_def, "session run layout includes combat room")
@@ -145,14 +164,17 @@ func test_combat_clear_requires_reward_choice_before_room_transition() -> void:
 		return
 	_runner.assert_true(manager.enter_room(combat_room_def.room_id), "test enters combat reward room")
 	_runner.assert_false(session_ui.call("is_reward_choice_visible"), "reward choices are hidden before combat clear")
+	_runner.assert_not_null(attack_button, "session mounts attack touch button")
+	if attack_button != null:
+		attack_button.set("_active_index", 8)
+		_runner.assert_true(touch_controls.call("is_attack_pressed"), "test starts with held attack input")
 
-	for enemy: Node in manager.current_room.call("get_active_enemies"):
-		if enemy.has_method("take_damage"):
-			enemy.call("take_damage", 99)
+	_defeat_all_combat_waves(manager.current_room)
 
 	_runner.assert_true(manager.is_current_room_cleared(), "combat room is cleared")
 	_runner.assert_true(session_ui.call("is_reward_choice_visible"), "combat clear opens reward choice overlay")
 	_runner.assert_true(get_tree().paused, "reward choice pauses room transition input")
+	_runner.assert_false(touch_controls.call("is_attack_pressed"), "reward choice opening releases held attack input")
 	var snapshot: Dictionary = session_ui.call("get_reward_choice_snapshot")
 	_runner.assert_eq((snapshot["choice_ids"] as Array).size(), 3, "reward choice offers three roguelike options")
 	_runner.assert_true(snapshot.has("choice_effects"), "reward snapshot exposes concrete stat effects")
@@ -168,6 +190,50 @@ func test_combat_clear_requires_reward_choice_before_room_transition() -> void:
 	_runner.assert_false(get_tree().paused, "selection resumes the run")
 	_runner.assert_true((actor.call("get_run_modifier_ids") as Array).has(chosen_item), "chosen reward applies to player run modifiers")
 
+	session.queue_free()
+
+
+func test_combat_reward_modal_wins_over_exit_door_open_transition() -> void:
+	GameManager.start_session({
+		"source": "reward_transition_timing_test",
+		SceneTransition.RUN_CONFIG_LAYOUT_SEED: 40,
+	})
+	var packed := load("res://scenes/session/session_root.tscn") as PackedScene
+	var session := packed.instantiate()
+	add_child(session)
+
+	var manager := session.get_node("%RoomManager") as RoomManager
+	var session_ui: CanvasLayer = session.get_node("%SessionUIRoot")
+	var combat_room_def := _first_room_of_type(manager.layout, RoomLayout.TYPE_COMBAT)
+	_runner.assert_not_null(combat_room_def, "session run layout includes combat room")
+	if combat_room_def == null:
+		return
+	_runner.assert_true(manager.enter_room(combat_room_def.room_id), "test enters combat reward room")
+	var combat_room_id := manager.current_room_id
+	var exit_door: RoomDoor = null
+	for door: RoomDoor in manager.current_room.call("get_doors"):
+		exit_door = door
+		break
+	_runner.assert_not_null(exit_door, "combat room exposes an exit door")
+	if exit_door == null:
+		session.queue_free()
+		return
+	var transition_attempts := 0
+	var on_exit_opened := func(_door_dir: StringName, state: int) -> void:
+		if state == RoomDoor.DoorState.OPEN:
+			if exit_door.request_transition():
+				transition_attempts += 1
+
+	exit_door.state_changed.connect(on_exit_opened)
+	for enemy: Node in manager.current_room.call("get_active_enemies"):
+		if enemy.has_method("take_damage"):
+			enemy.call("take_damage", 99)
+
+	_runner.assert_true(session_ui.call("is_reward_choice_visible"), "combat clear opens reward before exit transition can steal the room")
+	_runner.assert_eq(manager.current_room_id, combat_room_id, "reward pause keeps player in the cleared combat room")
+	_runner.assert_eq(transition_attempts, 0, "exit door transition is blocked while reward modal pauses")
+
+	exit_door.state_changed.disconnect(on_exit_opened)
 	session.queue_free()
 
 
@@ -306,15 +372,40 @@ func test_session_ui_can_resume_while_tree_is_paused() -> void:
 
 	var session_ui: CanvasLayer = session.get_node("%SessionUIRoot")
 	var map_tab: Button = session_ui.get_node("%MapTabButton")
+	var modal := session.get_node("%ConfirmModal") as ConfirmModal
 
-	session._on_pause_requested()
+	_runner.assert_true(UiTestHarness.press_by_test_id(session_ui, "session.map_tab"), "top-left map tab requests pause")
 	_runner.assert_true(get_tree().paused, "pause request pauses scene tree")
 	_runner.assert_eq(session_ui.process_mode, Node.PROCESS_MODE_ALWAYS)
 	_runner.assert_true(session_ui.can_process(), "session UI still processes while paused")
 	_runner.assert_true(map_tab.can_process(), "map tab still processes while paused")
+	_runner.assert_true(modal.is_open(), "pause request opens a visible modal")
+	_runner.assert_eq(modal.get_message_text(), "일시정지", "pause modal uses short player-facing copy")
 
-	_runner.assert_true(UiTestHarness.press_by_test_id(session_ui, "session.map_tab"), "map tab can be pressed by stable test id")
-	_runner.assert_false(get_tree().paused, "map tab resumes the paused scene tree")
+	var continue_button := UiTestHarness.find_by_test_id(modal, ConfirmModal.TEST_ID_YES) as Button
+	var exit_button := UiTestHarness.find_by_test_id(modal, ConfirmModal.TEST_ID_NO) as Button
+	_runner.assert_eq(continue_button.text, "계속하기", "pause modal exposes a continue action")
+	_runner.assert_eq(exit_button.text, "나가기", "pause modal exposes an exit action")
+
+	_runner.assert_true(UiTestHarness.press_by_test_id(modal, ConfirmModal.TEST_ID_YES), "continue button can be pressed by stable test id")
+	_runner.assert_false(modal.is_open(), "continue closes the pause modal")
+	_runner.assert_false(get_tree().paused, "continue resumes the paused scene tree")
+
+	session.queue_free()
+
+
+func test_session_pause_modal_exit_opens_abandon_confirmation() -> void:
+	var packed := load("res://scenes/session/session_root.tscn") as PackedScene
+	var session := packed.instantiate()
+	add_child(session)
+
+	var modal := session.get_node("%ConfirmModal") as ConfirmModal
+	session._on_pause_requested()
+
+	_runner.assert_true(UiTestHarness.press_by_test_id(modal, ConfirmModal.TEST_ID_NO), "exit button can be pressed by stable test id")
+	_runner.assert_true(modal.is_open(), "exit opens the abandon confirmation")
+	_runner.assert_eq(modal.get_message_text(), "런을 포기할까요? 이번 밤 보상은 사라지고 영구 재화는 유지됩니다", "exit action reuses the abandon confirmation")
+	_runner.assert_true(get_tree().paused, "abandon confirmation keeps gameplay paused")
 
 	session.queue_free()
 
@@ -579,6 +670,20 @@ func _first_room_of_type(layout: RoomLayout, room_type: StringName) -> RoomDef:
 		if room_def.room_type == room_type:
 			return room_def
 	return null
+
+
+func _defeat_all_combat_waves(room: Node) -> void:
+	var guard := 0
+	while room.has_method("get_active_enemies") and room.has_method("is_cleared") and not room.call("is_cleared"):
+		var enemies: Array = room.call("get_active_enemies")
+		if enemies.is_empty():
+			return
+		for enemy: Node in enemies:
+			if enemy.has_method("take_damage"):
+				enemy.call("take_damage", 99)
+		guard += 1
+		if guard > 8:
+			return
 
 
 func _first_connected_room_id(layout: RoomLayout, room_id: StringName) -> StringName:

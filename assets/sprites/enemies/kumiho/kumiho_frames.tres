@@ -1,0 +1,94 @@
+[gd_resource type="SpriteFrames" load_steps=14 format=3]
+
+[ext_resource type="Texture2D" path="res://assets/sprites/enemies/kumiho/kumiho_move.png" id="1_move"]
+[ext_resource type="Texture2D" path="res://assets/sprites/enemies/kumiho/kumiho_attack.png" id="2_attack"]
+
+[sub_resource type="AtlasTexture" id="move0"]
+atlas = ExtResource("1_move")
+region = Rect2(0, 0, 128, 128)
+
+[sub_resource type="AtlasTexture" id="move1"]
+atlas = ExtResource("1_move")
+region = Rect2(128, 0, 128, 128)
+
+[sub_resource type="AtlasTexture" id="move2"]
+atlas = ExtResource("1_move")
+region = Rect2(256, 0, 128, 128)
+
+[sub_resource type="AtlasTexture" id="move3"]
+atlas = ExtResource("1_move")
+region = Rect2(384, 0, 128, 128)
+
+[sub_resource type="AtlasTexture" id="move4"]
+atlas = ExtResource("1_move")
+region = Rect2(512, 0, 128, 128)
+
+[sub_resource type="AtlasTexture" id="attack0"]
+atlas = ExtResource("2_attack")
+region = Rect2(0, 0, 128, 128)
+
+[sub_resource type="AtlasTexture" id="attack1"]
+atlas = ExtResource("2_attack")
+region = Rect2(128, 0, 128, 128)
+
+[sub_resource type="AtlasTexture" id="attack2"]
+atlas = ExtResource("2_attack")
+region = Rect2(256, 0, 128, 128)
+
+[sub_resource type="AtlasTexture" id="attack3"]
+atlas = ExtResource("2_attack")
+region = Rect2(384, 0, 128, 128)
+
+[sub_resource type="AtlasTexture" id="attack4"]
+atlas = ExtResource("2_attack")
+region = Rect2(512, 0, 128, 128)
+
+[sub_resource type="AtlasTexture" id="attack5"]
+atlas = ExtResource("2_attack")
+region = Rect2(640, 0, 128, 128)
+
+[resource]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("move0")
+}, {
+"duration": 1.0,
+"texture": SubResource("move1")
+}, {
+"duration": 1.0,
+"texture": SubResource("move2")
+}, {
+"duration": 1.0,
+"texture": SubResource("move3")
+}, {
+"duration": 1.0,
+"texture": SubResource("move4")
+}],
+"loop": true,
+"name": &"move",
+"speed": 8.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("attack0")
+}, {
+"duration": 1.0,
+"texture": SubResource("attack1")
+}, {
+"duration": 1.0,
+"texture": SubResource("attack2")
+}, {
+"duration": 1.0,
+"texture": SubResource("attack3")
+}, {
+"duration": 1.0,
+"texture": SubResource("attack4")
+}, {
+"duration": 1.0,
+"texture": SubResource("attack5")
+}],
+"loop": false,
+"name": &"attack",
+"speed": 12.0
+}]

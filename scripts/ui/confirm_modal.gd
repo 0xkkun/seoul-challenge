@@ -26,8 +26,17 @@ func _ready() -> void:
 	_apply_button_styles(false)
 
 
-func open(message: String, on_yes: Callable, on_no: Callable = Callable(), danger: bool = false) -> void:
+func open(
+	message: String,
+	on_yes: Callable,
+	on_no: Callable = Callable(),
+	danger: bool = false,
+	yes_text: String = "예",
+	no_text: String = "아니오"
+) -> void:
 	_message_label.text = message
+	_yes_button.text = yes_text
+	_no_button.text = no_text
 	_yes_callback = on_yes
 	_no_callback = on_no
 	_danger = danger

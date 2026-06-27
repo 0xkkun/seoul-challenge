@@ -70,6 +70,7 @@ var _unlock_items: Array[Dictionary] = []
 var _portrait_frame_count := 1
 var _portrait_elapsed := 0.0
 var _portrait_fps := 1.6
+var _portrait_animates := false
 
 
 func _ready() -> void:
@@ -91,7 +92,7 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
-	if not _portrait_sprite.visible or _portrait_frame_count <= 1:
+	if not _portrait_sprite.visible or not _portrait_animates or _portrait_frame_count <= 1:
 		return
 	_portrait_elapsed += delta
 	_portrait_sprite.frame = int(_portrait_elapsed * _portrait_fps) % _portrait_frame_count
@@ -133,7 +134,9 @@ func set_dialogue(
 	next_dialogue_text: String,
 	next_memory_text := "",
 	portrait_color := PORTRAIT_COLOR,
-	portrait_texture: Texture2D = null
+	portrait_texture: Texture2D = null,
+	portrait_frame_index := 0,
+	portrait_animates := false
 ) -> void:
 	_speaker_name = next_speaker_name
 	_dialogue_text = next_dialogue_text
@@ -141,7 +144,7 @@ func set_dialogue(
 	_name_label.text = _speaker_name
 	_dialogue_label.text = _dialogue_text
 	_memory_label.text = _memory_text
-	_configure_portrait(portrait_color, portrait_texture)
+	_configure_portrait(portrait_color, portrait_texture, portrait_frame_index, portrait_animates)
 
 
 func get_speaker_name() -> String:
@@ -162,6 +165,14 @@ func is_portrait_sprite_visible() -> bool:
 
 func get_portrait_frame_count() -> int:
 	return _portrait_frame_count
+
+
+func get_portrait_frame() -> int:
+	return _portrait_sprite.frame
+
+
+func is_portrait_animating() -> bool:
+	return _portrait_animates
 
 
 func get_portrait_texture_path() -> String:
@@ -293,12 +304,18 @@ func _input(event: InputEvent) -> void:
 	select_choice(choice_id)
 
 
-func _configure_portrait(portrait_color: Color, portrait_texture: Texture2D) -> void:
+func _configure_portrait(
+	portrait_color: Color,
+	portrait_texture: Texture2D,
+	portrait_frame_index: int,
+	portrait_animates: bool
+) -> void:
 	if portrait_texture == null:
 		_portrait_sprite.visible = false
 		_portrait_sprite.texture = null
 		_portrait_frame_count = 1
 		_portrait_elapsed = 0.0
+		_portrait_animates = false
 		_portrait_panel.color = portrait_color
 		_portrait_accent.visible = true
 		_portrait_accent.color = PORTRAIT_ACCENT_COLOR
@@ -310,9 +327,10 @@ func _configure_portrait(portrait_color: Color, portrait_texture: Texture2D) -> 
 	_portrait_sprite.texture = portrait_texture
 	_portrait_sprite.hframes = _get_square_sheet_hframes(portrait_texture)
 	_portrait_sprite.vframes = 1
-	_portrait_sprite.frame = 0
 	_portrait_frame_count = maxi(1, _portrait_sprite.hframes * _portrait_sprite.vframes)
+	_portrait_sprite.frame = clampi(portrait_frame_index, 0, _portrait_frame_count - 1)
 	_portrait_elapsed = 0.0
+	_portrait_animates = portrait_animates
 
 
 func _get_square_sheet_hframes(texture: Texture2D) -> int:

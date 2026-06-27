@@ -70,9 +70,9 @@ func mark_cleared() -> void:
 		return
 	_cleared = true
 	cleared.emit(room_id)
-	_apply_door_state()
 	if has_node("/root/EventBus"):
 		EventBus.emit_room_cleared(_build_payload())
+	_apply_door_state()
 
 
 func restore_cleared_state() -> void:

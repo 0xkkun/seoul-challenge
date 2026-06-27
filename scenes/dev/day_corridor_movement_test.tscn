@@ -1,4 +1,4 @@
-[gd_scene load_steps=14 format=3]
+[gd_scene load_steps=16 format=3]
 
 [ext_resource type="Script" path="res://scripts/dev/day_corridor_movement_test.gd" id="1_demo"]
 [ext_resource type="Texture2D" path="res://assets/backgrounds/corridor/day/school_bg_left.png" id="2_bg1"]
@@ -8,7 +8,9 @@
 [ext_resource type="Script" path="res://scripts/dev/day_corridor_touch_proxy.gd" id="6_proxy"]
 [ext_resource type="Texture2D" path="res://assets/characters/student/walking.png" id="7_student"]
 [ext_resource type="Texture2D" path="res://assets/characters/student/idle.png" id="12_idle"]
-[ext_resource type="Texture2D" path="res://assets/characters/school/day_friend.png" id="13_friend"]
+[ext_resource type="Texture2D" path="res://assets/characters/school/people2.png" id="14_people2"]
+[ext_resource type="Texture2D" path="res://assets/characters/school/people3.png" id="15_people3"]
+[ext_resource type="Texture2D" path="res://assets/characters/school/people4.png" id="16_people4"]
 [ext_resource type="PackedScene" path="res://scenes/ui/hub_dialogue_ui.tscn" id="8_dialogue"]
 [ext_resource type="Script" path="res://scripts/dev/uat_command_bridge.gd" id="9_uat"]
 [ext_resource type="Texture2D" path="res://assets/ui/icons/gear.svg" id="10_gear"]
@@ -16,9 +18,9 @@
 
 [node name="DayCorridorMovementTest" type="Node2D"]
 script = ExtResource("1_demo")
-talk_target_texture = ExtResource("13_friend")
+talk_target_texture = ExtResource("14_people2")
 character_idle_texture = ExtResource("12_idle")
-dialogue_portrait_texture = ExtResource("13_friend")
+dialogue_portrait_texture = ExtResource("14_people2")
 
 [node name="Background" type="Node2D" parent="."]
 unique_name_in_owner = true
@@ -44,23 +46,61 @@ z_index = 2
 color = Color(0.035, 0.045, 0.06, 0.06)
 polygon = PackedVector2Array(0, 0, 2176, 0, 2176, 720, 0, 720)
 
-[node name="TalkTarget" type="Node2D" parent="."]
+[node name="LeftSchoolCharacters" type="Node2D" parent="."]
 unique_name_in_owner = true
-position = Vector2(1010, 616)
+
+[node name="TalkTarget" type="Node2D" parent="LeftSchoolCharacters"]
+unique_name_in_owner = true
+position = Vector2(1018, 628)
 z_index = 8
 
-[node name="TalkTargetSprite" type="Sprite2D" parent="TalkTarget"]
+[node name="TalkTargetSprite" type="Sprite2D" parent="LeftSchoolCharacters/TalkTarget"]
 unique_name_in_owner = true
+self_modulate = Color(0.94, 0.92, 0.88, 1)
 position = Vector2(0, -128)
 scale = Vector2(2, 2)
 texture_filter = 1
-texture = ExtResource("13_friend")
+texture = ExtResource("14_people2")
+hframes = 8
+vframes = 1
+
+[node name="RightSchoolCharacters" type="Node2D" parent="."]
+unique_name_in_owner = true
+visible = false
+
+[node name="RightStudent3" type="Node2D" parent="RightSchoolCharacters"]
+unique_name_in_owner = true
+position = Vector2(690, 628)
+z_index = 7
+
+[node name="RightStudent3Sprite" type="Sprite2D" parent="RightSchoolCharacters/RightStudent3"]
+unique_name_in_owner = true
+self_modulate = Color(0.94, 0.92, 0.88, 1)
+position = Vector2(0, -128)
+scale = Vector2(2, 2)
+texture_filter = 1
+texture = ExtResource("15_people3")
+hframes = 8
+vframes = 1
+
+[node name="RightCrowd" type="Node2D" parent="RightSchoolCharacters"]
+unique_name_in_owner = true
+position = Vector2(1390, 628)
+z_index = 6
+
+[node name="RightCrowdSprite" type="Sprite2D" parent="RightSchoolCharacters/RightCrowd"]
+unique_name_in_owner = true
+self_modulate = Color(0.94, 0.92, 0.88, 1)
+position = Vector2(0, -128)
+scale = Vector2(2, 2)
+texture_filter = 1
+texture = ExtResource("16_people4")
 hframes = 8
 vframes = 1
 
 [node name="Player" parent="." instance=ExtResource("4_player")]
 unique_name_in_owner = true
-position = Vector2(440, 616)
+position = Vector2(440, 628)
 z_index = 10
 move_speed = 360.0
 touch_controls_path = NodePath("../MoveOnlyTouchProxy")

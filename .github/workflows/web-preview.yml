@@ -1,0 +1,140 @@
+name: Web Preview
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: web-preview-build-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || format('run-{0}', github.run_id) }}
+  cancel-in-progress: true
+
+jobs:
+  build-web-preview:
+    name: Web Preview
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      PREVIEW_ID: ${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || format('run-{0}', github.run_number) }}
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7.0.0
+
+      - name: Set up Godot
+        uses: chickensoft-games/setup-godot@v2.4.1
+        with:
+          version: 4.6.3
+          use-dotnet: false
+          include-templates: true
+
+      - name: Export web preview
+        run: bash scripts/export_web_preview.sh
+
+      - name: Upload web preview artifact
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: web-preview-${{ env.PREVIEW_ID }}
+          path: build/web/
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Summarize artifact
+        shell: bash
+        run: |
+          {
+            echo "## Web Preview"
+            echo
+            echo "- Artifact: \`web-preview-${PREVIEW_ID}\`"
+            if [ "${{ github.event_name }}" = "pull_request" ] && [ "${{ github.event.pull_request.head.repo.full_name }}" = "${{ github.repository }}" ]; then
+              echo "- Branch path: \`web-previews/pr-${{ github.event.pull_request.number }}/\`"
+              echo "- Preview URL: publish job will report live URL availability."
+            else
+              echo "- Preview URL: skipped for fork/manual runs; download the artifact instead."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  publish-web-preview:
+    name: Publish Web Preview
+    needs: build-web-preview
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pages: write
+      id-token: write
+    concurrency:
+      group: web-preview-publish
+      cancel-in-progress: false
+    env:
+      PREVIEW_ID: pr-${{ github.event.pull_request.number }}
+    steps:
+      - name: Download web preview artifact
+        uses: actions/download-artifact@v8.0.1
+        with:
+          name: web-preview-${{ env.PREVIEW_ID }}
+          path: web-preview-artifact
+
+      - name: Detect GitHub Pages
+        id: pages
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          if build_type="$(gh api "repos/${GITHUB_REPOSITORY}/pages" --jq '.build_type // ""' 2>/dev/null)"; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+            echo "build_type=$build_type" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "build_type=" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Publish web preview branch
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: web-previews
+          publish_dir: web-preview-artifact
+          destination_dir: pr-${{ github.event.pull_request.number }}
+          keep_files: true
+          commit_message: "preview: PR #${{ github.event.pull_request.number }} web build"
+
+      - name: Check out web preview site
+        if: steps.pages.outputs.build_type == 'workflow'
+        uses: actions/checkout@v7.0.0
+        with:
+          ref: web-previews
+          path: web-previews-site
+
+      - name: Configure GitHub Pages
+        if: steps.pages.outputs.build_type == 'workflow'
+        uses: actions/configure-pages@v6.0.0
+
+      - name: Upload GitHub Pages artifact
+        if: steps.pages.outputs.build_type == 'workflow'
+        uses: actions/upload-pages-artifact@v5.0.0
+        with:
+          path: web-previews-site
+
+      - name: Deploy GitHub Pages preview
+        id: deployment
+        if: steps.pages.outputs.build_type == 'workflow'
+        uses: actions/deploy-pages@v5.0.0
+
+      - name: Summarize publish
+        shell: bash
+        run: |
+          {
+            echo "## Web Preview Publish"
+            echo
+            echo "- Artifact: \`web-preview-${PREVIEW_ID}\`"
+            echo "- Branch path: \`web-previews/pr-${{ github.event.pull_request.number }}/\`"
+            if [ "${{ steps.pages.outputs.build_type }}" = "workflow" ]; then
+              echo "- Preview URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/pr-${{ github.event.pull_request.number }}/"
+            else
+              echo "- Preview URL: skipped; set GitHub Pages source to \`GitHub Actions\` to publish live previews."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"

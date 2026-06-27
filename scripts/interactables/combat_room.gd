@@ -2,7 +2,7 @@ class_name CombatRoom
 extends Room
 
 const CHASER_SCENE = preload("res://scenes/enemies/chaser.tscn")
-const RANGED_SHOOTER_SCENE = preload("res://scenes/enemies/ranged_shooter.tscn")
+const RANGED_SHOOTER_SCENE = preload("res://scenes/enemies/kumiho.tscn")
 const CHASER_SPAWN_FACTORS: Array[Vector2] = [
 	Vector2(0.15, -0.35),
 	Vector2(0.45, 0.35),
@@ -23,10 +23,11 @@ signal enemy_count_changed(remaining_count: int)
 
 @export var chaser_scene: PackedScene = CHASER_SCENE
 @export var ranged_scene: PackedScene = RANGED_SHOOTER_SCENE
-@export_range(0, 12, 1) var chaser_count := 2
+@export_range(0, 12, 1) var chaser_count := 3
 @export_range(0, 12, 1) var ranged_count := 1
 @export_range(0, 12, 1) var elite_chaser_count := 0
 @export_range(0, 12, 1) var elite_ranged_count := 0
+@export_range(1, 5, 1) var wave_count := 1
 @export_range(1, 8, 1) var elite_health_multiplier := 2
 @export_range(1.0, 2.0, 0.05) var elite_speed_multiplier := 1.15
 @export_range(0.2, 1.0, 0.05) var elite_fire_interval_multiplier := 0.75
@@ -37,6 +38,8 @@ signal enemy_count_changed(remaining_count: int)
 var _combat_started := false
 var _combat_resolved := false
 var _active_enemies: Array[Node] = []
+var _pending_spawn_entries: Array[Dictionary] = []
+var _waves_spawned := 0
 
 @onready var _enemy_layer: Node2D = _resolve_enemy_layer()
 
@@ -67,6 +70,7 @@ func apply_room_config(config: Dictionary) -> void:
 	ranged_count = _config_count(config, "ranged_count", ranged_count)
 	elite_chaser_count = _config_count(config, "elite_chaser_count", elite_chaser_count)
 	elite_ranged_count = _config_count(config, "elite_ranged_count", elite_ranged_count)
+	wave_count = _config_wave_count(config, "wave_count", wave_count)
 
 
 func get_encounter_summary() -> Dictionary:
@@ -75,6 +79,7 @@ func get_encounter_summary() -> Dictionary:
 		"ranged_count": ranged_count,
 		"elite_chaser_count": elite_chaser_count,
 		"elite_ranged_count": elite_ranged_count,
+		"wave_count": wave_count,
 		"total_count": chaser_count + ranged_count + elite_chaser_count + elite_ranged_count,
 	}
 
@@ -94,6 +99,8 @@ func restore_cleared_state() -> void:
 	_combat_started = true
 	_combat_resolved = true
 	_active_enemies.clear()
+	_pending_spawn_entries.clear()
+	_waves_spawned = 0
 	super.restore_cleared_state()
 
 
@@ -113,35 +120,95 @@ func get_alive_count() -> int:
 
 func _spawn_encounter() -> void:
 	_active_enemies.clear()
-	_spawn_enemy_group(chaser_scene, chaser_count, CHASER_SPAWN_FACTORS, "Chaser")
-	_spawn_enemy_group(ranged_scene, ranged_count, RANGED_SPAWN_FACTORS, "RangedShooter")
-	_spawn_enemy_group(chaser_scene, elite_chaser_count, CHASER_SPAWN_FACTORS, "EliteChaser", true)
-	_spawn_enemy_group(ranged_scene, elite_ranged_count, RANGED_SPAWN_FACTORS, "EliteRangedShooter", true)
+	_pending_spawn_entries = _build_spawn_queue()
+	_waves_spawned = 0
+	_spawn_next_wave()
+
+
+func _build_spawn_queue() -> Array[Dictionary]:
+	var entries: Array[Dictionary] = []
+	var max_count := maxi(maxi(chaser_count, ranged_count), maxi(elite_chaser_count, elite_ranged_count))
+	for index: int in range(max_count):
+		if index < chaser_count:
+			entries.append(_spawn_entry(&"chaser", false, index))
+		if index < ranged_count:
+			entries.append(_spawn_entry(&"ranged", false, index))
+		if index < elite_chaser_count:
+			entries.append(_spawn_entry(&"chaser", true, index))
+		if index < elite_ranged_count:
+			entries.append(_spawn_entry(&"ranged", true, index))
+	return entries
+
+
+func _spawn_entry(enemy_type: StringName, elite_variant: bool, sequence: int) -> Dictionary:
+	return {
+		"enemy_type": enemy_type,
+		"elite_variant": elite_variant,
+		"sequence": sequence,
+	}
+
+
+func _spawn_next_wave() -> void:
+	if _pending_spawn_entries.is_empty():
+		enemy_count_changed.emit(_active_enemies.size())
+		return
+
+	var remaining_waves := maxi(1, wave_count - _waves_spawned)
+	var batch_size := maxi(1, int(ceil(float(_pending_spawn_entries.size()) / float(remaining_waves))))
+	for _index: int in range(batch_size):
+		if _pending_spawn_entries.is_empty():
+			break
+		var entry: Dictionary = _pending_spawn_entries.pop_front()
+		_spawn_enemy_entry(entry)
+	_waves_spawned += 1
 	enemy_count_changed.emit(_active_enemies.size())
 
 
-func _spawn_enemy_group(
+func _spawn_enemy_entry(entry: Dictionary) -> void:
+	var enemy_type := entry.get("enemy_type", &"chaser") as StringName
+	var elite_variant := bool(entry.get("elite_variant", false))
+	var sequence := int(entry.get("sequence", 0))
+
+	if enemy_type == &"ranged":
+		_spawn_enemy_instance(
+			ranged_scene,
+			RANGED_SPAWN_FACTORS,
+			"EliteKumiho" if elite_variant else "Kumiho",
+			sequence,
+			elite_variant
+		)
+		return
+
+	_spawn_enemy_instance(
+		chaser_scene,
+		CHASER_SPAWN_FACTORS,
+		"EliteChaser" if elite_variant else "Chaser",
+		sequence,
+		elite_variant
+	)
+
+
+func _spawn_enemy_instance(
 	scene: PackedScene,
-	count: int,
 	spawn_factors: Array[Vector2],
 	name_prefix: String,
+	sequence: int,
 	elite_variant := false
 ) -> void:
-	if scene == null or count <= 0 or spawn_factors.is_empty():
+	if scene == null or spawn_factors.is_empty():
 		return
-	for index in range(count):
-		var enemy := scene.instantiate()
-		if not enemy is Node2D:
-			enemy.queue_free()
-			continue
-		_apply_enemy_variant(enemy, elite_variant)
-		_enemy_layer.add_child(enemy)
-		enemy.name = "%s%d" % [name_prefix, index + 1]
-		(enemy as Node2D).position = _spawn_position_for_factor(spawn_factors[index % spawn_factors.size()])
-		if enemy.has_method("set_movement_bounds"):
-			enemy.call("set_movement_bounds", _enemy_movement_bounds())
-		_connect_enemy(enemy)
-		_active_enemies.append(enemy)
+	var enemy := scene.instantiate()
+	if not enemy is Node2D:
+		enemy.queue_free()
+		return
+	_apply_enemy_variant(enemy, elite_variant)
+	_enemy_layer.add_child(enemy)
+	enemy.name = "%s%d" % [name_prefix, sequence + 1]
+	(enemy as Node2D).position = _spawn_position_for_factor(spawn_factors[sequence % spawn_factors.size()])
+	if enemy.has_method("set_movement_bounds"):
+		enemy.call("set_movement_bounds", _enemy_movement_bounds())
+	_connect_enemy(enemy)
+	_active_enemies.append(enemy)
 
 
 func _apply_enemy_variant(enemy: Node, elite_variant: bool) -> void:
@@ -160,11 +227,13 @@ func _apply_enemy_variant(enemy: Node, elite_variant: bool) -> void:
 	if _has_property(enemy, "fire_interval"):
 		enemy.set("fire_interval", maxf(0.35, float(enemy.get("fire_interval")) * elite_fire_interval_multiplier))
 
-	var placeholder := enemy.get_node_or_null("Placeholder")
-	if placeholder is Polygon2D:
-		(placeholder as Polygon2D).color = ELITE_COLOR
-	elif placeholder is CanvasItem:
-		(placeholder as CanvasItem).modulate = ELITE_COLOR
+	var visual := enemy.get_node_or_null("Placeholder")
+	if visual == null:
+		visual = enemy.get_node_or_null("Sprite")
+	if visual is Polygon2D:
+		(visual as Polygon2D).color = ELITE_COLOR
+	elif visual is CanvasItem:
+		(visual as CanvasItem).modulate = ELITE_COLOR
 
 
 func _connect_enemy(enemy: Node) -> void:
@@ -181,6 +250,9 @@ func _on_enemy_defeated(enemy: Node) -> void:
 	_active_enemies.erase(enemy)
 	_emit_ingame_reward(enemy_defeat_ingame_reward, "enemy_defeated")
 	var remaining := get_remaining_enemy_count()
+	if remaining == 0 and not _pending_spawn_entries.is_empty():
+		_spawn_next_wave()
+		return
 	enemy_count_changed.emit(remaining)
 	if remaining == 0:
 		resolve_combat()
@@ -217,6 +289,12 @@ func _config_count(config: Dictionary, key: String, fallback: int) -> int:
 	if not config.has(key):
 		return fallback
 	return clampi(int(config[key]), 0, 12)
+
+
+func _config_wave_count(config: Dictionary, key: String, fallback: int) -> int:
+	if not config.has(key):
+		return fallback
+	return clampi(int(config[key]), 1, 5)
 
 
 func _set_int_property(node: Node, property_name: String, value: int) -> void:

@@ -1,0 +1,39 @@
+[gd_resource type="SpriteFrames" load_steps=6 format=3]
+
+[ext_resource type="Texture2D" path="res://assets/sprites/enemies/kumiho/kumiho_fireball.png" id="1_fireball"]
+
+[sub_resource type="AtlasTexture" id="fly0"]
+atlas = ExtResource("1_fireball")
+region = Rect2(0, 0, 128, 128)
+
+[sub_resource type="AtlasTexture" id="fly1"]
+atlas = ExtResource("1_fireball")
+region = Rect2(128, 0, 128, 128)
+
+[sub_resource type="AtlasTexture" id="fly2"]
+atlas = ExtResource("1_fireball")
+region = Rect2(256, 0, 128, 128)
+
+[sub_resource type="AtlasTexture" id="fly3"]
+atlas = ExtResource("1_fireball")
+region = Rect2(384, 0, 128, 128)
+
+[resource]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("fly0")
+}, {
+"duration": 1.0,
+"texture": SubResource("fly1")
+}, {
+"duration": 1.0,
+"texture": SubResource("fly2")
+}, {
+"duration": 1.0,
+"texture": SubResource("fly3")
+}],
+"loop": true,
+"name": &"fly",
+"speed": 12.0
+}]

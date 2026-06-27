@@ -14,13 +14,20 @@ const DEFAULT_MAP_NAME := "경복궁"
 const MAP_TAB_TEST_ID := "session.map_tab"
 const MAP_TAB_ACTION := "session.map_tab"
 const MobileSafeArea := preload("res://scripts/ui/mobile_safe_area.gd")
+const REWARD_CHOICE_DIM_ALPHA := 0.66
+const REWARD_CHOICE_PANEL_OFFSET_LEFT := -380.0
+const REWARD_CHOICE_PANEL_OFFSET_TOP := -164.0
+const REWARD_CHOICE_PANEL_OFFSET_RIGHT := 380.0
+const REWARD_CHOICE_PANEL_OFFSET_BOTTOM := 164.0
+const REWARD_CHOICE_PANEL_SLIDE_OFFSET := 36.0
+const REWARD_CHOICE_OPEN_DURATION := 0.18
 const UNLOCK_LABELS := {
 	&"baseball_stage_3": "야구부 STAGE 3",
 	&"awakened_bat": "마지막 시즌의 배트",
 }
 
 @onready var map_tab_button: Button = %MapTabButton
-@onready var top_panel: HBoxContainer = $Root/TopPanel
+@onready var top_panel: Control = $Root/TopPanel
 @onready var status_label: Label = %StatusLabel
 @onready var interaction_label: Label = %InteractionLabel
 @onready var summary_overlay: Control = %SummaryOverlay
@@ -37,9 +44,12 @@ const UNLOCK_LABELS := {
 @onready var retry_button: Button = %RetryButton
 
 var _reward_choice_overlay: Control = null
+var _reward_choice_dim: ColorRect = null
+var _reward_choice_panel: PanelContainer = null
 var _reward_choice_row: HBoxContainer = null
 var _reward_choice_room_id: StringName = &""
 var _reward_choice_models: Array[Dictionary] = []
+var _reward_choice_open_tween: Tween = null
 
 
 func _ready() -> void:
@@ -59,8 +69,9 @@ func _ready() -> void:
 	return_button.pressed.connect(_on_return_button_pressed)
 	retry_button.pressed.connect(_on_retry_button_pressed)
 	set_map_name(DEFAULT_MAP_NAME)
-	set_status("밤런 준비")
-	set_interaction_count(0)
+	top_panel.visible = false
+	status_label.text = ""
+	interaction_label.text = ""
 	show_summary({})
 
 
@@ -157,12 +168,17 @@ func show_reward_choices(room_id: StringName, choices: Array) -> void:
 	for choice: Dictionary in choices:
 		_reward_choice_models.append(choice.duplicate(true))
 	_render_reward_choices()
-	_reward_choice_overlay.visible = not _reward_choice_models.is_empty()
+	if _reward_choice_models.is_empty():
+		hide_reward_choices()
+		return
+	_show_reward_choice_overlay_animated()
 
 
 func hide_reward_choices() -> void:
+	_kill_reward_choice_open_tween()
 	if _reward_choice_overlay != null:
 		_reward_choice_overlay.visible = false
+	_reset_reward_choice_animation_to_rest()
 
 
 func is_reward_choice_visible() -> bool:
@@ -208,6 +224,21 @@ func get_reward_choice_snapshot() -> Dictionary:
 	}
 
 
+func get_reward_choice_animation_snapshot() -> Dictionary:
+	_ensure_reward_choice_overlay()
+	return {
+		"visible": is_reward_choice_visible(),
+		"overlay_process_mode": _reward_choice_overlay.process_mode,
+		"dim_alpha": _reward_choice_dim.modulate.a,
+		"panel_alpha": _reward_choice_panel.modulate.a,
+		"panel_offset_top": _reward_choice_panel.offset_top,
+		"target_offset_top": REWARD_CHOICE_PANEL_OFFSET_TOP,
+		"panel_offset_bottom": _reward_choice_panel.offset_bottom,
+		"target_offset_bottom": REWARD_CHOICE_PANEL_OFFSET_BOTTOM,
+		"slide_offset": REWARD_CHOICE_PANEL_SLIDE_OFFSET,
+	}
+
+
 func _apply_button_styles() -> void:
 	PixelButtonStyle.apply(map_tab_button, PixelButtonStyle.VARIANT_PRIMARY, Vector2(144.0, 50.0))
 	PixelButtonStyle.apply(return_button, PixelButtonStyle.VARIANT_PRIMARY, Vector2(0.0, 58.0))
@@ -221,15 +252,17 @@ func _ensure_reward_choice_overlay() -> void:
 	_reward_choice_overlay = Control.new()
 	_reward_choice_overlay.name = "RewardChoiceOverlay"
 	_reward_choice_overlay.visible = false
+	_reward_choice_overlay.process_mode = Node.PROCESS_MODE_ALWAYS
 	_reward_choice_overlay.mouse_filter = Control.MOUSE_FILTER_STOP
 	_reward_choice_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
 	root.add_child(_reward_choice_overlay)
 
 	var dim := ColorRect.new()
 	dim.name = "RewardChoiceDim"
-	dim.color = Color(0.0156863, 0.0156863, 0.0235294, 0.66)
+	dim.color = Color(0.0156863, 0.0156863, 0.0235294, REWARD_CHOICE_DIM_ALPHA)
 	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_reward_choice_overlay.add_child(dim)
+	_reward_choice_dim = dim
 
 	var panel := PanelContainer.new()
 	panel.name = "RewardChoicePanel"
@@ -237,12 +270,13 @@ func _ensure_reward_choice_overlay() -> void:
 	panel.anchor_top = 0.5
 	panel.anchor_right = 0.5
 	panel.anchor_bottom = 0.5
-	panel.offset_left = -380.0
-	panel.offset_top = -164.0
-	panel.offset_right = 380.0
-	panel.offset_bottom = 164.0
+	panel.offset_left = REWARD_CHOICE_PANEL_OFFSET_LEFT
+	panel.offset_top = REWARD_CHOICE_PANEL_OFFSET_TOP
+	panel.offset_right = REWARD_CHOICE_PANEL_OFFSET_RIGHT
+	panel.offset_bottom = REWARD_CHOICE_PANEL_OFFSET_BOTTOM
 	panel.add_theme_stylebox_override("panel", _reward_choice_panel_style())
 	_reward_choice_overlay.add_child(panel)
+	_reward_choice_panel = panel
 
 	var margin := MarginContainer.new()
 	margin.name = "RewardChoiceMargin"
@@ -269,6 +303,42 @@ func _ensure_reward_choice_overlay() -> void:
 	_reward_choice_row.name = "RewardChoiceRow"
 	_reward_choice_row.add_theme_constant_override("separation", 12)
 	stack.add_child(_reward_choice_row)
+
+	_reset_reward_choice_animation_to_rest()
+
+
+func _show_reward_choice_overlay_animated() -> void:
+	_kill_reward_choice_open_tween()
+	_reward_choice_overlay.visible = true
+	_reward_choice_dim.modulate.a = 0.0
+	_reward_choice_panel.modulate.a = 0.0
+	_reward_choice_panel.offset_top = REWARD_CHOICE_PANEL_OFFSET_TOP + REWARD_CHOICE_PANEL_SLIDE_OFFSET
+	_reward_choice_panel.offset_bottom = REWARD_CHOICE_PANEL_OFFSET_BOTTOM + REWARD_CHOICE_PANEL_SLIDE_OFFSET
+
+	_reward_choice_open_tween = create_tween()
+	_reward_choice_open_tween.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
+	_reward_choice_open_tween.set_parallel(true)
+	_reward_choice_open_tween.tween_property(_reward_choice_dim, "modulate:a", 1.0, REWARD_CHOICE_OPEN_DURATION)
+	_reward_choice_open_tween.tween_property(_reward_choice_panel, "modulate:a", 1.0, REWARD_CHOICE_OPEN_DURATION)
+	_reward_choice_open_tween.tween_property(_reward_choice_panel, "offset_top", REWARD_CHOICE_PANEL_OFFSET_TOP, REWARD_CHOICE_OPEN_DURATION).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	_reward_choice_open_tween.tween_property(_reward_choice_panel, "offset_bottom", REWARD_CHOICE_PANEL_OFFSET_BOTTOM, REWARD_CHOICE_OPEN_DURATION).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+
+
+func _kill_reward_choice_open_tween() -> void:
+	if _reward_choice_open_tween != null:
+		_reward_choice_open_tween.kill()
+		_reward_choice_open_tween = null
+
+
+func _reset_reward_choice_animation_to_rest() -> void:
+	if _reward_choice_dim != null:
+		_reward_choice_dim.modulate.a = 1.0
+	if _reward_choice_panel != null:
+		_reward_choice_panel.modulate.a = 1.0
+		_reward_choice_panel.offset_left = REWARD_CHOICE_PANEL_OFFSET_LEFT
+		_reward_choice_panel.offset_top = REWARD_CHOICE_PANEL_OFFSET_TOP
+		_reward_choice_panel.offset_right = REWARD_CHOICE_PANEL_OFFSET_RIGHT
+		_reward_choice_panel.offset_bottom = REWARD_CHOICE_PANEL_OFFSET_BOTTOM
 
 
 func _reward_choice_panel_style() -> StyleBoxFlat:

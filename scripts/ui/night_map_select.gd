@@ -141,7 +141,8 @@ func _make_action_button(node_name: String, text: String, relative_rect: Rect2, 
 	button.add_theme_font_size_override("font_size", 22)
 	button.focus_mode = Control.FOCUS_NONE
 	var variant := PixelButton.VARIANT_PRIMARY if action == ACTION_SELECT_GYEONGBOKGUNG else PixelButton.VARIANT_SECONDARY
-	PixelButton.apply(button, variant, Vector2(0.0, 64.0))
+	var with_press_sfx := action != ACTION_SELECT_GYEONGBOKGUNG
+	PixelButton.apply(button, variant, Vector2(0.0, 64.0), with_press_sfx)
 	button.set_meta("test_id", action.replace(".", "_"))
 	button.set_meta("uat_action", action)
 	return button

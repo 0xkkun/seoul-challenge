@@ -16,6 +16,7 @@ func _set_runner(runner: Node) -> void:
 
 func after_each() -> void:
 	SceneTransition.clear_pending_run_config()
+	AudioManager.reset()
 	for child: Node in get_children():
 		remove_child(child)
 		child.free()
@@ -159,6 +160,19 @@ func test_night_map_select_is_separate_from_locker_maintenance() -> void:
 	_runner.assert_true(departure_button.anchor_bottom <= expected_bottom, "departure CTA stays above landscape phone home indicator")
 	_runner.assert_true(UiTestHarness.press_by_uat_action(screen, NightMapSelectScript.ACTION_SELECT_GYEONGBOKGUNG), "test harness can still reach the disabled button")
 	_runner.assert_eq(selected_stages, [NightMapSelectScript.STAGE_GYEONGBOKGUNG], "double departure does not emit another stage")
+
+
+func test_night_map_departure_uses_bell_without_generic_press_sfx() -> void:
+	AudioManager.reset()
+	var screen := NightMapSelectScene.instantiate()
+	screen.set("scene_transition_enabled", false)
+	add_child(screen)
+
+	_runner.assert_true(UiTestHarness.press_by_uat_action(screen, NightMapSelectScript.ACTION_SELECT_GYEONGBOKGUNG), "departure action is pressable")
+	_runner.assert_false(
+		AudioManager.get_played_sfx().has(AudioManager.UI_BUTTON_PRESS),
+		"departure action leaves room for the session bell instead of playing generic press SFX"
+	)
 
 
 func _assert_flat_style_border(style: StyleBox, expected_width: int, message: String) -> void:

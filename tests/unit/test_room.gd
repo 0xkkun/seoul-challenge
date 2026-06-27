@@ -10,6 +10,7 @@ func _set_runner(runner: Node) -> void:
 
 
 func after_each() -> void:
+	get_tree().paused = false
 	for child: Node in get_children():
 		child.queue_free()
 
@@ -73,6 +74,24 @@ func test_mark_cleared_emits_once_and_opens_locked_doors() -> void:
 	_runner.assert_eq(cleared_rooms, [&"activity_unit"], "mark_cleared is idempotent for local signal")
 	_runner.assert_eq(cleared_payloads.size(), 1, "mark_cleared is idempotent for event bus")
 	_runner.assert_eq(door_states, [RoomDoor.DoorState.OPEN], "door opens only once")
+
+	EventBus.room_cleared.disconnect(on_room_cleared)
+
+
+func test_room_cleared_event_fires_before_exit_doors_open() -> void:
+	var room := _create_room(&"reward_timing_unit", &"combat", [&"E"])
+	var door := room.get_door(&"E")
+	var door_open_at_event: Array[bool] = []
+	var on_room_cleared := func(_payload: Dictionary) -> void:
+		door_open_at_event.append(door.is_open())
+
+	EventBus.room_cleared.connect(on_room_cleared)
+
+	_runner.assert_true(door.is_locked(), "door starts locked before room clear")
+	room.mark_cleared()
+
+	_runner.assert_eq(door_open_at_event, [false], "reward listeners see clear before the exit door can transition")
+	_runner.assert_true(door.is_open(), "door still opens after clear event dispatch")
 
 	EventBus.room_cleared.disconnect(on_room_cleared)
 

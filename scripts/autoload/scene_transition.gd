@@ -172,6 +172,7 @@ func _change_scene(scene_path: String) -> Error:
 
 func _play_session_transition_sfx() -> void:
 	if has_node("/root/AudioManager"):
+		AudioManager.stop_bgm()
 		AudioManager.play_random_session_transition_sfx()
 
 

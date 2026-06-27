@@ -139,7 +139,7 @@ func test_treasure_room_pickup_marks_room_cleared() -> void:
 	_runner.assert_eq(pickup_events.size(), 1, "treasure pickup emits EventBus payload")
 	if pickup_events.size() == 1:
 		_runner.assert_eq(pickup_events[0]["item_id"], &"gung_talisman", "pickup payload includes item id")
-		_runner.assert_eq(pickup_events[0]["item_display_name"], "궁 부적", "pickup payload includes flavor name")
+		_runner.assert_eq(pickup_events[0]["item_display_name"], "강타 부적", "pickup payload includes readable attack name")
 		_runner.assert_true(pickup_events[0]["applied"], "pickup payload records player stat application")
 
 	EventBus.interaction_completed.disconnect(on_interaction_completed)

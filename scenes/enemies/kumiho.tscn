@@ -1,0 +1,28 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://scripts/enemies/ranged_shooter.gd" id="1_ranged"]
+[ext_resource type="SpriteFrames" path="res://assets/sprites/enemies/kumiho/kumiho_frames.tres" id="2_frames"]
+[ext_resource type="PackedScene" path="res://scenes/enemies/kumiho_fireball.tscn" id="3_fireball"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_kumiho"]
+radius = 14.0
+
+[node name="Kumiho" type="CharacterBody2D"]
+collision_layer = 1
+collision_mask = 3
+script = ExtResource("1_ranged")
+max_hp = 3
+move_speed = 82.0
+preferred_range = 240.0
+fire_interval = 1.35
+projectile_scene = ExtResource("3_fireball")
+
+[node name="Collision" type="CollisionShape2D" parent="."]
+shape = SubResource("CircleShape2D_kumiho")
+
+[node name="Sprite" type="AnimatedSprite2D" parent="."]
+texture_filter = 1
+sprite_frames = ExtResource("2_frames")
+animation = &"move"
+autoplay = "move"
+scale = Vector2(0.86, 0.86)

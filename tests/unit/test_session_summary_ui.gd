@@ -119,11 +119,23 @@ func test_map_tab_replaces_bottom_action_panel() -> void:
 	_runner.assert_false(_ui.is_action_panel_visible(), "bottom action panel is not visible during gameplay")
 
 	_ui.show_reward_choices(&"combat_1", [
-		{"item_id": &"gung_talisman", "display_name": "궁 부적"},
+		{"item_id": &"gung_talisman", "display_name": "강타 부적"},
 	])
 	_runner.assert_false(_ui.is_action_panel_visible(), "reward overlay does not restore bottom action buttons")
 	_ui.hide_reward_choices()
 	_runner.assert_false(_ui.is_action_panel_visible(), "closing overlays keeps bottom action buttons removed")
+
+
+func test_session_hides_legacy_status_copy_during_gameplay() -> void:
+	var top_panel := _ui.get_node("Root/TopPanel") as Control
+	var status_label := _ui.get_node("%StatusLabel") as Label
+	var interaction_label := _ui.get_node("%InteractionLabel") as Label
+
+	_runner.assert_false(top_panel.is_visible_in_tree(), "legacy status row is hidden during gameplay")
+	_runner.assert_false(status_label.is_visible_in_tree(), "session status copy is not rendered over gameplay")
+	_runner.assert_false(interaction_label.is_visible_in_tree(), "legacy interaction count is not rendered over gameplay")
+	_runner.assert_eq(status_label.text, "", "legacy session status starts empty")
+	_runner.assert_eq(interaction_label.text, "", "legacy interaction count starts empty")
 
 
 func test_map_tab_uses_configured_map_name_and_toggles_pause_resume_signals() -> void:
@@ -156,8 +168,8 @@ func test_reward_choices_render_three_actions_and_emit_selected_id() -> void:
 	_ui.show_reward_choices(&"combat_1", [
 		{
 			"item_id": &"gung_talisman",
-			"display_name": "궁 부적",
-			"flavor": "붉은 궁 부적이 주먹과 배트에 힘을 싣는다.",
+			"display_name": "강타 부적",
+			"flavor": "주먹과 배트의 타격이 묵직해진다.",
 			"effect": "근접 피해 +1 / 배트 피해 +1",
 		},
 		{
@@ -178,7 +190,7 @@ func test_reward_choices_render_three_actions_and_emit_selected_id() -> void:
 	_runner.assert_true(snapshot["visible"], "reward choice overlay is visible")
 	_runner.assert_eq(snapshot["room_id"], &"combat_1", "reward choice keeps source room id")
 	_runner.assert_eq(snapshot["choice_ids"], [&"gung_talisman", &"dokkaebi_fire", &"wind_step"], "reward choices keep stable item order")
-	_runner.assert_eq(snapshot["choice_texts"][0], "궁 부적", "reward button uses display name")
+	_runner.assert_eq(snapshot["choice_texts"][0], "강타 부적", "reward button uses display name")
 	_runner.assert_true(snapshot["choice_flavors"][1].contains("공격 박자"), "reward flavor is available for scan")
 	_runner.assert_true(snapshot.has("choice_effects"), "reward snapshot exposes concrete stat effects")
 	if not snapshot.has("choice_effects"):
@@ -189,6 +201,30 @@ func test_reward_choices_render_three_actions_and_emit_selected_id() -> void:
 	_runner.assert_true(_ui.select_reward_choice(&"dokkaebi_fire"), "reward choice can be selected by id")
 	_runner.assert_eq(selected_ids, [&"dokkaebi_fire"], "selection emits item id once")
 	_runner.assert_false(_ui.is_reward_choice_visible(), "selection hides reward choice overlay")
+
+
+func test_reward_choice_open_starts_slide_fade_animation() -> void:
+	get_tree().paused = true
+
+	_ui.show_reward_choices(&"combat_1", [
+		{
+			"item_id": &"gung_talisman",
+			"display_name": "강타 부적",
+			"flavor": "주먹과 배트의 타격이 묵직해진다.",
+			"effect": "근접 피해 +1 / 배트 피해 +1",
+		},
+	])
+
+	_runner.assert_true(_ui.has_method("get_reward_choice_animation_snapshot"), "reward UI exposes animation state for tests")
+	if not _ui.has_method("get_reward_choice_animation_snapshot"):
+		return
+	var snapshot: Dictionary = _ui.call("get_reward_choice_animation_snapshot")
+	_runner.assert_true(snapshot["visible"], "reward overlay is visible before animation completes")
+	_runner.assert_eq(snapshot["overlay_process_mode"], Node.PROCESS_MODE_ALWAYS, "reward overlay can animate while gameplay is paused")
+	_runner.assert_eq(snapshot["dim_alpha"], 0.0, "backdrop starts transparent for fade-in")
+	_runner.assert_eq(snapshot["panel_alpha"], 0.0, "reward panel starts transparent for fade-in")
+	_runner.assert_true(float(snapshot["panel_offset_top"]) > float(snapshot["target_offset_top"]), "reward panel starts below its target position")
+	_runner.assert_true(float(snapshot["panel_offset_bottom"]) > float(snapshot["target_offset_bottom"]), "reward panel keeps height while starting lower")
 
 
 func test_summary_renders_baseball_unlocks_when_present() -> void:
