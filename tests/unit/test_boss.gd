@@ -131,3 +131,26 @@ func test_strong_attack_hits_before_body_overlap() -> void:
 	_runner.assert_true(target.global_position.distance_to(b.global_position) > b.contact_range, "테스트 대상은 기존 접촉 판정보다 멀리 있다")
 	b.queue_free()
 	target.queue_free()
+
+
+func test_strong_attack_hit_window_closes_after_contact_frame() -> void:
+	var b = BossScene.instantiate()
+	var target := DamageTarget.new()
+	add_child(b)
+	add_child(target)
+	b.target_group = &"boss_timing_test_player"
+	target.add_to_group(&"boss_timing_test_player")
+	b.charge_speed = 0.0
+	b.global_position = Vector2.ZERO
+	target.global_position = Vector2.RIGHT * 220.0
+
+	b.set("_pattern_index", 0)
+	b.call("_begin_pattern", target)
+	b.call("_tick_strong_attack_hit", target, float(b.strong_attack_hit_frame) / b.strong_attack_animation_fps)
+	_runner.assert_eq(target.damage_taken, 0, "강공격 임팩트 프레임에 범위 밖이면 피해를 받지 않는다")
+
+	target.global_position = Vector2.RIGHT * 120.0
+	b.call("_tick_strong_attack_hit", target, 0.2)
+	_runner.assert_eq(target.damage_taken, 0, "강공격 임팩트 프레임을 놓친 뒤 늦게 들어와도 피해 판정은 다시 열리지 않는다")
+	b.queue_free()
+	target.queue_free()

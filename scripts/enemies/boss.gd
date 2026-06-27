@@ -47,6 +47,7 @@ var _phase_timer: float = 0.0
 var _pattern_index: int = 1   ## 다음 패턴 (0=돌진, 1=약공격) — 첫 사이클은 돌진부터
 var _charge_dir: Vector2 = Vector2.ZERO
 var _charge_elapsed: float = 0.0
+var _strong_attack_hit_resolved: bool = false
 var _pattern_target: Node2D = null
 var _contact_timer: float = 0.0
 var _hit_reaction: Node = null
@@ -197,6 +198,7 @@ func _begin_pattern(target: Node2D) -> void:
 	if _pattern_index == 0:
 		_charge_dir = _aim_to(target)
 		_charge_elapsed = 0.0
+		_strong_attack_hit_resolved = false
 		_phase = Phase.CHARGE
 		_phase_timer = charge_time
 		_play_attack_animation(strong_attack_animation, _charge_dir)
@@ -212,6 +214,7 @@ func _begin_recover() -> void:
 	_phase = Phase.RECOVER
 	_phase_timer = recover_time
 	_charge_elapsed = 0.0
+	_strong_attack_hit_resolved = false
 	_pattern_target = null
 	_play_move_animation()
 
@@ -243,8 +246,11 @@ func _strong_attack_hit_ready_now() -> bool:
 
 func _tick_strong_attack_hit(target: Node2D, delta: float) -> void:
 	_charge_elapsed += delta
+	if _strong_attack_hit_resolved:
+		return
 	if not _strong_attack_hit_ready_now():
 		return
+	_strong_attack_hit_resolved = true
 	_try_swing_attack(target, _charge_dir, strong_attack_range, strong_attack_arc)
 	_try_contact(target)
 
