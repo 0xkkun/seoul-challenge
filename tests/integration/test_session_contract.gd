@@ -777,6 +777,7 @@ func test_session_ui_can_resume_while_tree_is_paused() -> void:
 	var exit_button := UiTestHarness.find_by_test_id(modal, ConfirmModal.TEST_ID_NO) as Button
 	_runner.assert_eq(continue_button.text, "계속하기", "pause modal exposes a continue action")
 	_runner.assert_eq(exit_button.text, "나가기", "pause modal exposes an exit action")
+	_assert_pixel_button_style(exit_button, PixelButtonStyle.VARIANT_DANGER, "pause exit")
 
 	_runner.assert_true(UiTestHarness.press_by_test_id(modal, ConfirmModal.TEST_ID_YES), "continue button can be pressed by stable test id")
 	_runner.assert_false(modal.is_open(), "continue closes the pause modal")
@@ -1092,6 +1093,21 @@ func _first_room_of_type(layout: RoomLayout, room_type: StringName) -> RoomDef:
 		if room_def.room_type == room_type:
 			return room_def
 	return null
+
+
+func _assert_pixel_button_style(button: Button, variant: StringName, label: String) -> void:
+	_assert_pixel_button_texture(button.get_theme_stylebox("normal"), PixelButtonStyle.normal_texture_path(variant), "%s normal" % label)
+	_assert_pixel_button_texture(button.get_theme_stylebox("hover"), PixelButtonStyle.normal_texture_path(variant), "%s hover" % label)
+	_assert_pixel_button_texture(button.get_theme_stylebox("pressed"), PixelButtonStyle.pressed_texture_path(variant), "%s pressed" % label)
+	_assert_pixel_button_texture(button.get_theme_stylebox("disabled"), PixelButtonStyle.normal_texture_path(variant), "%s disabled" % label)
+
+
+func _assert_pixel_button_texture(style: StyleBox, expected_path: String, label: String) -> void:
+	var texture_style := style as StyleBoxTexture
+	_runner.assert_not_null(texture_style, "%s uses pixel style texture" % label)
+	if texture_style == null:
+		return
+	_runner.assert_eq(texture_style.texture.resource_path, expected_path, "%s uses expected pixel texture" % label)
 
 
 func _is_empty_uncleared_room(session: Node, manager: RoomManager) -> bool:

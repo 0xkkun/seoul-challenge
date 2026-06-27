@@ -36,7 +36,7 @@ func test_locker_maintenance_focuses_on_memory_weapons_and_single_map_entry() ->
 	var map_button := UiTestHarness.find_by_uat_action(screen, LockerMaintenanceScript.ACTION_OPEN_MAP) as Button
 	_runner.assert_not_null(map_button, "map action is available only as the bottom button")
 	if map_button != null:
-		_runner.assert_eq(map_button.text, "지도", "map button uses text-only copy")
+		_runner.assert_eq(map_button.text, "지도 ▶", "map button shows a forward-cue label")
 	_runner.assert_false(screen.has_node("TodayPrepPanel"), "today prep checklist panel is intentionally absent")
 	_runner.assert_false(screen.has_node("MapPreviewPanel"), "map preview panel is intentionally absent")
 	_runner.assert_false(screen.has_node("StudentIdCard"), "student id slot is intentionally removed from the maintenance layout")
@@ -58,10 +58,13 @@ func test_locker_maintenance_uses_dungeon_ui_loadout_hierarchy() -> void:
 	_runner.assert_eq(baseball_card, null, "story-unused baseball memory weapon card is removed")
 	_runner.assert_eq(bat_card.focus_mode, Control.FOCUS_NONE, "weapon slot does not show desktop focus chrome")
 	_runner.assert_eq(screen.get_weapon_card_icon_path(LockerMaintenanceScript.WEAPON_BAT), LockerMaintenanceScript.BAT_ICON_PATH, "locker bat card uses the real bat icon asset")
-	_runner.assert_eq(return_button.text, "복도", "return CTA uses text-only copy")
-	_runner.assert_eq(map_button.text, "지도", "map CTA uses text-only copy")
-	_runner.assert_eq(weapon_status.text, "선택한 기억\n\n금 간 나무 배트\n\n지도에서\n경복궁으로 이동", "selected loadout is summarized beside the slot")
-	_assert_texture_slot_style(bat_card.get_theme_stylebox("normal"), Color(1.0, 0.93, 0.62), "selected weapon slot uses the selected card frame")
+	_runner.assert_eq(return_button.text, "← 복도", "return CTA shows a back-cue label")
+	_runner.assert_eq(map_button.text, "지도 ▶", "map CTA shows a forward-cue label")
+	_runner.assert_eq(weapon_status.text, "선택한 장비\n\n금 간 나무 배트\n\n지도에서\n경복궁으로 이동", "selected loadout is summarized beside the slot")
+	var slot_box := bat_card.get_theme_stylebox("normal") as StyleBoxTexture
+	_runner.assert_not_null(slot_box, "selected weapon slot uses the shared textured card frame")
+	if slot_box != null:
+		_runner.assert_eq(slot_box.texture.resource_path, "res://assets/ui/panels/card_frame.png", "weapon slot reuses the card frame texture")
 	_assert_pixel_button_style(return_button, PixelButtonStyle.VARIANT_SECONDARY, "return")
 	_runner.assert_eq(weapon_button, null, "weapon cycle CTA is removed; selecting a weapon card is the weapon action")
 	_assert_pixel_button_style(map_button, PixelButtonStyle.VARIANT_PRIMARY, "map entry")
@@ -79,7 +82,7 @@ func test_locker_maintenance_title_and_subtitle_have_breathing_room() -> void:
 	var subtitle := screen.get_node("SubtitleLabel") as Label
 
 	_runner.assert_true(subtitle.anchor_top - title.anchor_bottom >= 0.025, "subtitle is visually separated from title")
-	_runner.assert_eq(subtitle.text, "밤의 경복궁에 들어가기 전, 가져갈 기억을 고른다.", "subtitle copy stays player-facing")
+	_runner.assert_eq(subtitle.text, "어둠에 들어서기 전, 장비를 점검한다.", "subtitle copy stays player-facing")
 
 
 func test_locker_maintenance_buttons_emit_flow_signals() -> void:

@@ -68,6 +68,24 @@ func test_no_callback_closes_danger_modal() -> void:
 	_runner.assert_eq(counts["no"], 1, "no callback runs once")
 
 
+func test_open_can_style_no_action_as_danger_without_danger_mode() -> void:
+	_modal.open(
+		"일시정지",
+		func() -> void: pass,
+		func() -> void: pass,
+		false,
+		"계속하기",
+		"나가기",
+		PixelButtonStyle.VARIANT_DANGER
+	)
+
+	_runner.assert_false(_modal.is_danger_mode(), "pause modal keeps yes action non-danger")
+	var yes_button := UiTestHarness.find_by_test_id(_modal, ConfirmModal.TEST_ID_YES) as Button
+	var no_button := UiTestHarness.find_by_test_id(_modal, ConfirmModal.TEST_ID_NO) as Button
+	_assert_pixel_button_style(yes_button, PixelButtonStyle.VARIANT_PRIMARY, "custom no yes")
+	_assert_pixel_button_style(no_button, PixelButtonStyle.VARIANT_DANGER, "custom no danger")
+
+
 func _assert_pixel_button_style(button: Button, variant: StringName, label: String) -> void:
 	_assert_pixel_button_texture(button.get_theme_stylebox("normal"), PixelButtonStyle.normal_texture_path(variant), "%s normal" % label)
 	_assert_pixel_button_texture(button.get_theme_stylebox("hover"), PixelButtonStyle.normal_texture_path(variant), "%s hover" % label)

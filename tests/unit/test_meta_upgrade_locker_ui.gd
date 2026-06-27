@@ -37,10 +37,10 @@ func _make_screen() -> Node:
 	return screen
 
 
-func test_upgrade_panel_exposes_four_buy_actions() -> void:
+func test_upgrade_panel_exposes_buy_actions() -> void:
 	_seed_permanent(0)
 	var screen := _make_screen()
-	for id: String in ["max_health", "melee_damage", "bat_damage", "dodge_charges"]:
+	for id: String in ["max_health", "attack_damage", "dodge_charges"]:
 		var action := LockerMaintenanceScript.ACTION_UPGRADE_PREFIX + id
 		_runner.assert_not_null(
 			UiTestHarness.find_by_uat_action(screen, action),

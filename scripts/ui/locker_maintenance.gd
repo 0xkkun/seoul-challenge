@@ -19,6 +19,8 @@ const ACTION_CYCLE_WEAPON := "locker_maintenance.weapon.cycle"
 const ACTION_OPEN_MAP := "locker_maintenance.map"
 const ACTION_UPGRADE_PREFIX := "locker_maintenance.upgrade."
 const BAT_ICON_PATH := "res://assets/ui/icons/seoul_challenge/baseball_bat.png"
+const BG_PATH := "res://assets/backgrounds/locker/locker_maintenance_bg.png"
+const SHARD_ICON_PATH := "res://assets/ui/icons/memory_shard.png"
 
 @export var scene_transition_enabled := true
 
@@ -71,74 +73,96 @@ func _build_ui() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_STOP
 
-	var background := ColorRect.new()
-	background.name = "Background"
-	background.set_anchors_preset(Control.PRESET_FULL_RECT)
-	background.color = DungeonTheme.COLOR_BACKDROP
-	add_child(background)
-
-	_build_locker_wall(background)
+	_build_background()
 	_build_title()
 	_build_weapon_cards()
 	_build_upgrade_panel()
 	_build_action_bar()
 
 
-func _build_locker_wall(parent: Control) -> void:
-	var wall := ColorRect.new()
-	wall.name = "LockerWall"
-	wall.anchor_left = 0.0
-	wall.anchor_top = 0.0
-	wall.anchor_right = 1.0
-	wall.anchor_bottom = 1.0
-	wall.color = Color(0.031, 0.056, 0.06, 1.0)
-	parent.add_child(wall)
+func _build_background() -> void:
+	# 레터박스 여백이 생겨도 테마 안에 머물도록 깊은 베이스를 먼저 깐다.
+	var backdrop := ColorRect.new()
+	backdrop.name = "Background"
+	backdrop.set_anchors_preset(Control.PRESET_FULL_RECT)
+	backdrop.color = DungeonTheme.COLOR_BACKDROP
+	backdrop.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(backdrop)
 
-	for index: int in range(7):
-		var locker := ColorRect.new()
-		locker.name = "Locker%d" % index
-		locker.anchor_left = 0.08 + float(index) * 0.115
-		locker.anchor_top = 0.0
-		locker.anchor_right = locker.anchor_left + 0.095
-		locker.anchor_bottom = 0.79
-		locker.color = Color(0.043, 0.106, 0.112, 0.72)
-		parent.add_child(locker)
+	# 밤 복도 + 사물함 플레이트. 비율을 유지하며 화면을 가득 덮는다.
+	var photo := TextureRect.new()
+	photo.name = "LockerPhoto"
+	photo.set_anchors_preset(Control.PRESET_FULL_RECT)
+	photo.texture = load(BG_PATH)
+	photo.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	photo.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	photo.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(photo)
 
-	var open_locker := ColorRect.new()
-	open_locker.name = "OpenLockerGlow"
-	open_locker.anchor_left = 0.58
-	open_locker.anchor_top = 0.15
-	open_locker.anchor_right = 0.75
-	open_locker.anchor_bottom = 0.78
-	open_locker.color = Color(0.039, 0.24, 0.25, 0.38)
-	parent.add_child(open_locker)
+	# 전역 스크림 — 사물함 글로우는 살리되 플레이트를 한 톤 가라앉혀 UI와 묶는다.
+	var scrim := ColorRect.new()
+	scrim.name = "Scrim"
+	scrim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	scrim.color = Color(0.02, 0.03, 0.05, 0.34)
+	scrim.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(scrim)
 
-	var hallway := ColorRect.new()
-	hallway.name = "NightHallwayHint"
-	hallway.anchor_left = 0.75
-	hallway.anchor_top = 0.0
-	hallway.anchor_right = 1.0
-	hallway.anchor_bottom = 0.79
-	hallway.color = Color(0.041, 0.039, 0.035, 1.0)
-	parent.add_child(hallway)
+	# 좌측 판독 컬럼 — 제목/카드가 복도 위에서도 또렷하게 읽히도록 왼쪽을 더 어둡게 페이드.
+	var left_fade := TextureRect.new()
+	left_fade.name = "LeftReadingFade"
+	left_fade.anchor_left = 0.0
+	left_fade.anchor_top = 0.0
+	left_fade.anchor_right = 0.6
+	left_fade.anchor_bottom = 1.0
+	left_fade.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	left_fade.stretch_mode = TextureRect.STRETCH_SCALE
+	left_fade.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	left_fade.texture = _linear_fade_texture(
+		Color(0.012, 0.018, 0.03, 0.78),
+		Color(0.012, 0.018, 0.03, 0.0),
+		Vector2(0.0, 0.0),
+		Vector2(1.0, 0.0)
+	)
+	add_child(left_fade)
 
-	var exit_glow := ColorRect.new()
-	exit_glow.name = "NightExitGlow"
-	exit_glow.anchor_left = 0.86
-	exit_glow.anchor_top = 0.20
-	exit_glow.anchor_right = 0.96
-	exit_glow.anchor_bottom = 0.61
-	exit_glow.color = Color(0.036, 0.18, 0.27, 0.82)
-	parent.add_child(exit_glow)
+	# 하단 그라운딩 — 반사된 밝은 바닥을 가라앉혀 복도/지도 버튼이 떠 보이지 않게 한다.
+	var bottom_fade := TextureRect.new()
+	bottom_fade.name = "BottomGroundingFade"
+	bottom_fade.anchor_left = 0.0
+	bottom_fade.anchor_top = 0.6
+	bottom_fade.anchor_right = 1.0
+	bottom_fade.anchor_bottom = 1.0
+	bottom_fade.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	bottom_fade.stretch_mode = TextureRect.STRETCH_SCALE
+	bottom_fade.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	bottom_fade.texture = _linear_fade_texture(
+		Color(0.01, 0.015, 0.025, 0.0),
+		Color(0.01, 0.015, 0.025, 0.82),
+		Vector2(0.0, 0.0),
+		Vector2(0.0, 1.0)
+	)
+	add_child(bottom_fade)
 
-	var floor_strip := ColorRect.new()
-	floor_strip.name = "Floor"
-	floor_strip.anchor_left = 0.0
-	floor_strip.anchor_top = 0.79
-	floor_strip.anchor_right = 1.0
-	floor_strip.anchor_bottom = 1.0
-	floor_strip.color = Color(0.022, 0.028, 0.038, 1.0)
-	parent.add_child(floor_strip)
+
+func _linear_fade_texture(
+	from_color: Color, to_color: Color, fill_from: Vector2, fill_to: Vector2
+) -> GradientTexture2D:
+	var gradient := Gradient.new()
+	gradient.set_color(0, from_color)
+	gradient.set_color(1, to_color)
+	var tex := GradientTexture2D.new()
+	tex.gradient = gradient
+	tex.width = 16 if fill_to.x == fill_from.x else 256
+	tex.height = 256 if fill_to.y == fill_from.y else 16
+	tex.fill_from = fill_from
+	tex.fill_to = fill_to
+	return tex
+
+
+func _apply_outline(label: Label, size: int) -> void:
+	# 배경 플레이트가 분주하므로 어두운 외곽선으로 글자를 떼어 읽기 쉽게 한다.
+	label.add_theme_constant_override("outline_size", size)
+	label.add_theme_color_override("font_outline_color", Color(0.01, 0.015, 0.025, 0.92))
 
 
 func _build_title() -> void:
@@ -148,10 +172,11 @@ func _build_title() -> void:
 	title.anchor_top = 0.045
 	title.anchor_right = 0.52
 	title.anchor_bottom = 0.13
-	title.text = "사물함 정비"
+	title.text = "출정 준비"
 	title.add_theme_font_size_override("font_size", 40)
 	FontRoles.apply_title(title)
 	title.add_theme_color_override("font_color", DungeonTheme.COLOR_GOLD)
+	_apply_outline(title, 6)
 	add_child(title)
 
 	var subtitle := Label.new()
@@ -160,33 +185,74 @@ func _build_title() -> void:
 	subtitle.anchor_top = 0.155
 	subtitle.anchor_right = 0.72
 	subtitle.anchor_bottom = 0.22
-	subtitle.text = "밤의 경복궁에 들어가기 전, 가져갈 기억을 고른다."
+	subtitle.text = "어둠에 들어서기 전, 장비를 점검한다."
 	subtitle.add_theme_font_size_override("font_size", 18)
 	FontRoles.apply_body(subtitle)
 	subtitle.add_theme_color_override("font_color", DungeonTheme.COLOR_MUTED_TEXT)
+	_apply_outline(subtitle, 5)
 	add_child(subtitle)
 
 	var section := Label.new()
 	section.name = "WeaponSectionLabel"
-	section.anchor_left = 0.05
-	section.anchor_top = 0.245
-	section.anchor_right = 0.36
-	section.anchor_bottom = 0.31
-	section.text = "기억 무기"
+	section.anchor_left = 0.065
+	section.anchor_top = 0.215
+	section.anchor_right = 0.40
+	section.anchor_bottom = 0.27
+	section.text = "장비"
+	section.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	section.add_theme_font_size_override("font_size", 24)
 	FontRoles.apply_title(section)
 	section.add_theme_color_override("font_color", Color(0.86, 0.80, 0.62, 1.0))
+	_apply_outline(section, 5)
 	add_child(section)
 
 
 func _build_weapon_cards() -> void:
-	_bat_card = _make_weapon_card(
-		"BatCard",
-		"금 간 나무 배트\n\n근거리 / 큰 반동\n위력  ■■■■□\n속도  ■□□□□\n\n적을 밀쳐냄",
-		Rect2(0.06, 0.32, 0.42, 0.36),
-		ACTION_SELECT_BAT
-	)
+	# 좌측 컬럼: 우측 강화 패널과 같은 상/하단(0.30~0.74)·같은 폭(0.41)으로 맞춘다.
+	_bat_card = _make_weapon_card("BatCard", "", Rect2(0.065, 0.29, 0.41, 0.49), ACTION_SELECT_BAT)
 	add_child(_bat_card)
+
+	# 키 큰 슬롯이 비지 않도록 [큰 배트 아이콘 · 이름 · 설명]을 세로 중앙 쇼케이스로 채운다.
+	var showcase := VBoxContainer.new()
+	showcase.name = "WeaponShowcase"
+	showcase.anchor_left = 0.1
+	showcase.anchor_top = 0.11
+	showcase.anchor_right = 0.9
+	showcase.anchor_bottom = 0.84
+	showcase.alignment = BoxContainer.ALIGNMENT_CENTER
+	showcase.add_theme_constant_override("separation", 8)
+	showcase.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_bat_card.add_child(showcase)
+
+	var icon := TextureRect.new()
+	icon.texture = load(BAT_ICON_PATH)
+	icon.custom_minimum_size = Vector2(0.0, 78.0)
+	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	showcase.add_child(icon)
+
+	var weapon_name := Label.new()
+	weapon_name.name = "WeaponName"
+	weapon_name.text = "금 간 나무 배트"
+	weapon_name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	weapon_name.add_theme_font_size_override("font_size", 23)
+	FontRoles.apply_title(weapon_name)
+	weapon_name.add_theme_color_override("font_color", Color(0.98, 0.86, 0.55))
+	_apply_outline(weapon_name, 4)
+	weapon_name.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	showcase.add_child(weapon_name)
+
+	var weapon_desc := Label.new()
+	weapon_desc.name = "WeaponDesc"
+	weapon_desc.text = "평범한 야구 방망이다.\n자칫하면 부러질 것 같다."
+	weapon_desc.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	weapon_desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	weapon_desc.add_theme_font_size_override("font_size", 15)
+	FontRoles.apply_body(weapon_desc)
+	weapon_desc.add_theme_color_override("font_color", DungeonTheme.COLOR_MUTED_TEXT)
+	weapon_desc.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	showcase.add_child(weapon_desc)
 
 	# 선택 피드백은 무기 카드 골드 테두리로 표시하고, 우측 컬럼은 강화 패널에 양보한다.
 	# (노드·라벨·텍스트는 UI 계약 테스트를 위해 유지하되 화면에는 숨긴다.)
@@ -216,48 +282,77 @@ func _build_weapon_cards() -> void:
 
 
 func _build_upgrade_panel() -> void:
+	# 좌측 "장비" 컬럼과 대칭: 헤더 라벨 + 잔액 칩은 패널 위에 두고, 패널엔 강화 행만.
+	# 헤더 Y와 패널 상/하단을 무기 슬롯과 똑같이 맞춰 두 컬럼이 한 쌍으로 읽히게 한다.
+	var header := Label.new()
+	header.name = "UpgradeSectionLabel"
+	header.anchor_left = 0.525
+	header.anchor_top = 0.215
+	header.anchor_right = 0.80
+	header.anchor_bottom = 0.27
+	header.text = "장비 강화"
+	header.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	header.add_theme_font_size_override("font_size", 24)
+	FontRoles.apply_title(header)
+	header.add_theme_color_override("font_color", Color(0.86, 0.80, 0.62, 1.0))
+	_apply_outline(header, 5)
+	add_child(header)
+
+	# 보유 재화 칩 — 헤더 우측, 제목과 붙어 읽히지 않게 분리.
+	var balance_chip := PanelContainer.new()
+	balance_chip.name = "BalanceChip"
+	balance_chip.anchor_left = 0.83
+	balance_chip.anchor_top = 0.222
+	balance_chip.anchor_right = 0.935
+	balance_chip.anchor_bottom = 0.272
+	# 패널과 같은 카드 프레임 패밀리로 — 우측 모서리 라인이 패널/지도 버튼과 일치하게.
+	balance_chip.add_theme_stylebox_override(
+		"panel",
+		DungeonTheme.card_style(10.0, 4.0, Color.WHITE, 16.0)
+	)
+	add_child(balance_chip)
+
+	# 혼 조각 아이콘 + 보유 수량.
+	var balance_box := HBoxContainer.new()
+	balance_box.alignment = BoxContainer.ALIGNMENT_CENTER
+	balance_box.add_theme_constant_override("separation", 5)
+	balance_chip.add_child(balance_box)
+
+	var shard_icon := TextureRect.new()
+	shard_icon.texture = load(SHARD_ICON_PATH)
+	shard_icon.custom_minimum_size = Vector2(20.0, 20.0)
+	shard_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	shard_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	shard_icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	balance_box.add_child(shard_icon)
+
+	_upgrade_balance_label = Label.new()
+	_upgrade_balance_label.name = "UpgradeBalanceLabel"
+	_upgrade_balance_label.add_theme_font_size_override("font_size", 19)
+	FontRoles.apply_pixel(_upgrade_balance_label)
+	_upgrade_balance_label.add_theme_color_override("font_color", DungeonTheme.COLOR_GOLD)
+	_upgrade_balance_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	balance_box.add_child(_upgrade_balance_label)
+
 	var panel := PanelContainer.new()
 	panel.name = "UpgradePanel"
 	panel.unique_name_in_owner = true
-	panel.anchor_left = 0.66
-	panel.anchor_top = 0.30
-	panel.anchor_right = 0.95
-	panel.anchor_bottom = 0.80
+	panel.anchor_left = 0.525
+	panel.anchor_top = 0.29
+	panel.anchor_right = 0.935
+	panel.anchor_bottom = 0.78
+	# 무기 슬롯과 같은 카드 프레임으로 통일 (얇은 골드 트림 — 팝업 모서리 장식이 행을 가리지 않음).
 	panel.add_theme_stylebox_override(
 		"panel",
-		DungeonTheme.framed_panel_style(12.0, 10.0)
+		DungeonTheme.card_style(42.0, 22.0, Color.WHITE)
 	)
 	add_child(panel)
 
 	var vbox := VBoxContainer.new()
 	vbox.name = "UpgradeList"
-	vbox.add_theme_constant_override("separation", 8)
+	vbox.set_anchors_preset(Control.PRESET_FULL_RECT)
+	vbox.add_theme_constant_override("separation", 6)
 	panel.add_child(vbox)
-
-	var header := HBoxContainer.new()
-	header.name = "UpgradeHeader"
-	vbox.add_child(header)
-
-	var title := Label.new()
-	title.text = "혼 조각 강화"
-	title.add_theme_font_size_override("font_size", 24)
-	FontRoles.apply_title(title)
-	title.add_theme_color_override("font_color", Color(0.86, 0.80, 0.62, 1.0))
-	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	header.add_child(title)
-
-	_upgrade_balance_label = Label.new()
-	_upgrade_balance_label.name = "UpgradeBalanceLabel"
-	_upgrade_balance_label.add_theme_font_size_override("font_size", 20)
-	FontRoles.apply_pixel(_upgrade_balance_label)
-	_upgrade_balance_label.add_theme_color_override("font_color", DungeonTheme.COLOR_GOLD)
-	_upgrade_balance_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	header.add_child(_upgrade_balance_label)
-
-	var gap := Control.new()
-	gap.custom_minimum_size = Vector2(0.0, 4.0)
-	vbox.add_child(gap)
 
 	for id: StringName in MetaUpgradeCatalog.upgrade_ids():
 		vbox.add_child(_make_upgrade_row(id))
@@ -266,14 +361,15 @@ func _build_upgrade_panel() -> void:
 func _make_upgrade_row(id: StringName) -> Control:
 	var row := HBoxContainer.new()
 	row.name = "UpgradeRow_%s" % id
+	row.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	row.add_theme_constant_override("separation", 8)
 
 	var name_label := Label.new()
 	name_label.text = MetaUpgradeCatalog.display_name(id)
-	name_label.add_theme_font_size_override("font_size", 17)
+	name_label.add_theme_font_size_override("font_size", 20)
 	FontRoles.apply_pixel(name_label)
 	name_label.add_theme_color_override("font_color", DungeonTheme.COLOR_TEXT)
-	name_label.custom_minimum_size = Vector2(48.0, 0.0)
+	name_label.custom_minimum_size = Vector2(70.0, 0.0)
 	name_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	row.add_child(name_label)
 
@@ -282,20 +378,23 @@ func _make_upgrade_row(id: StringName) -> Control:
 	pips.fit_content = true
 	pips.scroll_active = false
 	pips.autowrap_mode = TextServer.AUTOWRAP_OFF
-	pips.add_theme_font_size_override("normal_font_size", 18)
+	pips.add_theme_font_size_override("normal_font_size", 20)
 	FontRoles.apply_pixel(pips)
 	pips.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	pips.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	row.add_child(pips)
 	_upgrade_pip_labels[id] = pips
 
-	var cost_label := Label.new()
-	cost_label.add_theme_font_size_override("font_size", 17)
+	# 비용: 혼 조각 아이콘 + 숫자 (인라인 이미지라 RichTextLabel 사용).
+	var cost_label := RichTextLabel.new()
+	cost_label.bbcode_enabled = true
+	cost_label.fit_content = true
+	cost_label.scroll_active = false
+	cost_label.autowrap_mode = TextServer.AUTOWRAP_OFF
+	cost_label.add_theme_font_size_override("normal_font_size", 19)
 	FontRoles.apply_pixel(cost_label)
-	cost_label.add_theme_color_override("font_color", DungeonTheme.COLOR_GOLD)
-	cost_label.custom_minimum_size = Vector2(56.0, 0.0)
-	cost_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	cost_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	cost_label.custom_minimum_size = Vector2(64.0, 0.0)
+	cost_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	row.add_child(cost_label)
 	_upgrade_cost_labels[id] = cost_label
 
@@ -304,7 +403,7 @@ func _make_upgrade_row(id: StringName) -> Control:
 	button.name = "UpgradeButton_%s" % id
 	button.text = "강화"
 	button.focus_mode = Control.FOCUS_NONE
-	PixelButton.apply(button, PixelButton.VARIANT_SECONDARY, Vector2(72.0, 44.0))
+	PixelButton.apply(button, PixelButton.VARIANT_SECONDARY, Vector2(76.0, 50.0))
 	FontRoles.apply_pixel(button)
 	_set_button_meta(button, "upgrade_%s" % id, action)
 	button.pressed.connect(_on_upgrade_pressed.bind(id))
@@ -318,12 +417,12 @@ func _refresh_upgrades() -> void:
 	if _upgrade_balance_label == null:
 		return
 	var balance := _permanent_balance()
-	_upgrade_balance_label.text = "혼 조각 ◆%d" % balance
+	_upgrade_balance_label.text = "%d" % balance
 	for id: StringName in MetaUpgradeCatalog.upgrade_ids():
 		var level := _saved_upgrade_level(id)
 		var max_level := MetaUpgradeCatalog.max_level(id)
 		var pips := _upgrade_pip_labels.get(id) as RichTextLabel
-		var cost_label := _upgrade_cost_labels.get(id) as Label
+		var cost_label := _upgrade_cost_labels.get(id) as RichTextLabel
 		var button := _upgrade_buttons.get(id) as Button
 		if pips != null:
 			pips.text = _pip_bbcode(level, max_level)
@@ -333,11 +432,10 @@ func _refresh_upgrades() -> void:
 			if maxed:
 				cost_label.text = ""
 			else:
-				cost_label.text = "◆%d" % MetaUpgradeCatalog.cost_to_next(id, level)
-				cost_label.add_theme_color_override(
-					"font_color",
-					DungeonTheme.COLOR_GOLD if affordable else DungeonTheme.COLOR_MUTED_TEXT
-				)
+				var col := "f0bb40" if affordable else "9eadba"
+				cost_label.text = "[right][img=15]%s[/img] [color=#%s]%d[/color][/right]" % [
+					SHARD_ICON_PATH, col, MetaUpgradeCatalog.cost_to_next(id, level)
+				]
 		if button != null:
 			if maxed:
 				button.text = "MAX"
@@ -377,19 +475,20 @@ func _pip_bbcode(level: int, max_level: int) -> String:
 	var bb := ""
 	for i in range(max_level):
 		if i < level:
-			bb += "[color=#f0c04a]●[/color]"
+			bb += "[color=#f5cf6a]●[/color]"
 		else:
-			bb += "[color=#5a4d28]○[/color]"
+			bb += "[color=#7a6a3a]○[/color]"
 	return bb
 
 
 func _build_action_bar() -> void:
-	var return_rect := MobileSafeArea.bottom_anchored_rect(0.06, 0.30, 0.13)
-	var map_rect := MobileSafeArea.bottom_anchored_rect(0.61, 0.33, 0.13)
-	_return_button = _make_action_button("ReturnButton", "복도", return_rect, ACTION_RETURN)
+	# 각 버튼을 자기 컬럼과 같은 폭(0.41)·같은 좌우 모서리에 맞춰 좌우 대칭으로 둔다.
+	var return_rect := MobileSafeArea.bottom_anchored_rect(0.065, 0.41, 0.12, 43.0)
+	var map_rect := MobileSafeArea.bottom_anchored_rect(0.525, 0.41, 0.12, 43.0)
+	_return_button = _make_action_button("ReturnButton", "← 복도", return_rect, ACTION_RETURN)
 	add_child(_return_button)
 
-	_map_button = _make_action_button("MapButton", "지도", map_rect, ACTION_OPEN_MAP)
+	_map_button = _make_action_button("MapButton", "지도 ▶", map_rect, ACTION_OPEN_MAP)
 	add_child(_map_button)
 
 	_return_button.pressed.connect(_on_return_pressed)
@@ -406,9 +505,10 @@ func _make_weapon_card(node_name: String, text: String, relative_rect: Rect2, ac
 	card.anchor_bottom = relative_rect.position.y + relative_rect.size.y
 	card.text = text
 	if action == ACTION_SELECT_BAT:
+		# 아이콘은 왼쪽, 스탯 텍스트는 오른쪽 — 가운데 정렬로 겹치던 문제를 분리한다.
 		card.icon = load(BAT_ICON_PATH)
-		card.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		card.expand_icon = false
+		# 표시는 자식 쇼케이스가 담당. 버튼 자체 아이콘은 계약 테스트용으로만 들고 그리지 않는다.
+		card.add_theme_constant_override("icon_max_width", 1)
 	card.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	card.alignment = HORIZONTAL_ALIGNMENT_CENTER
 	card.focus_mode = Control.FOCUS_NONE
@@ -461,11 +561,13 @@ func _apply_weapon_card_state() -> void:
 		"normal",
 		_make_weapon_state_style(true)
 	)
-	_weapon_status_label.text = "선택한 기억\n\n금 간 나무 배트\n\n지도에서\n경복궁으로 이동"
+	_weapon_status_label.text = "선택한 장비\n\n금 간 나무 배트\n\n지도에서\n경복궁으로 이동"
 
 
 func _make_weapon_state_style(selected: bool) -> StyleBox:
-	return DungeonTheme.slot_style(selected)
+	# 무기 슬롯은 텍스처 카드 프레임 + 넉넉한 내부 패딩(아이콘/설명이 테두리에 붙지 않게).
+	var trim := Color(1.0, 0.93, 0.62) if selected else Color(0.82, 0.86, 0.93)
+	return DungeonTheme.card_style(28.0, 22.0, trim)
 
 
 func _count_action_entries(node: Node, action: String) -> int:

@@ -724,7 +724,8 @@ func _on_pause_requested() -> void:
 		Callable(self, "_request_abandon_from_pause_modal"),
 		false,
 		"계속하기",
-		"나가기"
+		"나가기",
+		PixelButtonStyle.VARIANT_DANGER
 	)
 
 
