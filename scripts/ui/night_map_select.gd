@@ -112,7 +112,7 @@ func _build_ui() -> void:
 
 	var destination := Label.new()
 	destination.name = "DestinationLabel"
-	destination.text = "선택한 곳\n밤의 경복궁\n\n시간  밤\n위험도  보통\n장비  기억 무기\n목표  친구 정화 · 탈출"
+	destination.text = "선택한 곳\n밤의 경복궁\n\n시간  밤\n위험도  보통\n목표  친구 정화 · 탈출"
 	destination.add_theme_font_size_override("font_size", 22)
 	FontRoles.apply_body(destination)
 	destination.add_theme_color_override("font_color", DungeonTheme.COLOR_TEXT)

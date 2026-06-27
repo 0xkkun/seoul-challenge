@@ -129,7 +129,7 @@ offset_top = 104.0
 offset_right = -290.0
 offset_bottom = 132.0
 grow_horizontal = 2
-text = "기억: 손바닥에 남은 희미한 배트 자국"
+text = ""
 autowrap_mode = 3
 
 [node name="ChoiceRow" type="HBoxContainer" parent="Root/DialogueBar/DialogueContent"]

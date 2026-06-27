@@ -83,7 +83,7 @@ func _ready() -> void:
 	_choice_row.set_meta("test_id", "hub_dialogue.choice_row")
 	_apply_landscape_safe_area()
 	_apply_static_styles()
-	set_dialogue("야구부 주장", "\"겁먹으면 스윙이 늦어. 밤의 궁에서는 더 그렇겠지.\"", "기억: 손바닥에 남은 희미한 배트 자국")
+	set_dialogue("야구부 주장", "\"몸 조심해. 무리하지 마.\"", "")
 	set_stage(2)
 	set_choices([
 		{"id": CHOICE_ASK, "text": "물어보기", "emphasized": false},
@@ -149,6 +149,8 @@ func set_dialogue(
 	_name_label.text = _speaker_name
 	_dialogue_label.text = _dialogue_markup_text
 	_memory_label.text = _memory_text
+	# 보조 기억 라인은 텍스트가 있을 때만 노출 — 빈 값이면 라벨이 레이아웃 갭을 남기지 않게 숨긴다.
+	_memory_label.visible = not _memory_text.strip_edges().is_empty()
 	set_dialogue_content_visible(true)
 	_configure_portrait(portrait_color, portrait_texture, portrait_frame_index, portrait_animates)
 
