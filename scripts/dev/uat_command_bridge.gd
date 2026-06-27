@@ -51,15 +51,17 @@ func _press_node(node: Node) -> bool:
 		return false
 	if not _is_node_usable(node):
 		return false
+	var action_name := String(node.get_meta(UAT_ACTION_META, ""))
+	var target := _target_root()
 	var button := node as BaseButton
 	if button != null:
 		if button.disabled:
 			return false
+		if action_name != "" and target != null and target.has_method("perform_uat_action"):
+			return bool(target.call("perform_uat_action", action_name))
 		button.emit_signal("pressed")
 		return true
 
-	var action_name := String(node.get_meta(UAT_ACTION_META, ""))
-	var target := _target_root()
 	if action_name != "" and target != null and target.has_method("perform_uat_action"):
 		return bool(target.call("perform_uat_action", action_name))
 	return false

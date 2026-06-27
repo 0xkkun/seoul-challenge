@@ -26,14 +26,20 @@ const OBJECTIVE_BASEBALL_REWARD := "목표: 야구부 주장에게 돌아가 배
 const OBJECTIVE_REENTER_GYEONGBOKGUNG := "목표: 복도 끝 사물함에서 배트를 챙기고 경복궁으로 다시 가자"
 const RETURN_TO_LOBBY_MESSAGE := "로비로 돌아갈까요? 진행 상황은 자동으로 저장됩니다."
 const QUIT_GAME_MESSAGE := "게임을 종료할까요?"
+const BASEBALL_CAPTAIN_DISPLAY_NAME := "야구부 주장"
+const BASEBALL_CAPTAIN_PROMPT_TEXT := "야구부 주장  말 걸기"
+const BASEBALL_CAPTAIN_REWARD_CALLOUT_TEXT := "!  야구부 주장"
+const CRACKED_BAT_ID := &"cracked_bat"
+const CRACKED_BAT_NAME := "금 간 나무 배트"
+const CRACKED_BAT_POPUP_SUBTITLE := "야구부 주장이 건넨 기억 무기"
 const BASEBALL_REWARD_LINES := [
 	{
 		"text": "고마워. 아까는 내가 내가 아니었던 것 같아.",
 		"memory": "기억: 운동장 흙먼지와 거칠어진 숨",
 	},
 	{
-		"text": "이 배트 가져가. 밤에 다시 들어가야 한다면 네 손에 있는 게 나아.",
-		"memory": "기억: 사물함 안쪽에 기대 둔 나무 배트",
+		"text": "이 금 간 나무 배트 가져가. 밤에 다시 들어가야 한다면 네 손에 있는 게 나아.",
+		"memory": "기억: 사물함 안쪽에 기대 둔 금 간 나무 배트",
 	},
 	{
 		"text": "네가 찾는 친구는 도깨비왕에게 잡혀갔다는 말이 있어. 아니면 그보다 더 큰 무언가일지도 몰라.",
@@ -81,6 +87,7 @@ const BASEBALL_REWARD_LINES := [
 @onready var _right_school_characters: Node2D = %RightSchoolCharacters
 @onready var _talk_target: Node2D = %TalkTarget
 @onready var _talk_target_sprite: Sprite2D = %TalkTargetSprite
+@onready var _talk_target_callout_label: Label = %TalkTargetCalloutLabel
 @onready var _right_student3_sprite: Sprite2D = %RightStudent3Sprite
 @onready var _right_crowd_sprite: Sprite2D = %RightCrowdSprite
 @onready var _right_student3: Node2D = %RightStudent3
@@ -101,6 +108,7 @@ var _dialogue_count := 0
 var _dialogue_line_index := -1
 var _dialogue_lines: Array[Dictionary] = []
 var _dialogue_claims_baseball_reward := false
+var _baseball_reward_pickup_popup_shown := false
 var _was_dialogue_pressed := false
 var _walk_elapsed := 0.0
 var _idle_elapsed := 0.0
@@ -143,6 +151,7 @@ func _ready() -> void:
 	_hub_dialogue_ui.choice_selected.connect(_on_hub_dialogue_choice_selected)
 	_update_objective_label()
 	_interaction_prompt.visible = false
+	_update_talk_target_callout()
 	_apply_ui_automation_metadata()
 	PixelButtonStyle.apply(_exit_button, PixelButtonStyle.VARIANT_PRIMARY, Vector2(144.0, 50.0))
 	_exit_button.pressed.connect(_request_return_to_lobby)
@@ -394,12 +403,12 @@ func perform_uat_action(action_name: String) -> bool:
 			trigger_dialogue()
 			return true
 		ACTION_DIALOGUE_NEXT:
-			if not is_dialogue_ui_visible() or not get_dialogue_choice_ids().has(CHOICE_NEXT):
+			if not is_dialogue_ui_visible() or _hub_dialogue_ui.is_unlock_visible() or not get_dialogue_choice_ids().has(CHOICE_NEXT):
 				return false
 			_hub_dialogue_ui.select_choice(CHOICE_NEXT)
 			return true
 		ACTION_DIALOGUE_CLOSE:
-			if not is_dialogue_ui_visible() or not get_dialogue_choice_ids().has(CHOICE_CLOSE):
+			if not is_dialogue_ui_visible() or _hub_dialogue_ui.is_unlock_visible() or not get_dialogue_choice_ids().has(CHOICE_CLOSE):
 				return false
 			_hub_dialogue_ui.select_choice(CHOICE_CLOSE)
 			return true
@@ -420,6 +429,8 @@ func trigger_dialogue() -> void:
 	if is_dialogue_ui_visible():
 		if _dialogue_lines.is_empty():
 			return
+		if _hub_dialogue_ui.is_unlock_visible():
+			return
 		_show_dialogue_line((_dialogue_line_index + 1) % _dialogue_lines.size())
 		return
 	_resolve_dialogue_lines()
@@ -432,6 +443,7 @@ func trigger_dialogue() -> void:
 ## people2 대사를 현재 진행도 tier + 컨텍스트로 해석한다. 대화 open 시점에 호출.
 func _resolve_dialogue_lines() -> void:
 	_dialogue_claims_baseball_reward = _needs_baseball_reward_dialogue()
+	_baseball_reward_pickup_popup_shown = false
 	if _dialogue_claims_baseball_reward:
 		_dialogue_lines = _baseball_reward_lines()
 		return
@@ -477,6 +489,7 @@ func close_dialogue() -> void:
 	_player.set_physics_process(true)
 	_dialogue_line_index = -1
 	_dialogue_claims_baseball_reward = false
+	_baseball_reward_pickup_popup_shown = false
 	_sync_talk_target_visibility()
 	_update_objective_label()
 	# The closing tap can reveal touch controls under the same held press.
@@ -958,7 +971,23 @@ func _center_or_clamp(value: float, half_view: float, world_size: float) -> floa
 
 
 func _update_interaction_prompt() -> void:
-	_interaction_prompt.visible = not is_dialogue_ui_visible() and is_player_in_dialogue_range()
+	var prompt_visible := not is_dialogue_ui_visible() and is_player_in_dialogue_range()
+	_interaction_prompt.visible = prompt_visible
+	_interaction_prompt.text = BASEBALL_CAPTAIN_PROMPT_TEXT if prompt_visible else ""
+	_update_talk_target_callout()
+
+
+func _update_talk_target_callout() -> void:
+	if _talk_target_callout_label == null:
+		return
+	var should_show := not is_dialogue_ui_visible() and _talk_target.visible
+	if _needs_baseball_reward_dialogue():
+		_talk_target_callout_label.text = BASEBALL_CAPTAIN_REWARD_CALLOUT_TEXT
+	elif _dialogue_count <= 0 and not _has_claimed_baseball_reward():
+		_talk_target_callout_label.text = BASEBALL_CAPTAIN_DISPLAY_NAME
+	else:
+		should_show = false
+	_talk_target_callout_label.visible = should_show
 
 
 func _process_dialogue_input() -> void:
@@ -981,6 +1010,7 @@ func _open_dialogue_ui() -> void:
 	_player.set_physics_process(false)
 	_update_character_sprite(0.0)
 	_sync_talk_target_visibility()
+	_update_talk_target_callout()
 
 
 func _show_dialogue_line(line_index: int) -> void:
@@ -1012,6 +1042,7 @@ func _show_dialogue_line(line_index: int) -> void:
 			"uat_action": ACTION_DIALOGUE_CLOSE if is_last_line else ACTION_DIALOGUE_NEXT,
 		},
 	])
+	_maybe_show_baseball_reward_pickup_popup()
 	dialogue_requested.emit({
 		"count": _dialogue_count,
 		"line": line_text,
@@ -1027,6 +1058,19 @@ func _on_hub_dialogue_choice_selected(choice_id: StringName) -> void:
 			trigger_dialogue()
 		CHOICE_CLOSE:
 			_request_close_dialogue()
+
+
+func _maybe_show_baseball_reward_pickup_popup() -> void:
+	if not _dialogue_claims_baseball_reward:
+		return
+	if _dialogue_line_index != 1:
+		return
+	if _baseball_reward_pickup_popup_shown:
+		return
+	_baseball_reward_pickup_popup_shown = true
+	_hub_dialogue_ui.show_unlock(CRACKED_BAT_NAME, CRACKED_BAT_POPUP_SUBTITLE, [
+		{"id": CRACKED_BAT_ID, "name": CRACKED_BAT_NAME, "color": HubDialogueUi.DEFAULT_BAT_COLOR},
+	])
 
 
 ## 정화 후(post_purify tier) people2 대화 완주 = 로비 퀘스트 완료. 발동 시 강화배트를 해금하고
