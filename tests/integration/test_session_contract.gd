@@ -195,6 +195,50 @@ func test_combat_clear_requires_reward_choice_before_room_transition() -> void:
 	session.queue_free()
 
 
+func test_combat_reward_modal_wins_over_exit_door_open_transition() -> void:
+	GameManager.start_session({
+		"source": "reward_transition_timing_test",
+		SceneTransition.RUN_CONFIG_LAYOUT_SEED: 40,
+	})
+	var packed := load("res://scenes/session/session_root.tscn") as PackedScene
+	var session := packed.instantiate()
+	add_child(session)
+
+	var manager := session.get_node("%RoomManager") as RoomManager
+	var session_ui: CanvasLayer = session.get_node("%SessionUIRoot")
+	var combat_room_def := _first_room_of_type(manager.layout, RoomLayout.TYPE_COMBAT)
+	_runner.assert_not_null(combat_room_def, "session run layout includes combat room")
+	if combat_room_def == null:
+		return
+	_runner.assert_true(manager.enter_room(combat_room_def.room_id), "test enters combat reward room")
+	var combat_room_id := manager.current_room_id
+	var exit_door: RoomDoor = null
+	for door: RoomDoor in manager.current_room.call("get_doors"):
+		exit_door = door
+		break
+	_runner.assert_not_null(exit_door, "combat room exposes an exit door")
+	if exit_door == null:
+		session.queue_free()
+		return
+	var transition_attempts := 0
+	var on_exit_opened := func(_door_dir: StringName, state: int) -> void:
+		if state == RoomDoor.DoorState.OPEN:
+			if exit_door.request_transition():
+				transition_attempts += 1
+
+	exit_door.state_changed.connect(on_exit_opened)
+	for enemy: Node in manager.current_room.call("get_active_enemies"):
+		if enemy.has_method("take_damage"):
+			enemy.call("take_damage", 99)
+
+	_runner.assert_true(session_ui.call("is_reward_choice_visible"), "combat clear opens reward before exit transition can steal the room")
+	_runner.assert_eq(manager.current_room_id, combat_room_id, "reward pause keeps player in the cleared combat room")
+	_runner.assert_eq(transition_attempts, 0, "exit door transition is blocked while reward modal pauses")
+
+	exit_door.state_changed.disconnect(on_exit_opened)
+	session.queue_free()
+
+
 func test_session_result_tracks_baseball_friend_purification_unlocks() -> void:
 	var packed := load("res://scenes/session/session_root.tscn") as PackedScene
 	var session := packed.instantiate()
