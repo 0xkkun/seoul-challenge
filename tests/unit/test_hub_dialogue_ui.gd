@@ -69,6 +69,7 @@ func test_sprite_portrait_uses_texture_without_panel_background() -> void:
 	_runner.assert_false(_ui.is_portrait_animating(), "대화 포커스는 프레임을 재생하지 않는다")
 	_runner.assert_true(panel.color.a <= 0.01, "스프라이트 초상화는 단색 배경 패널을 비운다")
 	_runner.assert_false(accent.visible, "스프라이트 초상화는 기존 하단 accent를 숨긴다")
+	_runner.assert_eq(sprite.self_modulate, Color(0.94, 0.92, 0.88, 1), "스프라이트 초상화는 복도 배경과 같은 톤으로 눌러준다")
 	_runner.assert_true(sprite.z_index > dimmer.z_index, "스프라이트 초상화는 오버레이보다 앞에 그려진다")
 	_runner.assert_true(sprite.z_index < dialogue_bar.z_index, "스프라이트 초상화는 대화 바 뒤에 그려진다")
 	_runner.assert_eq(sprite.frame, frame_before, "초상화 스프라이트는 대화 중 정적 프레임을 유지한다")

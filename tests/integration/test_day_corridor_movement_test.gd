@@ -35,13 +35,14 @@ func test_day_corridor_scene_uses_mobile_landscape_plate() -> void:
 	_runner.assert_true(scene.are_runtime_sprites_nearest_filtered(), "runtime sprites use nearest filtering")
 	_runner.assert_eq(scene.get_talk_target_texture_path(), "res://assets/characters/school/people2.png", "talk target uses the selected school friend sprite")
 	_runner.assert_eq(scene.get_school_character_texture_paths(), [
-		"res://assets/characters/school/people1.png",
 		"res://assets/characters/school/people2.png",
 		"res://assets/characters/school/people3.png",
 		"res://assets/characters/school/people4.png",
-	], "school corridor wires all four people assets")
-	_runner.assert_eq(scene.get_left_school_character_count(), 2, "left corridor balances two school characters")
+	], "school corridor wires the selected people assets")
+	_runner.assert_eq(scene.get_left_school_character_count(), 1, "left corridor keeps only the talk target after people1 removal")
 	_runner.assert_eq(scene.get_right_school_character_count(), 2, "right corridor balances two school character sprites")
+	_runner.assert_true(scene.do_school_characters_match_background_tint(), "school characters share the corridor background tint")
+	_runner.assert_true(scene.do_school_characters_match_player_scale(), "school characters use the same x2 scale as the player")
 	_runner.assert_true(scene.is_left_school_character_group_visible(), "left school character group starts visible")
 	_runner.assert_false(scene.is_right_school_character_group_visible(), "right school character group starts hidden")
 	_runner.assert_true(scene.is_talk_target_visible(), "left room starts with the talk target visible")

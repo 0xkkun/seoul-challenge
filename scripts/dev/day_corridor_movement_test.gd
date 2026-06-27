@@ -66,7 +66,6 @@ const QUIT_GAME_MESSAGE := "게임을 종료할까요?"
 @onready var _camera: Camera2D = %Camera2D
 @onready var _left_school_characters: Node2D = %LeftSchoolCharacters
 @onready var _right_school_characters: Node2D = %RightSchoolCharacters
-@onready var _left_student1_sprite: Sprite2D = %LeftStudent1Sprite
 @onready var _talk_target: Node2D = %TalkTarget
 @onready var _talk_target_sprite: Sprite2D = %TalkTargetSprite
 @onready var _right_student3_sprite: Sprite2D = %RightStudent3Sprite
@@ -105,8 +104,9 @@ func _ready() -> void:
 	SceneTransition.configure_exit_requests()
 	_disable_combat_output()
 	_hide_player_default_visuals()
-	_ambient_student_sprites = [_left_student1_sprite, _right_student3_sprite, _right_crowd_sprite]
+	_ambient_student_sprites = [_right_student3_sprite, _right_crowd_sprite]
 	_apply_nearest_texture_filter()
+	_apply_school_character_visual_treatment()
 	_fit_character_to_asset_scale()
 	_fit_talk_target_to_asset_scale()
 	_fit_ambient_school_character_sprites()
@@ -271,6 +271,23 @@ func is_talk_target_visible() -> bool:
 	return _talk_target.visible
 
 
+func do_school_characters_match_background_tint() -> bool:
+	var target_tint := _school_bg_left.self_modulate
+	for sprite: Sprite2D in _get_school_character_sprites():
+		if sprite.self_modulate != target_tint:
+			return false
+	return true
+
+
+func do_school_characters_match_player_scale() -> bool:
+	for sprite: Sprite2D in _get_school_character_sprites():
+		if not is_equal_approx(sprite.scale.x, character_asset_scale):
+			return false
+		if not is_equal_approx(sprite.scale.y, character_asset_scale):
+			return false
+	return true
+
+
 func get_active_dialogue_line_index() -> int:
 	return _dialogue_line_index
 
@@ -432,6 +449,12 @@ func _apply_nearest_texture_filter() -> void:
 			item.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 
 
+func _apply_school_character_visual_treatment() -> void:
+	var target_tint := _school_bg_left.self_modulate
+	for sprite: Sprite2D in _get_school_character_sprites():
+		sprite.self_modulate = target_tint
+
+
 func _fit_character_to_asset_scale() -> void:
 	if _walk_texture == null:
 		_walk_texture = _character_sprite.texture
@@ -462,6 +485,7 @@ func _fit_ambient_school_character_sprites() -> void:
 			continue
 		sprite.hframes = _get_square_sheet_hframes(sprite.texture)
 		sprite.vframes = 1
+		sprite.scale = Vector2(character_asset_scale, character_asset_scale)
 		if sprite.scale.y > 0.0:
 			sprite.position.y = -_get_sprite_frame_size(sprite).y * sprite.scale.y * 0.5
 		sprite.frame = clampi(sprite.frame, 0, _get_sprite_frame_count(sprite) - 1)
@@ -688,8 +712,6 @@ func _get_sprite_frame_count(sprite: Sprite2D) -> int:
 
 func _get_school_character_sprites() -> Array[Sprite2D]:
 	var sprites: Array[Sprite2D] = []
-	if _left_student1_sprite != null:
-		sprites.append(_left_student1_sprite)
 	if _talk_target_sprite != null:
 		sprites.append(_talk_target_sprite)
 	if _right_student3_sprite != null:

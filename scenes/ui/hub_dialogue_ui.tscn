@@ -52,6 +52,7 @@ grow_vertical = 0
 unique_name_in_owner = true
 visible = false
 z_index = 1
+self_modulate = Color(0.94, 0.92, 0.88, 1)
 position = Vector2(128, 398)
 scale = Vector2(2.55, 2.55)
 texture_filter = 1
