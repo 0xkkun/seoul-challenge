@@ -2,6 +2,7 @@ extends Node
 ## #13 전투 HUD 하트 — 체력 변화가 하트 표시에 반영되는지 검증한다.
 
 const COMBAT_HUD_SCENE := preload("res://scenes/ui/combat_hud.tscn")
+const APPROVED_YEOPJEON_ICON_SHA256 := "1ecd8b6b97d37077dde5533ecceac7dc7a82efe2624cb857b91b2ed3f7cd88f2"
 const MobileSafeArea := preload("res://scripts/ui/mobile_safe_area.gd")
 
 var _runner: Node
@@ -119,6 +120,11 @@ func test_currency_state_renders_ingame_balance() -> void:
 	_runner.assert_eq(_hud.get_currency_text(), "7", "HUD renders only the ingame balance number")
 	_runner.assert_false(_hud.get_currency_text().contains("엽전"), "HUD removes the currency word label")
 	_runner.assert_eq(_hud.get_currency_icon_path(), "res://assets/ui/icons/currency/yeopjeon.png", "HUD uses the yeopjeon icon asset")
+
+
+func test_currency_icon_matches_approved_source_asset() -> void:
+	var icon_hash := FileAccess.get_sha256("res://assets/ui/icons/currency/yeopjeon.png")
+	_runner.assert_eq(icon_hash, APPROVED_YEOPJEON_ICON_SHA256, "HUD yeopjeon icon matches the approved source asset")
 
 
 func test_currency_changed_event_updates_currency_slot() -> void:
