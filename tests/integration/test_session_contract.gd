@@ -689,6 +689,24 @@ func test_session_player_walk_plays_gyeongbokgung_footstep() -> void:
 	session.queue_free()
 
 
+func test_session_player_footstep_stops_after_result_opens() -> void:
+	var packed := load("res://scenes/session/session_root.tscn") as PackedScene
+	var session := packed.instantiate()
+	add_child(session)
+
+	var actor := session.get_node("%Player") as CharacterBody2D
+	var stride_distance := float(actor.get("movement_footstep_stride_distance"))
+	actor.velocity = Vector2(260.0, 0.0)
+
+	session.finish_session()
+	_runner.assert_false(GameManager.is_session_active(), "session finish deactivates the run before result UI remains open")
+	AudioManager.reset()
+	actor.call("_update_movement_footstep", 0.5, stride_distance * 2.0, true)
+	_runner.assert_eq(AudioManager.get_played_sfx(), [], "result UI suppresses held-movement Gyeongbokgung footsteps")
+
+	session.queue_free()
+
+
 func test_session_map_tab_uses_stage_name_and_replaces_bottom_actions() -> void:
 	GameManager.start_session({
 		"source": "map_tab_test",

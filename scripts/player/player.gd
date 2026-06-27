@@ -265,8 +265,7 @@ func reset_motion() -> void:
 	_dodge_timer = 0.0
 	_dash_animation_timer = 0.0
 	_dodge_direction = Vector2.ZERO
-	_movement_footstep_distance = 0.0
-	_movement_footstep_cooldown = 0.0
+	_reset_movement_footstep()
 
 
 ## 이동 입력이 있으면 그 방향으로 facing 갱신, 없으면 마지막 facing 유지.
@@ -758,6 +757,7 @@ func _on_session_started(_config: Dictionary) -> void:
 
 func _on_session_finished(_result: Dictionary) -> void:
 	reset_run_modifiers(false)
+	_reset_movement_footstep()
 
 
 func _on_unlock_changed(payload: Dictionary) -> void:
@@ -1082,9 +1082,12 @@ func _play_dash_wind_sfx() -> void:
 
 
 func _update_movement_footstep(delta: float, travel_distance: float = -1.0, movement_input_active := true) -> void:
+	if not _can_play_movement_footstep():
+		_reset_movement_footstep()
+		return
 	_movement_footstep_cooldown = maxf(0.0, _movement_footstep_cooldown - maxf(0.0, delta))
 	if movement_footstep_sfx_id == &"" or _dodge_timer > 0.0:
-		_movement_footstep_distance = 0.0
+		_reset_movement_footstep()
 		return
 	if not movement_input_active:
 		_movement_footstep_distance = 0.0
@@ -1106,6 +1109,15 @@ func _update_movement_footstep(delta: float, travel_distance: float = -1.0, move
 func _play_movement_footstep_sfx() -> void:
 	if has_node("/root/AudioManager"):
 		AudioManager.play_sfx(movement_footstep_sfx_id)
+
+
+func _can_play_movement_footstep() -> bool:
+	return not has_node("/root/GameManager") or GameManager.is_session_active()
+
+
+func _reset_movement_footstep() -> void:
+	_movement_footstep_distance = 0.0
+	_movement_footstep_cooldown = 0.0
 
 
 ## 휘두르기 시각 표시 — 실제 사거리(rng)·각(arc)으로 부채꼴을 그려 타격 범위와 일치시킨다.
