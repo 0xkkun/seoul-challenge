@@ -2,6 +2,10 @@ class_name RoomDoor
 extends Node2D
 
 const RoomPalette = preload("res://scripts/constants/room_palette.gd")
+const PORTAL_TEXTURE = preload("res://assets/effects/portal.png")
+const PORTAL_FRAME_COUNT := 5
+const PORTAL_FRAME_TIME := 0.08
+const PORTAL_DISPLAY_SCALE := Vector2(0.78, 0.78)
 
 signal state_changed(door_dir: StringName, state: int)
 signal transition_requested(door_dir: StringName)
@@ -27,10 +31,8 @@ var _blocker_shape: CollisionShape2D
 var _actor: Node2D
 var _ping_marker: Label
 var _portal_visual: Node2D
-var _portal_column: Polygon2D
-var _portal_ground_glow: Polygon2D
-var _portal_streaks: Node2D
-var _portal_sparkles: Node2D
+var _portal_sprite: Sprite2D
+var _portal_frame_timer := 0.0
 var _was_actor_overlapping := false
 
 
@@ -125,29 +127,14 @@ func _physics_process(_delta: float) -> void:
 	check_transition_for_actor(_actor)
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
 	var tick := float(Time.get_ticks_msec())
 	if _ping_marker != null and _ping_marker.visible:
 		var marker_color := RoomPalette.MINIMAP_PING_COLOR
 		marker_color.a = 0.62 + sin(tick / 160.0) * 0.22
 		_ping_marker.modulate = marker_color
 	if _portal_visual != null and _portal_visual.visible:
-		var pulse := 1.0 + sin(tick / 180.0) * 0.08
-		_portal_visual.scale = Vector2(pulse, pulse)
-		if _portal_ground_glow != null:
-			_portal_ground_glow.scale = Vector2(1.0 + sin(tick / 140.0) * 0.08, 1.0)
-		if _portal_streaks != null:
-			var index := 0
-			for child: Node in _portal_streaks.get_children():
-				var streak := child as Line2D
-				if streak == null:
-					continue
-				var alpha := 0.48 + sin(tick / 150.0 + float(index) * 0.9) * 0.24
-				streak.default_color = Color(0.84, 0.94, 1.0, alpha)
-				streak.position.y = sin(tick / 230.0 + float(index)) * 3.0
-				index += 1
-		if _portal_sparkles != null:
-			_portal_sparkles.rotation = sin(tick / 520.0) * 0.06
+		_advance_portal_sprite(delta)
 
 
 func _apply_state() -> void:
@@ -180,19 +167,19 @@ func _apply_visual_layout() -> void:
 func _apply_portal_layout() -> void:
 	if _portal_visual == null:
 		return
-	var size := _portal_size_for_door_dir(door_dir)
-	if _portal_column != null:
-		_portal_column.polygon = _portal_column_points(size, 12)
-		_portal_column.color = Color(0.66, 0.83, 1.0, 0.28)
-		_portal_column.z_index = 1
-	if _portal_ground_glow != null:
-		_portal_ground_glow.position = Vector2(0.0, size.y * 0.38)
-		_portal_ground_glow.polygon = _ellipse_points(Vector2(size.x * 0.78, size.y * 0.12), 28)
-		_portal_ground_glow.color = Color(0.86, 0.94, 1.0, 0.62)
-		_portal_ground_glow.z_index = 3
-	_apply_portal_streak_layout(size)
-	_apply_portal_sparkle_layout(size)
+	_portal_visual.scale = Vector2.ONE
 	_portal_visual.z_index = 12
+	if _portal_sprite == null:
+		return
+	_portal_sprite.texture = PORTAL_TEXTURE
+	_portal_sprite.hframes = PORTAL_FRAME_COUNT
+	_portal_sprite.vframes = 1
+	_portal_sprite.frame = clampi(_portal_sprite.frame, 0, PORTAL_FRAME_COUNT - 1)
+	_portal_sprite.centered = true
+	_portal_sprite.position = Vector2.ZERO
+	_portal_sprite.scale = PORTAL_DISPLAY_SCALE
+	_portal_sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_portal_sprite.z_index = 1
 
 
 func _apply_ping_marker_layout() -> void:
@@ -294,28 +281,19 @@ func _resolve_portal_visual() -> Node2D:
 	_remove_legacy_portal_child(portal, "PortalCore")
 	_remove_legacy_portal_child(portal, "PortalRing")
 	_remove_legacy_portal_child(portal, "PortalSpark")
-	_portal_column = portal.get_node_or_null("PortalColumn") as Polygon2D
-	if _portal_column == null:
-		_portal_column = Polygon2D.new()
-		_portal_column.name = "PortalColumn"
-		portal.add_child(_portal_column)
-	_portal_streaks = portal.get_node_or_null("PortalStreaks") as Node2D
-	if _portal_streaks == null:
-		_portal_streaks = Node2D.new()
-		_portal_streaks.name = "PortalStreaks"
-		portal.add_child(_portal_streaks)
-	_ensure_line_children(_portal_streaks, "Streak", 7)
-	_portal_ground_glow = portal.get_node_or_null("PortalGroundGlow") as Polygon2D
-	if _portal_ground_glow == null:
-		_portal_ground_glow = Polygon2D.new()
-		_portal_ground_glow.name = "PortalGroundGlow"
-		portal.add_child(_portal_ground_glow)
-	_portal_sparkles = portal.get_node_or_null("PortalSparkles") as Node2D
-	if _portal_sparkles == null:
-		_portal_sparkles = Node2D.new()
-		_portal_sparkles.name = "PortalSparkles"
-		portal.add_child(_portal_sparkles)
-	_ensure_line_children(_portal_sparkles, "Sparkle", 4)
+	_remove_legacy_portal_child(portal, "PortalColumn")
+	_remove_legacy_portal_child(portal, "PortalGroundGlow")
+	_remove_legacy_portal_child(portal, "PortalStreaks")
+	_remove_legacy_portal_child(portal, "PortalSparkles")
+	var sprite_node := portal.get_node_or_null("PortalSprite")
+	_portal_sprite = sprite_node as Sprite2D
+	if sprite_node != null and _portal_sprite == null:
+		portal.remove_child(sprite_node)
+		sprite_node.queue_free()
+	if _portal_sprite == null:
+		_portal_sprite = Sprite2D.new()
+		_portal_sprite.name = "PortalSprite"
+		portal.add_child(_portal_sprite)
 	return portal
 
 
@@ -336,98 +314,13 @@ func _contains_global_point(global_point: Vector2) -> bool:
 	return absf(local_point.x) <= half_size.x and absf(local_point.y) <= half_size.y
 
 
-func _portal_size_for_door_dir(next_door_dir: StringName) -> Vector2:
-	match next_door_dir:
-		&"N":
-			return Vector2(58.0, 124.0)
-		&"S":
-			return Vector2(54.0, 116.0)
-		_:
-			return Vector2(50.0, 108.0)
-
-
-func _ellipse_points(size: Vector2, segment_count: int) -> PackedVector2Array:
-	var points := PackedVector2Array()
-	for index: int in range(segment_count):
-		var angle := TAU * float(index) / float(segment_count)
-		points.append(Vector2(cos(angle) * size.x, sin(angle) * size.y))
-	return points
-
-
-func _portal_column_points(size: Vector2, arc_segments: int) -> PackedVector2Array:
-	var points := PackedVector2Array()
-	var half_width := size.x * 0.42
-	var arc_center_y := -size.y * 0.28
-	var arc_height := size.y * 0.24
-	var bottom_y := size.y * 0.38
-	points.append(Vector2(-half_width, bottom_y))
-	points.append(Vector2(half_width, bottom_y))
-	for index: int in range(arc_segments + 1):
-		var angle := PI * float(index) / float(arc_segments)
-		points.append(Vector2(cos(angle) * half_width, arc_center_y - sin(angle) * arc_height))
-	return points
-
-
-func _apply_portal_streak_layout(size: Vector2) -> void:
-	if _portal_streaks == null:
+func _advance_portal_sprite(delta: float) -> void:
+	if _portal_sprite == null:
 		return
-	var children := _portal_streaks.get_children()
-	var count := children.size()
-	if count <= 0:
-		return
-	for index: int in range(count):
-		var streak := children[index] as Line2D
-		if streak == null:
-			continue
-		var ratio := 0.0 if count == 1 else float(index) / float(count - 1)
-		var x := lerpf(-size.x * 0.28, size.x * 0.28, ratio)
-		var top_y := -size.y * (0.46 + 0.05 * float(index % 2))
-		var bottom_y := size.y * (0.26 + 0.04 * float((index + 1) % 3))
-		streak.points = PackedVector2Array([
-			Vector2(x, top_y),
-			Vector2(x + sin(float(index) * 1.7) * 2.0, bottom_y),
-		])
-		streak.width = 1.0 + float(index % 3) * 0.4
-		streak.default_color = Color(0.84, 0.94, 1.0, 0.62)
-		streak.z_index = 2
-
-
-func _apply_portal_sparkle_layout(size: Vector2) -> void:
-	if _portal_sparkles == null:
-		return
-	var points := [
-		Vector2(-size.x * 0.52, -size.y * 0.18),
-		Vector2(size.x * 0.48, -size.y * 0.06),
-		Vector2(-size.x * 0.36, size.y * 0.12),
-		Vector2(size.x * 0.38, size.y * 0.24),
-	]
-	var index := 0
-	for child: Node in _portal_sparkles.get_children():
-		var sparkle := child as Line2D
-		if sparkle == null:
-			continue
-		var center: Vector2 = points[index % points.size()]
-		var radius := 2.6 + float(index % 2)
-		sparkle.points = PackedVector2Array([
-			center + Vector2(-radius, 0.0),
-			center + Vector2(radius, 0.0),
-			center,
-			center + Vector2(0.0, -radius),
-			center + Vector2(0.0, radius),
-		])
-		sparkle.width = 1.2
-		sparkle.default_color = Color(0.96, 0.98, 1.0, 0.78)
-		sparkle.z_index = 4
-		index += 1
-
-
-func _ensure_line_children(parent: Node2D, prefix: String, count: int) -> void:
-	for index: int in range(count):
-		var line := parent.get_node_or_null("%s%d" % [prefix, index]) as Line2D
-		if line == null:
-			line = Line2D.new()
-			line.name = "%s%d" % [prefix, index]
-			parent.add_child(line)
+	_portal_frame_timer += delta
+	while _portal_frame_timer >= PORTAL_FRAME_TIME:
+		_portal_frame_timer -= PORTAL_FRAME_TIME
+		_portal_sprite.frame = (_portal_sprite.frame + 1) % PORTAL_FRAME_COUNT
 
 
 func _remove_legacy_portal_child(parent: Node, child_name: String) -> void:

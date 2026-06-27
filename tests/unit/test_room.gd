@@ -142,6 +142,7 @@ func test_room_generated_background_uses_nearest_filtering() -> void:
 func test_room_palette_exposes_play_area_and_camera_limits() -> void:
 	var room_bounds: Rect2 = RoomPalette.get_room_bounds()
 	var wall_bounds: Rect2 = RoomPalette.get_wall_bounds()
+	var camera_bounds: Rect2 = RoomPalette.get_camera_bounds()
 	var camera_limits: Dictionary = RoomPalette.get_camera_limits()
 	var expected_wall_margin := Vector2(RoomPalette.WALL_THICKNESS, RoomPalette.WALL_THICKNESS)
 
@@ -150,15 +151,18 @@ func test_room_palette_exposes_play_area_and_camera_limits() -> void:
 	_runner.assert_true(room_bounds.end.x < RoomPalette.ROOM_HALF_SIZE.x, "right edge stops at the haetae side of the map")
 	_runner.assert_true(room_bounds.position.y > -RoomPalette.ROOM_HALF_SIZE.y, "top edge stops below the locked palace door")
 	_runner.assert_true(room_bounds.size.x > 960.0, "playable courtyard remains wider than one landscape viewport")
+	_runner.assert_true(RoomPalette.ROOM_SIZE.x >= 2560.0, "visual room width covers the scaled palace background")
+	_runner.assert_true(camera_bounds.position.x < wall_bounds.position.x, "camera keeps visual margin outside the left collision wall")
+	_runner.assert_true(camera_bounds.end.x > wall_bounds.end.x, "camera keeps visual margin outside the right collision wall")
 	_runner.assert_eq(RoomPalette.NORTH_DOOR_POSITION, Vector2(0.0, room_bounds.position.y), "north portal sits under the locked door")
 	_runner.assert_eq(RoomPalette.EAST_DOOR_POSITION, Vector2(room_bounds.end.x, 0.0), "east portal sits on the right haetae boundary")
 	_runner.assert_eq(RoomPalette.WEST_DOOR_POSITION, Vector2(room_bounds.position.x, 0.0), "west portal sits on the left haetae boundary")
 	_runner.assert_eq(wall_bounds.position, room_bounds.position - expected_wall_margin, "wall bounds include perimeter thickness outside the room")
 	_runner.assert_eq(wall_bounds.size, room_bounds.size + expected_wall_margin * 2.0, "wall bounds wrap the full room perimeter")
-	_runner.assert_eq(camera_limits["left"], int(floor(wall_bounds.position.x)), "camera left limit matches wall-inclusive bounds")
-	_runner.assert_eq(camera_limits["top"], int(floor(wall_bounds.position.y)), "camera top limit matches wall-inclusive bounds")
-	_runner.assert_eq(camera_limits["right"], int(ceil(wall_bounds.end.x)), "camera right limit matches wall-inclusive bounds")
-	_runner.assert_eq(camera_limits["bottom"], int(ceil(wall_bounds.end.y)), "camera bottom limit matches wall-inclusive bounds")
+	_runner.assert_eq(camera_limits["left"], int(floor(camera_bounds.position.x)), "camera left limit follows visual map bounds")
+	_runner.assert_eq(camera_limits["top"], int(floor(camera_bounds.position.y)), "camera top limit follows visual map bounds")
+	_runner.assert_eq(camera_limits["right"], int(ceil(camera_bounds.end.x)), "camera right limit follows visual map bounds")
+	_runner.assert_eq(camera_limits["bottom"], int(ceil(camera_bounds.end.y)), "camera bottom limit follows visual map bounds")
 
 
 func _create_room(room_id: StringName, room_type: StringName, door_dirs: Array[StringName]) -> Room:

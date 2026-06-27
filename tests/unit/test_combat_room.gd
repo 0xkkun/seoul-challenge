@@ -1,5 +1,7 @@
 extends Node
 
+const RoomPalette = preload("res://scripts/constants/room_palette.gd")
+
 var _runner: Node
 
 
@@ -46,6 +48,27 @@ func test_combat_room_spawns_enemies_and_clears_after_defeats() -> void:
 	_runner.assert_true(room.call("is_cleared"), "combat room clears after every enemy is defeated")
 	_runner.assert_true(east_door.is_open(), "combat clear opens exits")
 	_runner.assert_eq(cleared_rooms, [room.get("room_id")], "combat room emits cleared once")
+
+
+func test_combat_room_spawns_and_bounds_enemies_inside_play_area() -> void:
+	var room := _instantiate_combat_room()
+	if room == null:
+		return
+	add_child(room)
+
+	room.enter()
+
+	var expected_bounds := Rect2(room.global_position + RoomPalette.get_room_bounds().position, RoomPalette.get_room_bounds().size)
+	for enemy: Node in room.call("get_active_enemies"):
+		var enemy_node := enemy as Node2D
+		_runner.assert_not_null(enemy_node, "combat enemy is a Node2D")
+		_runner.assert_true(enemy.has_method("get_movement_bounds"), "combat enemies expose player-style movement bounds")
+		_runner.assert_true(enemy.has_method("has_movement_bounds"), "combat enemies expose movement bounds state")
+		if enemy_node == null or not enemy.has_method("get_movement_bounds") or not enemy.has_method("has_movement_bounds"):
+			continue
+		_runner.assert_true(enemy.call("has_movement_bounds"), "combat enemy movement bounds are enabled")
+		_runner.assert_eq(enemy.call("get_movement_bounds"), expected_bounds, "combat enemy movement bounds match the current room play area")
+		_runner.assert_true(expected_bounds.has_point(enemy_node.global_position), "combat enemy starts inside the current room play area")
 
 
 func test_combat_room_with_no_spawn_budget_clears_on_enter() -> void:

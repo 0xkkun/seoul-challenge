@@ -1,66 +1,6 @@
-[gd_scene load_steps=7 format=3]
+[gd_scene load_steps=2 format=3]
 
 [ext_resource type="Script" path="res://scripts/ui/session_ui_root.gd" id="1_ui"]
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_summary_panel"]
-bg_color = Color(0.0352941, 0.0980392, 0.0627451, 0.96)
-border_width_left = 2
-border_width_top = 2
-border_width_right = 2
-border_width_bottom = 2
-border_color = Color(0.784314, 0.631373, 0.227451, 1)
-corner_radius_top_left = 4
-corner_radius_top_right = 4
-corner_radius_bottom_right = 4
-corner_radius_bottom_left = 4
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_reward_panel"]
-bg_color = Color(0.0705882, 0.184314, 0.105882, 1)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0.784314, 0.631373, 0.227451, 1)
-corner_radius_top_left = 3
-corner_radius_top_right = 3
-corner_radius_bottom_right = 3
-corner_radius_bottom_left = 3
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_record_green"]
-bg_color = Color(0.129412, 0.231373, 0.12549, 1)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0.352941, 0.490196, 0.352941, 1)
-corner_radius_top_left = 3
-corner_radius_top_right = 3
-corner_radius_bottom_right = 3
-corner_radius_bottom_left = 3
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_record_blue"]
-bg_color = Color(0.0980392, 0.172549, 0.254902, 1)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0.227451, 0.431373, 0.647059, 1)
-corner_radius_top_left = 3
-corner_radius_top_right = 3
-corner_radius_bottom_right = 3
-corner_radius_bottom_left = 3
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_record_purple"]
-bg_color = Color(0.164706, 0.105882, 0.2, 1)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0.415686, 0.227451, 0.541176, 1)
-corner_radius_top_left = 3
-corner_radius_top_right = 3
-corner_radius_bottom_right = 3
-corner_radius_bottom_left = 3
 
 [node name="SessionUIRoot" type="CanvasLayer"]
 unique_name_in_owner = true
@@ -164,8 +104,6 @@ offset_right = 316.0
 offset_bottom = 184.0
 grow_horizontal = 2
 grow_vertical = 2
-theme_override_styles/panel = SubResource("StyleBoxFlat_summary_panel")
-
 [node name="SummaryMargin" type="MarginContainer" parent="Root/SummaryOverlay/SummaryPanel"]
 layout_mode = 2
 theme_override_constants/margin_left = 24
@@ -193,8 +131,6 @@ theme_override_constants/separation = 16
 [node name="RewardPanel" type="PanelContainer" parent="Root/SummaryOverlay/SummaryPanel/SummaryMargin/SummaryStack/SummaryContent"]
 layout_mode = 2
 size_flags_horizontal = 3
-theme_override_styles/panel = SubResource("StyleBoxFlat_reward_panel")
-
 [node name="RewardMargin" type="MarginContainer" parent="Root/SummaryOverlay/SummaryPanel/SummaryMargin/SummaryStack/SummaryContent/RewardPanel"]
 layout_mode = 2
 theme_override_constants/margin_left = 18
@@ -240,8 +176,6 @@ theme_override_constants/separation = 9
 [node name="StudentsRecordPanel" type="PanelContainer" parent="Root/SummaryOverlay/SummaryPanel/SummaryMargin/SummaryStack/SummaryContent/RecordsStack"]
 custom_minimum_size = Vector2(0, 54)
 layout_mode = 2
-theme_override_styles/panel = SubResource("StyleBoxFlat_record_green")
-
 [node name="StudentsRecordLabel" type="Label" parent="Root/SummaryOverlay/SummaryPanel/SummaryMargin/SummaryStack/SummaryContent/RecordsStack/StudentsRecordPanel"]
 unique_name_in_owner = true
 layout_mode = 2
@@ -254,8 +188,6 @@ vertical_alignment = 1
 [node name="FriendsRecordPanel" type="PanelContainer" parent="Root/SummaryOverlay/SummaryPanel/SummaryMargin/SummaryStack/SummaryContent/RecordsStack"]
 custom_minimum_size = Vector2(0, 54)
 layout_mode = 2
-theme_override_styles/panel = SubResource("StyleBoxFlat_record_blue")
-
 [node name="FriendsRecordLabel" type="Label" parent="Root/SummaryOverlay/SummaryPanel/SummaryMargin/SummaryStack/SummaryContent/RecordsStack/FriendsRecordPanel"]
 unique_name_in_owner = true
 layout_mode = 2
@@ -268,8 +200,6 @@ vertical_alignment = 1
 [node name="RoomsRecordPanel" type="PanelContainer" parent="Root/SummaryOverlay/SummaryPanel/SummaryMargin/SummaryStack/SummaryContent/RecordsStack"]
 custom_minimum_size = Vector2(0, 54)
 layout_mode = 2
-theme_override_styles/panel = SubResource("StyleBoxFlat_record_purple")
-
 [node name="RoomsRecordLabel" type="Label" parent="Root/SummaryOverlay/SummaryPanel/SummaryMargin/SummaryStack/SummaryContent/RecordsStack/RoomsRecordPanel"]
 unique_name_in_owner = true
 layout_mode = 2
@@ -284,8 +214,6 @@ unique_name_in_owner = true
 visible = false
 custom_minimum_size = Vector2(0, 54)
 layout_mode = 2
-theme_override_styles/panel = SubResource("StyleBoxFlat_record_green")
-
 [node name="UnlocksRecordLabel" type="Label" parent="Root/SummaryOverlay/SummaryPanel/SummaryMargin/SummaryStack/SummaryContent/RecordsStack/UnlocksRecordPanel"]
 unique_name_in_owner = true
 layout_mode = 2

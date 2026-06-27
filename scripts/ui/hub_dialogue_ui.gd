@@ -490,16 +490,10 @@ func _stage_text_color(state: String) -> Color:
 
 
 func _make_panel_style(fill: Color, border: Color, border_width: int) -> StyleBoxFlat:
-	var style := StyleBoxFlat.new()
-	style.bg_color = fill
-	style.border_color = border
-	style.set_border_width_all(border_width)
-	style.set_corner_radius_all(0)
-	style.content_margin_left = 8.0
-	style.content_margin_top = 4.0
-	style.content_margin_right = 8.0
-	style.content_margin_bottom = 4.0
-	return style
+	# Square pixel frame with the dialogue UI's tight 8x4 padding. Delegates to the
+	# shared DungeonUiTheme builder so popup/panel stylebox construction lives in one
+	# place (output is identical to the previous inline StyleBoxFlat).
+	return DungeonUiTheme.panel_style(fill, border, border_width, 8.0, 4.0)
 
 
 func _clear_children(parent: Node) -> void:

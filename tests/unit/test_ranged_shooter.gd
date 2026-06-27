@@ -35,6 +35,25 @@ func test_kite_holds_in_deadzone() -> void:
 	e.free()
 
 
+func test_movement_bounds_clamp_like_player() -> void:
+	var e = RangedShooterScene.instantiate()
+	add_child(e)
+	var bounds := Rect2(Vector2(-20.0, -10.0), Vector2(40.0, 20.0))
+
+	_runner.assert_true(e.has_method("set_movement_bounds"), "원거리 적은 플레이어와 같은 이동 경계 설정 API를 가진다")
+	_runner.assert_true(e.has_method("get_movement_bounds"), "원거리 적은 현재 이동 경계를 노출한다")
+	_runner.assert_true(e.has_method("clamp_to_movement_bounds"), "원거리 적은 경계 clamp API를 가진다")
+	if not e.has_method("set_movement_bounds") or not e.has_method("get_movement_bounds") or not e.has_method("clamp_to_movement_bounds"):
+		e.free()
+		return
+
+	e.global_position = Vector2(80.0, -50.0)
+	e.call("set_movement_bounds", bounds)
+
+	_runner.assert_eq(e.call("get_movement_bounds"), bounds, "원거리 적 이동 경계는 설정값을 보존한다")
+	_runner.assert_eq(e.global_position, Vector2(20.0, -10.0), "원거리 적은 경계 밖에서 경계 안으로 보정된다")
+
+
 func test_aim_points_toward_target() -> void:
 	var e = RangedShooterScene.instantiate()
 	var d: Vector2 = e.aim_direction(Vector2.ZERO, Vector2(0.0, 10.0))

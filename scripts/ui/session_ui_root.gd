@@ -54,6 +54,7 @@ func _ready() -> void:
 	retry_button.set_meta("test_id", "session.retry_button")
 	retry_button.set_meta("uat_action", "session.retry")
 	_apply_button_styles()
+	_apply_result_panel_styles()
 	pause_button.pressed.connect(_on_pause_button_pressed)
 	resume_button.pressed.connect(_on_resume_button_pressed)
 	finish_button.pressed.connect(_on_finish_button_pressed)
@@ -62,6 +63,30 @@ func _ready() -> void:
 	set_status("Ready")
 	set_interaction_count(0)
 	show_summary({})
+
+
+func _apply_result_panel_styles() -> void:
+	# Build the summary/result panels through the shared DungeonUiTheme builder
+	# instead of five hand-authored scene StyleBoxFlats. Colors, border widths and
+	# corner radii are preserved 1:1; margins stay 0 (panels handle their own).
+	const PANEL := "Root/SummaryOverlay/SummaryPanel"
+	const CONTENT := PANEL + "/SummaryMargin/SummaryStack/SummaryContent"
+	const RECORDS := CONTENT + "/RecordsStack"
+	const GOLD := Color(0.784314, 0.631373, 0.227451, 1)
+	const GREEN_BG := Color(0.129412, 0.231373, 0.12549, 1)
+	const GREEN_BORDER := Color(0.352941, 0.490196, 0.352941, 1)
+	_style_panel(PANEL, Color(0.0352941, 0.0980392, 0.0627451, 0.96), GOLD, 2, 4)
+	_style_panel(CONTENT + "/RewardPanel", Color(0.0705882, 0.184314, 0.105882, 1), GOLD, 1, 3)
+	_style_panel(RECORDS + "/StudentsRecordPanel", GREEN_BG, GREEN_BORDER, 1, 3)
+	_style_panel(RECORDS + "/FriendsRecordPanel", Color(0.0980392, 0.172549, 0.254902, 1), Color(0.227451, 0.431373, 0.647059, 1), 1, 3)
+	_style_panel(RECORDS + "/RoomsRecordPanel", Color(0.164706, 0.105882, 0.2, 1), Color(0.415686, 0.227451, 0.541176, 1), 1, 3)
+	_style_panel(RECORDS + "/UnlocksRecordPanel", GREEN_BG, GREEN_BORDER, 1, 3)
+
+
+func _style_panel(path: String, bg: Color, border: Color, width: int, corner: int) -> void:
+	var panel := get_node_or_null(path) as PanelContainer
+	if panel != null:
+		panel.add_theme_stylebox_override("panel", DungeonUiTheme.panel_style(bg, border, width, 0.0, 0.0, corner))
 
 
 func set_status(text: String) -> void:
