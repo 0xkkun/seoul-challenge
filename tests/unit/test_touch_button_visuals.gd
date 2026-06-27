@@ -23,11 +23,12 @@ func test_attack_button_uses_b9_transparent_icon_contract() -> void:
 	_runner.assert_eq(contract.get("shadow_alpha"), 0.0, "B-9 removes attack button shadow")
 	_runner.assert_eq(contract.get("icon_path"), "res://assets/ui/icons/combat/damage_1.png", "attack uses the provided damage icon")
 	_runner.assert_true(is_equal_approx(float(contract.get("icon_alpha", 0.0)), 0.56), "attack icon is opacity-only muted")
+	_runner.assert_true(is_equal_approx(float(contract.get("icon_scale", 0.0)), 0.44), "attack icon keeps the existing combat size")
 	_runner.assert_true(float(contract.get("outer_ring_alpha", 0.0)) > float(contract.get("inner_ring_alpha", 0.0)), "outer ring stays clearer than inner ring")
 	button.free()
 
 
-func test_attack_button_dialogue_mode_uses_same_size_speech_icon_contract() -> void:
+func test_attack_button_dialogue_mode_uses_smaller_speech_icon_contract() -> void:
 	var button := AttackButtonScript.new()
 	_runner.assert_true(button.has_method("set_icon_mode"), "attack button can switch icon mode for non-combat contexts")
 	_runner.assert_true(button.has_method("get_visual_contract"), "attack button exposes icon contract")
@@ -41,7 +42,7 @@ func test_attack_button_dialogue_mode_uses_same_size_speech_icon_contract() -> v
 	_runner.assert_eq(contract.get("icon_mode"), "dialogue", "dialogue mode replaces the combat damage icon")
 	_runner.assert_eq(contract.get("icon_shape"), "speech_bubble", "dialogue mode uses a speech bubble/message icon")
 	_runner.assert_eq(contract.get("icon_path"), "", "dialogue mode uses the built-in pixel speech icon instead of the combat asset")
-	_runner.assert_true(is_equal_approx(float(contract.get("icon_scale", 0.0)), 0.44), "dialogue icon keeps the same size as the combat icon")
+	_runner.assert_true(is_equal_approx(float(contract.get("icon_scale", 0.0)), 0.34), "dialogue icon is smaller than the combat icon")
 	button.free()
 
 
