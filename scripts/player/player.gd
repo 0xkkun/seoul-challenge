@@ -866,6 +866,8 @@ func _attack_melee(dir: Vector2) -> void:
 			var applied_knockback := knockback_distance if _has_bat else barehand_knockback
 			if applied_knockback > 0.0:
 				e.global_position += knockback_vector(global_position, e.global_position, applied_knockback)
+				if enemy.has_method("clamp_to_movement_bounds"):
+					enemy.call("clamp_to_movement_bounds")
 	if _has_bat:
 		if _bat_awakened:
 			_deflect_bullets_in_arc(dir, rng, arc)
