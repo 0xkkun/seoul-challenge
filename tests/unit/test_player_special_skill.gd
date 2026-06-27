@@ -14,6 +14,12 @@ func after_each() -> void:
 		child.queue_free()
 
 
+func test_default_dodge_cooldown_is_three_seconds() -> void:
+	var player = PlayerScript.new()
+	_runner.assert_true(is_equal_approx(player.special_skill_cooldown, 3.0), "기본 대시 쿨타임은 3초다")
+	player.free()
+
+
 func test_special_cooldown_decrements_and_clamps() -> void:
 	var player = PlayerScript.new()
 	_runner.assert_true(player.has_method("step_special_cooldown"), "player exposes special cooldown math")
