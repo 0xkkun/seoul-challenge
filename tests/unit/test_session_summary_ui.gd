@@ -63,6 +63,26 @@ func test_death_result_keeps_same_layout_without_loss_copy() -> void:
 	_assert_no_explainer_copy(snapshot)
 
 
+func test_death_summary_modal_and_key_record_areas_are_transparent() -> void:
+	_ui.show_summary({
+		"outcome": "death",
+		"memory_reward": 5,
+		"students_rescued": 1,
+		"friends_purified": 0,
+		"rooms_cleared": 7,
+	})
+
+	_assert_transparent_panel_style("Root/SummaryOverlay/SummaryPanel", "death summary modal")
+	_assert_transparent_panel_style(
+		"Root/SummaryOverlay/SummaryPanel/SummaryMargin/SummaryStack/SummaryContent/RecordsStack/StudentsRecordPanel",
+		"rescued students record area"
+	)
+	_assert_transparent_panel_style(
+		"Root/SummaryOverlay/SummaryPanel/SummaryMargin/SummaryStack/SummaryContent/RecordsStack/RoomsRecordPanel",
+		"rooms record area"
+	)
+
+
 func test_run_result_contract_derives_records_from_existing_payload() -> void:
 	_ui.show_summary({
 		"completed": true,
@@ -433,3 +453,20 @@ func _assert_pixel_button_texture(style: StyleBox, texture_path: String, message
 	_runner.assert_eq(texture_style.texture.resource_path, texture_path, message)
 	_runner.assert_eq(texture_style.texture_margin_left, 60.0, "%s left 9-slice margin" % message)
 	_runner.assert_eq(texture_style.texture_margin_bottom, 12.0, "%s bottom 9-slice margin" % message)
+
+
+func _assert_transparent_panel_style(path: String, label: String) -> void:
+	var panel := _ui.get_node(path) as PanelContainer
+	_runner.assert_not_null(panel, "%s panel exists" % label)
+	if panel == null:
+		return
+	var flat_style := panel.get_theme_stylebox("panel") as StyleBoxFlat
+	_runner.assert_not_null(flat_style, "%s uses a transparent flat style" % label)
+	if flat_style == null:
+		return
+	_runner.assert_eq(flat_style.bg_color.a, 0.0, "%s has no colored fill" % label)
+	_runner.assert_eq(flat_style.border_color.a, 0.0, "%s has no colored border" % label)
+	_runner.assert_eq(flat_style.border_width_left, 0, "%s left border is removed" % label)
+	_runner.assert_eq(flat_style.border_width_top, 0, "%s top border is removed" % label)
+	_runner.assert_eq(flat_style.border_width_right, 0, "%s right border is removed" % label)
+	_runner.assert_eq(flat_style.border_width_bottom, 0, "%s bottom border is removed" % label)
