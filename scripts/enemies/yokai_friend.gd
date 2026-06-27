@@ -30,17 +30,24 @@ const PURIFY_STUNNED_MODULATE := Color(0.72, 0.82, 1.0, 0.88)
 const PURIFY_BURST_COLOR := Color(1.0, 0.9, 0.45, 0.9)
 const PURIFY_BURST_LIFETIME := 0.38
 
-enum State { CHASING, STUNNED, PURIFIED }
+enum State { CHASING, ATTACKING, STUNNED, PURIFIED }
 
-@export var max_stun: int = 5            ## 기절까지 필요한 누적 피해
+@export var max_stun: int = 8            ## 기절까지 필요한 누적 피해
 @export var stun_duration: float = 3.0   ## 기절 지속(이 안에 정화 못하면 복귀)
 @export var purify_time: float = 1.2      ## 정화 완료까지 근접 유지 시간 (s)
 @export var purify_range: float = 60.0    ## 정화 가능 거리 (px)
 @export var purify_progress_radius: float = 52.0
-@export var move_speed: float = 80.0
+@export var move_speed: float = 88.0
 @export var contact_damage: int = 1
-@export var contact_range: float = 30.0
+@export var contact_range: float = 34.0
 @export var contact_cooldown: float = 0.7
+@export var attack_damage: int = 2
+@export var attack_trigger_range: float = 104.0
+@export var attack_range: float = 104.0
+@export var attack_arc: float = 1.75
+@export var attack_windup_time: float = 0.22
+@export var attack_recover_time: float = 0.42
+@export var attack_cooldown: float = 0.74
 @export var hit_invuln_time: float = 0.12
 @export var target_group: StringName = &"player"
 @export var move_animation: StringName = &"move"
@@ -51,6 +58,12 @@ var _stun_accum: int = 0
 var _stun_timer: float = 0.0
 var _purify_progress: float = 0.0
 var _contact_timer: float = 0.0
+var _attack_cooldown_timer: float = 0.0
+var _attack_elapsed: float = 0.0
+var _attack_total_time: float = 0.0
+var _attack_hit_resolved := false
+var _attack_direction := Vector2.RIGHT
+var _attack_target: Node2D = null
 var _hit_reaction: Node = null
 var _purify_cue: Node2D = null
 var _range_ring: Line2D = null
@@ -86,6 +99,8 @@ func _physics_process(delta: float) -> void:
 	match _state:
 		State.CHASING:
 			_process_chase(delta)
+		State.ATTACKING:
+			_process_attack(delta)
 		State.STUNNED:
 			_process_stun(delta)
 	_update_animation()
@@ -125,6 +140,42 @@ func purify_arc_points(radius: float, fraction: float, segments: int = PURIFY_RI
 	return points
 
 
+func in_attack_arc(facing: Vector2, to_target: Vector2, swing_range: float, arc: float) -> bool:
+	if swing_range <= 0.0 or arc <= 0.0:
+		return false
+	var target_distance := to_target.length()
+	if target_distance > swing_range:
+		return false
+	if target_distance <= 0.001:
+		return true
+	if facing.length() <= 0.001:
+		return true
+	return absf(facing.normalized().angle_to(to_target.normalized())) <= arc * 0.5
+
+
+func attack_total_duration(windup: float, recover: float) -> float:
+	return maxf(0.0, windup) + maxf(0.0, recover)
+
+
+func is_attacking() -> bool:
+	return _state == State.ATTACKING
+
+
+func get_attack_state_snapshot() -> Dictionary:
+	return {
+		"state": State.keys()[_state],
+		"attack_damage": attack_damage,
+		"attack_trigger_range": attack_trigger_range,
+		"attack_range": attack_range,
+		"attack_arc": attack_arc,
+		"attack_windup_time": attack_windup_time,
+		"attack_recover_time": attack_recover_time,
+		"attack_cooldown": attack_cooldown,
+		"attack_elapsed": _attack_elapsed,
+		"attack_hit_resolved": _attack_hit_resolved,
+	}
+
+
 # --- 피격 반응 (계약 #136) ---
 
 func is_hit_invulnerable() -> bool:
@@ -153,9 +204,9 @@ func _ensure_hit_reaction() -> Node:
 
 # --- 피격/기절/정화 (I/O) ---
 
-## 정화탄 등이 호출(계약). CHASING 중에만 기절 게이지를 채운다.
+## 정화탄 등이 호출(계약). 추적/공격 중에는 기절 게이지를 채운다.
 func take_damage(amount: int) -> void:
-	if _state != State.CHASING or is_hit_invulnerable():
+	if not (_state == State.CHASING or _state == State.ATTACKING) or is_hit_invulnerable():
 		return
 	HapticManager.on_enemy_hit()
 	_stun_accum = accumulate_stun(_stun_accum, amount)
@@ -205,6 +256,7 @@ func get_visual_snapshot() -> Dictionary:
 		"move_loops": frames.get_animation_loop(move_animation) if frames != null and frames.has_animation(move_animation) else false,
 		"attack_loops": frames.get_animation_loop(attack_animation) if frames != null and frames.has_animation(attack_animation) else false,
 		"animation": sprite.animation if sprite != null else &"",
+		"sprite_scale": sprite.scale if sprite != null else Vector2.ONE,
 		"sprite_visible": sprite.visible if sprite != null else false,
 		"placeholder_visible": placeholder.visible if placeholder != null else false,
 	}
@@ -215,6 +267,7 @@ func _enter_stunned() -> void:
 	_stun_timer = stun_duration
 	_purify_progress = 0.0
 	_purify_completion_spawned = false
+	_clear_attack_state()
 	velocity = Vector2.ZERO
 	_play_move_animation()
 	_set_stunned_visual(true)
@@ -224,12 +277,26 @@ func _enter_stunned() -> void:
 
 func _process_chase(delta: float) -> void:
 	_contact_timer = maxf(0.0, _contact_timer - delta)
+	_attack_cooldown_timer = maxf(0.0, _attack_cooldown_timer - delta)
 	var target := _find_target()
 	if target == null:
+		return
+	if _can_start_attack(target):
+		_begin_attack(target)
 		return
 	velocity = chase_velocity(global_position, target.global_position, move_speed)
 	move_and_slide()
 	_try_contact(target)
+
+
+func _process_attack(delta: float) -> void:
+	velocity = Vector2.ZERO
+	_attack_elapsed += maxf(0.0, delta)
+	if not _attack_hit_resolved and _attack_elapsed >= maxf(0.0, attack_windup_time):
+		_attack_hit_resolved = true
+		_try_pattern_attack(_current_attack_target())
+	if _attack_elapsed >= _attack_total_time:
+		_return_to_chase_after_attack()
 
 
 func _process_stun(delta: float) -> void:
@@ -266,6 +333,7 @@ func _return_to_chase_after_stun() -> void:
 	_state = State.CHASING
 	_stun_accum = 0
 	_purify_progress = 0.0
+	_clear_attack_state()
 	_play_move_animation()
 	_set_stunned_visual(false)
 	_hide_purify_cue()
@@ -290,6 +358,62 @@ func _try_contact(target: Node2D) -> void:
 	if target.has_method("take_damage"):
 		target.call("take_damage", contact_damage)
 	_contact_timer = contact_cooldown
+
+
+func _can_start_attack(target: Node2D) -> bool:
+	if target == null or _attack_cooldown_timer > 0.0:
+		return false
+	return global_position.distance_to(target.global_position) <= attack_trigger_range
+
+
+func _begin_attack(target: Node2D) -> void:
+	_state = State.ATTACKING
+	_attack_elapsed = 0.0
+	_attack_total_time = attack_total_duration(attack_windup_time, attack_recover_time)
+	_attack_hit_resolved = false
+	_attack_target = target
+	_attack_direction = _aim_to(target)
+	velocity = Vector2.ZERO
+	_play_attack_animation(_attack_direction)
+
+
+func _return_to_chase_after_attack() -> void:
+	_state = State.CHASING
+	_attack_cooldown_timer = maxf(0.0, attack_cooldown)
+	_clear_attack_state(false)
+	_play_move_animation()
+
+
+func _try_pattern_attack(target: Node2D) -> void:
+	if target == null:
+		return
+	var to_target := target.global_position - global_position
+	if not in_attack_arc(_attack_direction, to_target, attack_range, attack_arc):
+		return
+	if target.has_method("take_damage"):
+		target.call("take_damage", attack_damage)
+
+
+func _current_attack_target() -> Node2D:
+	if _attack_target != null and is_instance_valid(_attack_target):
+		return _attack_target
+	return _find_target()
+
+
+func _aim_to(target: Node2D) -> Vector2:
+	if target == null:
+		return _attack_direction
+	var offset := target.global_position - global_position
+	return offset.normalized() if offset.length() > 0.001 else _attack_direction
+
+
+func _clear_attack_state(reset_cooldown := true) -> void:
+	if reset_cooldown:
+		_attack_cooldown_timer = 0.0
+	_attack_elapsed = 0.0
+	_attack_total_time = 0.0
+	_attack_hit_resolved = false
+	_attack_target = null
 
 
 func _ensure_purify_cue() -> Node2D:
@@ -429,6 +553,7 @@ func _play_attack_animation(facing_direction: Vector2 = Vector2.ZERO) -> void:
 	_set_sprite_facing_from_direction(facing_direction)
 	if sprite.sprite_frames.has_animation(attack_animation):
 		sprite.play(attack_animation)
+		sprite.frame = 0
 
 
 func _play_move_animation() -> void:

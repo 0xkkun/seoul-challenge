@@ -4,7 +4,7 @@
 [ext_resource type="SpriteFrames" path="res://assets/sprites/enemies/yokai_friend/yokai_friend_frames.tres" id="2_frames"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_friend"]
-radius = 20.0
+radius = 24.0
 
 [node name="YokaiFriend" type="CharacterBody2D"]
 collision_layer = 1
@@ -20,6 +20,7 @@ texture_filter = 1
 sprite_frames = ExtResource("2_frames")
 animation = &"move"
 autoplay = "move"
+scale = Vector2(1.18, 1.18)
 
 [node name="Placeholder" type="Polygon2D" parent="."]
 visible = false

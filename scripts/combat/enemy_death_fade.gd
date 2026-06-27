@@ -140,15 +140,33 @@ func _clone_visual(source: CanvasItem) -> Node2D:
 func _clone_animated_sprite(source: AnimatedSprite2D) -> AnimatedSprite2D:
 	var clone := AnimatedSprite2D.new()
 	clone.sprite_frames = source.sprite_frames
-	clone.animation = source.animation
+	var pose_animation := _death_pose_animation(source)
+	clone.animation = pose_animation
 	clone.centered = source.centered
 	clone.offset = source.offset
 	clone.flip_h = source.flip_h
 	clone.flip_v = source.flip_v
 	clone.stop()
-	clone.set_frame_and_progress(source.frame, source.frame_progress)
+	if pose_animation == source.animation:
+		clone.set_frame_and_progress(source.frame, source.frame_progress)
+	else:
+		clone.set_frame_and_progress(_death_pose_frame(source.sprite_frames, pose_animation), 0.0)
 	_prepare_clone_canvas_item(source, clone)
 	return clone
+
+
+func _death_pose_animation(source: AnimatedSprite2D) -> StringName:
+	if source.sprite_frames == null:
+		return source.animation
+	if source.animation != &"attack" and source.sprite_frames.has_animation(&"attack"):
+		return &"attack"
+	return source.animation
+
+
+func _death_pose_frame(frames: SpriteFrames, animation: StringName) -> int:
+	if frames == null or not frames.has_animation(animation):
+		return 0
+	return maxi(0, frames.get_frame_count(animation) - 1)
 
 
 func _clone_sprite(source: Sprite2D) -> Sprite2D:

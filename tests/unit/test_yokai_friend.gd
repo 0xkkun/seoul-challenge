@@ -49,22 +49,36 @@ func test_chase_points_toward_target() -> void:
 
 func test_damage_accumulates_to_stun() -> void:
 	var f = FriendScene.instantiate()
-	f.take_damage(2)
+	f.take_damage(3)
+	f.call("tick_hit_reaction", f.hit_invuln_time + 0.05)
+	f.take_damage(3)
+	_runner.assert_false(f.is_stunned(), "6 피해론 기절 안 함")
 	f.call("tick_hit_reaction", f.hit_invuln_time + 0.05)
 	f.take_damage(2)
-	_runner.assert_false(f.is_stunned(), "4 피해론 기절 안 함")
-	f.call("tick_hit_reaction", f.hit_invuln_time + 0.05)
-	f.take_damage(1)
-	_runner.assert_true(f.is_stunned(), "max_stun(5) 누적 시 기절")
+	_runner.assert_true(f.is_stunned(), "max_stun(8) 누적 시 기절")
 	f.free()
 
 
 func test_damage_ignored_while_stunned() -> void:
 	var f = FriendScene.instantiate()
-	f.take_damage(5)
+	f.take_damage(8)
 	_runner.assert_true(f.is_stunned(), "기절 진입")
 	f.take_damage(10)
 	_runner.assert_true(f.is_stunned(), "기절 중 피해 무시 — 여전히 기절(처치 아님)")
+	f.free()
+
+
+func test_yokai_friend_defaults_are_midboss_tuned() -> void:
+	var f = FriendScene.instantiate()
+	var player = preload("res://scripts/player/player.gd").new()
+	_runner.assert_true(f.max_stun > player.bat_damage * 3, "유령 주장은 기본 배트 세 방보다 오래 버틴다")
+	_runner.assert_true(f.max_stun <= player.bat_damage * 4, "유령 주장은 기본 배트 네 방 안에는 기절한다")
+	_runner.assert_eq(f.attack_damage, 2, "유령 주장 패턴 공격은 잡몹 접촉보다 아프다")
+	_runner.assert_true(f.attack_trigger_range > f.contact_range, "공격은 몸통 접촉 전부터 시작된다")
+	_runner.assert_true(f.attack_trigger_range <= f.attack_range, "공격 시작 거리는 실제 판정 사거리 안쪽이다")
+	_runner.assert_true(f.attack_range >= 90.0, "공격 판정은 새 공격 시트 체급에 맞게 넓다")
+	_runner.assert_true(f.attack_cooldown <= 0.8, "공격 쿨다운은 걷기만 하는 인상을 주지 않을 만큼 짧다")
+	player.free()
 	f.free()
 
 
@@ -93,6 +107,7 @@ func test_visual_uses_yokai_sprite_frames_instead_of_human_portrait() -> void:
 	_runner.assert_eq(snapshot["attack_frame_count"], 8, "요괴 상태 공격 시트는 8프레임으로 분할된다")
 	_runner.assert_true(bool(snapshot["move_loops"]), "이동 애니메이션은 루프한다")
 	_runner.assert_false(bool(snapshot["attack_loops"]), "공격 애니메이션은 루프하지 않는다")
+	_runner.assert_eq(snapshot["sprite_scale"], Vector2(1.18, 1.18), "유령 주장은 새 에셋 체급에 맞춰 잡몹보다 크게 보인다")
 	_runner.assert_true(bool(snapshot["sprite_visible"]), "정화 대상 스프라이트는 보인다")
 	_runner.assert_false(bool(snapshot["placeholder_visible"]), "임시 네모 placeholder는 숨긴다")
 
@@ -128,6 +143,43 @@ func test_contact_damage_plays_attack_animation() -> void:
 	_runner.assert_not_null(sprite, "요괴 친구 sprite remains mounted after contact")
 	if sprite != null:
 		_runner.assert_eq(sprite.animation, &"attack", "요괴 친구는 접촉 피해 때 공격 애니메이션을 재생한다")
+
+
+func test_attack_pattern_winds_up_and_hits_before_body_overlap() -> void:
+	var f = FriendScene.instantiate()
+	f.target_group = TEST_PLAYER_GROUP
+	var target := DamageTarget.new()
+	target.add_to_group(TEST_PLAYER_GROUP)
+	add_child(f)
+	add_child(target)
+	f.global_position = Vector2.ZERO
+	target.global_position = Vector2.RIGHT * 88.0
+
+	f.call("_process_chase", 0.1)
+
+	_runner.assert_true(f.is_attacking(), "사거리 안에 들어오면 접촉 전에 공격 상태로 전환한다")
+	_runner.assert_eq(target.damage_taken, 0, "공격 시작 즉시는 아직 피해를 주지 않는다")
+	var sprite := f.get_node_or_null("Sprite") as AnimatedSprite2D
+	_runner.assert_not_null(sprite, "공격 패턴은 요괴 친구 sprite를 사용한다")
+	if sprite != null:
+		_runner.assert_eq(sprite.animation, &"attack", "공격 패턴은 공격 애니메이션을 재생한다")
+
+	f.call("_process_attack", f.attack_windup_time - 0.01)
+	_runner.assert_eq(target.damage_taken, 0, "윈드업 중에는 피해 판정 전이다")
+	f.call("_process_attack", 0.02)
+	_runner.assert_eq(target.damage_taken, f.attack_damage, "윈드업 후 전방 공격 피해를 준다")
+	_runner.assert_true(target.global_position.distance_to(f.global_position) > f.contact_range, "테스트 대상은 몸통 접촉보다 멀리 있다")
+
+	f.call("_process_attack", f.attack_recover_time + 0.1)
+	_runner.assert_false(f.is_attacking(), "공격 회복이 끝나면 추적으로 돌아간다")
+
+
+func test_attack_arc_misses_behind_target() -> void:
+	var f = FriendScene.instantiate()
+	_runner.assert_true(f.in_attack_arc(Vector2.RIGHT, Vector2(80.0, 0.0), f.attack_range, f.attack_arc), "정면 목표는 공격에 맞는다")
+	_runner.assert_false(f.in_attack_arc(Vector2.RIGHT, Vector2(-40.0, 0.0), f.attack_range, f.attack_arc), "뒤쪽 목표는 공격에 맞지 않는다")
+	_runner.assert_false(f.in_attack_arc(Vector2.RIGHT, Vector2(140.0, 0.0), f.attack_range, f.attack_arc), "사거리 밖 목표는 공격에 맞지 않는다")
+	f.free()
 
 
 func test_yokai_friend_sprite_flips_with_horizontal_movement_and_attack_direction() -> void:
@@ -179,7 +231,7 @@ func test_stun_reveals_purify_cue_without_text_prompt() -> void:
 	var f = FriendScene.instantiate()
 	add_child(f)
 
-	f.take_damage(5)
+	f.take_damage(8)
 
 	var cue := f.get_node_or_null("PurifyCue") as Node2D
 	_runner.assert_not_null(cue, "기절하면 정화 링 노드를 만든다")
@@ -202,7 +254,7 @@ func test_purify_proximity_updates_progress_ring_and_beam_without_attack_input()
 	target.global_position = Vector2(30.0, 0.0)
 	target.firing = false
 
-	f.take_damage(5)
+	f.take_damage(8)
 	f.call("_process_stun", 0.6)
 
 	var snapshot: Dictionary = f.call("get_purify_visual_snapshot")
@@ -225,7 +277,7 @@ func test_leaving_purify_range_resets_progress_and_hides_beam() -> void:
 	target.global_position = Vector2(30.0, 0.0)
 	target.firing = false
 
-	f.take_damage(5)
+	f.take_damage(8)
 	f.call("_process_stun", 0.5)
 	target.global_position = Vector2(120.0, 0.0)
 	f.call("_process_stun", 0.1)
@@ -246,7 +298,7 @@ func test_purify_completion_spawns_detached_burst_before_friend_is_removed() -> 
 	target.global_position = Vector2(30.0, 0.0)
 	target.firing = false
 
-	f.take_damage(5)
+	f.take_damage(8)
 	f.call("_process_stun", f.purify_time + 0.05)
 
 	var burst := get_node_or_null("PurifyCompletionBurst") as Node2D
