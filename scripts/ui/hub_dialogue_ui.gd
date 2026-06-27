@@ -49,12 +49,11 @@ const UNLOCK_START_SCALE := Vector2(0.82, 0.82)
 const UNLOCK_DIM_BASE := 0.28
 const UNLOCK_DIM_HERO := 0.72
 const UNLOCK_ICON_SIZE := Vector2(32.0, 32.0)
-const UNLOCK_HERO_ICON_SIZE := Vector2(112.0, 112.0)
-# hero(각성) 보상은 데이브 더 다이버식 — 박스 없이 아이템을 주인공으로 화면 중앙에.
-const UNLOCK_HERO_POPUP_HALF := Vector2(160.0, 130.0)
-const UNLOCK_HERO_POPUP_CENTER_OFFSET := Vector2(0.0, -30.0)
-const UNLOCK_HERO_GLOW_BIAS := Vector2(0.0, -34.0)
-const UNLOCK_GLOW_SIZE := Vector2(360.0, 360.0)
+# hero(각성) 보상: 배트가 사각형 슬롯에 들어가고 그 뒤로 골드 글로우가 퍼진다.
+const UNLOCK_HERO_SLOT_SIZE := Vector2(150.0, 150.0)
+const UNLOCK_HERO_POPUP_HALF := Vector2(170.0, 140.0)
+const UNLOCK_HERO_POPUP_CENTER_OFFSET := Vector2(0.0, -26.0)
+const UNLOCK_GLOW_SIZE := Vector2(300.0, 300.0)
 const UNLOCK_GLOW_COLOR := Color(1.0, 0.84, 0.42, 0.9)
 const UNLOCK_SPARKLE_COLOR := Color(1.0, 0.88, 0.5, 1.0)
 
@@ -94,7 +93,7 @@ var _unlock_dimmer: ColorRect
 var _unlock_reveal_tween: Tween
 var _unlock_glow: TextureRect
 var _unlock_sparkles: CPUParticles2D
-var _unlock_hero_icon: TextureRect
+var _unlock_hero_slot: Control
 
 
 func _ready() -> void:
@@ -299,7 +298,7 @@ func show_unlock(title: String, subtitle: String, items: Array[Dictionary], hero
 	_unlock_title_label.text = title
 	_unlock_subtitle_label.text = subtitle
 	_unlock_items.clear()
-	_unlock_hero_icon = null
+	_unlock_hero_slot = null
 	for item: Dictionary in items:
 		_unlock_items.append(item.duplicate(true))
 	_render_unlock_items()
@@ -457,15 +456,18 @@ func _render_unlock_items() -> void:
 	for item: Dictionary in _unlock_items:
 		var item_texture := item.get("texture", null) as Texture2D
 		if bool(item.get("hero", false)) and item_texture != null:
-			# 데이브 더 다이버식: 박스 없이 큰 아이콘만 중앙에. 이름은 팝업 타이틀이 맡는다.
+			# 각성 보상: 사각형 슬롯(골드 테두리) 안에 배트, 뒤에 글로우. 이름은 팝업 타이틀이 맡는다.
+			var slot := PanelContainer.new()
+			slot.custom_minimum_size = UNLOCK_HERO_SLOT_SIZE
+			slot.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+			slot.add_theme_stylebox_override("panel", _hero_slot_style())
 			var hero_icon := TextureRect.new()
 			hero_icon.texture = item_texture
 			hero_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 			hero_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-			hero_icon.custom_minimum_size = UNLOCK_HERO_ICON_SIZE
-			hero_icon.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-			_unlock_item_grid.add_child(hero_icon)
-			_unlock_hero_icon = hero_icon
+			slot.add_child(hero_icon)
+			_unlock_item_grid.add_child(slot)
+			_unlock_hero_slot = slot
 			continue
 
 		var item_panel := PanelContainer.new()
@@ -554,6 +556,8 @@ func _apply_unlock_chrome(hero: bool) -> void:
 		stack.add_theme_constant_override("separation", 8)
 		stack.move_child(_unlock_item_grid, 0)
 	_unlock_item_grid.columns = 1
+	# GridContainer 는 단일 열을 좌측 정렬하므로, 그리드를 내용폭으로 줄여 중앙에 둔다.
+	_unlock_item_grid.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 
 	if title_row is HBoxContainer:
 		title_row.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -613,16 +617,41 @@ func _play_unlock_reveal(hero: bool) -> void:
 
 
 func _layout_hero_effects() -> void:
-	# 글로우/스파클은 큰 아이콘 뒤(팝업 중앙에서 살짝 위)를 기준으로 둔다.
-	var center := _unlock_overlay.size * 0.5 + UNLOCK_HERO_POPUP_CENTER_OFFSET + UNLOCK_HERO_GLOW_BIAS
 	var glow := _ensure_unlock_glow()
 	glow.size = UNLOCK_GLOW_SIZE
-	glow.position = center - UNLOCK_GLOW_SIZE * 0.5
 	glow.visible = true
 	glow.modulate.a = 0.0
-	var sparkles := _ensure_unlock_sparkles()
-	sparkles.position = center
-	sparkles.visible = true
+	_ensure_unlock_sparkles().visible = true
+	# 우선 근사 위치로 깔고, 레이아웃 확정 후 실제 배트 아이콘 중심으로 정확히 맞춘다.
+	_position_hero_effects(_unlock_overlay.size * 0.5 + UNLOCK_HERO_POPUP_CENTER_OFFSET)
+	call_deferred("_align_hero_effects_to_icon")
+
+
+func _align_hero_effects_to_icon() -> void:
+	if _unlock_hero_slot == null or not is_instance_valid(_unlock_hero_slot):
+		return
+	var slot_center := _unlock_hero_slot.get_global_rect().get_center()
+	_position_hero_effects(_unlock_overlay.get_global_transform().affine_inverse() * slot_center)
+
+
+func _hero_slot_style() -> StyleBoxFlat:
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0.06, 0.07, 0.1, 0.94)
+	sb.border_color = DungeonUiTheme.COLOR_GOLD
+	sb.set_border_width_all(3)
+	sb.set_corner_radius_all(6)
+	sb.content_margin_left = 16.0
+	sb.content_margin_right = 16.0
+	sb.content_margin_top = 16.0
+	sb.content_margin_bottom = 16.0
+	return sb
+
+
+func _position_hero_effects(center: Vector2) -> void:
+	if _unlock_glow != null:
+		_unlock_glow.position = center - UNLOCK_GLOW_SIZE * 0.5
+	if _unlock_sparkles != null:
+		_unlock_sparkles.position = center
 
 
 func _hide_hero_effects() -> void:
@@ -634,17 +663,13 @@ func _hide_hero_effects() -> void:
 
 
 func _play_hero_punch() -> void:
-	if _unlock_hero_icon == null:
+	if _unlock_hero_slot == null:
 		return
-	_unlock_hero_icon.pivot_offset = UNLOCK_HERO_ICON_SIZE * 0.5
-	_unlock_hero_icon.scale = Vector2(0.4, 0.4)
-	_unlock_hero_icon.rotation = -0.12
+	_unlock_hero_slot.pivot_offset = UNLOCK_HERO_SLOT_SIZE * 0.5
+	_unlock_hero_slot.scale = Vector2(0.5, 0.5)
 	var punch := create_tween()
-	punch.set_parallel(true)
-	punch.tween_property(_unlock_hero_icon, "scale", Vector2.ONE, 0.46) \
+	punch.tween_property(_unlock_hero_slot, "scale", Vector2.ONE, 0.46) \
 		.set_trans(Tween.TRANS_ELASTIC).set_ease(Tween.EASE_OUT).set_delay(0.08)
-	punch.tween_property(_unlock_hero_icon, "rotation", 0.0, 0.42) \
-		.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT).set_delay(0.08)
 
 
 func _play_reveal_feedback() -> void:
