@@ -98,13 +98,15 @@ func test_skill_state_event_updates_skill_slot() -> void:
 func test_currency_state_renders_ingame_balance() -> void:
 	_runner.assert_true(_hud.has_method("set_currency_state"), "HUD exposes currency state setter")
 	_runner.assert_true(_hud.has_method("get_currency_text"), "HUD exposes currency text for tests")
-	if not _hud.has_method("set_currency_state") or not _hud.has_method("get_currency_text"):
+	_runner.assert_true(_hud.has_method("get_currency_icon_path"), "HUD exposes currency icon path for tests")
+	if not _hud.has_method("set_currency_state") or not _hud.has_method("get_currency_text") or not _hud.has_method("get_currency_icon_path"):
 		return
 
 	_hud.set_currency_state({"ingame": 7})
 
-	_runner.assert_true(_hud.get_currency_text().contains("엽전"), "HUD labels ingame currency")
-	_runner.assert_true(_hud.get_currency_text().contains("7"), "HUD renders ingame balance")
+	_runner.assert_eq(_hud.get_currency_text(), "7", "HUD renders only the ingame balance number")
+	_runner.assert_false(_hud.get_currency_text().contains("엽전"), "HUD removes the currency word label")
+	_runner.assert_eq(_hud.get_currency_icon_path(), "res://assets/ui/icons/currency/yeopjeon.png", "HUD uses the yeopjeon icon asset")
 
 
 func test_currency_changed_event_updates_currency_slot() -> void:
@@ -121,3 +123,20 @@ func test_currency_changed_event_updates_currency_slot() -> void:
 	})
 
 	_runner.assert_true(_hud.get_currency_text().contains("3"), "currency event updates HUD")
+
+
+func test_ingame_top_right_hud_hides_non_currency_labels_and_avoids_minimap() -> void:
+	var root := _hud.get_node("Root") as Control
+	var currency_panel := root.get_node("CurrencyPanel") as Control
+	var currency_icon := _hud.get_node_or_null("%CurrencyIcon") as TextureRect
+	var currency_amount := _hud.get_node_or_null("%CurrencyAmountLabel") as Label
+	var weapon_slot := _hud.get_node("%WeaponSlot") as Control
+	var skill_slot := _hud.get_node("%SkillSlot") as Control
+
+	_runner.assert_not_null(currency_icon, "currency slot includes the yeopjeon icon")
+	_runner.assert_not_null(currency_amount, "currency slot includes the amount label")
+	_runner.assert_false(weapon_slot.visible, "top-right HUD hides the weapon text label")
+	_runner.assert_false(skill_slot.visible, "top-right HUD hides the skill text label")
+	_runner.assert_eq(currency_panel.anchor_left, 1.0, "currency display is anchored from the right edge")
+	_runner.assert_eq(currency_panel.offset_right, -336.0, "currency display stays left of the compact minimap right column")
+	_runner.assert_true(root.has_node("CurrencyPanel"), "currency display is separate from the old label row")
