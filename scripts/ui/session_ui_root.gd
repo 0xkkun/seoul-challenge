@@ -215,6 +215,10 @@ func show_summary(result: Dictionary) -> void:
 	var unlock_labels: Array[String] = summary["unlocks"]
 	unlocks_record_label.text = "해금 %s" % " / ".join(unlock_labels) if not unlock_labels.is_empty() else ""
 	summary_overlay.visible = true
+	# Onboarding completion has no meaningful retry — relaunching it would start a normal
+	# night run from the onboarding result screen. Only returning to school moves the story
+	# forward, so hide retry for onboarding results and keep it for every other outcome.
+	retry_button.visible = not _is_onboarding_result(result)
 	hide_reward_choices()
 
 
@@ -793,6 +797,12 @@ func _build_summary(result: Dictionary) -> Dictionary:
 		"rooms_cleared": _rooms_cleared(result),
 		"unlocks": _unlock_labels(result),
 	}
+
+
+func _is_onboarding_result(result: Dictionary) -> bool:
+	if String(result.get("reason", "")) == "onboarding_friend_purified":
+		return true
+	return StringName(result.get("onboarding_kind", &"")) != &""
 
 
 func _result_title(result: Dictionary) -> String:

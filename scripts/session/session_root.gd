@@ -240,7 +240,16 @@ func _make_room_def(
 
 func _is_baseball_onboarding_run() -> bool:
 	var config := GameManager.get_active_config()
-	return StringName(config.get(SceneTransition.RUN_CONFIG_ONBOARDING_KIND, &"")) == SceneTransition.ONBOARDING_KIND_BASEBALL_CAPTAIN
+	var is_onboarding_config := StringName(config.get(SceneTransition.RUN_CONFIG_ONBOARDING_KIND, &"")) == SceneTransition.ONBOARDING_KIND_BASEBALL_CAPTAIN
+	if not is_onboarding_config:
+		return false
+	# Fallback guard: once the baseball onboarding is recorded complete, never treat a run
+	# as onboarding again — even if a stale active config still carries the onboarding kind
+	# (e.g. retrying from the result screen reuses the previous config). Without this the
+	# captain re-spawns and the onboarding can be re-cleared after it was already finished.
+	if has_node("/root/SaveManager") and SaveManager.get_flag(SceneTransition.FLAG_ONBOARDING_BASEBALL_COMPLETE):
+		return false
+	return true
 
 
 func _resolve_run_layout_seed() -> int:
