@@ -208,7 +208,9 @@ static func _signed_multiplier_effect(label: String, multiplier: float) -> Strin
 
 
 static func _cooldown_multiplier_as_speed_effect(label: String, multiplier: float) -> String:
-	var percent := roundi((1.0 - multiplier) * 100.0)
+	if multiplier <= 0.0:
+		return ""
+	var percent := roundi(((1.0 / multiplier) - 1.0) * 100.0)
 	if percent == 0:
 		return ""
 	var sign := "+" if percent > 0 else "-"

@@ -72,7 +72,7 @@ func test_effect_text_describes_visible_stat_changes() -> void:
 		return
 
 	_runner.assert_eq(catalog.call("get_effect_text", &"gung_talisman"), "근접 피해 +1 / 배트 피해 +1", "damage reward explains both attack stats")
-	_runner.assert_eq(catalog.call("get_effect_text", &"dokkaebi_fire"), "근접 공격 속도 +16% / 투척 속도 +16%", "tempo reward explains speed gain in player-facing terms")
+	_runner.assert_eq(catalog.call("get_effect_text", &"dokkaebi_fire"), "근접 공격 속도 +19% / 투척 속도 +19%", "tempo reward explains speed gain in player-facing terms")
 	_runner.assert_eq(catalog.call("get_effect_text", &"wind_step"), "이동 속도 +15%", "speed reward explains movement stat")
 	_runner.assert_eq(catalog.call("get_effect_text", &"moon_guard"), "최대 체력 +1", "health reward explains health stat")
 	_runner.assert_eq(catalog.call("get_effect_text", &"nurse_bandage"), "체력 회복 +2", "health recovery reward explains current health restore")
