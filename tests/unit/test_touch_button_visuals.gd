@@ -43,8 +43,33 @@ func test_attack_button_dialogue_mode_uses_smaller_speech_icon_contract() -> voi
 	_runner.assert_eq(contract.get("icon_shape"), "speech_bubble", "dialogue mode uses a speech bubble/message icon")
 	_runner.assert_eq(contract.get("icon_path"), "", "dialogue mode uses the built-in pixel speech icon instead of the combat asset")
 	_runner.assert_true(is_equal_approx(float(contract.get("icon_scale", 0.0)), 0.34), "dialogue icon is smaller than the combat icon")
-	_runner.assert_eq(contract.get("dialogue_tail_blocks"), 3, "dialogue speech bubble tail extends past the compact two-block shape")
+	_runner.assert_eq(contract.get("dialogue_tail_style"), "emoji_corner", "dialogue speech bubble uses a compact message-emoji tail")
+	_runner.assert_eq(contract.get("dialogue_tail_blocks"), 1, "dialogue speech bubble tail stays short instead of stair-stepping below the button")
 	_runner.assert_eq(contract.get("label_text"), "", "dialogue action remains icon-only without visible copy")
+	button.free()
+
+
+func test_attack_button_dialogue_icon_geometry_uses_short_bottom_corner_tail() -> void:
+	var button := AttackButtonScript.new()
+	_runner.assert_true(button.has_method("build_dialogue_icon_geometry"), "attack button exposes pure dialogue icon geometry")
+	if not button.has_method("build_dialogue_icon_geometry"):
+		button.free()
+		return
+
+	var geometry: Dictionary = button.call("build_dialogue_icon_geometry", Vector2(48.0, 48.0), 48.0)
+	var bubble := geometry.get("bubble", Rect2()) as Rect2
+	var tail_points := geometry.get("tail_points", []) as Array
+	var pixel := float(geometry.get("pixel", 0.0))
+
+	_runner.assert_eq(tail_points.size(), 3, "message-style tail is a single triangular corner")
+	if tail_points.size() == 3:
+		var tail_start := tail_points[0] as Vector2
+		var tail_tip := tail_points[1] as Vector2
+		var tail_end := tail_points[2] as Vector2
+		_runner.assert_true(tail_start.x >= bubble.position.x and tail_end.x <= bubble.end.x, "tail joins inside the bubble body instead of dangling outside")
+		_runner.assert_true(tail_tip.x < bubble.position.x + bubble.size.x * 0.48, "tail sits on the lower-left side like a message emoji")
+		_runner.assert_true(tail_tip.y > bubble.end.y, "tail points just below the bubble")
+		_runner.assert_true(tail_tip.y <= bubble.end.y + pixel * 2.25, "tail remains short and does not stair-step down the button")
 	button.free()
 
 
