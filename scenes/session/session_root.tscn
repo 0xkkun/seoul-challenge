@@ -31,8 +31,7 @@ touch_controls_path = NodePath("../../TouchControls")
 
 [node name="PlayerCamera" type="Camera2D" parent="ActorLayer/Player"]
 unique_name_in_owner = true
-position_smoothing_enabled = true
-position_smoothing_speed = 8.0
+position_smoothing_enabled = false
 
 [node name="InteractableLayer" type="Node2D" parent="."]
 unique_name_in_owner = true

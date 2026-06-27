@@ -243,6 +243,7 @@ func test_session_root_mounts_room_manager() -> void:
 	_runner.assert_not_null(player_camera, "session mounts player camera")
 	if player_camera != null:
 		_runner.assert_eq(player_camera.zoom, Vector2.ONE, "session camera uses native mobile viewport scale for corridor scrolling")
+		_runner.assert_false(player_camera.position_smoothing_enabled, "session camera follows player immediately to avoid smoothing afterimage")
 		_runner.assert_true(RoomPalette.ROOM_SIZE.x > float(ProjectSettings.get_setting("display/window/size/viewport_width")), "room is wider than one mobile viewport")
 	_runner.assert_eq(entered_payloads.size(), 2, "room enter events fire for mounted rooms")
 
