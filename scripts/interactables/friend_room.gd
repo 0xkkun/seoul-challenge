@@ -39,6 +39,11 @@ func is_cleared() -> bool:
 	return _encounter_resolved
 
 
+func apply_room_config(config: Dictionary) -> void:
+	if config.has("friend_id"):
+		friend_id = StringName(config.get("friend_id", friend_id))
+
+
 func get_active_friends() -> Array[Node]:
 	_prune_inactive_friends()
 	return _active_friends.duplicate()

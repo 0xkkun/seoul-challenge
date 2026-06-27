@@ -422,6 +422,8 @@ func _build_summary(result: Dictionary) -> Dictionary:
 
 func _result_title(result: Dictionary) -> String:
 	var outcome := String(result.get("outcome", "")).to_lower()
+	if String(result.get("reason", "")) == "onboarding_friend_purified":
+		return "정화 완료"
 	if outcome in ["death", "dead", "failed"]:
 		return "쓰러짐"
 	if bool(result.get("died", false)):
@@ -437,9 +439,14 @@ func _result_title(result: Dictionary) -> String:
 
 func _result_narrative(result: Dictionary) -> String:
 	var outcome := String(result.get("outcome", "")).to_lower()
+	var reason := String(result.get("reason", ""))
 	if outcome in ["death", "dead", "failed"] or bool(result.get("died", false)):
 		return "새벽 종소리와 함께 교실에서 눈을 떴다. 기억 조각은 손에 남아 있다."
-	if bool(result.get("completed", false)) or String(result.get("reason", "")) == "boss_resolved" or outcome in ["success", "escaped", "complete", "completed"]:
+	if reason == "onboarding_friend_purified":
+		return "야구부 주장이 제정신을 되찾았다. 학교로 돌아가 배트와 단서를 받자."
+	if reason == "boss_resolved":
+		return "도깨비왕은 쓰러졌지만 친구는 돌아오지 않았다. 범인은 아직 따로 있다."
+	if bool(result.get("completed", false)) or outcome in ["success", "escaped", "complete", "completed"]:
 		return "친구의 기억이 조금 돌아왔다. 학교로 돌아가 말을 걸어보자."
 	return "오늘 밤의 기록을 챙겼다. 학교에서 정비한 뒤 다시 나갈 수 있다."
 
@@ -473,10 +480,6 @@ func _friends_purified(result: Dictionary) -> int:
 	])
 	if bool(explicit["found"]):
 		return int(explicit["count"])
-	if result.has("boss_id") or String(result.get("reason", "")) == "boss_resolved":
-		return 1
-	if bool(result.get("boss_defeated", false)):
-		return 1
 	return 0
 
 

@@ -52,9 +52,9 @@ func test_day_corridor_scene_uses_mobile_landscape_plate() -> void:
 	_runner.assert_true(is_equal_approx(scene.get_background_asset_scale(), 1.0), "final background is authored at runtime scale")
 	_runner.assert_true(is_equal_approx(scene.get_character_asset_scale(), 2.0), "student sprite is scaled up for corridor readability")
 	_runner.assert_true(scene.are_runtime_sprites_nearest_filtered(), "runtime sprites use nearest filtering")
-	_runner.assert_eq(scene.get_talk_target_texture_path(), "res://assets/characters/school/people2.png", "talk target uses the selected school friend sprite")
+	_runner.assert_eq(scene.get_talk_target_texture_path(), "res://assets/characters/school/baseball_captain.png", "talk target uses the baseball captain sprite")
 	_runner.assert_eq(scene.get_school_character_texture_paths(), [
-		"res://assets/characters/school/people2.png",
+		"res://assets/characters/school/baseball_captain.png",
 		"res://assets/characters/school/people3.png",
 		"res://assets/characters/school/people4.png",
 	], "school corridor wires the selected people assets")
@@ -293,8 +293,8 @@ func test_day_corridor_dialogue_signal_updates_state() -> void:
 	_runner.assert_false(scene.get_node("%HubDialogueUi").is_dialogue_overlay_modal(), "dialogue overlay does not block the choice button")
 	_runner.assert_false(scene.get_node("%HubDialogueUi").is_stage_row_visible(), "day corridor dialogue hides abstract stage labels")
 	_runner.assert_true(scene.get_node("%HubDialogueUi").is_portrait_sprite_visible(), "dialogue UI shows the talk target sprite portrait")
-	_runner.assert_eq(scene.get_node("%HubDialogueUi").get_portrait_frame_count(), 8, "dialogue portrait uses the eight-frame sprite sheet")
-	_runner.assert_eq(scene.get_node("%HubDialogueUi").get_portrait_texture_path(), "res://assets/characters/school/people2.png", "dialogue portrait uses the same sprite asset")
+	_runner.assert_eq(scene.get_node("%HubDialogueUi").get_portrait_frame_count(), 6, "dialogue portrait uses the six-frame captain sprite sheet")
+	_runner.assert_eq(scene.get_node("%HubDialogueUi").get_portrait_texture_path(), "res://assets/characters/school/baseball_captain.png", "dialogue portrait uses the same sprite asset")
 	_runner.assert_eq(scene.get_node("%HubDialogueUi").get_portrait_frame(), 1, "dialogue portrait stays on the open-eye frame")
 	_runner.assert_false(scene.get_node("%HubDialogueUi").is_portrait_animating(), "dialogue portrait does not blink while talking")
 	_runner.assert_eq(scene.get_active_dialogue_line_index(), 0, "first trigger starts at the first dialogue line")
@@ -308,6 +308,81 @@ func test_day_corridor_dialogue_signal_updates_state() -> void:
 	if payloads.size() == 1:
 		_runner.assert_eq(payloads[0]["source"], &"day_corridor", "dialogue payload identifies the day corridor")
 		_runner.assert_eq(payloads[0]["line_index"], 0, "dialogue payload includes the current line index")
+
+
+func test_day_corridor_onboarding_reward_dialogue_grants_bat_and_clue() -> void:
+	SaveManager.set_flag(SceneTransition.FLAG_ONBOARDING_BASEBALL_COMPLETE, true)
+	SaveManager.set_flag(SceneTransition.FLAG_BASEBALL_CAPTAIN_REWARD_CLAIMED, false)
+	var scene := DayCorridorScene.instantiate()
+	add_child(scene)
+
+	_runner.assert_eq(scene.get_objective_text(), "목표: 야구부 주장에게 돌아가 배트와 단서를 받자", "onboarding completion directs player back to the captain")
+	_runner.assert_false(SaveManager.get_flag(SceneTransition.FLAG_BASEBALL_CAPTAIN_REWARD_CLAIMED), "reward starts pending")
+
+	scene.trigger_dialogue()
+	_runner.assert_true(scene.is_dialogue_ui_visible(), "reward dialogue opens")
+	_runner.assert_true(scene.get_active_dialogue_text().contains("고마워"), "captain thanks the player")
+	_runner.assert_eq(scene.get_dialogue_choice_ids(), [&"next"], "reward dialogue starts with next")
+
+	_runner.assert_true(UiTestHarness.press_by_uat_action(scene, "day_corridor.dialogue.next"), "reward dialogue advances to bat line")
+	_runner.assert_true(scene.get_active_dialogue_text().contains("배트"), "captain gives the bat")
+	_runner.assert_true(UiTestHarness.press_by_uat_action(scene, "day_corridor.dialogue.next"), "reward dialogue advances to clue line")
+	_runner.assert_true(scene.get_active_dialogue_text().contains("도깨비왕"), "captain gives the goblin king clue")
+	_runner.assert_true(scene.get_active_dialogue_text().contains("더 큰"), "captain leaves room for a stronger culprit")
+	_runner.assert_eq(scene.get_dialogue_choice_ids(), [&"close"], "final reward line closes")
+
+	_runner.assert_true(UiTestHarness.press_by_test_id(scene, "day_corridor.dialogue.close_button"), "closing reward dialogue is testable")
+	_runner.assert_false(scene.is_dialogue_ui_visible(), "reward dialogue closes")
+	_runner.assert_true(SaveManager.get_flag(SceneTransition.FLAG_BASEBALL_CAPTAIN_REWARD_CLAIMED), "bat and clue reward is claimed after the full dialogue")
+	_runner.assert_eq(scene.get_objective_text(), "목표: 복도 끝 사물함에서 배트를 챙기고 경복궁으로 다시 가자", "post-reward objective points to the next MVP run")
+
+
+func test_day_corridor_onboarding_reward_dialogue_completes_baseball_lobby_quest() -> void:
+	ProgressionSystem.record_friend_purified(&"baseball_captain")
+	SaveManager.set_flag(SceneTransition.FLAG_ONBOARDING_BASEBALL_COMPLETE, true)
+	SaveManager.set_flag(SceneTransition.FLAG_BASEBALL_CAPTAIN_REWARD_CLAIMED, false)
+	var scene := DayCorridorScene.instantiate()
+	add_child(scene)
+
+	scene.trigger_dialogue()
+	_runner.assert_true(UiTestHarness.press_by_uat_action(scene, "day_corridor.dialogue.next"), "reward dialogue advances to bat line")
+	_runner.assert_true(UiTestHarness.press_by_uat_action(scene, "day_corridor.dialogue.next"), "reward dialogue advances to clue line")
+	_runner.assert_true(UiTestHarness.press_by_test_id(scene, "day_corridor.dialogue.close_button"), "final reward line triggers quest completion")
+
+	var dialogue_ui: Node = scene.get_node("%HubDialogueUi")
+	_runner.assert_true(SaveManager.get_flag(SceneTransition.FLAG_BASEBALL_CAPTAIN_REWARD_CLAIMED), "reward flag is claimed before the unlock popup closes")
+	_runner.assert_true(ProgressionSystem.is_quest_completed(ProgressionSystem.QUEST_BASEBALL_CAPTAIN_LOBBY), "captain reward dialogue completes the lobby quest")
+	_runner.assert_true(ProgressionSystem.is_weapon_unlocked(&"awakened_bat"), "lobby quest completion unlocks awakened bat")
+	_runner.assert_true(dialogue_ui.is_unlock_visible(), "awakened bat popup is shown before dialogue closes")
+	_runner.assert_true(scene.is_dialogue_ui_visible(), "dialogue remains open while the unlock popup is visible")
+
+	_runner.assert_true(scene.perform_uat_action("day_corridor.dialogue.dismiss_unlock"), "UAT can dismiss the unlock popup without coordinates")
+	_runner.assert_false(scene.is_dialogue_ui_visible(), "unlock dismiss closes the completed reward dialogue")
+	_runner.assert_eq(scene.get_objective_text(), "목표: 복도 끝 사물함에서 배트를 챙기고 경복궁으로 다시 가자", "quest completion keeps the post-reward objective")
+
+
+func test_day_corridor_onboarding_reward_back_close_completes_baseball_lobby_quest() -> void:
+	ProgressionSystem.record_friend_purified(&"baseball_captain")
+	SaveManager.set_flag(SceneTransition.FLAG_ONBOARDING_BASEBALL_COMPLETE, true)
+	SaveManager.set_flag(SceneTransition.FLAG_BASEBALL_CAPTAIN_REWARD_CLAIMED, false)
+	var scene := DayCorridorScene.instantiate()
+	add_child(scene)
+
+	scene.trigger_dialogue()
+	_runner.assert_true(UiTestHarness.press_by_uat_action(scene, "day_corridor.dialogue.next"), "reward dialogue advances to bat line")
+	_runner.assert_true(UiTestHarness.press_by_uat_action(scene, "day_corridor.dialogue.next"), "reward dialogue advances to clue line")
+	scene.call("_handle_back_request")
+
+	var dialogue_ui: Node = scene.get_node("%HubDialogueUi")
+	_runner.assert_true(SaveManager.get_flag(SceneTransition.FLAG_BASEBALL_CAPTAIN_REWARD_CLAIMED), "back close claims the reward")
+	_runner.assert_true(ProgressionSystem.is_quest_completed(ProgressionSystem.QUEST_BASEBALL_CAPTAIN_LOBBY), "back close completes the lobby quest")
+	_runner.assert_true(ProgressionSystem.is_weapon_unlocked(&"awakened_bat"), "back close unlocks awakened bat")
+	_runner.assert_true(dialogue_ui.is_unlock_visible(), "back close still shows the unlock popup")
+	_runner.assert_true(scene.is_dialogue_ui_visible(), "dialogue remains open while unlock popup is visible")
+
+	_runner.assert_true(scene.perform_uat_action("day_corridor.dialogue.dismiss_unlock"), "unlock dismiss is coordinate-free")
+	_runner.assert_false(scene.is_dialogue_ui_visible(), "unlock dismiss closes the completed reward dialogue")
+	_runner.assert_eq(scene.get_objective_text(), "목표: 복도 끝 사물함에서 배트를 챙기고 경복궁으로 다시 가자", "back close keeps the post-reward objective")
 
 
 func test_day_corridor_exit_button_confirms_lobby_return() -> void:

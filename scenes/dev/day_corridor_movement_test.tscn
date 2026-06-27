@@ -8,7 +8,7 @@
 [ext_resource type="Script" path="res://scripts/dev/day_corridor_touch_proxy.gd" id="6_proxy"]
 [ext_resource type="Texture2D" path="res://assets/characters/student/walking.png" id="7_student"]
 [ext_resource type="Texture2D" path="res://assets/characters/student/idle.png" id="12_idle"]
-[ext_resource type="Texture2D" path="res://assets/characters/school/people2.png" id="14_people2"]
+[ext_resource type="Texture2D" path="res://assets/characters/school/baseball_captain.png" id="14_people2"]
 [ext_resource type="Texture2D" path="res://assets/characters/school/people3.png" id="15_people3"]
 [ext_resource type="Texture2D" path="res://assets/characters/school/people4.png" id="16_people4"]
 [ext_resource type="PackedScene" path="res://scenes/ui/hub_dialogue_ui.tscn" id="8_dialogue"]
@@ -72,7 +72,7 @@ position = Vector2(0, -128)
 scale = Vector2(2, 2)
 texture_filter = 1
 texture = ExtResource("14_people2")
-hframes = 8
+hframes = 6
 vframes = 1
 
 [node name="RightSchoolCharacters" type="Node2D" parent="."]
