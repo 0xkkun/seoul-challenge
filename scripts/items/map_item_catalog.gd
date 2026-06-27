@@ -1,6 +1,12 @@
 extends RefCounted
 
 const DEFAULT_ITEM_ID := &"gung_talisman"
+const ROOM_CLEAR_REWARD_ITEM_IDS := [
+	&"dokkaebi_fire",
+	&"wind_step",
+	&"moon_guard",
+	&"nurse_bandage",
+]
 
 const ITEMS := {
 	&"gung_talisman": {
@@ -69,6 +75,14 @@ static func item_ids() -> Array[StringName]:
 	var ids: Array[StringName] = []
 	for item_id: StringName in ITEMS.keys():
 		ids.append(item_id)
+	return ids
+
+
+static func reward_item_ids() -> Array[StringName]:
+	var ids: Array[StringName] = []
+	for item_id: StringName in ROOM_CLEAR_REWARD_ITEM_IDS:
+		if has_item(item_id):
+			ids.append(item_id)
 	return ids
 
 
@@ -171,9 +185,9 @@ static func _modifier_effect_text(modifier_key: String, value: Variant) -> Strin
 		"move_speed_mult":
 			return _signed_multiplier_effect("이동 속도", float(value))
 		"attack_cooldown_mult":
-			return _signed_multiplier_effect("근접 공격 간격", float(value))
+			return _cooldown_multiplier_as_speed_effect("근접 공격 속도", float(value))
 		"fire_cooldown_mult":
-			return _signed_multiplier_effect("투척 간격", float(value))
+			return _cooldown_multiplier_as_speed_effect("투척 속도", float(value))
 	return ""
 
 
@@ -187,6 +201,16 @@ static func _signed_integer_effect(label: String, amount: int) -> String:
 
 static func _signed_multiplier_effect(label: String, multiplier: float) -> String:
 	var percent := roundi((multiplier - 1.0) * 100.0)
+	if percent == 0:
+		return ""
+	var sign := "+" if percent > 0 else "-"
+	return "%s %s%d%%" % [label, sign, absi(percent)]
+
+
+static func _cooldown_multiplier_as_speed_effect(label: String, multiplier: float) -> String:
+	if multiplier <= 0.0:
+		return ""
+	var percent := roundi(((1.0 / multiplier) - 1.0) * 100.0)
 	if percent == 0:
 		return ""
 	var sign := "+" if percent > 0 else "-"

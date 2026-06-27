@@ -198,16 +198,10 @@ func test_reward_choices_render_three_actions_and_emit_selected_id() -> void:
 
 	_ui.show_reward_choices(&"combat_1", [
 		{
-			"item_id": &"gung_talisman",
-			"display_name": "강타 부적",
-			"flavor": "주먹과 배트에 힘이 실린다.",
-			"effect": "근접 피해 +1 / 배트 피해 +1",
-		},
-		{
 			"item_id": &"dokkaebi_fire",
 			"display_name": "도깨비불",
 			"flavor": "푸른 불씨가 공격 타이밍을 앞당긴다.",
-			"effect": "근접 공격 간격 -16% / 투척 간격 -16%",
+			"effect": "근접 공격 속도 +19% / 투척 속도 +19%",
 		},
 		{
 			"item_id": &"wind_step",
@@ -215,13 +209,20 @@ func test_reward_choices_render_three_actions_and_emit_selected_id() -> void:
 			"flavor": "매듭이 풀리며 발끝이 가벼워진다.",
 			"effect": "이동 속도 +15%",
 		},
+		{
+			"item_id": &"moon_guard",
+			"display_name": "달빛 호신부",
+			"flavor": "달빛이 체력 한 칸을 잠시 감싼다.",
+			"effect": "최대 체력 +1",
+		},
 	])
 
 	var snapshot: Dictionary = _ui.get_reward_choice_snapshot()
 	_runner.assert_true(snapshot["visible"], "reward choice overlay is visible")
 	_runner.assert_eq(snapshot["room_id"], &"combat_1", "reward choice keeps source room id")
-	_runner.assert_eq(snapshot["choice_ids"], [&"gung_talisman", &"dokkaebi_fire", &"wind_step"], "reward choices keep stable item order")
-	_runner.assert_eq(snapshot["choice_texts"][0], "강타 부적", "reward button uses display name")
+	_runner.assert_eq(snapshot["choice_ids"], [&"dokkaebi_fire", &"wind_step", &"moon_guard"], "reward choices keep stable item order")
+	_runner.assert_false((snapshot["choice_ids"] as Array).has(&"gung_talisman"), "reward choices omit direct attack damage")
+	_runner.assert_eq(snapshot["choice_texts"][0], "도깨비불", "reward button uses display name")
 	_runner.assert_false(snapshot.has("choice_flavors"), "reward choice snapshot omits flavor descriptions from the card contract")
 	var button_texts := snapshot.get("choice_button_texts", []) as Array
 	_runner.assert_eq(button_texts.size(), 3, "reward snapshot exposes rendered button copy for every card")
@@ -230,8 +231,8 @@ func test_reward_choices_render_three_actions_and_emit_selected_id() -> void:
 	_runner.assert_true(snapshot.has("choice_effects"), "reward snapshot exposes concrete stat effects")
 	if not snapshot.has("choice_effects"):
 		return
-	_runner.assert_eq(snapshot["choice_effects"][0], "근접 피해 +1 / 배트 피해 +1", "reward card exposes concrete stat effect")
-	_runner.assert_true(snapshot["choice_effects"][1].contains("간격 -16%"), "tempo reward exposes concrete cooldown effect")
+	_runner.assert_eq(snapshot["choice_effects"][0], "근접 공격 속도 +19% / 투척 속도 +19%", "tempo reward exposes readable attack speed effect")
+	_runner.assert_true(snapshot["choice_effects"][1].contains("이동 속도"), "speed reward exposes concrete movement effect")
 	_runner.assert_true(snapshot.has("visible_card_count"), "reward snapshot exposes rendered card count")
 	_runner.assert_true(snapshot.has("has_backdrop"), "reward snapshot exposes backdrop contract")
 	_runner.assert_true(snapshot.has("has_outer_panel"), "reward snapshot exposes outer panel contract")
@@ -271,10 +272,10 @@ func test_reward_choice_open_starts_slide_fade_animation() -> void:
 
 	_ui.show_reward_choices(&"combat_1", [
 		{
-			"item_id": &"gung_talisman",
-			"display_name": "강타 부적",
-			"flavor": "주먹과 배트에 힘이 실린다.",
-			"effect": "근접 피해 +1 / 배트 피해 +1",
+			"item_id": &"dokkaebi_fire",
+			"display_name": "도깨비불",
+			"flavor": "푸른 불씨가 공격 타이밍을 앞당긴다.",
+			"effect": "근접 공격 속도 +19% / 투척 속도 +19%",
 		},
 	])
 
