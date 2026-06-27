@@ -68,6 +68,19 @@ func test_boss_scene_uses_move_weak_and_strong_attack_frames() -> void:
 	boss.queue_free()
 
 
+func test_boss_visual_is_scaled_up_for_final_encounter_presence() -> void:
+	var boss := (load(BOSS_SCENE_PATH) as PackedScene).instantiate()
+	add_child(boss)
+	var sprite := boss.get_node_or_null("Sprite") as AnimatedSprite2D
+	_runner.assert_not_null(sprite, "boss uses an AnimatedSprite2D visual")
+	if sprite == null:
+		boss.queue_free()
+		return
+
+	_runner.assert_eq(sprite.scale, Vector2(1.35, 1.35), "boss visual is 1.5x larger than the previous 0.9 scale")
+	boss.queue_free()
+
+
 func test_boss_patterns_play_asset_animations() -> void:
 	var boss := (load(BOSS_SCENE_PATH) as PackedScene).instantiate()
 	var target := Node2D.new()
