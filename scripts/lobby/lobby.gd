@@ -8,6 +8,7 @@ const FLAG_SEEN_NIGHT_INTRO := &"seen_night_intro"
 ## 인트로 직후 바로 진입할 첫 온보딩(경복궁) 세션 설정.
 const FIRST_NIGHT_STAGE_ID := &"gyeongbokgung"
 const FIRST_NIGHT_STAGE_NAME := "경복궁"
+const FIRST_NIGHT_WEAPON_ID := &"bat"
 
 @onready var background: TextureRect = $Background
 @onready var start_button: Button = %StartButton
@@ -96,6 +97,7 @@ func _first_night_config() -> Dictionary:
 		"source": "intro",
 		"stage_id": FIRST_NIGHT_STAGE_ID,
 		"stage_name": FIRST_NIGHT_STAGE_NAME,
+		SceneTransition.RUN_CONFIG_SELECTED_WEAPON_ID: FIRST_NIGHT_WEAPON_ID,
 		SceneTransition.RUN_CONFIG_ONBOARDING_KIND: SceneTransition.ONBOARDING_KIND_BASEBALL_CAPTAIN,
 	}
 
