@@ -10,11 +10,9 @@ const PixelButton := preload("res://scripts/ui/pixel_button_style.gd")
 const MetaUpgradeCatalog := preload("res://scripts/items/meta_upgrade_catalog.gd")
 const MobileSafeArea := preload("res://scripts/ui/mobile_safe_area.gd")
 
-const WEAPON_BASEBALL := &"baseball"
 const WEAPON_BAT := &"bat"
 
 const ACTION_RETURN := "locker_maintenance.return"
-const ACTION_SELECT_BASEBALL := "locker_maintenance.weapon.baseball"
 const ACTION_SELECT_BAT := "locker_maintenance.weapon.bat"
 const ACTION_CYCLE_WEAPON := "locker_maintenance.weapon.cycle"
 const ACTION_OPEN_MAP := "locker_maintenance.map"
@@ -22,9 +20,8 @@ const ACTION_UPGRADE_PREFIX := "locker_maintenance.upgrade."
 
 @export var scene_transition_enabled := true
 
-var _selected_weapon_id := WEAPON_BASEBALL
+var _selected_weapon_id := WEAPON_BAT
 var _weapon_status_label: Label
-var _baseball_card: Button
 var _bat_card: Button
 var _loadout_panel: PanelContainer
 var _weapon_button: Button
@@ -51,7 +48,7 @@ func get_map_entry_count() -> int:
 
 
 func select_weapon(weapon_id: StringName) -> void:
-	if weapon_id != WEAPON_BASEBALL and weapon_id != WEAPON_BAT:
+	if weapon_id != WEAPON_BAT:
 		return
 	if _selected_weapon_id == weapon_id and _weapon_status_label != null:
 		_apply_weapon_card_state()
@@ -171,18 +168,10 @@ func _build_title() -> void:
 
 
 func _build_weapon_cards() -> void:
-	_baseball_card = _make_weapon_card(
-		"BaseballCard",
-		"낡은 야구공\n\n원거리 / 빠른 연사\n위력  ■■■□□\n속도  ■■■■□\n\n작은 충격파",
-		Rect2(0.06, 0.32, 0.265, 0.36),
-		ACTION_SELECT_BASEBALL
-	)
-	add_child(_baseball_card)
-
 	_bat_card = _make_weapon_card(
 		"BatCard",
 		"금 간 나무 배트\n\n근거리 / 큰 반동\n위력  ■■■■□\n속도  ■□□□□\n\n적 밀쳐냄",
-		Rect2(0.365, 0.32, 0.265, 0.36),
+		Rect2(0.06, 0.32, 0.42, 0.36),
 		ACTION_SELECT_BAT
 	)
 	add_child(_bat_card)
@@ -412,7 +401,7 @@ func _make_weapon_card(node_name: String, text: String, relative_rect: Rect2, ac
 	PixelButton.attach_press_sfx(card)
 	if action != "":
 		_set_button_meta(card, action.replace(".", "_"), action)
-		card.pressed.connect(select_weapon.bind(WEAPON_BASEBALL if action == ACTION_SELECT_BASEBALL else WEAPON_BAT))
+		card.pressed.connect(select_weapon.bind(WEAPON_BAT))
 	return card
 
 
@@ -441,18 +430,13 @@ func _set_button_meta(button: Button, test_id_suffix: String, action: String) ->
 
 
 func _apply_weapon_card_state() -> void:
-	if _baseball_card == null or _bat_card == null or _weapon_status_label == null:
+	if _bat_card == null or _weapon_status_label == null:
 		return
-	_baseball_card.add_theme_stylebox_override(
-		"normal",
-		_make_weapon_state_style(_selected_weapon_id == WEAPON_BASEBALL)
-	)
 	_bat_card.add_theme_stylebox_override(
 		"normal",
-		_make_weapon_state_style(_selected_weapon_id == WEAPON_BAT)
+		_make_weapon_state_style(true)
 	)
-	var weapon_name := "낡은 야구공" if _selected_weapon_id == WEAPON_BASEBALL else "금 간 나무 배트"
-	_weapon_status_label.text = "선택된 기억\n\n%s\n\n지도에서\n경복궁 선택" % weapon_name
+	_weapon_status_label.text = "선택된 기억\n\n금 간 나무 배트\n\n지도에서\n경복궁 선택"
 
 
 func _make_weapon_state_style(selected: bool) -> StyleBoxFlat:
@@ -474,7 +458,7 @@ func _on_return_pressed() -> void:
 
 
 func _on_cycle_weapon_pressed() -> void:
-	select_weapon(WEAPON_BAT if _selected_weapon_id == WEAPON_BASEBALL else WEAPON_BASEBALL)
+	select_weapon(WEAPON_BAT)
 
 
 func _on_map_pressed() -> void:
@@ -485,8 +469,7 @@ func _on_map_pressed() -> void:
 
 
 func _get_initial_weapon_id() -> StringName:
-	var pending_config := SceneTransition.get_pending_run_config()
-	return StringName(pending_config.get(SceneTransition.RUN_CONFIG_SELECTED_WEAPON_ID, WEAPON_BASEBALL))
+	return WEAPON_BAT
 
 
 func _save_pending_loadout() -> void:

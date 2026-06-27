@@ -27,10 +27,11 @@ func test_locker_maintenance_focuses_on_memory_weapons_and_single_map_entry() ->
 	screen.set("scene_transition_enabled", false)
 	add_child(screen)
 
-	_runner.assert_eq(screen.get_selected_weapon_id(), LockerMaintenanceScript.WEAPON_BASEBALL, "locker maintenance starts with baseball selected")
+	_runner.assert_eq(screen.get_selected_weapon_id(), LockerMaintenanceScript.WEAPON_BAT, "locker maintenance starts with the story-backed bat selected")
 	_runner.assert_eq(screen.get_map_entry_count(), 1, "locker maintenance exposes exactly one map entry")
 	_runner.assert_not_null(UiTestHarness.find_by_uat_action(screen, LockerMaintenanceScript.ACTION_RETURN), "return action is available")
 	_runner.assert_eq(UiTestHarness.find_by_uat_action(screen, LockerMaintenanceScript.ACTION_CYCLE_WEAPON), null, "bottom CTA no longer competes with weapon cards")
+	_runner.assert_eq(UiTestHarness.find_by_uat_action(screen, "locker_maintenance.weapon.baseball"), null, "story-unused baseball memory weapon is not selectable")
 	var map_button := UiTestHarness.find_by_uat_action(screen, LockerMaintenanceScript.ACTION_OPEN_MAP) as Button
 	_runner.assert_not_null(map_button, "map action is available only as the bottom button")
 	if map_button != null:
@@ -45,7 +46,7 @@ func test_locker_maintenance_uses_dungeon_ui_loadout_hierarchy() -> void:
 	screen.set("scene_transition_enabled", false)
 	add_child(screen)
 
-	var baseball_card := screen.get_node("BaseballCard") as Button
+	var baseball_card := screen.get_node_or_null("BaseballCard") as Button
 	var bat_card := screen.get_node("BatCard") as Button
 	var loadout_panel := screen.get_node("LoadoutSummaryPanel") as PanelContainer
 	var weapon_status := loadout_panel.get_node("WeaponStatusLabel") as Label
@@ -53,12 +54,12 @@ func test_locker_maintenance_uses_dungeon_ui_loadout_hierarchy() -> void:
 	var weapon_button := UiTestHarness.find_by_uat_action(screen, LockerMaintenanceScript.ACTION_CYCLE_WEAPON) as Button
 	var map_button := UiTestHarness.find_by_uat_action(screen, LockerMaintenanceScript.ACTION_OPEN_MAP) as Button
 
-	_runner.assert_eq(baseball_card.focus_mode, Control.FOCUS_NONE, "weapon slots do not show desktop focus chrome")
+	_runner.assert_eq(baseball_card, null, "story-unused baseball memory weapon card is removed")
+	_runner.assert_eq(bat_card.focus_mode, Control.FOCUS_NONE, "weapon slot does not show desktop focus chrome")
 	_runner.assert_eq(return_button.text, "↩ 복도", "return CTA uses short icon copy")
 	_runner.assert_eq(map_button.text, "☾ 지도", "map CTA uses short icon copy")
-	_runner.assert_eq(weapon_status.text, "선택된 기억\n\n낡은 야구공\n\n지도에서\n경복궁 선택", "selected loadout is summarized beside the slots")
-	_assert_flat_style_border(baseball_card.get_theme_stylebox("normal"), 4, "selected weapon slot uses a thick border")
-	_assert_flat_style_border(bat_card.get_theme_stylebox("normal"), 2, "unselected weapon slot uses a quieter border")
+	_runner.assert_eq(weapon_status.text, "선택된 기억\n\n금 간 나무 배트\n\n지도에서\n경복궁 선택", "selected loadout is summarized beside the slot")
+	_assert_flat_style_border(bat_card.get_theme_stylebox("normal"), 4, "selected weapon slot uses a thick border")
 	_assert_pixel_button_style(return_button, PixelButtonStyle.VARIANT_SECONDARY, "return")
 	_runner.assert_eq(weapon_button, null, "weapon cycle CTA is removed; selecting a weapon card is the weapon action")
 	_assert_pixel_button_style(map_button, PixelButtonStyle.VARIANT_PRIMARY, "map entry")
@@ -96,21 +97,19 @@ func test_locker_maintenance_buttons_emit_flow_signals() -> void:
 		map_count[0] += 1
 	)
 
-	_runner.assert_true(UiTestHarness.press_by_uat_action(screen, LockerMaintenanceScript.ACTION_SELECT_BAT), "bat card can be selected")
-	_runner.assert_eq(screen.get_selected_weapon_id(), LockerMaintenanceScript.WEAPON_BAT, "bat selection updates screen state")
-	_runner.assert_eq(weapon_ids, [LockerMaintenanceScript.WEAPON_BAT], "bat selection emits weapon id")
-
-	_runner.assert_true(UiTestHarness.press_by_uat_action(screen, LockerMaintenanceScript.ACTION_SELECT_BASEBALL), "baseball card returns selection to baseball")
-	_runner.assert_eq(screen.get_selected_weapon_id(), LockerMaintenanceScript.WEAPON_BASEBALL, "baseball card returns to baseball")
+	_runner.assert_true(UiTestHarness.press_by_uat_action(screen, LockerMaintenanceScript.ACTION_SELECT_BAT), "bat card remains pressable")
+	_runner.assert_eq(screen.get_selected_weapon_id(), LockerMaintenanceScript.WEAPON_BAT, "bat remains the selected weapon")
+	_runner.assert_eq(weapon_ids, [], "pressing the already-selected single weapon does not emit a redundant change")
+	_runner.assert_false(UiTestHarness.press_by_uat_action(screen, "locker_maintenance.weapon.baseball"), "baseball weapon action is removed")
 	var weapon_status := screen.get_node("LoadoutSummaryPanel/WeaponStatusLabel") as Label
-	_runner.assert_true(weapon_status.text.contains("낡은 야구공"), "loadout summary follows the cycled weapon")
+	_runner.assert_true(weapon_status.text.contains("금 간 나무 배트"), "loadout summary keeps the story-backed weapon")
 
 	_runner.assert_true(UiTestHarness.press_by_uat_action(screen, LockerMaintenanceScript.ACTION_RETURN), "return button can be pressed")
 	_runner.assert_eq(return_count[0], 1, "return button emits return request")
 	_runner.assert_true(UiTestHarness.press_by_uat_action(screen, LockerMaintenanceScript.ACTION_OPEN_MAP), "map button can be pressed")
 	_runner.assert_eq(map_count[0], 1, "map button emits one map request")
 	var pending_config := SceneTransition.get_pending_run_config()
-	_runner.assert_eq(pending_config[SceneTransition.RUN_CONFIG_SELECTED_WEAPON_ID], LockerMaintenanceScript.WEAPON_BASEBALL, "map entry preserves the selected weapon")
+	_runner.assert_eq(pending_config[SceneTransition.RUN_CONFIG_SELECTED_WEAPON_ID], LockerMaintenanceScript.WEAPON_BAT, "map entry preserves the selected story-backed weapon")
 
 
 func test_night_map_select_is_separate_from_locker_maintenance() -> void:
