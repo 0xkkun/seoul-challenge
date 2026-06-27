@@ -107,6 +107,90 @@ func test_start_dodge_consumes_charge_sets_cooldown_and_invuln() -> void:
 	_runner.assert_true(player.get_invuln_remaining() >= 0.24, "dodge grants short invulnerability")
 
 
+func test_dash_dust_state_places_effect_behind_dash_at_feet() -> void:
+	var player = PlayerScript.new()
+	_runner.assert_true(player.has_method("build_dash_dust_effect_state"), "player exposes pure dash dust placement helper")
+	if not player.has_method("build_dash_dust_effect_state"):
+		player.free()
+		return
+
+	var right_state: Dictionary = player.call(
+		"build_dash_dust_effect_state",
+		Vector2.RIGHT,
+		Vector2(108.0, 42.0),
+		42.0,
+		30.0,
+		52.0
+	)
+	var up_state: Dictionary = player.call(
+		"build_dash_dust_effect_state",
+		Vector2.UP,
+		Vector2(108.0, 42.0),
+		42.0,
+		30.0,
+		52.0
+	)
+
+	_runner.assert_true((right_state["position"] as Vector2).x < 0.0, "right dash places dust behind the player")
+	_runner.assert_true((right_state["position"] as Vector2).y > 40.0, "right dash keeps dust at foot height")
+	_runner.assert_true(absf(absf(float(right_state["rotation"])) - PI) < 0.001, "right dash rotates sheet toward the trailing direction")
+	_runner.assert_true((right_state["scale"] as Vector2).is_equal_approx(Vector2.ONE), "native 42px dash dust sheet displays without scaling")
+	_runner.assert_true((up_state["position"] as Vector2).y > 52.0, "up dash trails below the player")
+	player.free()
+
+
+func test_player_scene_includes_hidden_dash_dust_effect() -> void:
+	var player := (load("res://scenes/player/player.tscn") as PackedScene).instantiate()
+	add_child(player)
+	var player_sprite := player.get_node_or_null("Sprite") as AnimatedSprite2D
+	var dust_root := player.get_node_or_null("DashDust") as Node2D
+	var source_sheet := load("res://assets/effects/player_dash_dust.png") as Texture2D
+
+	_runner.assert_not_null(source_sheet, "dash dust uses the supplied character dash sheet")
+	if source_sheet != null:
+		_runner.assert_eq(source_sheet.get_width(), 648, "dash dust source sheet has six 108px frames")
+		_runner.assert_eq(source_sheet.get_height(), 42, "dash dust source sheet keeps the supplied 42px height")
+	_runner.assert_not_null(dust_root, "player scene includes dash dust effect root")
+	if dust_root != null:
+		_runner.assert_false(dust_root.visible, "dash dust starts hidden")
+		_runner.assert_true(dust_root.z_index > 0, "dash dust renders over the floor")
+		if player_sprite != null:
+			_runner.assert_true(player_sprite.z_index > dust_root.z_index, "player sprite renders over foot dash dust")
+		var dust_sprite := dust_root.get_node_or_null("DustSprite") as Sprite2D
+		_runner.assert_not_null(dust_sprite, "dash dust uses a sprite sheet node")
+		if dust_sprite != null:
+			_runner.assert_false(dust_sprite.visible, "dash dust sprite starts hidden with the root")
+			_runner.assert_eq(dust_sprite.texture_filter, CanvasItem.TEXTURE_FILTER_NEAREST, "dash dust keeps pixel edges crisp")
+			_runner.assert_eq(dust_sprite.hframes, 6, "dash dust sheet has six horizontal frames")
+			_runner.assert_eq(dust_sprite.vframes, 1, "dash dust sheet has one row")
+			_runner.assert_not_null(dust_sprite.texture, "dash dust sprite has a texture")
+			if dust_sprite.texture != null:
+				_runner.assert_eq(dust_sprite.texture.resource_path, "res://assets/effects/player_dash_dust.png", "dash dust uses the supplied sheet")
+	player.queue_free()
+
+
+func test_start_dodge_shows_dash_dust_at_feet() -> void:
+	var player := (load("res://scenes/player/player.tscn") as PackedScene).instantiate()
+	add_child(player)
+	player.special_skill_max_uses = 1
+	player.special_skill_uses_remaining = 1
+
+	_runner.assert_true(player.try_start_special_skill(Vector2.RIGHT), "ready dodge starts")
+
+	var dust_root := player.get_node_or_null("DashDust") as Node2D
+	var dust_sprite := dust_root.get_node_or_null("DustSprite") as Sprite2D if dust_root != null else null
+	_runner.assert_not_null(dust_root, "player scene includes dash dust effect root")
+	if dust_root != null:
+		_runner.assert_true(dust_root.visible, "dodge reveals dash dust root")
+		_runner.assert_true(dust_root.position.x < 0.0, "right dodge puts dust behind the player")
+		_runner.assert_true(dust_root.position.y > 40.0, "dodge dust is anchored at the player's feet")
+	_runner.assert_not_null(dust_sprite, "dash dust root has a sprite")
+	if dust_sprite != null:
+		_runner.assert_true(dust_sprite.visible, "dodge reveals dash dust sprite")
+		_runner.assert_eq(dust_sprite.frame, 0, "dash dust animation starts from the first frame")
+	player.queue_free()
+
+
 func test_stored_dodge_charge_can_chain_before_recharge_cooldown_finishes() -> void:
 	var player = PlayerScript.new()
 	add_child(player)
