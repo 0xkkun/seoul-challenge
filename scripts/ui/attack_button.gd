@@ -7,7 +7,8 @@ const ICON_MODE_ATTACK := "attack"
 const ICON_MODE_DIALOGUE := "dialogue"
 const ATTACK_ICON_PATH := "res://assets/ui/icons/combat/damage_1.png"
 const ICON_ALPHA := 0.56
-const ICON_SCALE := 0.44
+const ATTACK_ICON_SCALE := 0.44
+const DIALOGUE_ICON_SCALE := 0.34
 const OUTER_RING_ALPHA := 0.28
 const OUTER_RING_PRESSED_ALPHA := 0.42
 const INNER_RING_ALPHA := 0.10
@@ -59,7 +60,7 @@ func get_visual_contract() -> Dictionary:
 		"icon_shape": "speech_bubble" if _icon_mode == ICON_MODE_DIALOGUE else "damage_asset",
 		"icon_path": "" if _icon_mode == ICON_MODE_DIALOGUE else ATTACK_ICON_PATH,
 		"icon_alpha": ICON_ALPHA,
-		"icon_scale": ICON_SCALE,
+		"icon_scale": _current_icon_scale(),
 		"outer_ring_alpha": OUTER_RING_ALPHA,
 		"inner_ring_alpha": INNER_RING_ALPHA,
 	}
@@ -126,13 +127,13 @@ func _draw_attack_icon(center: Vector2, radius: float) -> void:
 		_attack_icon = load(ATTACK_ICON_PATH) as Texture2D
 	if _attack_icon == null:
 		return
-	var icon_size := Vector2.ONE * (radius * 2.0 * ICON_SCALE)
+	var icon_size := Vector2.ONE * (radius * 2.0 * ATTACK_ICON_SCALE)
 	var icon_rect := Rect2(center - icon_size * 0.5, icon_size)
 	draw_texture_rect(_attack_icon, icon_rect, false, Color(1, 1, 1, ICON_ALPHA))
 
 
 func _draw_dialogue_icon(center: Vector2, radius: float) -> void:
-	var icon_size := Vector2.ONE * (radius * 2.0 * ICON_SCALE)
+	var icon_size := Vector2.ONE * (radius * 2.0 * DIALOGUE_ICON_SCALE)
 	var icon_rect := Rect2(center - icon_size * 0.5, icon_size)
 	var pixel := maxf(2.0, floorf(icon_size.x / 11.0))
 	var color := Color(1, 1, 1, ICON_ALPHA)
@@ -150,6 +151,10 @@ func _draw_dialogue_icon(center: Vector2, radius: float) -> void:
 	var line_y := bubble.position.y + bubble.size.y * 0.42
 	draw_rect(Rect2(Vector2(bubble.position.x + pixel * 2.0, line_y), Vector2(bubble.size.x - pixel * 4.0, pixel)), color, true)
 	draw_rect(Rect2(Vector2(bubble.position.x + pixel * 2.0, line_y + pixel * 2.0), Vector2(bubble.size.x - pixel * 6.0, pixel)), color, true)
+
+
+func _current_icon_scale() -> float:
+	return DIALOGUE_ICON_SCALE if _icon_mode == ICON_MODE_DIALOGUE else ATTACK_ICON_SCALE
 
 
 func _normalize_icon_mode(value: String) -> String:
