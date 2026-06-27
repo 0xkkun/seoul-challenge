@@ -63,6 +63,17 @@ func test_movement_sfx_are_registered() -> void:
 	_runner.assert_not_null(load(dash_path) as AudioStreamWAV, "dash wind SFX loads as WAV")
 
 
+func test_dash_wind_sfx_has_immediate_audible_attack() -> void:
+	var dash_path := AudioManager.get_sfx_stream_path(AudioManager.DASH_WIND)
+
+	var first_peak := _wav_peak_in_first_seconds(dash_path, 0.08)
+
+	_runner.assert_true(
+		first_peak >= 6000,
+		"dash wind SFX must be audible in the first 80ms so it reads with the button press"
+	)
+
+
 func test_school_hallway_bgm_is_registered() -> void:
 	var stream_path := AudioManager.get_bgm_stream_path(AudioManager.SCHOOL_HALLWAY_BGM)
 
@@ -143,3 +154,53 @@ func test_play_bgm_with_unknown_id_does_not_start_playback() -> void:
 
 	_runner.assert_false(AudioManager.is_bgm_playing(), "unknown BGM id does not start the fade loop")
 	_runner.assert_eq(AudioManager.get_current_bgm_path(), "", "unknown BGM id leaves no active stream path")
+
+
+func _wav_peak_in_first_seconds(path: String, seconds: float) -> int:
+	var bytes := FileAccess.get_file_as_bytes(path)
+	if bytes.size() < 44:
+		return 0
+	var sample_rate := 0
+	var data_offset := -1
+	var data_size := 0
+	var offset := 12
+	while offset + 8 <= bytes.size():
+		var chunk_id := _ascii4(bytes, offset)
+		var chunk_size := _u32_le(bytes, offset + 4)
+		var chunk_data := offset + 8
+		if chunk_id == "fmt " and chunk_size >= 16:
+			sample_rate = _u32_le(bytes, chunk_data + 4)
+		elif chunk_id == "data":
+			data_offset = chunk_data
+			data_size = mini(chunk_size, bytes.size() - data_offset)
+			break
+		offset = chunk_data + chunk_size + (chunk_size % 2)
+	if sample_rate <= 0 or data_offset < 0 or data_size <= 0:
+		return 0
+	var bytes_per_sample := 2
+	var samples_to_scan := mini(int(ceil(seconds * float(sample_rate))), data_size / bytes_per_sample)
+	var peak := 0
+	for sample_index in range(samples_to_scan):
+		var sample_offset := data_offset + sample_index * bytes_per_sample
+		var sample := _s16_le(bytes, sample_offset)
+		peak = maxi(peak, absi(sample))
+	return peak
+
+
+func _ascii4(bytes: PackedByteArray, offset: int) -> String:
+	if offset + 4 > bytes.size():
+		return ""
+	return String.chr(bytes[offset]) + String.chr(bytes[offset + 1]) + String.chr(bytes[offset + 2]) + String.chr(bytes[offset + 3])
+
+
+func _u32_le(bytes: PackedByteArray, offset: int) -> int:
+	if offset + 4 > bytes.size():
+		return 0
+	return bytes[offset] | (bytes[offset + 1] << 8) | (bytes[offset + 2] << 16) | (bytes[offset + 3] << 24)
+
+
+func _s16_le(bytes: PackedByteArray, offset: int) -> int:
+	if offset + 2 > bytes.size():
+		return 0
+	var value := bytes[offset] | (bytes[offset + 1] << 8)
+	return value - 65536 if value >= 32768 else value
