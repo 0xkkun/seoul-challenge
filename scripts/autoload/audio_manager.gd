@@ -23,6 +23,9 @@ const NIGHT_INTRO_TRANSITION_BC := &"night_intro_transition_bc"
 const NIGHT_INTRO_TRANSITION_CD := &"night_intro_transition_cd"
 const NIGHT_INTRO_TRANSITION := &"night_intro_transition"
 const NIGHT_INTRO_TRANSITION_C := &"night_intro_transition_c"
+## 각성 배트("마지막 시즌의 배트") 해금 팝업의 '따란!' 효과음.
+## 에셋 파일이 추가되면 _SFX_STREAM_PATHS 경로로 자동 재생된다(파일 없으면 무음 스킵).
+const AWAKENED_BAT_REVEAL := &"awakened_bat_reveal"
 const SESSION_TRANSITION_SFX_IDS: Array[StringName] = [
 	SCHOOL_BELL_TRANSITION_FRONT,
 	SCHOOL_BELL_TRANSITION_BACK,
@@ -61,6 +64,8 @@ const _SFX_STREAM_PATHS := {
 	NIGHT_INTRO_TRANSITION_CD: "res://assets/audio/sfx/night_intro_transition_cd.mp3",
 	NIGHT_INTRO_TRANSITION: "res://assets/audio/sfx/night_intro_transition.mp3",
 	NIGHT_INTRO_TRANSITION_C: "res://assets/audio/sfx/night_intro_transition_c.mp3",
+	# 사용자 제공 예정 — 이 경로에 파일을 떨구면 각성 배트 해금 연출에서 자동 재생된다.
+	AWAKENED_BAT_REVEAL: "res://assets/audio/sfx/awakened_bat_reveal.mp3",
 }
 
 const BGM_VOLUME_DB := 0.0
