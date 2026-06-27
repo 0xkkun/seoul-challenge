@@ -119,17 +119,14 @@ func test_generated_combat_room_configs_scale_by_route_distance() -> void:
 	_runner.assert_true(nearest_config.size() > 0, "nearest combat gets encounter config")
 	_runner.assert_true(farthest_config.size() > 0, "farthest combat gets encounter config")
 	_runner.assert_eq(_encounter_total(nearest_config), 4, "nearest combat starts at the early encounter budget")
-	_runner.assert_true(_encounter_total(farthest_config) >= 9, "late generated combat rooms reach horde-sized budget")
+	_runner.assert_eq(_encounter_total(farthest_config), 6, "late generated combat rooms use the mobile-friendly encounter budget")
 	_runner.assert_eq(int(nearest_config.get("wave_count", 0)), 1, "nearest combat starts in one wave")
-	_runner.assert_true(int(farthest_config.get("wave_count", 0)) >= 3, "late generated combat rooms split into later waves")
+	_runner.assert_eq(int(farthest_config.get("wave_count", 0)), 2, "late generated combat rooms split into two waves")
 	_runner.assert_true(
 		_encounter_total(farthest_config) > _encounter_total(nearest_config),
 		"combat rooms farther from start get larger encounters"
 	)
-	_runner.assert_true(
-		_elite_total(farthest_config) > 0,
-		"late generated combat rooms can include elite enemies"
-	)
+	_runner.assert_eq(_elite_total(farthest_config), 0, "late generated combat rooms avoid elite pressure while player growth is shallow")
 
 
 func test_sixty_four_room_layout_preserves_requested_count() -> void:

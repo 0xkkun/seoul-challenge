@@ -302,11 +302,11 @@ func _combat_room_config(distance_from_start: int, max_distance: int) -> Diction
 
 	if progress >= 0.7:
 		return {
-			"chaser_count": 5,
-			"ranged_count": 3,
-			"elite_chaser_count": 1,
+			"chaser_count": 4,
+			"ranged_count": 2,
+			"elite_chaser_count": 0,
 			"elite_ranged_count": 0,
-			"wave_count": 3,
+			"wave_count": 2,
 		}
 	if progress >= 0.4:
 		return {
