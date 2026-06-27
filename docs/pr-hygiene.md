@@ -59,6 +59,7 @@ The PR body should include (한글로):
 - linked issue with `Closes #N` when the PR fully resolves it
 - 변경 범위 요약
 - 검증 명령과 결과
+- `Web Preview` workflow가 있는 PR이면 preview URL 또는 artifact 이름
 - `[UI]` PR이거나 화면/레이아웃/컨트롤이 보이는 방식으로 바뀌는 PR이면
   `## UI 캡처` 섹션과 캡처 URL
 - 알려진 한계 또는 후속 이슈
@@ -109,6 +110,32 @@ Example PR body section:
 Keep screenshots out of the PR branch. If a UI change cannot be captured in the
 current environment, say why in `## UI 캡처` and list the closest verification
 that was performed.
+
+## Web Preview Flow
+
+Use Web Preview as the fastest human review path for ordinary UI, scene flow,
+and game-feel checks:
+
+1. The read-only `Web Preview` build job exports the Godot `Web` preset with
+   `scripts/export_web_preview.sh`.
+2. The workflow uploads `build/web/` as `web-preview-pr-<PR number>`.
+3. Same-repo PRs are also published to the `web-previews` branch under
+   `pr-<PR number>/`. Older workflow runs for the same PR are cancelled before
+   they can publish stale output, and the shared branch write is serialized
+   across PRs.
+4. If GitHub Pages source is set to `GitHub Actions`, the workflow deploys the
+   `web-previews` branch through the official Pages artifact path.
+5. Add the preview URL or artifact name to the PR body when the workflow is
+   available.
+
+Preview URL format, after GitHub Pages source is configured as `GitHub Actions`:
+
+```text
+https://0xkkun.github.io/seoul-challenge/pr-<PR number>/
+```
+
+Use Android 실기기 검수 only when the change depends on touch behavior, safe-area,
+orientation, APK export, device performance, or platform rendering.
 
 ## Codex Review Signal
 
