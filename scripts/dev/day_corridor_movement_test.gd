@@ -24,12 +24,15 @@ const OBJECTIVE_TALK := "목표: 야구부 주장과 이야기하고, 밤의 궁
 const OBJECTIVE_LOCKER := "목표: 복도 끝 사물함에서 기억 무기를 챙기자"
 const OBJECTIVE_BASEBALL_REWARD := "목표: 야구부 주장에게 돌아가 배트와 단서를 받자"
 const OBJECTIVE_REENTER_GYEONGBOKGUNG := "목표: 복도 끝 사물함에서 배트를 챙기고 경복궁으로 다시 가자"
+const OBJECTIVE_BOSS_RESULT_REPORT := "목표: 야구부 주장에게 도깨비왕의 결말을 전하자"
+const OBJECTIVE_BOSS_RESULT_ACKNOWLEDGED := "목표: 친구의 행방은 아직 미궁 속이다"
 const RUN_NAVIGATION_ARROW_TEXT := ">>>"
 const RETURN_TO_LOBBY_MESSAGE := "로비로 돌아갈까요? 진행 상황은 자동으로 저장됩니다."
 const QUIT_GAME_MESSAGE := "게임을 종료할까요?"
 const BASEBALL_CAPTAIN_DISPLAY_NAME := "야구부 주장"
 const BASEBALL_CAPTAIN_PROMPT_TEXT := "야구부 주장  말 걸기"
 const BASEBALL_CAPTAIN_REWARD_CALLOUT_TEXT := "!  야구부 주장"
+const BASEBALL_CAPTAIN_BOSS_RESULT_CALLOUT_TEXT := "!  야구부 주장"
 const CRACKED_BAT_ID := &"cracked_bat"
 const CRACKED_BAT_NAME := "금 간 나무 배트"
 const CRACKED_BAT_POPUP_SUBTITLE := "야구부 주장이 건넨 기억 무기"
@@ -45,6 +48,16 @@ const BASEBALL_REWARD_LINES := [
 	{
 		"text": "네가 찾는 친구는 [b]도깨비왕[/b]에게 잡혀갔다는 말이 있어. 아니면 그보다 더 큰 무언가일지도 몰라.",
 		"memory": "기억: 궁궐 어둠 너머의 낮은 웃음",
+	},
+]
+const BOSS_RESULT_REPORT_LINES := [
+	{
+		"text": "도깨비왕이 그냥 쓰러졌다고? 그럼 네 친구를 데려간 건 따로 있어.",
+		"memory": "기억: 궁궐 바닥에 남은 검은 먼지",
+	},
+	{
+		"text": "지금은 여기까지야. 다음 단서가 생길 때까지 준비해 두자.",
+		"memory": "기억: 아직 닫히지 않은 밤의 문",
 	},
 ]
 
@@ -110,6 +123,7 @@ var _dialogue_count := 0
 var _dialogue_line_index := -1
 var _dialogue_lines: Array[Dictionary] = []
 var _dialogue_claims_baseball_reward := false
+var _dialogue_claims_boss_result_report := false
 var _baseball_reward_pickup_popup_shown := false
 var _was_dialogue_pressed := false
 var _walk_elapsed := 0.0
@@ -453,9 +467,14 @@ func trigger_dialogue() -> void:
 ## people2 대사를 현재 진행도 tier + 컨텍스트로 해석한다. 대화 open 시점에 호출.
 func _resolve_dialogue_lines() -> void:
 	_dialogue_claims_baseball_reward = _needs_baseball_reward_dialogue()
+	_dialogue_claims_boss_result_report = false
 	_baseball_reward_pickup_popup_shown = false
 	if _dialogue_claims_baseball_reward:
 		_dialogue_lines = _baseball_reward_lines()
+		return
+	_dialogue_claims_boss_result_report = _needs_boss_result_report_dialogue()
+	if _dialogue_claims_boss_result_report:
+		_dialogue_lines = _boss_result_report_lines()
 		return
 	_dialogue_lines = DaySchoolRumors.pick_lines(
 		DaySchoolRumors.SPEAKER_PEOPLE2, _current_rumor_tier(), _rumor_context()
@@ -471,18 +490,44 @@ func _rumor_context() -> Dictionary:
 
 
 func _last_run_outcome() -> StringName:
-	if not has_node(^"/root/SaveManager"):
+	var last := _last_session_result()
+	if last.is_empty():
 		return &""
-	var results: Array = SaveManager.load_profile().get("session_results", [])
-	if results.is_empty():
-		return &""
-	var last: Dictionary = results[results.size() - 1]
 	var outcome := String(last.get("outcome", "")).to_lower()
 	if outcome in ["death", "dead", "failed"] or bool(last.get("died", false)):
 		return &"died"
 	if bool(last.get("completed", false)) or String(last.get("reason", "")) == "boss_resolved" or outcome in ["success", "escaped", "complete", "completed"]:
 		return &"cleared"
 	return &""
+
+
+func _last_session_result() -> Dictionary:
+	if not has_node(^"/root/SaveManager"):
+		return {}
+	var results: Array = SaveManager.load_profile().get("session_results", [])
+	if results.is_empty():
+		return {}
+	var last: Variant = results[results.size() - 1]
+	if last is Dictionary:
+		return (last as Dictionary).duplicate(true)
+	return {}
+
+
+func _has_resolved_gyeongbokgung_boss() -> bool:
+	if not has_node(^"/root/SaveManager"):
+		return false
+	var results: Array = SaveManager.load_profile().get("session_results", [])
+	for result: Variant in results:
+		if result is Dictionary and _is_gyeongbokgung_boss_result(result as Dictionary):
+			return true
+	return false
+
+
+func _is_gyeongbokgung_boss_result(result: Dictionary) -> bool:
+	if String(result.get("reason", "")) != "boss_resolved":
+		return false
+	var boss_id := StringName(result.get("boss_id", &""))
+	return boss_id == &"" or boss_id == &"gyeongbokgung_boss"
 
 
 func close_dialogue() -> void:
@@ -493,12 +538,15 @@ func close_dialogue() -> void:
 		_hub_dialogue_ui.hide_unlock()
 	if _is_baseball_reward_dialogue_complete():
 		_claim_baseball_reward_dialogue()
+	if _is_boss_result_report_dialogue_complete():
+		_claim_boss_result_report_dialogue()
 	_hub_dialogue_ui.visible = false
 	_touch_controls.visible = true
 	_talk_button_label.visible = true
 	_player.set_physics_process(true)
 	_dialogue_line_index = -1
 	_dialogue_claims_baseball_reward = false
+	_dialogue_claims_boss_result_report = false
 	_baseball_reward_pickup_popup_shown = false
 	_sync_talk_target_visibility()
 	_update_objective_label()
@@ -512,6 +560,8 @@ func _request_close_dialogue() -> void:
 		_claim_baseball_reward_dialogue()
 		if _try_complete_baseball_lobby_quest():
 			return
+	if _is_boss_result_report_dialogue_complete():
+		_claim_boss_result_report_dialogue()
 	close_dialogue()
 
 
@@ -994,6 +1044,8 @@ func _update_talk_target_callout() -> void:
 	var should_show := not is_dialogue_ui_visible() and not _hub_dialogue_ui.is_unlock_visible() and _talk_target.visible
 	if _needs_baseball_reward_dialogue():
 		_talk_target_callout_label.text = BASEBALL_CAPTAIN_REWARD_CALLOUT_TEXT
+	elif _needs_boss_result_report_dialogue():
+		_talk_target_callout_label.text = BASEBALL_CAPTAIN_BOSS_RESULT_CALLOUT_TEXT
 	elif _dialogue_count <= 0 and not _has_claimed_baseball_reward():
 		_talk_target_callout_label.text = BASEBALL_CAPTAIN_DISPLAY_NAME
 	else:
@@ -1137,6 +1189,10 @@ func _update_objective_label() -> void:
 	var objective_text := OBJECTIVE_LOCKER if _dialogue_count > 0 else OBJECTIVE_TALK
 	if _needs_baseball_reward_dialogue():
 		objective_text = OBJECTIVE_BASEBALL_REWARD
+	elif _needs_boss_result_report_dialogue():
+		objective_text = OBJECTIVE_BOSS_RESULT_REPORT
+	elif _has_claimed_baseball_reward() and _has_resolved_gyeongbokgung_boss():
+		objective_text = OBJECTIVE_BOSS_RESULT_ACKNOWLEDGED
 	elif _has_claimed_baseball_reward():
 		objective_text = OBJECTIVE_REENTER_GYEONGBOKGUNG
 	_objective_label.text = objective_text
@@ -1154,6 +1210,8 @@ func _should_show_run_navigation_arrow() -> bool:
 	if not _has_claimed_baseball_reward():
 		return false
 	if _needs_baseball_reward_dialogue():
+		return false
+	if _has_resolved_gyeongbokgung_boss():
 		return false
 	if is_dialogue_ui_visible():
 		return false
@@ -1177,10 +1235,26 @@ func _has_claimed_baseball_reward() -> bool:
 	return has_node(^"/root/SaveManager") and SaveManager.get_flag(SceneTransition.FLAG_BASEBALL_CAPTAIN_REWARD_CLAIMED)
 
 
+func _needs_boss_result_report_dialogue() -> bool:
+	if not has_node(^"/root/SaveManager"):
+		return false
+	return (
+		_has_claimed_baseball_reward()
+		and _has_resolved_gyeongbokgung_boss()
+		and not SaveManager.get_flag(SceneTransition.FLAG_GYEONGBOKGUNG_BOSS_RESULT_ACKNOWLEDGED)
+	)
+
+
 func _claim_baseball_reward_dialogue() -> void:
 	if not has_node(^"/root/SaveManager"):
 		return
 	SaveManager.set_flag(SceneTransition.FLAG_BASEBALL_CAPTAIN_REWARD_CLAIMED, true)
+
+
+func _claim_boss_result_report_dialogue() -> void:
+	if not has_node(^"/root/SaveManager"):
+		return
+	SaveManager.set_flag(SceneTransition.FLAG_GYEONGBOKGUNG_BOSS_RESULT_ACKNOWLEDGED, true)
 
 
 func _is_baseball_reward_dialogue_complete() -> bool:
@@ -1190,6 +1264,17 @@ func _is_baseball_reward_dialogue_complete() -> bool:
 func _baseball_reward_lines() -> Array[Dictionary]:
 	var lines: Array[Dictionary] = []
 	for entry: Dictionary in BASEBALL_REWARD_LINES:
+		lines.append(entry.duplicate(true))
+	return lines
+
+
+func _is_boss_result_report_dialogue_complete() -> bool:
+	return _dialogue_claims_boss_result_report and _dialogue_line_index >= _dialogue_lines.size() - 1
+
+
+func _boss_result_report_lines() -> Array[Dictionary]:
+	var lines: Array[Dictionary] = []
+	for entry: Dictionary in BOSS_RESULT_REPORT_LINES:
 		lines.append(entry.duplicate(true))
 	return lines
 

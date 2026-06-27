@@ -368,6 +368,64 @@ func test_day_corridor_post_reward_guides_player_to_gyeongbokgung_entry_with_bla
 		_runner.assert_true(arrow_right_edge <= scene.get_reference_viewport_size().x - 60.0, "navigation arrow respects the right phone safe-area inset")
 
 
+func test_day_corridor_boss_resolved_prompts_report_to_captain_and_hides_run_arrow() -> void:
+	SaveManager.set_flag(SceneTransition.FLAG_ONBOARDING_BASEBALL_COMPLETE, true)
+	SaveManager.set_flag(SceneTransition.FLAG_BASEBALL_CAPTAIN_REWARD_CLAIMED, true)
+	SaveManager.save_session_result({
+		"reason": "boss_resolved",
+		"completed": true,
+		"boss_id": &"gyeongbokgung_boss",
+	})
+	var scene := DayCorridorScene.instantiate()
+	add_child(scene)
+
+	_runner.assert_eq(scene.get_objective_text(), "목표: 야구부 주장에게 도깨비왕의 결말을 전하자", "boss clear return tells the player to report back")
+	var arrow_label := scene.get_node_or_null("%GyeongbokgungRunArrowLabel") as Label
+	_runner.assert_not_null(arrow_label, "day corridor exposes the Gyeongbokgung run navigation arrow")
+	if arrow_label != null:
+		_runner.assert_false(arrow_label.visible, "boss clear return hides the Gyeongbokgung re-entry arrow")
+	var callout_label := scene.get_node_or_null("%TalkTargetCalloutLabel") as Label
+	_runner.assert_not_null(callout_label, "baseball captain callout exists")
+	if callout_label != null:
+		_runner.assert_true(callout_label.visible, "boss clear return marks the captain as the next action")
+		_runner.assert_true(callout_label.text.contains("!"), "boss clear return uses an important callout")
+
+	scene.trigger_dialogue()
+	_runner.assert_true(scene.is_dialogue_ui_visible(), "boss clear report dialogue opens")
+	_runner.assert_true(scene.get_active_dialogue_text().contains("도깨비왕"), "report dialogue reacts to the goblin king result")
+	_runner.assert_true(scene.get_active_dialogue_text().contains("친구"), "report dialogue keeps the missing friend thread")
+	_runner.assert_true(UiTestHarness.press_by_uat_action(scene, "day_corridor.dialogue.next"), "boss report advances to the ending line")
+	_runner.assert_true(scene.get_active_dialogue_text().contains("다음 단서"), "report dialogue lands on the open ending")
+	_runner.assert_true(UiTestHarness.press_by_test_id(scene, "day_corridor.dialogue.close_button"), "boss report can be closed")
+
+	_runner.assert_true(SaveManager.get_flag(SceneTransition.FLAG_GYEONGBOKGUNG_BOSS_RESULT_ACKNOWLEDGED), "boss report is acknowledged after dialogue")
+	_runner.assert_eq(scene.get_objective_text(), "목표: 친구의 행방은 아직 미궁 속이다", "post-boss report keeps the open ending state")
+	if arrow_label != null:
+		_runner.assert_false(arrow_label.visible, "acknowledged boss result still keeps the re-entry arrow hidden")
+
+
+func test_day_corridor_boss_report_persists_after_later_run_until_acknowledged() -> void:
+	SaveManager.set_flag(SceneTransition.FLAG_ONBOARDING_BASEBALL_COMPLETE, true)
+	SaveManager.set_flag(SceneTransition.FLAG_BASEBALL_CAPTAIN_REWARD_CLAIMED, true)
+	SaveManager.save_session_result({
+		"reason": "boss_resolved",
+		"completed": true,
+		"boss_id": &"gyeongbokgung_boss",
+	})
+	SaveManager.save_session_result({
+		"outcome": "death",
+		"died": true,
+	})
+	var scene := DayCorridorScene.instantiate()
+	add_child(scene)
+
+	_runner.assert_eq(scene.get_objective_text(), "목표: 야구부 주장에게 도깨비왕의 결말을 전하자", "unacknowledged boss report survives later run results")
+	var arrow_label := scene.get_node_or_null("%GyeongbokgungRunArrowLabel") as Label
+	_runner.assert_not_null(arrow_label, "day corridor exposes the Gyeongbokgung run navigation arrow")
+	if arrow_label != null:
+		_runner.assert_false(arrow_label.visible, "unacknowledged boss report keeps the re-entry arrow hidden after later runs")
+
+
 func test_day_corridor_onboarding_reward_marks_baseball_captain_as_talk_target() -> void:
 	SaveManager.set_flag(SceneTransition.FLAG_ONBOARDING_BASEBALL_COMPLETE, true)
 	SaveManager.set_flag(SceneTransition.FLAG_BASEBALL_CAPTAIN_REWARD_CLAIMED, false)
