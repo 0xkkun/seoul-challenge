@@ -4,6 +4,7 @@ extends Node
 const JoystickScript := preload("res://scripts/ui/virtual_joystick.gd")
 const PlayerScript := preload("res://scripts/player/player.gd")
 const TouchControlsScene := preload("res://scenes/ui/touch_controls.tscn")
+const MobileSafeArea := preload("res://scripts/ui/mobile_safe_area.gd")
 
 var _runner: Node
 
@@ -118,3 +119,19 @@ func test_touch_controls_day_dialogue_category_hides_dodge_button() -> void:
 	_runner.assert_true(attack_button.visible, "day dialogue keeps the primary right button for talking")
 	_runner.assert_false(skill_button.visible, "day dialogue hides the dodge skill button")
 	_runner.assert_false(touch.is_skill_pressed(), "hidden dodge button does not report held input")
+
+
+func test_touch_controls_respect_landscape_phone_safe_area() -> void:
+	var touch := TouchControlsScene.instantiate()
+	add_child(touch)
+
+	var joystick := touch.get_node("Joystick") as Control
+	var attack_button := touch.get_node("AttackButton") as Control
+	var skill_button := touch.get_node("SkillButton") as Control
+	var touch_insets := MobileSafeArea.touch_insets()
+
+	_runner.assert_eq(joystick.offset_left, touch_insets["left"], "조이스틱은 좌측 가로폰 safe-area 밖으로 나오지 않는다")
+	_runner.assert_eq(joystick.offset_bottom, -float(touch_insets["bottom"]), "조이스틱은 홈 인디케이터 위로 올라온다")
+	_runner.assert_eq(attack_button.offset_right, -float(touch_insets["right"]), "공격 버튼은 우측 노치/라운드 코너를 피한다")
+	_runner.assert_eq(attack_button.offset_bottom, -float(touch_insets["bottom"]), "공격 버튼은 홈 인디케이터 위로 올라온다")
+	_runner.assert_eq(skill_button.offset_bottom, -float(touch_insets["bottom"]), "스킬 버튼도 하단 gesture bar를 피한다")

@@ -122,6 +122,25 @@ in-process Godot contracts, not Android view IDs.
 - To build a debug APK and install/launch it on a device for visual
   playtesting, see [docs/android-build.md](docs/android-build.md).
 
+## Mobile Landscape Safe-Area Rules
+
+Design and review mobile UI against a **landscape phone** baseline, not a
+desktop window. The canonical design viewport is 960x540, and UI touching the
+edges must remain clear of left/right notches, punch holes, rounded corners, and
+the bottom home-indicator/gesture bar.
+
+- Treat these 960x540 margins as the minimum safe-area fallback: left/right
+  `60px`, top `24px`, bottom `34px`.
+- Core touch controls and primary combat buttons need extra touch comfort:
+  prefer at least `72px` from left/right and `58px` from the bottom.
+- Bottom CTAs such as map entry, run entry, and return buttons must sit at least
+  `40px` above the bottom edge.
+- Reuse `scripts/ui/mobile_safe_area.gd` for safe-area constants/helpers instead
+  of scattering ad-hoc edge offsets.
+- Preserve `test_id` and `uat_action` contracts when moving controls for
+  safe-area compliance; Android UAT still enters Godot through those contracts,
+  not coordinate taps.
+
 ## Naming Rules
 
 - Use shared names such as `session_root`, `sample_actor`, `sample_interactable`, `InteractionSystem`, and `SessionSummaryUI`.

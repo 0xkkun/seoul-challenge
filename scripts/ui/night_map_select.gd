@@ -6,6 +6,7 @@ signal stage_selected(stage_id: StringName)
 
 const DungeonTheme := preload("res://scripts/ui/dungeon_ui_theme.gd")
 const PixelButton := preload("res://scripts/ui/pixel_button_style.gd")
+const MobileSafeArea := preload("res://scripts/ui/mobile_safe_area.gd")
 
 const STAGE_GYEONGBOKGUNG := &"gyeongbokgung"
 const ACTION_RETURN := "night_map_select.return"
@@ -115,11 +116,13 @@ func _build_ui() -> void:
 	destination.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	info_panel.add_child(destination)
 
-	var return_button := _make_action_button("ReturnButton", "정비\n돌아가기", Rect2(0.06, 0.82, 0.24, 0.13), ACTION_RETURN)
+	var return_rect := MobileSafeArea.bottom_anchored_rect(0.06, 0.24, 0.13)
+	var depart_rect := MobileSafeArea.bottom_anchored_rect(0.66, 0.28, 0.13)
+	var return_button := _make_action_button("ReturnButton", "정비\n돌아가기", return_rect, ACTION_RETURN)
 	add_child(return_button)
 	return_button.pressed.connect(_on_return_pressed)
 
-	_depart_button = _make_action_button("GyeongbokgungButton", "밤의 경복궁\n진입", Rect2(0.66, 0.82, 0.28, 0.13), ACTION_SELECT_GYEONGBOKGUNG)
+	_depart_button = _make_action_button("GyeongbokgungButton", "밤의 경복궁\n진입", depart_rect, ACTION_SELECT_GYEONGBOKGUNG)
 	add_child(_depart_button)
 	_depart_button.pressed.connect(_on_gyeongbokgung_pressed)
 

@@ -73,7 +73,7 @@ grow_vertical = 0
 
 [node name="DialogueContent" type="Control" parent="Root/DialogueBar"]
 layout_mode = 2
-custom_minimum_size = Vector2(844, 152)
+custom_minimum_size = Vector2(840, 152)
 
 [node name="DialogueTopRule" type="ColorRect" parent="Root/DialogueBar/DialogueContent"]
 unique_name_in_owner = true
