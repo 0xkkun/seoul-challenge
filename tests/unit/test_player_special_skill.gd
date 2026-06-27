@@ -212,6 +212,22 @@ func test_start_dodge_plays_character_dash_animation() -> void:
 	player.queue_free()
 
 
+func test_start_dodge_slows_character_dash_sheet_to_readable_visual_time() -> void:
+	var player := (load("res://scenes/player/player.tscn") as PackedScene).instantiate()
+	add_child(player)
+	player.special_skill_max_uses = 1
+	player.special_skill_uses_remaining = 1
+
+	_runner.assert_true(player.try_start_special_skill(Vector2.RIGHT), "ready dodge starts")
+
+	var sprite := player.get_node_or_null("Sprite") as AnimatedSprite2D
+	_runner.assert_not_null(sprite, "player scene includes animated character sprite")
+	if sprite != null:
+		_runner.assert_true(sprite.speed_scale < 1.0, "dash sheet plays slower than the authored 28fps burst")
+		_runner.assert_true(sprite.speed_scale > 0.5, "dash sheet remains snappy after the slowdown")
+	player.queue_free()
+
+
 func test_dash_animation_survives_animation_update_while_dodging() -> void:
 	var player := (load("res://scenes/player/player.tscn") as PackedScene).instantiate()
 	add_child(player)
@@ -229,12 +245,31 @@ func test_dash_animation_survives_animation_update_while_dodging() -> void:
 	player.queue_free()
 
 
+func test_dash_animation_outlasts_movement_dodge_timer() -> void:
+	var player := (load("res://scenes/player/player.tscn") as PackedScene).instantiate()
+	add_child(player)
+	player.special_skill_max_uses = 1
+	player.special_skill_uses_remaining = 1
+	player.dodge_duration = 0.14
+
+	_runner.assert_true(player.try_start_special_skill(Vector2.RIGHT), "ready dodge starts")
+	player._physics_process(0.15)
+
+	var sprite := player.get_node_or_null("Sprite") as AnimatedSprite2D
+	_runner.assert_not_null(sprite, "player scene includes animated character sprite")
+	if sprite != null:
+		_runner.assert_eq(sprite.animation, &"dash", "dash visual motion stays visible just after movement dash ends")
+		_runner.assert_false(player.is_dodging(), "gameplay dodge movement already ended")
+	player.queue_free()
+
+
 func test_dodge_clears_interrupted_attack_animation_state() -> void:
 	var player := (load("res://scenes/player/player.tscn") as PackedScene).instantiate()
 	add_child(player)
 	player.special_skill_max_uses = 1
 	player.special_skill_uses_remaining = 1
 	player.dodge_duration = 0.0
+	player.dash_animation_visual_time = 0.0
 	player._play_attack_anim(Vector2.RIGHT)
 
 	_runner.assert_true(player.try_start_special_skill(Vector2.RIGHT), "dodge can interrupt an attack animation")
