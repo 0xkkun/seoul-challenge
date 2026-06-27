@@ -203,6 +203,30 @@ func test_reward_choices_render_three_actions_and_emit_selected_id() -> void:
 	_runner.assert_false(_ui.is_reward_choice_visible(), "selection hides reward choice overlay")
 
 
+func test_reward_choice_open_starts_slide_fade_animation() -> void:
+	get_tree().paused = true
+
+	_ui.show_reward_choices(&"combat_1", [
+		{
+			"item_id": &"gung_talisman",
+			"display_name": "강타 부적",
+			"flavor": "주먹과 배트의 타격이 묵직해진다.",
+			"effect": "근접 피해 +1 / 배트 피해 +1",
+		},
+	])
+
+	_runner.assert_true(_ui.has_method("get_reward_choice_animation_snapshot"), "reward UI exposes animation state for tests")
+	if not _ui.has_method("get_reward_choice_animation_snapshot"):
+		return
+	var snapshot: Dictionary = _ui.call("get_reward_choice_animation_snapshot")
+	_runner.assert_true(snapshot["visible"], "reward overlay is visible before animation completes")
+	_runner.assert_eq(snapshot["overlay_process_mode"], Node.PROCESS_MODE_ALWAYS, "reward overlay can animate while gameplay is paused")
+	_runner.assert_eq(snapshot["dim_alpha"], 0.0, "backdrop starts transparent for fade-in")
+	_runner.assert_eq(snapshot["panel_alpha"], 0.0, "reward panel starts transparent for fade-in")
+	_runner.assert_true(float(snapshot["panel_offset_top"]) > float(snapshot["target_offset_top"]), "reward panel starts below its target position")
+	_runner.assert_true(float(snapshot["panel_offset_bottom"]) > float(snapshot["target_offset_bottom"]), "reward panel keeps height while starting lower")
+
+
 func test_summary_renders_baseball_unlocks_when_present() -> void:
 	_ui.show_summary({
 		"completed": true,
