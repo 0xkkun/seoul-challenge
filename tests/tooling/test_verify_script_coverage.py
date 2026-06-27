@@ -140,6 +140,33 @@ def test_gd_navigation_constants_do_not_mark_scene_scripts_covered() -> None:
         assert report.coverage_percent == 50.0
 
 
+def test_default_seed_roots_match_quick_gate_suites() -> None:
+    module = load_module()
+    with tempfile.TemporaryDirectory() as temp_dir:
+        root = Path(temp_dir)
+        write(root, "scripts/unit_only.gd", "extends Node\n")
+        write(root, "scripts/performance_only.gd", "extends Node\n")
+        write(
+            root,
+            "tests/unit/test_unit_only.gd",
+            'extends Node\nconst UnitOnly := preload("res://scripts/unit_only.gd")\n',
+        )
+        write(
+            root,
+            "tests/performance/test_performance_only.gd",
+            'extends Node\nconst PerformanceOnly := preload("res://scripts/performance_only.gd")\n',
+        )
+
+        report = module.compute_script_coverage(root)
+        performance_report = module.compute_script_coverage(root, ("tests/performance",))
+
+        assert report.total_scripts == 2
+        assert report.covered_scripts == {"scripts/unit_only.gd"}
+        assert report.uncovered_scripts == {"scripts/performance_only.gd"}
+        assert report.coverage_percent == 50.0
+        assert performance_report.covered_scripts == {"scripts/performance_only.gd"}
+
+
 def test_cli_reports_uncovered_scripts_when_threshold_fails() -> None:
     with tempfile.TemporaryDirectory() as temp_dir:
         root = Path(temp_dir)
@@ -177,6 +204,7 @@ def main() -> None:
     test_uncovered_scripts_fail_threshold_and_keep_names()
     test_class_name_references_mark_scripts_covered()
     test_gd_navigation_constants_do_not_mark_scene_scripts_covered()
+    test_default_seed_roots_match_quick_gate_suites()
     test_cli_reports_uncovered_scripts_when_threshold_fails()
     print("[test_verify_script_coverage] OK")
 

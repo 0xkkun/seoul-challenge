@@ -12,6 +12,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_MIN_COVERAGE = 90.0
+DEFAULT_TEST_ROOTS = ("tests/unit/", "tests/integration/")
 REFERENCE_RE = re.compile(r"res://([^\"'\s\)\]\[,]+)")
 GD_LOAD_REFERENCE_RE = re.compile(
     r"(?:\b(?:preload|load)\s*\(|\bResourceLoader\.load\s*\()\s*"
@@ -49,7 +50,10 @@ class CoverageReport:
         return self.coverage_percent + 0.0001 >= minimum_percent
 
 
-def compute_script_coverage(root: Path = ROOT) -> CoverageReport:
+def compute_script_coverage(
+    root: Path = ROOT,
+    test_roots: tuple[str, ...] = DEFAULT_TEST_ROOTS,
+) -> CoverageReport:
     root = root.resolve()
     project_files = set(list_project_files(root))
     production_scripts = {
@@ -68,7 +72,7 @@ def compute_script_coverage(root: Path = ROOT) -> CoverageReport:
         if path.endswith(RESOURCE_SUFFIXES) or path == "project.godot"
     }
     class_name_paths = collect_class_name_paths(root, production_scripts)
-    seeds = collect_test_seed_paths(root, project_files)
+    seeds = collect_test_seed_paths(root, project_files, test_roots)
     covered_scripts = trace_covered_scripts(
         root,
         resource_files,
@@ -126,10 +130,15 @@ def is_production_script(path: str) -> bool:
     return not path.startswith(EXCLUDED_SCRIPT_PREFIXES)
 
 
-def collect_test_seed_paths(root: Path, project_files: set[str]) -> set[str]:
+def collect_test_seed_paths(
+    root: Path,
+    project_files: set[str],
+    test_roots: tuple[str, ...],
+) -> set[str]:
     seeds: set[str] = set()
+    normalized_test_roots = normalize_test_roots(test_roots)
     for path in sorted(project_files):
-        if path.startswith("tests/") and path.endswith(RESOURCE_SUFFIXES):
+        if path.startswith(normalized_test_roots) and path.endswith(RESOURCE_SUFFIXES):
             seeds.add(path)
             text = read_text(root, path)
             seeds.update(find_references_for_file(path, text))
@@ -138,6 +147,18 @@ def collect_test_seed_paths(root: Path, project_files: set[str]) -> set[str]:
             if reference.startswith("scripts/autoload/"):
                 seeds.add(reference)
     return seeds
+
+
+def normalize_test_roots(test_roots: tuple[str, ...]) -> tuple[str, ...]:
+    normalized: list[str] = []
+    for test_root in test_roots:
+        path = test_root.strip().replace("\\", "/")
+        if not path:
+            continue
+        if not path.endswith("/"):
+            path += "/"
+        normalized.append(path)
+    return tuple(normalized)
 
 
 def collect_class_name_paths(root: Path, production_scripts: set[str]) -> dict[str, str]:
@@ -253,12 +274,23 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         default=DEFAULT_MIN_COVERAGE,
         help="Minimum required script coverage percentage.",
     )
+    parser.add_argument(
+        "--test-root",
+        action="append",
+        dest="test_roots",
+        default=[],
+        help=(
+            "Test directory to seed coverage from. Can be passed more than once. "
+            "Defaults to quick verification suites: tests/unit and tests/integration."
+        ),
+    )
     return parser.parse_args(argv)
 
 
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(sys.argv[1:] if argv is None else argv)
-    report = compute_script_coverage(args.root)
+    test_roots = tuple(args.test_roots) if args.test_roots else DEFAULT_TEST_ROOTS
+    report = compute_script_coverage(args.root, test_roots)
     print_report(report, args.min)
     if not report.passes(args.min):
         print(
