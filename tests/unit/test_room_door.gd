@@ -62,7 +62,7 @@ func test_open_and_lock_emit_state_changes_once_per_change() -> void:
 	_runner.assert_eq(states, [RoomDoor.DoorState.OPEN, RoomDoor.DoorState.LOCKED], "state signal emits only on changes")
 
 
-func test_open_door_builds_vertical_light_gate_portal() -> void:
+func test_open_door_builds_five_frame_sprite_portal() -> void:
 	var door := _create_door(&"E")
 
 	door.open()
@@ -71,24 +71,45 @@ func test_open_door_builds_vertical_light_gate_portal() -> void:
 	_runner.assert_not_null(portal_visual, "open door creates a portal visual")
 	if portal_visual == null:
 		return
-	var portal_column := portal_visual.get_node_or_null("PortalColumn") as Polygon2D
-	var ground_glow := portal_visual.get_node_or_null("PortalGroundGlow") as Polygon2D
-	var streaks := portal_visual.get_node_or_null("PortalStreaks") as Node2D
+	var portal_sprite := portal_visual.get_node_or_null("PortalSprite") as Sprite2D
 
-	_runner.assert_not_null(portal_column, "portal has a vertical light column")
-	_runner.assert_not_null(ground_glow, "portal has a bright ground flare")
-	_runner.assert_not_null(streaks, "portal has falling light streaks")
-	if portal_column == null or ground_glow == null or streaks == null:
+	_runner.assert_not_null(portal_sprite, "portal uses the 5-frame sprite sheet")
+	if portal_sprite == null:
 		return
-	var column_bounds := _points_bounds(portal_column.polygon)
-	_runner.assert_true(column_bounds.size.y > column_bounds.size.x * 1.8, "portal column is tall like a gate")
-	_runner.assert_true(streaks.get_child_count() >= 5, "portal uses multiple vertical light streaks")
-	for child: Node in streaks.get_children():
-		var streak := child as Line2D
-		_runner.assert_not_null(streak, "each portal streak is drawn as a line")
-		if streak == null or streak.points.size() < 2:
-			continue
-		_runner.assert_true(absf(streak.points[0].y - streak.points[1].y) > absf(streak.points[0].x - streak.points[1].x), "portal streaks run vertically")
+	_runner.assert_not_null(portal_sprite.texture, "portal sprite loads a texture")
+	if portal_sprite.texture != null:
+		_runner.assert_eq(portal_sprite.texture.resource_path, "res://assets/effects/portal.png", "portal uses the supplied sprite sheet")
+	_runner.assert_eq(portal_sprite.hframes, 5, "portal sprite sheet has five horizontal frames")
+	_runner.assert_eq(portal_sprite.vframes, 1, "portal sprite sheet has one row")
+	_runner.assert_eq(portal_sprite.texture_filter, CanvasItem.TEXTURE_FILTER_NEAREST, "portal keeps pixel edges crisp")
+	_runner.assert_true(portal_sprite.frame >= 0 and portal_sprite.frame < 5, "portal starts on a valid animation frame")
+	_runner.assert_true(portal_visual.get_node_or_null("PortalColumn") == null, "procedural light column is removed")
+	_runner.assert_true(portal_visual.get_node_or_null("PortalGroundGlow") == null, "procedural ground flare is removed")
+	_runner.assert_true(portal_visual.get_node_or_null("PortalStreaks") == null, "procedural streaks are removed")
+	_runner.assert_true(portal_visual.get_node_or_null("PortalSparkles") == null, "procedural sparkles are removed")
+
+
+func test_open_door_portal_animates_sprite_frames_without_scaling() -> void:
+	var door := _create_door(&"W")
+
+	door.open()
+
+	var portal_visual := door.get_node_or_null("PortalVisual") as Node2D
+	_runner.assert_not_null(portal_visual, "open door creates a portal visual")
+	if portal_visual == null:
+		return
+	var portal_sprite := portal_visual.get_node_or_null("PortalSprite") as Sprite2D
+	_runner.assert_not_null(portal_sprite, "portal uses an animated sprite")
+	if portal_sprite == null:
+		return
+	var initial_sprite_scale := portal_sprite.scale
+	portal_sprite.frame = 0
+
+	door._process(0.09)
+
+	_runner.assert_eq(portal_sprite.frame, 1, "portal advances to the next sheet frame")
+	_runner.assert_eq(portal_visual.scale, Vector2.ONE, "portal root does not pulse while animating")
+	_runner.assert_eq(portal_sprite.scale, initial_sprite_scale, "portal sprite keeps a fixed display size")
 
 
 func test_transition_request_requires_open_door() -> void:
@@ -153,16 +174,3 @@ func _create_door(door_dir: StringName) -> RoomDoor:
 
 	add_child(door)
 	return door
-
-
-func _points_bounds(points: PackedVector2Array) -> Rect2:
-	if points.is_empty():
-		return Rect2()
-	var min_point := points[0]
-	var max_point := points[0]
-	for point: Vector2 in points:
-		min_point.x = minf(min_point.x, point.x)
-		min_point.y = minf(min_point.y, point.y)
-		max_point.x = maxf(max_point.x, point.x)
-		max_point.y = maxf(max_point.y, point.y)
-	return Rect2(min_point, max_point - min_point)

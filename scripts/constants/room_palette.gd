@@ -1,7 +1,7 @@
 extends RefCounted
 
-const ROOM_SIZE := Vector2(1920.0, 640.0)
-const ROOM_HALF_SIZE := Vector2(960.0, 320.0)
+const ROOM_SIZE := Vector2(2560.0, 640.0)
+const ROOM_HALF_SIZE := Vector2(1280.0, 320.0)
 const PLAY_LEFT := -820.0
 const PLAY_TOP := -150.0
 const PLAY_RIGHT := 820.0
@@ -41,13 +41,17 @@ static func get_wall_bounds() -> Rect2:
 	return Rect2(room_bounds.position - wall_margin, room_bounds.size + wall_margin * 2.0)
 
 
+static func get_camera_bounds() -> Rect2:
+	return Rect2(-ROOM_HALF_SIZE, ROOM_SIZE)
+
+
 static func get_camera_limits() -> Dictionary:
-	var wall_bounds := get_wall_bounds()
+	var camera_bounds := get_camera_bounds()
 	return {
-		"left": int(floor(wall_bounds.position.x)),
-		"top": int(floor(wall_bounds.position.y)),
-		"right": int(ceil(wall_bounds.end.x)),
-		"bottom": int(ceil(wall_bounds.end.y)),
+		"left": int(floor(camera_bounds.position.x)),
+		"top": int(floor(camera_bounds.position.y)),
+		"right": int(ceil(camera_bounds.end.x)),
+		"bottom": int(ceil(camera_bounds.end.y)),
 	}
 
 
