@@ -1,4 +1,4 @@
-[gd_scene load_steps=12 format=3]
+[gd_scene load_steps=13 format=3]
 
 [ext_resource type="Script" path="res://scripts/dev/day_corridor_movement_test.gd" id="1_demo"]
 [ext_resource type="Texture2D" path="res://assets/backgrounds/corridor/day/school_bg_left.png" id="2_bg1"]
@@ -7,6 +7,7 @@
 [ext_resource type="PackedScene" path="res://scenes/ui/touch_controls.tscn" id="5_touch"]
 [ext_resource type="Script" path="res://scripts/dev/day_corridor_touch_proxy.gd" id="6_proxy"]
 [ext_resource type="Texture2D" path="res://assets/characters/student/walking.png" id="7_student"]
+[ext_resource type="Texture2D" path="res://assets/characters/student/idle.png" id="12_idle"]
 [ext_resource type="PackedScene" path="res://scenes/ui/hub_dialogue_ui.tscn" id="8_dialogue"]
 [ext_resource type="Script" path="res://scripts/dev/uat_command_bridge.gd" id="9_uat"]
 [ext_resource type="Texture2D" path="res://assets/ui/icons/gear.svg" id="10_gear"]
@@ -14,6 +15,7 @@
 
 [node name="DayCorridorMovementTest" type="Node2D"]
 script = ExtResource("1_demo")
+character_idle_texture = ExtResource("12_idle")
 
 [node name="Background" type="Node2D" parent="."]
 unique_name_in_owner = true
