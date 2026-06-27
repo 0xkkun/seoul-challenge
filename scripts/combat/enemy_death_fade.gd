@@ -7,9 +7,11 @@ const FRAME_COUNT := 12
 const ANIMATION_SPEED := 18.0
 const LIFETIME := 0.67
 const Z_INDEX := 44
+const VISUAL_MIN_Y_SCALE := 0.14
 
 var _age := 0.0
 var _animation: AnimatedSprite2D = null
+var _squash_visual: Node2D = null
 
 
 func _ready() -> void:
@@ -21,9 +23,22 @@ func _ready() -> void:
 	set_process(true)
 
 
-func capture_visual(_source: CanvasItem = null) -> void:
-	_clear_visual()
-	_build_death_animation()
+func capture_visual(source: CanvasItem = null) -> void:
+	_clear_captured_visual()
+	var source_node := source as Node2D
+	if source_node == null:
+		return
+	var clone := _clone_visual(source)
+	if clone == null:
+		return
+	_squash_visual = Node2D.new()
+	_squash_visual.name = "SquashVisual"
+	_squash_visual.z_index = 0
+	_squash_visual.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	add_child(_squash_visual)
+	_squash_visual.add_child(clone)
+	clone.global_transform = source_node.global_transform
+	_update_captured_visual()
 
 
 func get_visual_contract() -> Dictionary:
@@ -38,7 +53,9 @@ func get_visual_contract() -> Dictionary:
 		"shard_count": 0,
 		"uses_line_art": false,
 		"animates_scale": false,
-		"captures_visual": false,
+		"captures_visual": true,
+		"squashes_captured_visual": true,
+		"visual_min_y_scale": VISUAL_MIN_Y_SCALE,
 		"uses_detached_node": true,
 		"anchors_to_feet": true,
 	}
@@ -61,16 +78,26 @@ static func foot_position_for(owner: Node2D, visual: CanvasItem) -> Vector2:
 
 func _process(delta: float) -> void:
 	_age += maxf(0.0, delta)
+	_update_captured_visual()
 	if _age >= LIFETIME:
 		queue_free()
 
 
-func _clear_visual() -> void:
-	if _animation != null and is_instance_valid(_animation):
-		if _animation.get_parent() == self:
-			remove_child(_animation)
-		_animation.free()
-	_animation = null
+func _clear_captured_visual() -> void:
+	if _squash_visual != null and is_instance_valid(_squash_visual):
+		if _squash_visual.get_parent() == self:
+			remove_child(_squash_visual)
+		_squash_visual.free()
+	_squash_visual = null
+
+
+func _update_captured_visual() -> void:
+	if _squash_visual == null or not is_instance_valid(_squash_visual):
+		return
+	var progress := clampf(_age / LIFETIME, 0.0, 1.0)
+	var eased := progress * progress * (3.0 - (2.0 * progress))
+	_squash_visual.scale = Vector2(1.0, lerpf(1.0, VISUAL_MIN_Y_SCALE, eased))
+	_squash_visual.modulate.a = 1.0 - eased
 
 
 func _build_death_animation() -> void:
@@ -86,6 +113,80 @@ func _build_death_animation() -> void:
 	_animation.play(&"death")
 	if not _animation.animation_finished.is_connected(_on_animation_finished):
 		_animation.animation_finished.connect(_on_animation_finished)
+
+
+func _clone_visual(source: CanvasItem) -> Node2D:
+	var animated := source as AnimatedSprite2D
+	if animated != null:
+		return _clone_animated_sprite(animated)
+	var sprite := source as Sprite2D
+	if sprite != null:
+		return _clone_sprite(sprite)
+	var polygon := source as Polygon2D
+	if polygon != null:
+		return _clone_polygon(polygon)
+	var source_node := source as Node2D
+	if source_node == null:
+		return null
+	var clone := source_node.duplicate(0) as Node2D
+	if clone != null:
+		_prepare_clone_canvas_item(source, clone)
+	return clone
+
+
+func _clone_animated_sprite(source: AnimatedSprite2D) -> AnimatedSprite2D:
+	var clone := AnimatedSprite2D.new()
+	clone.sprite_frames = source.sprite_frames
+	clone.animation = source.animation
+	clone.centered = source.centered
+	clone.offset = source.offset
+	clone.flip_h = source.flip_h
+	clone.flip_v = source.flip_v
+	clone.stop()
+	clone.set_frame_and_progress(source.frame, source.frame_progress)
+	_prepare_clone_canvas_item(source, clone)
+	return clone
+
+
+func _clone_sprite(source: Sprite2D) -> Sprite2D:
+	var clone := Sprite2D.new()
+	clone.texture = source.texture
+	clone.centered = source.centered
+	clone.offset = source.offset
+	clone.flip_h = source.flip_h
+	clone.flip_v = source.flip_v
+	clone.hframes = source.hframes
+	clone.vframes = source.vframes
+	clone.frame = source.frame
+	clone.region_enabled = source.region_enabled
+	clone.region_rect = source.region_rect
+	clone.region_filter_clip_enabled = source.region_filter_clip_enabled
+	_prepare_clone_canvas_item(source, clone)
+	return clone
+
+
+func _clone_polygon(source: Polygon2D) -> Polygon2D:
+	var clone := Polygon2D.new()
+	clone.polygon = source.polygon
+	clone.color = source.color
+	clone.texture = source.texture
+	clone.texture_offset = source.texture_offset
+	clone.texture_rotation = source.texture_rotation
+	clone.texture_scale = source.texture_scale
+	clone.uv = source.uv
+	clone.polygons = source.polygons
+	_prepare_clone_canvas_item(source, clone)
+	return clone
+
+
+func _prepare_clone_canvas_item(source: CanvasItem, clone: CanvasItem) -> void:
+	clone.name = "CapturedMonster"
+	clone.visible = source.visible
+	clone.modulate = source.modulate
+	clone.self_modulate = source.self_modulate
+	clone.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	clone.z_index = 0
+	clone.z_as_relative = true
 
 
 func _on_animation_finished() -> void:
