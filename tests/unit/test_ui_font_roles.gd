@@ -66,7 +66,7 @@ func test_role_helper_applies_label_and_rich_text_fonts() -> void:
 
 	_assert_font(label, &"font", UiFontRolesScript.TITLE_FONT_PATH, "Label title role uses ChosunCentennial")
 	_assert_font(rich, &"normal_font", UiFontRolesScript.BODY_FONT_PATH, "RichTextLabel body role uses RIDIBatang")
-	_assert_rich_text_fonts(rich, UiFontRolesScript.BODY_FONT_PATH, "RichTextLabel BBCode fonts use RIDIBatang")
+	_assert_rich_text_role_fonts(rich, UiFontRolesScript.BODY_FONT_PATH, "RichTextLabel BBCode fonts use RIDIBatang")
 	_runner.assert_eq(UiFontRolesScript.role_font_path(UiFontRolesScript.ROLE_PIXEL), UiFontRolesScript.PIXEL_FONT_PATH, "pixel role path is stable")
 	_runner.assert_eq(UiFontRolesScript.role_font_path(UiFontRolesScript.ROLE_TITLE), UiFontRolesScript.TITLE_FONT_PATH, "title role path is stable")
 	_runner.assert_eq(UiFontRolesScript.role_font_path(UiFontRolesScript.ROLE_BODY), UiFontRolesScript.BODY_FONT_PATH, "body role path is stable")
@@ -96,7 +96,7 @@ func test_hub_dialogue_uses_title_body_and_pixel_roles() -> void:
 
 	_assert_font(ui.get_node("%NameLabel") as Control, &"font", UiFontRolesScript.TITLE_FONT_PATH, "speaker name uses title font")
 	_assert_font(ui.get_node("%DialogueLabel") as Control, &"normal_font", UiFontRolesScript.BODY_FONT_PATH, "dialogue text uses body font")
-	_assert_rich_text_fonts(ui.get_node("%DialogueLabel") as RichTextLabel, UiFontRolesScript.BODY_FONT_PATH, "dialogue BBCode text uses body font")
+	_assert_rich_text_role_fonts(ui.get_node("%DialogueLabel") as RichTextLabel, UiFontRolesScript.BODY_FONT_PATH, "dialogue BBCode text uses body font")
 	_assert_font(ui.get_node("%MemoryLabel") as Control, &"font", UiFontRolesScript.BODY_FONT_PATH, "memory line uses body font")
 	_assert_font(ui.get_node("%StageRow").get_child(0) as Control, &"font", UiFontRolesScript.PIXEL_FONT_PATH, "stage chip uses pixel font")
 	_assert_font(ui.get_node("%ChoiceRow").get_child(0) as Control, &"font", UiFontRolesScript.PIXEL_FONT_PATH, "dialogue choice uses pixel font")
@@ -161,9 +161,37 @@ func _assert_font(control: Control, font_type: StringName, expected_path: String
 	_runner.assert_not_null(font, "%s font exists" % message)
 	if font == null:
 		return
-	_runner.assert_eq(font.resource_path, expected_path, message)
+	_runner.assert_eq(_font_base_path(font), expected_path, message)
 
 
-func _assert_rich_text_fonts(control: RichTextLabel, expected_path: String, message: String) -> void:
-	for font_type: StringName in [&"normal_font", &"bold_font", &"italics_font", &"bold_italics_font", &"mono_font"]:
-		_assert_font(control, font_type, expected_path, "%s %s" % [message, font_type])
+func _assert_rich_text_role_fonts(control: RichTextLabel, expected_path: String, message: String) -> void:
+	_assert_font(control, &"normal_font", expected_path, "%s normal" % message)
+	_assert_font_variation(control, &"bold_font", expected_path, true, false, "%s bold" % message)
+	_assert_font_variation(control, &"italics_font", expected_path, false, true, "%s italic" % message)
+	_assert_font_variation(control, &"bold_italics_font", expected_path, true, true, "%s bold italic" % message)
+	_assert_font(control, &"mono_font", UiFontRolesScript.PIXEL_FONT_PATH, "%s mono uses pixel font" % message)
+
+
+func _assert_font_variation(
+	control: RichTextLabel,
+	font_type: StringName,
+	expected_path: String,
+	expect_embolden: bool,
+	expect_skew: bool,
+	message: String
+) -> void:
+	var font := control.get_theme_font(font_type)
+	var variation := font as FontVariation
+	_runner.assert_not_null(variation, "%s uses a FontVariation" % message)
+	if variation == null:
+		return
+	_runner.assert_eq(_font_base_path(variation), expected_path, "%s base font" % message)
+	_runner.assert_eq(variation.variation_embolden > 0.0, expect_embolden, "%s embolden flag" % message)
+	_runner.assert_eq(variation.variation_transform != Transform2D.IDENTITY, expect_skew, "%s skew flag" % message)
+
+
+func _font_base_path(font: Font) -> String:
+	var variation := font as FontVariation
+	if variation != null and variation.base_font != null:
+		return variation.base_font.resource_path
+	return font.resource_path

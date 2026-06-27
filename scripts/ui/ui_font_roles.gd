@@ -12,13 +12,8 @@ const BODY_FONT_PATH := "res://assets/fonts/RIDIBatang.otf"
 const PIXEL_FONT: FontFile = preload("res://assets/fonts/NeoDunggeunmoPro-Regular.ttf")
 const TITLE_FONT: FontFile = preload("res://assets/fonts/ChosunCentennial.ttf")
 const BODY_FONT: FontFile = preload("res://assets/fonts/RIDIBatang.otf")
-const RICH_TEXT_FONT_KEYS: Array[StringName] = [
-	&"normal_font",
-	&"bold_font",
-	&"italics_font",
-	&"bold_italics_font",
-	&"mono_font",
-]
+const EMPHASIS_EMBOLDEN := 0.7
+const EMPHASIS_SKEW := -0.16
 
 
 static func apply_pixel(control: Control) -> void:
@@ -47,7 +42,19 @@ static func _apply_font(control: Control, font: FontFile) -> void:
 	if control == null:
 		return
 	if control is RichTextLabel:
-		for font_key: StringName in RICH_TEXT_FONT_KEYS:
-			control.add_theme_font_override(font_key, font)
+		control.add_theme_font_override("normal_font", font)
+		control.add_theme_font_override("bold_font", _make_font_variation(font, EMPHASIS_EMBOLDEN, 0.0))
+		control.add_theme_font_override("italics_font", _make_font_variation(font, 0.0, EMPHASIS_SKEW))
+		control.add_theme_font_override("bold_italics_font", _make_font_variation(font, EMPHASIS_EMBOLDEN, EMPHASIS_SKEW))
+		control.add_theme_font_override("mono_font", PIXEL_FONT)
 		return
 	control.add_theme_font_override("font", font)
+
+
+static func _make_font_variation(base_font: FontFile, embolden: float, skew: float) -> FontVariation:
+	var variation := FontVariation.new()
+	variation.base_font = base_font
+	variation.variation_embolden = embolden
+	if not is_zero_approx(skew):
+		variation.variation_transform = Transform2D(Vector2(1.0, 0.0), Vector2(skew, 1.0), Vector2.ZERO)
+	return variation
