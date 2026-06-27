@@ -24,6 +24,7 @@ const WEAPON_BASEBALL := &"baseball"
 const WEAPON_BAT := &"bat"
 const COMBAT_FEEDBACK_RECOVER_TIME := 0.10
 const COMBAT_FEEDBACK_MAX_OFFSET := 7.0
+const ROOM_ENTRY_SPAWN_INSET := Vector2(140.0, 96.0)
 
 @onready var world_layer: Node2D = $WorldLayer
 @onready var room_layer: Node2D = %RoomLayer
@@ -548,7 +549,7 @@ func _configure_actor_for_room(room: Node2D) -> void:
 	var room_bounds := RoomPalette.get_room_bounds()
 	if actor.has_method("set_movement_bounds"):
 		actor.call("set_movement_bounds", _room_movement_bounds(room))
-	actor.global_position = room.global_position + Vector2(room_bounds.position.x + 140.0, 0.0)
+	actor.global_position = room.global_position + _actor_spawn_offset_for_entry(room_bounds, room_manager.last_entry_door_dir)
 	if actor.has_method("clamp_to_movement_bounds"):
 		actor.call("clamp_to_movement_bounds")
 	if actor.has_method("reset_motion"):
@@ -560,6 +561,19 @@ func _configure_actor_for_room(room: Node2D) -> void:
 func _room_movement_bounds(room: Node2D) -> Rect2:
 	var room_bounds := RoomPalette.get_room_bounds()
 	return Rect2(room.global_position + room_bounds.position, room_bounds.size)
+
+
+func _actor_spawn_offset_for_entry(room_bounds: Rect2, entry_door_dir: StringName) -> Vector2:
+	match entry_door_dir:
+		&"E":
+			return Vector2(room_bounds.end.x - ROOM_ENTRY_SPAWN_INSET.x, 0.0)
+		&"N":
+			return Vector2(0.0, room_bounds.position.y + ROOM_ENTRY_SPAWN_INSET.y)
+		&"S":
+			return Vector2(0.0, room_bounds.end.y - ROOM_ENTRY_SPAWN_INSET.y)
+		&"W":
+			return Vector2(room_bounds.position.x + ROOM_ENTRY_SPAWN_INSET.x, 0.0)
+	return Vector2(room_bounds.position.x + ROOM_ENTRY_SPAWN_INSET.x, 0.0)
 
 
 func _connect_boss_room(room: Node) -> void:

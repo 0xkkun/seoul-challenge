@@ -13,6 +13,7 @@ var current_room_id: StringName = &""
 var current_room_def: RoomDef = null
 var current_room: Node2D = null
 var cleared_room_ids := {}
+var last_entry_door_dir: StringName = &""
 
 var _room_container: Node = null
 var _actor: Node2D = null
@@ -60,7 +61,7 @@ func start_layout_from_path(layout_path: String) -> bool:
 	return start_layout(loaded_layout)
 
 
-func enter_room(room_id: StringName) -> bool:
+func enter_room(room_id: StringName, entry_door_dir: StringName = &"") -> bool:
 	if layout == null:
 		return false
 
@@ -85,6 +86,7 @@ func enter_room(room_id: StringName) -> bool:
 	current_room = instance as Node2D
 	current_room_def = room_def
 	current_room_id = room_def.room_id
+	last_entry_door_dir = entry_door_dir
 	# 문 방향을 레이아웃 연결(grid 인접)에서 도출해 미니맵 배치와 항상 일치시킨다.
 	current_room.set("door_dirs", _door_dirs_for_room(room_def))
 	container.add_child(current_room)
@@ -111,7 +113,8 @@ func request_next_room(preferred_room_id: StringName = &"") -> bool:
 	if next_room_id == &"":
 		layout_completed.emit(layout.layout_id)
 		return false
-	return enter_room(next_room_id)
+	var next_room_def := layout.get_room(next_room_id)
+	return enter_room(next_room_id, _entry_door_dir_for_transition(current_room_def, next_room_def))
 
 
 func is_current_room_cleared() -> bool:
@@ -205,6 +208,12 @@ func _door_dir_for_delta(delta: Vector2i) -> StringName:
 	if delta.y < 0:
 		return &"N"
 	return &""
+
+
+func _entry_door_dir_for_transition(from_room_def: RoomDef, to_room_def: RoomDef) -> StringName:
+	if from_room_def == null or to_room_def == null:
+		return &""
+	return _door_dir_for_delta(from_room_def.grid_pos - to_room_def.grid_pos)
 
 
 func _configure_actor(room: Node2D) -> void:
