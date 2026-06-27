@@ -154,6 +154,43 @@ func test_session_root_uses_three_room_baseball_onboarding_layout() -> void:
 	session.queue_free()
 
 
+func test_purified_captain_never_respawns_even_without_completion_flag() -> void:
+	# Divergence guard: the captain is recorded purified but the onboarding-complete flag was
+	# never written (e.g. the session went inactive before _finish_baseball_onboarding ran).
+	# A fresh run that still carries the onboarding config must NOT rebuild the captain layout.
+	ProgressionSystem.record_friend_purified(&"baseball_captain")
+	_runner.assert_true(ProgressionSystem.is_friend_purified(&"baseball_captain"), "captain purification is recorded")
+	_runner.assert_false(
+		SaveManager.get_flag(SceneTransition.FLAG_ONBOARDING_BASEBALL_COMPLETE),
+		"completion flag stays unset to reproduce the divergence"
+	)
+
+	GameManager.start_session({
+		"source": "intro",
+		"stage_id": &"gyeongbokgung",
+		"stage_name": "경복궁",
+		SceneTransition.RUN_CONFIG_ONBOARDING_KIND: SceneTransition.ONBOARDING_KIND_BASEBALL_CAPTAIN,
+	})
+	var packed := load("res://scenes/session/session_root.tscn") as PackedScene
+	var session := packed.instantiate()
+	add_child(session)
+
+	var manager := session.get_node("%RoomManager") as RoomManager
+	_runner.assert_not_null(manager.layout, "session still builds a layout")
+	if manager.layout != null:
+		_runner.assert_true(
+			manager.layout.layout_id != &"onboarding_baseball_captain",
+			"a purified captain does not rebuild the onboarding layout"
+		)
+		for room_def: RoomDef in manager.layout.room_defs:
+			_runner.assert_true(
+				StringName(room_def.room_config.get("friend_id", &"")) != &"baseball_captain",
+				"no room respawns the already-purified captain"
+			)
+
+	session.queue_free()
+
+
 func test_session_starts_control_onboarding_only_for_first_baseball_run() -> void:
 	GameManager.start_session({
 		"source": "intro",

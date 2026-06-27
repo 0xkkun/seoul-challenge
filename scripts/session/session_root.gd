@@ -58,6 +58,10 @@ var _active_boss: Node = null
 var _minimap_full := false
 var _paused_before_exit_modal := false
 var _friend_ids: Array[StringName] = []
+# Latched once per run: whether this run was built as the baseball onboarding. Computed lazily on
+# first query (at session setup, before any purification) so the answer can't flip mid-run when the
+# captain gets purified — only a fresh run (new session_root) recomputes it. 0 = unknown, 1, -1.
+var _baseball_onboarding_run_latch := 0
 var _unlocks: Array[StringName] = []
 var _camera_feedback_tween: Tween = null
 var _rewarded_room_ids := {}
@@ -240,6 +244,16 @@ func _make_room_def(
 
 
 func _is_baseball_onboarding_run() -> bool:
+	# Latch on first query so the result stays stable for the whole run. The captain's purification
+	# (recorded mid-run) must not flip this to false before _on_friend_purified can finish the run.
+	if _baseball_onboarding_run_latch != 0:
+		return _baseball_onboarding_run_latch == 1
+	var result := _evaluate_baseball_onboarding_run()
+	_baseball_onboarding_run_latch = 1 if result else -1
+	return result
+
+
+func _evaluate_baseball_onboarding_run() -> bool:
 	var config := GameManager.get_active_config()
 	var is_onboarding_config := StringName(config.get(SceneTransition.RUN_CONFIG_ONBOARDING_KIND, &"")) == SceneTransition.ONBOARDING_KIND_BASEBALL_CAPTAIN
 	if not is_onboarding_config:
@@ -249,6 +263,13 @@ func _is_baseball_onboarding_run() -> bool:
 	# (e.g. retrying from the result screen reuses the previous config). Without this the
 	# captain re-spawns and the onboarding can be re-cleared after it was already finished.
 	if has_node("/root/SaveManager") and SaveManager.get_flag(SceneTransition.FLAG_ONBOARDING_BASEBALL_COMPLETE):
+		return false
+	# Authoritative guard: the captain's purification record is the single source of truth for
+	# "already cleansed". If purification was recorded but the completion flag was never written
+	# (e.g. the session went inactive before _finish_baseball_onboarding ran), the flag check above
+	# misses it and the captain re-spawns on a fresh map. is_friend_purified covers that divergence.
+	# Evaluated only at run start (before this run's own purification), so it gates a *fresh* run.
+	if has_node("/root/ProgressionSystem") and ProgressionSystem.is_friend_purified(&"baseball_captain"):
 		return false
 	return true
 
