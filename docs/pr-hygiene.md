@@ -59,6 +59,8 @@ The PR body should include (한글로):
 - linked issue with `Closes #N` when the PR fully resolves it
 - 변경 범위 요약
 - 검증 명령과 결과
+- `[UI]` PR이거나 화면/레이아웃/컨트롤이 보이는 방식으로 바뀌는 PR이면
+  `## UI 캡처` 섹션과 캡처 URL
 - 알려진 한계 또는 후속 이슈
 
 Also confirm:
@@ -67,6 +69,46 @@ Also confirm:
 - no generated caches, local config, or credentials are tracked
 - README, `docs/customizing.md`, `docs/pr-hygiene.md`, and `AGENTS.md` still agree
   with the commands and workflow in the repo
+
+## UI Capture Flow
+
+Visible UI changes must include reviewable screenshots in the PR body. Do not
+require an AOS device for every UI PR: use the fastest faithful capture path
+available for the changed screen, and reserve AOS 실기기 확인 for device-specific
+touch, safe-area, orientation, export, or platform rendering risks.
+
+For UI PRs:
+
+1. Capture the changed screen after local verification. Prefer a deterministic
+   scene state and the project landscape viewport (`960x540`) when possible.
+2. Store capture files outside the feature branch. Use the orphan branch
+   `ui-previews`, under `pr-<PR number>/`.
+3. Push the capture commit to `origin/ui-previews`.
+4. Add a `## UI 캡처` section to the PR body with the raw image URLs.
+
+Use stable file names so updates replace the same preview path:
+
+```text
+pr-177/session-map-tab-960x540.png
+pr-177/session-map-tab-paused-960x540.png
+```
+
+Raw URL format:
+
+```text
+https://raw.githubusercontent.com/0xkkun/seoul-challenge/ui-previews/pr-<PR>/<file>.png
+```
+
+Example PR body section:
+
+```markdown
+## UI 캡처
+- 인게임 맵 탭: https://raw.githubusercontent.com/0xkkun/seoul-challenge/ui-previews/pr-177/session-map-tab-960x540.png
+```
+
+Keep screenshots out of the PR branch. If a UI change cannot be captured in the
+current environment, say why in `## UI 캡처` and list the closest verification
+that was performed.
 
 ## Codex Review Signal
 
