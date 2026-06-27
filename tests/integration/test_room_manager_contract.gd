@@ -281,21 +281,22 @@ func test_session_root_finish_requires_final_room_clear_on_branching_map() -> vo
 	var path := _path_between(manager.layout, manager.current_room_id, branch_tip.room_id)
 	_runner.assert_true(path.size() > 1, "branch tip is reachable from current room")
 	for index: int in range(1, path.size()):
-		_resolve_current_room(manager, actor)
+		_resolve_current_room(manager, actor, session)
 		_runner.assert_true(manager.request_next_room(path[index]), "manager walks to %s" % path[index])
-	_resolve_current_room(manager, actor)
+	_resolve_current_room(manager, actor, session)
 
 	var result: Dictionary = session.finish_session()
 	_runner.assert_false(result["completed"], "cleared non-final branch tip does not complete the run")
 	GameManager.reset_session()
 
 
-func _resolve_current_room(manager: RoomManager, actor: Node2D) -> void:
+func _resolve_current_room(manager: RoomManager, actor: Node2D, session: Node = null) -> void:
 	var room := manager.current_room
 	if room == null or manager.is_current_room_cleared():
 		return
 	if room.has_method("get_active_enemies"):
 		_defeat_all_combat_waves(room)
+		_resolve_pending_session_reward(session)
 	elif room.has_method("get_active_students"):
 		for student: Node in room.call("get_active_students"):
 			if student.has_method("rescue"):
@@ -308,6 +309,20 @@ func _resolve_current_room(manager: RoomManager, actor: Node2D) -> void:
 				friend.emit_signal("purified", friend)
 	elif room.has_method("complete_boss_encounter"):
 		room.call("complete_boss_encounter")
+
+
+func _resolve_pending_session_reward(session: Node) -> void:
+	if session == null or not session.has_method("flush_pending_reward_choice_for_tests"):
+		return
+	if not bool(session.call("flush_pending_reward_choice_for_tests")):
+		return
+	var session_ui := session.get_node_or_null("%SessionUIRoot")
+	if session_ui == null or not session_ui.has_method("get_reward_choice_ids"):
+		return
+	var choice_ids: Array = session_ui.call("get_reward_choice_ids")
+	if choice_ids.is_empty():
+		return
+	session_ui.call("select_reward_choice", choice_ids[0])
 
 
 func _encounter_total(config: Dictionary) -> int:

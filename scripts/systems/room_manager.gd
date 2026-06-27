@@ -14,6 +14,7 @@ var current_room_def: RoomDef = null
 var current_room: Node2D = null
 var cleared_room_ids := {}
 var last_entry_door_dir: StringName = &""
+var transition_blocked_callable: Callable
 
 var _room_container: Node = null
 var _actor: Node2D = null
@@ -107,6 +108,8 @@ func request_next_room(preferred_room_id: StringName = &"") -> bool:
 	if layout == null or current_room == null:
 		return false
 	if not is_current_room_cleared():
+		return false
+	if _is_transition_blocked(preferred_room_id):
 		return false
 
 	var next_room_id := layout.get_next_room_id(current_room_id, cleared_room_ids, preferred_room_id)
@@ -252,3 +255,9 @@ func _on_room_transition_requested(room_id: StringName, door_dir: StringName) ->
 		return
 	var preferred_room_id := _connected_room_id_for_door_dir(current_room_def, door_dir)
 	request_next_room(preferred_room_id)
+
+
+func _is_transition_blocked(preferred_room_id: StringName) -> bool:
+	if not transition_blocked_callable.is_valid():
+		return false
+	return bool(transition_blocked_callable.call(current_room_id, preferred_room_id))

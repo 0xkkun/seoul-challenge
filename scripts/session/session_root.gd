@@ -27,6 +27,7 @@ const COMBAT_FEEDBACK_MAX_OFFSET := 7.0
 const ROOM_ENTRY_SPAWN_INSET := Vector2(140.0, 96.0)
 const TOP_LEFT_HUD_GAP := 8.0
 const BASEBALL_ONBOARDING_LAYOUT_ID := &"onboarding_baseball_captain"
+const REWARD_CHOICE_DELAY_SECONDS := 1.0
 
 @onready var world_layer: Node2D = $WorldLayer
 @onready var room_layer: Node2D = %RoomLayer
@@ -61,6 +62,8 @@ var _rewarded_room_ids := {}
 var _pending_reward_room_id: StringName = &""
 var _paused_before_reward_choice := false
 var _pause_modal_open := false
+var _reward_choice_delay_timer: Timer = null
+var _touch_controls_visible_before_reward_choice := true
 
 
 func _ready() -> void:
@@ -82,6 +85,7 @@ func _ready() -> void:
 	_connect_run_reward_events()
 	room_manager.room_changed.connect(_on_room_changed)
 	room_manager.configure(_build_run_layout(), room_layer, actor)
+	room_manager.transition_blocked_callable = Callable(self, "_is_room_transition_blocked_by_reward")
 	room_manager.start_layout()
 	_minimap.configure_from_manager(room_manager)
 	_apply_landscape_safe_area()
@@ -122,6 +126,9 @@ func _keep_combat_health_below_map_tab() -> void:
 
 
 func _exit_tree() -> void:
+	_cancel_reward_choice_delay()
+	if room_manager != null:
+		room_manager.transition_blocked_callable = Callable()
 	_disconnect_progression_events()
 	_disconnect_combat_feedback_events()
 	_disconnect_run_reward_events()
@@ -293,6 +300,7 @@ func _sync_combat_hud_health() -> void:
 
 
 func finish_session(overrides: Dictionary = {}) -> Dictionary:
+	_clear_pending_reward_choice()
 	var result := _build_session_result(overrides)
 	GameManager.finish_session(result)
 	session_ui_root.show_summary(result)
@@ -329,6 +337,7 @@ func _build_death_result() -> Dictionary:
 
 
 func _show_death_summary(result: Dictionary) -> void:
+	_clear_pending_reward_choice()
 	get_tree().paused = true
 	session_ui_root.set_status("쓰러짐")
 	session_ui_root.show_summary(result)
@@ -433,16 +442,99 @@ func _on_room_cleared_for_reward(payload: Dictionary) -> void:
 		return
 	if _rewarded_room_ids.has(room_id) or _pending_reward_room_id != &"":
 		return
-	_show_room_reward_choices(room_id)
+	if _build_reward_choice_models(room_id).is_empty():
+		return
+	_pending_reward_room_id = room_id
+	_start_reward_choice_delay()
+
+
+func _start_reward_choice_delay() -> void:
+	var timer := _ensure_reward_choice_delay_timer()
+	timer.stop()
+	timer.start(REWARD_CHOICE_DELAY_SECONDS)
+
+
+func _ensure_reward_choice_delay_timer() -> Timer:
+	if _reward_choice_delay_timer != null and is_instance_valid(_reward_choice_delay_timer):
+		return _reward_choice_delay_timer
+	_reward_choice_delay_timer = Timer.new()
+	_reward_choice_delay_timer.name = "RewardChoiceDelayTimer"
+	_reward_choice_delay_timer.one_shot = true
+	_reward_choice_delay_timer.wait_time = REWARD_CHOICE_DELAY_SECONDS
+	_reward_choice_delay_timer.process_mode = Node.PROCESS_MODE_PAUSABLE
+	add_child(_reward_choice_delay_timer)
+	_reward_choice_delay_timer.timeout.connect(_on_reward_choice_delay_timeout)
+	return _reward_choice_delay_timer
+
+
+func _cancel_reward_choice_delay() -> void:
+	if _reward_choice_delay_timer != null and is_instance_valid(_reward_choice_delay_timer):
+		_reward_choice_delay_timer.stop()
+
+
+func _clear_pending_reward_choice() -> void:
+	_cancel_reward_choice_delay()
+	_pending_reward_room_id = &""
+	_restore_touch_controls_after_reward_choice()
+
+
+func _on_reward_choice_delay_timeout() -> void:
+	if _pending_reward_room_id == &"":
+		return
+	if _rewarded_room_ids.has(_pending_reward_room_id):
+		_pending_reward_room_id = &""
+		return
+	if room_manager == null or _pending_reward_room_id != room_manager.current_room_id:
+		_pending_reward_room_id = &""
+		return
+	if session_ui_root != null and session_ui_root.has_method("is_reward_choice_visible") and bool(session_ui_root.call("is_reward_choice_visible")):
+		return
+	if _should_defer_reward_choice_open():
+		_start_reward_choice_delay()
+		return
+	_show_room_reward_choices(_pending_reward_room_id)
+
+
+func _should_defer_reward_choice_open() -> bool:
+	if get_tree().paused:
+		return true
+	if _confirm_modal != null and _confirm_modal.is_open():
+		return true
+	return false
+
+
+func flush_pending_reward_choice_for_tests() -> bool:
+	if _pending_reward_room_id == &"":
+		return false
+	_cancel_reward_choice_delay()
+	_on_reward_choice_delay_timeout()
+	return session_ui_root != null and session_ui_root.has_method("is_reward_choice_visible") and bool(session_ui_root.call("is_reward_choice_visible"))
+
+
+func _is_room_transition_blocked_by_reward(_current_room_id: StringName, _preferred_room_id: StringName) -> bool:
+	return _pending_reward_room_id != &""
+
+
+func get_reward_choice_delay_snapshot() -> Dictionary:
+	var time_left := 0.0
+	if _reward_choice_delay_timer != null and is_instance_valid(_reward_choice_delay_timer):
+		time_left = _reward_choice_delay_timer.time_left
+	return {
+		"pending_room_id": _pending_reward_room_id,
+		"time_left": time_left,
+		"is_transition_blocked": _pending_reward_room_id != &"",
+	}
 
 
 func _show_room_reward_choices(room_id: StringName) -> void:
 	var choices := _build_reward_choice_models(room_id)
 	if choices.is_empty():
+		_pending_reward_room_id = &""
 		return
 	_pending_reward_room_id = room_id
 	_paused_before_reward_choice = get_tree().paused
 	_release_combat_touch_inputs()
+	_hide_touch_controls_for_reward_choice()
 	get_tree().paused = true
 	session_ui_root.call("show_reward_choices", room_id, choices)
 	session_ui_root.set_status("전투 보상")
@@ -460,6 +552,8 @@ func _on_reward_choice_selected(item_id: StringName) -> void:
 	if session_ui_root.has_method("hide_reward_choices"):
 		session_ui_root.call("hide_reward_choices")
 	get_tree().paused = _paused_before_reward_choice
+	_restore_touch_controls_after_reward_choice()
+	_reset_current_room_door_transition_latches()
 	session_ui_root.set_status("보상 획득")
 	if has_node("/root/EventBus"):
 		EventBus.emit_interaction_completed({
@@ -503,6 +597,28 @@ func _reward_choice_ids(room_id: StringName, count: int) -> Array[StringName]:
 func _release_combat_touch_inputs() -> void:
 	if touch_controls != null and touch_controls.has_method("release_combat_inputs"):
 		touch_controls.call("release_combat_inputs")
+
+
+func _hide_touch_controls_for_reward_choice() -> void:
+	if touch_controls == null:
+		return
+	_touch_controls_visible_before_reward_choice = touch_controls.visible
+	touch_controls.visible = false
+
+
+func _restore_touch_controls_after_reward_choice() -> void:
+	if touch_controls == null:
+		return
+	touch_controls.visible = _touch_controls_visible_before_reward_choice
+
+
+func _reset_current_room_door_transition_latches() -> void:
+	if room_manager == null or room_manager.current_room == null:
+		return
+	if not room_manager.current_room.has_method("get_doors"):
+		return
+	for door: RoomDoor in room_manager.current_room.call("get_doors"):
+		door.configure_actor(actor)
 
 
 func camera_feedback_offset(direction: Vector2, intensity: float) -> Vector2:

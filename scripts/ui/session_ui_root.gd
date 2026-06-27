@@ -14,13 +14,14 @@ const DEFAULT_MAP_NAME := "경복궁"
 const MAP_TAB_TEST_ID := "session.map_tab"
 const MAP_TAB_ACTION := "session.map_tab"
 const MobileSafeArea := preload("res://scripts/ui/mobile_safe_area.gd")
-const REWARD_CHOICE_DIM_ALPHA := 0.66
-const REWARD_CHOICE_PANEL_OFFSET_LEFT := -380.0
-const REWARD_CHOICE_PANEL_OFFSET_TOP := -164.0
-const REWARD_CHOICE_PANEL_OFFSET_RIGHT := 380.0
-const REWARD_CHOICE_PANEL_OFFSET_BOTTOM := 164.0
-const REWARD_CHOICE_PANEL_SLIDE_OFFSET := 36.0
+const REWARD_CHOICE_ROW_OFFSET_LEFT := -390.0
+const REWARD_CHOICE_ROW_OFFSET_TOP := -84.0
+const REWARD_CHOICE_ROW_OFFSET_RIGHT := 390.0
+const REWARD_CHOICE_ROW_OFFSET_BOTTOM := 84.0
+const REWARD_CHOICE_CARD_SIZE := Vector2(244.0, 146.0)
 const REWARD_CHOICE_OPEN_DURATION := 0.18
+const REWARD_CHOICE_CARD_STAGGER := 0.045
+const REWARD_CHOICE_CARD_START_SCALE := Vector2(0.94, 0.94)
 const UNLOCK_LABELS := {
 	&"baseball_stage_3": "야구부 3단계",
 	&"awakened_bat": "마지막 시즌의 배트",
@@ -44,9 +45,8 @@ const UNLOCK_LABELS := {
 @onready var retry_button: Button = %RetryButton
 
 var _reward_choice_overlay: Control = null
-var _reward_choice_dim: ColorRect = null
-var _reward_choice_panel: PanelContainer = null
 var _reward_choice_row: HBoxContainer = null
+var _reward_choice_cards: Array[Button] = []
 var _reward_choice_room_id: StringName = &""
 var _reward_choice_models: Array[Dictionary] = []
 var _reward_choice_open_tween: Tween = null
@@ -224,21 +224,27 @@ func get_reward_choice_snapshot() -> Dictionary:
 		"choice_texts": texts,
 		"choice_effects": effects,
 		"choice_button_texts": button_texts,
+		"visible_card_count": _reward_choice_cards.size(),
+		"has_backdrop": false,
+		"has_outer_panel": false,
+		"has_title": false,
 	}
 
 
 func get_reward_choice_animation_snapshot() -> Dictionary:
 	_ensure_reward_choice_overlay()
+	var card_alphas: Array = []
+	var card_scales: Array = []
+	for card: Button in _reward_choice_cards:
+		card_alphas.append(card.modulate.a)
+		card_scales.append(card.scale)
 	return {
 		"visible": is_reward_choice_visible(),
 		"overlay_process_mode": _reward_choice_overlay.process_mode,
-		"dim_alpha": _reward_choice_dim.modulate.a,
-		"panel_alpha": _reward_choice_panel.modulate.a,
-		"panel_offset_top": _reward_choice_panel.offset_top,
-		"target_offset_top": REWARD_CHOICE_PANEL_OFFSET_TOP,
-		"panel_offset_bottom": _reward_choice_panel.offset_bottom,
-		"target_offset_bottom": REWARD_CHOICE_PANEL_OFFSET_BOTTOM,
-		"slide_offset": REWARD_CHOICE_PANEL_SLIDE_OFFSET,
+		"has_backdrop": false,
+		"has_outer_panel": false,
+		"card_alphas": card_alphas,
+		"card_scales": card_scales,
 	}
 
 
@@ -260,52 +266,19 @@ func _ensure_reward_choice_overlay() -> void:
 	_reward_choice_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
 	root.add_child(_reward_choice_overlay)
 
-	var dim := ColorRect.new()
-	dim.name = "RewardChoiceDim"
-	dim.color = Color(0.0156863, 0.0156863, 0.0235294, REWARD_CHOICE_DIM_ALPHA)
-	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_reward_choice_overlay.add_child(dim)
-	_reward_choice_dim = dim
-
-	var panel := PanelContainer.new()
-	panel.name = "RewardChoicePanel"
-	panel.anchor_left = 0.5
-	panel.anchor_top = 0.5
-	panel.anchor_right = 0.5
-	panel.anchor_bottom = 0.5
-	panel.offset_left = REWARD_CHOICE_PANEL_OFFSET_LEFT
-	panel.offset_top = REWARD_CHOICE_PANEL_OFFSET_TOP
-	panel.offset_right = REWARD_CHOICE_PANEL_OFFSET_RIGHT
-	panel.offset_bottom = REWARD_CHOICE_PANEL_OFFSET_BOTTOM
-	panel.add_theme_stylebox_override("panel", _reward_choice_panel_style())
-	_reward_choice_overlay.add_child(panel)
-	_reward_choice_panel = panel
-
-	var margin := MarginContainer.new()
-	margin.name = "RewardChoiceMargin"
-	margin.add_theme_constant_override("margin_left", 20)
-	margin.add_theme_constant_override("margin_top", 18)
-	margin.add_theme_constant_override("margin_right", 20)
-	margin.add_theme_constant_override("margin_bottom", 18)
-	panel.add_child(margin)
-
-	var stack := VBoxContainer.new()
-	stack.name = "RewardChoiceStack"
-	stack.add_theme_constant_override("separation", 14)
-	margin.add_child(stack)
-
-	var title := Label.new()
-	title.name = "RewardChoiceTitle"
-	title.text = "전투 보상"
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 34)
-	title.add_theme_color_override("font_color", Color(0.937255, 0.811765, 0.298039, 1.0))
-	stack.add_child(title)
-
 	_reward_choice_row = HBoxContainer.new()
 	_reward_choice_row.name = "RewardChoiceRow"
 	_reward_choice_row.add_theme_constant_override("separation", 12)
-	stack.add_child(_reward_choice_row)
+	_reward_choice_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	_reward_choice_row.anchor_left = 0.5
+	_reward_choice_row.anchor_top = 0.5
+	_reward_choice_row.anchor_right = 0.5
+	_reward_choice_row.anchor_bottom = 0.5
+	_reward_choice_row.offset_left = REWARD_CHOICE_ROW_OFFSET_LEFT
+	_reward_choice_row.offset_top = REWARD_CHOICE_ROW_OFFSET_TOP
+	_reward_choice_row.offset_right = REWARD_CHOICE_ROW_OFFSET_RIGHT
+	_reward_choice_row.offset_bottom = REWARD_CHOICE_ROW_OFFSET_BOTTOM
+	_reward_choice_overlay.add_child(_reward_choice_row)
 
 	_reset_reward_choice_animation_to_rest()
 
@@ -313,18 +286,18 @@ func _ensure_reward_choice_overlay() -> void:
 func _show_reward_choice_overlay_animated() -> void:
 	_kill_reward_choice_open_tween()
 	_reward_choice_overlay.visible = true
-	_reward_choice_dim.modulate.a = 0.0
-	_reward_choice_panel.modulate.a = 0.0
-	_reward_choice_panel.offset_top = REWARD_CHOICE_PANEL_OFFSET_TOP + REWARD_CHOICE_PANEL_SLIDE_OFFSET
-	_reward_choice_panel.offset_bottom = REWARD_CHOICE_PANEL_OFFSET_BOTTOM + REWARD_CHOICE_PANEL_SLIDE_OFFSET
+	for card: Button in _reward_choice_cards:
+		card.modulate.a = 0.0
+		card.scale = REWARD_CHOICE_CARD_START_SCALE
 
 	_reward_choice_open_tween = create_tween()
 	_reward_choice_open_tween.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
 	_reward_choice_open_tween.set_parallel(true)
-	_reward_choice_open_tween.tween_property(_reward_choice_dim, "modulate:a", 1.0, REWARD_CHOICE_OPEN_DURATION)
-	_reward_choice_open_tween.tween_property(_reward_choice_panel, "modulate:a", 1.0, REWARD_CHOICE_OPEN_DURATION)
-	_reward_choice_open_tween.tween_property(_reward_choice_panel, "offset_top", REWARD_CHOICE_PANEL_OFFSET_TOP, REWARD_CHOICE_OPEN_DURATION).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-	_reward_choice_open_tween.tween_property(_reward_choice_panel, "offset_bottom", REWARD_CHOICE_PANEL_OFFSET_BOTTOM, REWARD_CHOICE_OPEN_DURATION).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	for index: int in range(_reward_choice_cards.size()):
+		var card := _reward_choice_cards[index]
+		var delay := float(index) * REWARD_CHOICE_CARD_STAGGER
+		_reward_choice_open_tween.tween_property(card, "modulate:a", 1.0, REWARD_CHOICE_OPEN_DURATION).set_delay(delay)
+		_reward_choice_open_tween.tween_property(card, "scale", Vector2.ONE, REWARD_CHOICE_OPEN_DURATION).set_delay(delay).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
 
 func _kill_reward_choice_open_tween() -> void:
@@ -334,33 +307,19 @@ func _kill_reward_choice_open_tween() -> void:
 
 
 func _reset_reward_choice_animation_to_rest() -> void:
-	if _reward_choice_dim != null:
-		_reward_choice_dim.modulate.a = 1.0
-	if _reward_choice_panel != null:
-		_reward_choice_panel.modulate.a = 1.0
-		_reward_choice_panel.offset_left = REWARD_CHOICE_PANEL_OFFSET_LEFT
-		_reward_choice_panel.offset_top = REWARD_CHOICE_PANEL_OFFSET_TOP
-		_reward_choice_panel.offset_right = REWARD_CHOICE_PANEL_OFFSET_RIGHT
-		_reward_choice_panel.offset_bottom = REWARD_CHOICE_PANEL_OFFSET_BOTTOM
-
-
-func _reward_choice_panel_style() -> StyleBoxFlat:
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.0352941, 0.0980392, 0.0627451, 0.98)
-	style.border_width_left = 2
-	style.border_width_top = 2
-	style.border_width_right = 2
-	style.border_width_bottom = 2
-	style.border_color = Color(0.784314, 0.631373, 0.227451, 1.0)
-	style.corner_radius_top_left = 4
-	style.corner_radius_top_right = 4
-	style.corner_radius_bottom_right = 4
-	style.corner_radius_bottom_left = 4
-	return style
+	if _reward_choice_row != null:
+		_reward_choice_row.offset_left = REWARD_CHOICE_ROW_OFFSET_LEFT
+		_reward_choice_row.offset_top = REWARD_CHOICE_ROW_OFFSET_TOP
+		_reward_choice_row.offset_right = REWARD_CHOICE_ROW_OFFSET_RIGHT
+		_reward_choice_row.offset_bottom = REWARD_CHOICE_ROW_OFFSET_BOTTOM
+	for card: Button in _reward_choice_cards:
+		card.modulate.a = 1.0
+		card.scale = Vector2.ONE
 
 
 func _render_reward_choices() -> void:
 	_ensure_reward_choice_overlay()
+	_reward_choice_cards.clear()
 	for child: Node in _reward_choice_row.get_children():
 		_reward_choice_row.remove_child(child)
 		child.queue_free()
@@ -372,14 +331,16 @@ func _render_reward_choices() -> void:
 		button.name = "RewardChoice%sButton" % _node_suffix_for_reward_id(item_id)
 		button.text = _reward_choice_button_text(display_name, effect)
 		button.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		button.custom_minimum_size = Vector2(228.0, 138.0)
+		button.custom_minimum_size = REWARD_CHOICE_CARD_SIZE
 		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		button.add_theme_font_size_override("font_size", 20)
+		button.add_theme_font_size_override("font_size", 19)
 		button.set_meta("test_id", "session.reward_choice.%s" % String(item_id))
 		button.set_meta("uat_action", "session.reward_choice.%s" % String(item_id))
 		button.pressed.connect(_on_reward_choice_pressed.bind(item_id))
-		PixelButtonStyle.apply(button, PixelButtonStyle.VARIANT_PRIMARY, Vector2(228.0, 138.0))
+		PixelButtonStyle.apply(button, PixelButtonStyle.VARIANT_PRIMARY, REWARD_CHOICE_CARD_SIZE)
+		button.pivot_offset = REWARD_CHOICE_CARD_SIZE * 0.5
 		_reward_choice_row.add_child(button)
+		_reward_choice_cards.append(button)
 
 
 func _reward_choice_button_text(display_name: String, effect: String) -> String:
