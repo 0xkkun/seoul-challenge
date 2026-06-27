@@ -32,7 +32,7 @@ func test_locker_maintenance_focuses_on_memory_weapons_and_single_map_entry() ->
 	var map_button := UiTestHarness.find_by_uat_action(screen, LockerMaintenanceScript.ACTION_OPEN_MAP) as Button
 	_runner.assert_not_null(map_button, "map action is available only as the bottom button")
 	if map_button != null:
-		_runner.assert_eq(map_button.text, "밤 지도\n펼치기", "map button opens the separate map screen")
+		_runner.assert_eq(map_button.text, "☾ 지도", "map button uses short icon copy")
 	_runner.assert_false(screen.has_node("TodayPrepPanel"), "today prep checklist panel is intentionally absent")
 	_runner.assert_false(screen.has_node("MapPreviewPanel"), "map preview panel is intentionally absent")
 	_runner.assert_false(screen.has_node("StudentIdCard"), "student id slot is intentionally removed from the maintenance layout")
@@ -52,12 +52,26 @@ func test_locker_maintenance_uses_dungeon_ui_loadout_hierarchy() -> void:
 	var map_button := UiTestHarness.find_by_uat_action(screen, LockerMaintenanceScript.ACTION_OPEN_MAP) as Button
 
 	_runner.assert_eq(baseball_card.focus_mode, Control.FOCUS_NONE, "weapon slots do not show desktop focus chrome")
+	_runner.assert_eq(return_button.text, "↩ 복도", "return CTA uses short icon copy")
+	_runner.assert_eq(map_button.text, "☾ 지도", "map CTA uses short icon copy")
 	_runner.assert_eq(weapon_status.text, "선택된 기억\n\n낡은 야구공\n\n지도에서\n경복궁 선택", "selected loadout is summarized beside the slots")
 	_assert_flat_style_border(baseball_card.get_theme_stylebox("normal"), 4, "selected weapon slot uses a thick border")
 	_assert_flat_style_border(bat_card.get_theme_stylebox("normal"), 2, "unselected weapon slot uses a quieter border")
 	_assert_pixel_button_style(return_button, PixelButtonStyle.VARIANT_SECONDARY, "return")
 	_runner.assert_eq(weapon_button, null, "weapon cycle CTA is removed; selecting a weapon card is the weapon action")
 	_assert_pixel_button_style(map_button, PixelButtonStyle.VARIANT_PRIMARY, "map entry")
+
+
+func test_locker_maintenance_title_and_subtitle_have_breathing_room() -> void:
+	var screen := LockerMaintenanceScene.instantiate()
+	screen.set("scene_transition_enabled", false)
+	add_child(screen)
+
+	var title := screen.get_node("TitleLabel") as Label
+	var subtitle := screen.get_node("SubtitleLabel") as Label
+
+	_runner.assert_true(subtitle.anchor_top - title.anchor_bottom >= 0.025, "subtitle is visually separated from title")
+	_runner.assert_eq(subtitle.text, "밤의 경복궁으로 나가기 전, 들고 갈 기억을 고른다.", "subtitle copy stays player-facing")
 
 
 func test_locker_maintenance_buttons_emit_flow_signals() -> void:

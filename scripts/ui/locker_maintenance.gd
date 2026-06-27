@@ -149,9 +149,9 @@ func _build_title() -> void:
 	var subtitle := Label.new()
 	subtitle.name = "SubtitleLabel"
 	subtitle.anchor_left = 0.05
-	subtitle.anchor_top = 0.135
+	subtitle.anchor_top = 0.155
 	subtitle.anchor_right = 0.72
-	subtitle.anchor_bottom = 0.20
+	subtitle.anchor_bottom = 0.22
 	subtitle.text = "밤의 경복궁으로 나가기 전, 들고 갈 기억을 고른다."
 	subtitle.add_theme_font_size_override("font_size", 18)
 	subtitle.add_theme_color_override("font_color", DungeonTheme.COLOR_MUTED_TEXT)
@@ -375,10 +375,10 @@ func _pip_bbcode(level: int, max_level: int) -> String:
 
 
 func _build_action_bar() -> void:
-	_return_button = _make_action_button("ReturnButton", "복도로\n돌아가기", Rect2(0.06, 0.82, 0.30, 0.13), ACTION_RETURN)
+	_return_button = _make_action_button("ReturnButton", "↩ 복도", Rect2(0.06, 0.82, 0.30, 0.13), ACTION_RETURN)
 	add_child(_return_button)
 
-	_map_button = _make_action_button("MapButton", "밤 지도\n펼치기", Rect2(0.61, 0.82, 0.33, 0.13), ACTION_OPEN_MAP)
+	_map_button = _make_action_button("MapButton", "☾ 지도", Rect2(0.61, 0.82, 0.33, 0.13), ACTION_OPEN_MAP)
 	add_child(_map_button)
 
 	_return_button.pressed.connect(_on_return_pressed)
