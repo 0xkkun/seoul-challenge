@@ -47,6 +47,8 @@ func test_lobby_title_scene_uses_title_assets_and_menu_contract() -> void:
 	_runner.assert_true(ResourceLoader.exists(AudioManager.get_bgm_stream_path(AudioManager.LOBBY_BGM_ALTERNATE)), "alternate lobby BGM resource exists")
 	_assert_lobby_button_style(start_button, "start")
 	_assert_lobby_button_style(settings_button, "settings")
+	_assert_lobby_button_texture(start_button.get_theme_stylebox("disabled"), "res://assets/ui/buttons/lobby/lobby_button_pressed.png", "start disabled button holds pressed texture during transition")
+	_runner.assert_eq(start_button.get_theme_color("font_disabled_color"), start_button.get_theme_color("font_pressed_color"), "start disabled text keeps pressed color during transition")
 	_assert_lobby_button_texture(settings_button.get_theme_stylebox("disabled"), "res://assets/ui/buttons/lobby/lobby_button_normal.png", "settings disabled button keeps lobby button texture")
 	_runner.assert_eq(start_button.get_meta("uat_action"), "lobby.start", "start uat action is stable")
 	_runner.assert_false(settings_button.disabled, "settings is available from the lobby")
