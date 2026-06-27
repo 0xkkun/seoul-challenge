@@ -60,6 +60,7 @@ var _handoff_session_on_exit := false
 var _active_boss: Node = null
 var _minimap_full := false
 var _paused_before_exit_modal := false
+var _exit_modal_from_pause_menu := false
 var _friend_ids: Array[StringName] = []
 # Latched once per run: whether this run was built as the baseball onboarding. Computed lazily on
 # first query (at session setup, before any purification) so the answer can't flip mid-run when the
@@ -795,6 +796,10 @@ func _add_unlock_to(target: Array[StringName], unlock_id: StringName) -> void:
 func _on_pause_requested() -> void:
 	if _confirm_modal.is_open():
 		return
+	_open_pause_modal()
+
+
+func _open_pause_modal() -> void:
 	get_tree().paused = true
 	session_ui_root.set_status("일시정지")
 	_pause_modal_open = true
@@ -826,6 +831,7 @@ func _resume_from_pause_modal() -> void:
 
 func _request_abandon_from_pause_modal() -> void:
 	_pause_modal_open = false
+	_exit_modal_from_pause_menu = true
 	_request_abandon_run()
 
 
@@ -1115,6 +1121,7 @@ func _request_abandon_run() -> void:
 
 
 func _abandon_run_to_school() -> void:
+	_exit_modal_from_pause_menu = false
 	get_tree().paused = false
 	var force_lobby := _should_force_lobby_for_incomplete_onboarding_exit()
 	if has_node("/root/GameManager"):
@@ -1164,6 +1171,10 @@ func _quit_game() -> void:
 
 
 func _restore_pause_after_exit_modal() -> void:
+	if _exit_modal_from_pause_menu:
+		_exit_modal_from_pause_menu = false
+		_open_pause_modal()
+		return
 	get_tree().paused = _paused_before_exit_modal
 	session_ui_root.set_status("일시정지" if get_tree().paused else "준비 완료")
 
