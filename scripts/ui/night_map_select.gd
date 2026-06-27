@@ -85,7 +85,7 @@ func _build_ui() -> void:
 
 	_route_label = Label.new()
 	_route_label.name = "MapLabel"
-	_route_label.text = "출입 가능 경로\n\n학교 정비실\n광화문 앞 봉인문\n경복궁 서쪽 담장\n\n봉인됨: 창덕궁 · 덕수궁 · 종묘"
+	_route_label.text = "학교 정비실  ─  광화문 봉인문  ─  경복궁\n\n잠김: 창덕궁 · 덕수궁 · 종묘\n\n오늘 밤 갈 수 있는 궁은 경복궁뿐이다."
 	_route_label.add_theme_font_size_override("font_size", 24)
 	_route_label.add_theme_color_override("font_color", DungeonTheme.COLOR_TEXT)
 	_route_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -107,7 +107,7 @@ func _build_ui() -> void:
 
 	var destination := Label.new()
 	destination.name = "DestinationLabel"
-	destination.text = "선택됨\n경복궁\n\n시간  야간\n위험도  보통\n장비  기억 무기"
+	destination.text = "선택됨\n밤의 경복궁\n\n시간  야간\n위험도  보통\n장비  기억 무기\n목표  친구 정화와 탈출"
 	destination.add_theme_font_size_override("font_size", 22)
 	destination.add_theme_color_override("font_color", DungeonTheme.COLOR_TEXT)
 	destination.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -119,7 +119,7 @@ func _build_ui() -> void:
 	add_child(return_button)
 	return_button.pressed.connect(_on_return_pressed)
 
-	_depart_button = _make_action_button("GyeongbokgungButton", "경복궁\n진입", Rect2(0.66, 0.82, 0.28, 0.13), ACTION_SELECT_GYEONGBOKGUNG)
+	_depart_button = _make_action_button("GyeongbokgungButton", "밤의 경복궁\n진입", Rect2(0.66, 0.82, 0.28, 0.13), ACTION_SELECT_GYEONGBOKGUNG)
 	add_child(_depart_button)
 	_depart_button.pressed.connect(_on_gyeongbokgung_pressed)
 

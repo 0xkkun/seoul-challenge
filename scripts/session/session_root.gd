@@ -207,7 +207,7 @@ func get_exit_confirm_message() -> String:
 
 func _on_interaction_triggered(_source: Node, _target: Node) -> void:
 	completed_interactions += 1
-	session_ui_root.set_status("Interaction complete")
+	session_ui_root.set_status("상호작용 완료")
 	session_ui_root.set_interaction_count(completed_interactions)
 	EventBus.emit_interaction_completed({"count": completed_interactions})
 	spawn_sample_marker()
@@ -414,12 +414,12 @@ func _add_unlock_to(target: Array[StringName], unlock_id: StringName) -> void:
 
 func _on_pause_requested() -> void:
 	get_tree().paused = true
-	session_ui_root.set_status("Paused")
+	session_ui_root.set_status("일시정지")
 
 
 func _on_resume_requested() -> void:
 	get_tree().paused = false
-	session_ui_root.set_status("Ready")
+	session_ui_root.set_status("밤런 준비")
 
 
 func _on_finish_requested() -> void:

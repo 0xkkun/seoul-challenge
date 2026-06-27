@@ -66,6 +66,19 @@ func test_skill_state_renders_uses_and_cooldown() -> void:
 	_runner.assert_true(text.contains("0.5"), "HUD renders cooldown")
 
 
+func test_weapon_state_renders_player_facing_memory_weapon() -> void:
+	_runner.assert_true(_hud.has_method("set_weapon_state"), "HUD exposes weapon state setter")
+	_runner.assert_true(_hud.has_method("get_weapon_text"), "HUD exposes weapon text for tests")
+	if not _hud.has_method("set_weapon_state") or not _hud.has_method("get_weapon_text"):
+		return
+
+	_hud.set_weapon_state(&"baseball")
+	_runner.assert_eq(_hud.get_weapon_text(), "기억 무기: 낡은 야구공", "HUD names the selected memory weapon")
+
+	_hud.set_weapon_state(&"bat")
+	_runner.assert_eq(_hud.get_weapon_text(), "기억 무기: 금 간 배트", "HUD updates weapon display")
+
+
 func test_skill_state_event_updates_skill_slot() -> void:
 	_runner.assert_true(EventBus.has_method("emit_special_skill_state_changed"), "EventBus exposes skill state wrapper")
 	_runner.assert_true(_hud.has_method("get_skill_text"), "HUD exposes skill text for tests")
