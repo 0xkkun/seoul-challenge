@@ -6,6 +6,7 @@ const LOCKER_MAINTENANCE_SCENE := "res://scenes/ui/locker_maintenance.tscn"
 const NIGHT_MAP_SELECT_SCENE := "res://scenes/ui/night_map_select.tscn"
 const SESSION_SCENE := "res://scenes/session/session_root.tscn"
 const RUN_CONFIG_SELECTED_WEAPON_ID := "selected_weapon_id"
+const RUN_CONFIG_LAYOUT_SEED := "layout_seed"
 const DAY_CORRIDOR_CONTEXT_ROOM_ID := "room_id"
 const DAY_CORRIDOR_CONTEXT_EDGE_ID := "edge"
 const FADE_SECONDS := 0.22

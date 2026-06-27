@@ -5,7 +5,7 @@ const POOLED_MARKER_SCENE = preload("res://scenes/interactables/sample_pooled_ma
 const BOSS_SCENE = preload("res://scenes/enemies/boss.tscn")
 const RoomPalette = preload("res://scripts/constants/room_palette.gd")
 
-const RUN_LAYOUT_SEED := 40
+const RUN_LAYOUT_SEED_MAX := 2147483647
 const RUN_LAYOUT_ROOM_COUNT := 15
 const START_ROOM_SCENE_PATH := "res://scenes/interactables/start_room.tscn"
 const COMBAT_ROOM_SCENE_PATH := "res://scenes/interactables/combat_room.tscn"
@@ -111,7 +111,23 @@ func _build_run_layout() -> RoomLayout:
 	generator.shop_scene_path = SHOP_ROOM_SCENE_PATH
 	generator.friend_scene_path = FRIEND_ROOM_SCENE_PATH
 	generator.final_scene_path = FINAL_ROOM_SCENE_PATH
-	return generator.generate(RUN_LAYOUT_SEED, {"room_count": RUN_LAYOUT_ROOM_COUNT})
+	return generator.generate(_resolve_run_layout_seed(), {"room_count": RUN_LAYOUT_ROOM_COUNT})
+
+
+func _resolve_run_layout_seed() -> int:
+	var config := GameManager.get_active_config()
+	if config.has(SceneTransition.RUN_CONFIG_LAYOUT_SEED):
+		return int(config.get(SceneTransition.RUN_CONFIG_LAYOUT_SEED, 0))
+	return _random_run_layout_seed()
+
+
+func _random_run_layout_seed() -> int:
+	var rng := RandomNumberGenerator.new()
+	rng.randomize()
+	var mixed_seed := int((int(rng.randi()) + Time.get_ticks_usec() + get_instance_id()) % RUN_LAYOUT_SEED_MAX)
+	if mixed_seed <= 0:
+		mixed_seed += RUN_LAYOUT_SEED_MAX
+	return mixed_seed
 
 
 func _apply_session_loadout() -> void:
