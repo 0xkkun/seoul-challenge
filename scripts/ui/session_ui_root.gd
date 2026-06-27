@@ -108,21 +108,10 @@ func _apply_landscape_safe_area() -> void:
 
 
 func _apply_result_panel_styles() -> void:
-	# Build the summary/result panels through the shared DungeonUiTheme builder
-	# instead of five hand-authored scene StyleBoxFlats. Colors, border widths and
-	# corner radii are preserved 1:1; margins stay 0 (panels handle their own).
 	const PANEL := "Root/SummaryOverlay/SummaryPanel"
 	const CONTENT := PANEL + "/SummaryMargin/SummaryStack/SummaryContent"
 	const RECORDS := CONTENT + "/RecordsStack"
-	const GOLD := Color(0.784314, 0.631373, 0.227451, 1)
-	const GREEN_BG := Color(0.129412, 0.231373, 0.12549, 1)
-	const GREEN_BORDER := Color(0.352941, 0.490196, 0.352941, 1)
-	# Main frame uses the shared textured popup frame (gold-on-navy ornaments) so the
-	# results screen matches the buttons; the inner record/reward panels keep their
-	# category colors as content.
-	var summary_panel := get_node_or_null(PANEL) as PanelContainer
-	if summary_panel != null:
-		summary_panel.add_theme_stylebox_override("panel", DungeonUiTheme.framed_panel_style(10.0, 8.0))
+	_style_summary_panel(false)
 	# Reward panel was a flat green fill (read as plain next to the textured frame); give
 	# it the card-frame texture with a warm tint so it gains wood-grain + gold trim detail
 	# and ties to the gold crystal / +120.
@@ -131,15 +120,13 @@ func _apply_result_panel_styles() -> void:
 		reward_panel.add_theme_stylebox_override(
 			"panel", DungeonUiTheme.card_style(12.0, 10.0, Color(1.05, 0.98, 0.8))
 		)
-	# Record rows are short bars, so instead of the ornate card frame (whose corners
-	# would swallow the ~54px height) they get a filled category tint sharing the set's
-	# gold trim — green/blue/purple stays legible while reading as the same family.
+	# Only the still-hidden legacy rows keep their tinted bar skin. The visible rescue
+	# and room rows are clear for now.
 	const FILL_GREEN := Color(0.18, 0.27, 0.15)
 	const FILL_BLUE := Color(0.13, 0.25, 0.41)
-	const FILL_PURPLE := Color(0.26, 0.15, 0.37)
-	_style_record_panel(RECORDS + "/StudentsRecordPanel", FILL_GREEN)
+	_style_transparent_record_panel(RECORDS + "/StudentsRecordPanel")
 	_style_record_panel(RECORDS + "/FriendsRecordPanel", FILL_BLUE)
-	_style_record_panel(RECORDS + "/RoomsRecordPanel", FILL_PURPLE)
+	_style_transparent_record_panel(RECORDS + "/RoomsRecordPanel")
 	_style_record_panel(RECORDS + "/UnlocksRecordPanel", FILL_GREEN)
 
 
@@ -159,6 +146,24 @@ func _style_record_panel(path: String, fill: Color) -> void:
 			"panel",
 			DungeonUiTheme.panel_style(fill, DungeonUiTheme.COLOR_GOLD_DIM, 2, 0.0, 0.0, 4)
 		)
+
+
+func _style_summary_panel(is_death_result: bool) -> void:
+	var panel := get_node_or_null("Root/SummaryOverlay/SummaryPanel") as PanelContainer
+	if panel == null:
+		return
+	var style := _transparent_panel_style(10.0, 8.0) if is_death_result else DungeonUiTheme.framed_panel_style(10.0, 8.0)
+	panel.add_theme_stylebox_override("panel", style)
+
+
+func _style_transparent_record_panel(path: String) -> void:
+	var panel := get_node_or_null(path) as PanelContainer
+	if panel != null:
+		panel.add_theme_stylebox_override("panel", _transparent_panel_style(0.0, 0.0, 4))
+
+
+func _transparent_panel_style(margin_x := 0.0, margin_y := 0.0, corner_radius := 0) -> StyleBoxFlat:
+	return DungeonUiTheme.panel_style(Color.TRANSPARENT, Color.TRANSPARENT, 0, margin_x, margin_y, corner_radius)
 
 
 func _apply_font_roles() -> void:
@@ -200,6 +205,7 @@ func show_summary(result: Dictionary) -> void:
 		return
 
 	var summary := _build_summary(result)
+	_style_summary_panel(_is_death_result(result))
 	result_title_label.text = summary["title"]
 	narrative_label.text = summary["narrative"]
 	memory_label.text = "혼 조각"
@@ -803,6 +809,11 @@ func _is_onboarding_result(result: Dictionary) -> bool:
 	if String(result.get("reason", "")) == "onboarding_friend_purified":
 		return true
 	return StringName(result.get("onboarding_kind", &"")) != &""
+
+
+func _is_death_result(result: Dictionary) -> bool:
+	var outcome := String(result.get("outcome", "")).to_lower()
+	return outcome in ["death", "dead", "failed"] or bool(result.get("died", false))
 
 
 func _result_title(result: Dictionary) -> String:
