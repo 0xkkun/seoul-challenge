@@ -229,6 +229,24 @@ func test_dash_animation_survives_animation_update_while_dodging() -> void:
 	player.queue_free()
 
 
+func test_dodge_clears_interrupted_attack_animation_state() -> void:
+	var player := (load("res://scenes/player/player.tscn") as PackedScene).instantiate()
+	add_child(player)
+	player.special_skill_max_uses = 1
+	player.special_skill_uses_remaining = 1
+	player.dodge_duration = 0.0
+	player._play_attack_anim(Vector2.RIGHT)
+
+	_runner.assert_true(player.try_start_special_skill(Vector2.RIGHT), "dodge can interrupt an attack animation")
+	player._update_animation(Vector2.ZERO)
+
+	var sprite := player.get_node_or_null("Sprite") as AnimatedSprite2D
+	_runner.assert_not_null(sprite, "player scene includes animated character sprite")
+	if sprite != null:
+		_runner.assert_eq(sprite.animation, &"idle", "interrupted attack state does not keep blocking animation updates after dodge")
+	player.queue_free()
+
+
 func test_start_dodge_shows_dash_dust_at_feet() -> void:
 	var player := (load("res://scenes/player/player.tscn") as PackedScene).instantiate()
 	add_child(player)

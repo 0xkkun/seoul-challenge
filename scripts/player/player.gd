@@ -587,6 +587,7 @@ func try_start_special_skill(input_vector: Vector2 = Vector2.ZERO) -> bool:
 	_invuln_timer = maxf(_invuln_timer, dodge_invuln_time)
 	special_skill_uses_remaining = consume_special_use(special_skill_uses_remaining)
 	_show_dash_dust(_dodge_direction)
+	_cancel_attack_anim_state()
 	_play_dodge_anim(_dodge_direction, true)
 	_start_special_recharge_if_needed()
 	_broadcast_special_skill_state()
@@ -821,6 +822,13 @@ func _play_attack_anim(dir: Vector2) -> void:
 	var base_duration := animation_duration_seconds(_sprite.sprite_frames, &"attack")
 	_sprite.speed_scale = attack_animation_speed_scale(base_duration, attack_cooldown)
 	_sprite.play(&"attack")
+
+
+func _cancel_attack_anim_state() -> void:
+	_is_attacking = false
+	_attack_movement_commit_timer = 0.0
+	if _sprite != null:
+		_sprite.speed_scale = 1.0
 
 
 func _play_dodge_anim(dir: Vector2, restart := false) -> void:
