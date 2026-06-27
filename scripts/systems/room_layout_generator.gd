@@ -48,9 +48,9 @@ func generate(layout_seed: int, params: Dictionary = {}) -> RoomLayout:
 	var distances := _compute_distances(adjacency, 0)
 	var final_index := _pick_final_room_index(cells, adjacency, distances)
 	var friend_index := _pick_friend_room_index_for_final(cells, final_index, adjacency, distances, [0, final_index])
-	var event_index := _pick_special_room_index(cells, adjacency, distances, [0, final_index, friend_index])
-	var treasure_index := _pick_special_room_index(cells, adjacency, distances, [0, final_index, friend_index, event_index])
-	var shop_index := _pick_special_room_index(cells, adjacency, distances, [0, final_index, friend_index, event_index, treasure_index])
+	var event_index := -1
+	var shop_index := -1
+	var treasure_index := _pick_special_room_index(cells, adjacency, distances, [0, final_index, friend_index])
 	var room_ids := _assign_room_ids(cells.size(), final_index, friend_index, event_index, treasure_index, shop_index)
 	var max_combat_distance := _max_combat_distance(
 		cells.size(),
