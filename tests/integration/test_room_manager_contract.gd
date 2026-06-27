@@ -85,6 +85,8 @@ func test_gyeongbokgung_combat_rooms_apply_distinct_encounter_configs() -> void:
 	_runner.assert_true(second_config.size() > 0, "second combat room has authored encounter config")
 	_runner.assert_eq(_encounter_total(first_config), 4, "first authored combat room starts at the early encounter budget")
 	_runner.assert_eq(_encounter_total(second_config), 6, "second authored combat room uses the mobile-friendly late encounter budget")
+	_runner.assert_eq(int(first_config.get("wolf_count", 0)), 1, "first authored combat room includes a wolf dash enemy")
+	_runner.assert_eq(int(second_config.get("wolf_count", 0)), 1, "second authored combat room keeps one wolf dash enemy")
 	_runner.assert_eq(int(first_config.get("wave_count", 0)), 1, "first authored combat room uses one wave")
 	_runner.assert_eq(int(second_config.get("wave_count", 0)), 2, "second authored combat room uses two waves")
 	_runner.assert_true(_encounter_total(second_config) > _encounter_total(first_config), "second combat room is configured stronger")
@@ -106,8 +108,22 @@ func test_gyeongbokgung_combat_rooms_apply_distinct_encounter_configs() -> void:
 
 	_runner.assert_eq(first_summary["total_count"], _encounter_total(first_config), "first room applies layout config")
 	_runner.assert_eq(second_summary["total_count"], _encounter_total(second_config), "second room applies layout config")
+	_runner.assert_eq(
+		first_summary["wolf_count"],
+		int(first_config.get("wolf_count", 0)),
+		"first room applies wolf encounter config"
+	)
+	_runner.assert_eq(
+		second_summary["wolf_count"],
+		int(second_config.get("wolf_count", 0)),
+		"second room applies wolf encounter config"
+	)
 	_runner.assert_true(second_summary["total_count"] > first_summary["total_count"], "runtime encounter curve gets stronger")
-	_runner.assert_eq(second_summary["elite_chaser_count"] + second_summary["elite_ranged_count"], 0, "second room avoids elite pressure while player growth is shallow")
+	_runner.assert_eq(
+		second_summary["elite_chaser_count"] + second_summary["elite_ranged_count"] + second_summary["elite_wolf_count"],
+		0,
+		"second room avoids elite pressure while player growth is shallow"
+	)
 
 
 func test_room_manager_runs_layout_with_interactive_rooms() -> void:
@@ -313,8 +329,10 @@ func _encounter_total(config: Dictionary) -> int:
 	return (
 		int(config.get("chaser_count", 0))
 		+ int(config.get("ranged_count", 0))
+		+ int(config.get("wolf_count", 0))
 		+ int(config.get("elite_chaser_count", 0))
 		+ int(config.get("elite_ranged_count", 0))
+		+ int(config.get("elite_wolf_count", 0))
 	)
 
 

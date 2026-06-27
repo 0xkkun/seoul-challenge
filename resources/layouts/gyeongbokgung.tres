@@ -19,10 +19,12 @@ scene_path = "res://scenes/interactables/combat_room.tscn"
 connections = Array[StringName]([&"start", &"treasure_1"])
 grid_pos = Vector2i(1, 0)
 room_config = {
-"chaser_count": 3,
+"chaser_count": 2,
 "elite_chaser_count": 0,
 "elite_ranged_count": 0,
+"elite_wolf_count": 0,
 "ranged_count": 1,
+"wolf_count": 1,
 "wave_count": 1
 }
 
@@ -42,10 +44,12 @@ scene_path = "res://scenes/interactables/combat_room.tscn"
 connections = Array[StringName]([&"treasure_1", &"shop_1"])
 grid_pos = Vector2i(3, 0)
 room_config = {
-"chaser_count": 4,
+"chaser_count": 3,
 "elite_chaser_count": 0,
 "elite_ranged_count": 0,
+"elite_wolf_count": 0,
 "ranged_count": 2,
+"wolf_count": 1,
 "wave_count": 2
 }
 

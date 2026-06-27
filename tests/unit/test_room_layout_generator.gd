@@ -120,6 +120,8 @@ func test_generated_combat_room_configs_scale_by_route_distance() -> void:
 	_runner.assert_true(farthest_config.size() > 0, "farthest combat gets encounter config")
 	_runner.assert_eq(_encounter_total(nearest_config), 4, "nearest combat starts at the early encounter budget")
 	_runner.assert_eq(_encounter_total(farthest_config), 6, "late generated combat rooms use the mobile-friendly encounter budget")
+	_runner.assert_eq(int(nearest_config.get("wolf_count", 0)), 1, "nearest generated combat includes a wolf dash enemy")
+	_runner.assert_eq(int(farthest_config.get("wolf_count", 0)), 1, "late generated combat keeps one wolf dash enemy")
 	_runner.assert_eq(int(nearest_config.get("wave_count", 0)), 1, "nearest combat starts in one wave")
 	_runner.assert_eq(int(farthest_config.get("wave_count", 0)), 2, "late generated combat rooms split into two waves")
 	_runner.assert_true(
@@ -400,13 +402,19 @@ func _encounter_total(config: Dictionary) -> int:
 	return (
 		int(config.get("chaser_count", 0))
 		+ int(config.get("ranged_count", 0))
+		+ int(config.get("wolf_count", 0))
 		+ int(config.get("elite_chaser_count", 0))
 		+ int(config.get("elite_ranged_count", 0))
+		+ int(config.get("elite_wolf_count", 0))
 	)
 
 
 func _elite_total(config: Dictionary) -> int:
-	return int(config.get("elite_chaser_count", 0)) + int(config.get("elite_ranged_count", 0))
+	return (
+		int(config.get("elite_chaser_count", 0))
+		+ int(config.get("elite_ranged_count", 0))
+		+ int(config.get("elite_wolf_count", 0))
+	)
 
 
 func _junction_count(layout: RoomLayout) -> int:
