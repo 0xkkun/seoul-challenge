@@ -3,6 +3,7 @@ extends Node
 
 const HUB_DIALOGUE_SCENE := preload("res://scenes/ui/hub_dialogue_ui.tscn")
 const HUB_DIALOGUE_SCRIPT := preload("res://scripts/ui/hub_dialogue_ui.gd")
+const DAY_FRIEND_TEXTURE := preload("res://assets/characters/school/day_friend.png")
 
 var _runner: Node
 # HubDialogueUi 글로벌 클래스 등록(에디터 import) 순서에 의존하지 않도록 타입 주석 없이 둔다.
@@ -48,6 +49,25 @@ func test_dialogue_content_updates_from_data() -> void:
 	_runner.assert_eq(_ui.get_speaker_name(), "과학부 선배", "NPC 이름이 데이터로 갱신된다")
 	_runner.assert_eq(_ui.get_dialogue_text(), "\"이 유리병은 밤마다 혼자 흔들려.\"", "대사가 데이터로 갱신된다")
 	_runner.assert_eq(_ui.get_memory_text(), "기억: 실험실 싱크대의 물방울", "기억 플레이버 텍스트가 데이터로 갱신된다")
+
+
+func test_sprite_portrait_uses_texture_without_panel_background() -> void:
+	_ui.set_dialogue("반 친구", "낮엔 뛰지 말고, 얘기부터 하자.", "", HUB_DIALOGUE_SCRIPT.PORTRAIT_COLOR, DAY_FRIEND_TEXTURE)
+
+	var panel := _ui.get_node("%PortraitPanel") as ColorRect
+	var accent := _ui.get_node("%PortraitAccent") as ColorRect
+	var sprite := _ui.get_node("%PortraitSprite") as Sprite2D
+	var dialogue_bar := _ui.get_node("%DialogueBar") as PanelContainer
+	var frame_before := sprite.frame
+	_ui.call("_process", 0.7)
+
+	_runner.assert_true(_ui.is_portrait_sprite_visible(), "스프라이트 초상화를 표시한다")
+	_runner.assert_eq(_ui.get_portrait_frame_count(), 8, "people2 시트의 8프레임을 초상화 루프로 사용한다")
+	_runner.assert_eq(_ui.get_portrait_texture_path(), "res://assets/characters/school/day_friend.png", "초상화 텍스처 경로를 노출한다")
+	_runner.assert_true(panel.color.a <= 0.01, "스프라이트 초상화는 단색 배경 패널을 비운다")
+	_runner.assert_false(accent.visible, "스프라이트 초상화는 기존 하단 accent를 숨긴다")
+	_runner.assert_true(sprite.z_index > dialogue_bar.z_index, "스프라이트 초상화는 대화 바 위에 그려진다")
+	_runner.assert_true(sprite.frame != frame_before, "초상화 스프라이트는 대화 중 프레임을 재생한다")
 
 
 func test_dialogue_overlay_and_stage_row_visibility_are_configurable() -> void:

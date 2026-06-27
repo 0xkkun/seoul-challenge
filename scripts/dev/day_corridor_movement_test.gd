@@ -47,6 +47,10 @@ const QUIT_GAME_MESSAGE := "게임을 종료할까요?"
 @export var character_idle_texture: Texture2D
 @export var character_idle_frames: PackedInt32Array = PackedInt32Array([0, 1, 2, 3, 4, 5, 6])
 @export var character_idle_bob_px := 2.0
+@export var talk_target_texture: Texture2D
+@export var talk_target_asset_scale := 2.0
+@export var talk_target_idle_fps := 1.6
+@export var dialogue_portrait_texture: Texture2D
 @export var room_transition_fade_time := 0.18
 @export var room_transition_spawn_inset := 320.0
 @export var outer_edge_scene_transition_enabled := true
@@ -59,6 +63,7 @@ const QUIT_GAME_MESSAGE := "게임을 종료할까요?"
 @onready var _touch_controls: Node = %TouchControls
 @onready var _camera: Camera2D = %Camera2D
 @onready var _talk_target: Node2D = %TalkTarget
+@onready var _talk_target_sprite: Sprite2D = %TalkTargetSprite
 @onready var _day_character_root: Node2D = %DayCharacterRoot
 @onready var _character_sprite: Sprite2D = %CharacterSprite
 @onready var _interaction_prompt: Label = %InteractionPrompt
@@ -74,6 +79,7 @@ var _dialogue_line_index := -1
 var _was_dialogue_pressed := false
 var _walk_elapsed := 0.0
 var _idle_elapsed := 0.0
+var _talk_target_elapsed := 0.0
 var _character_base_position := Vector2.ZERO
 var _walk_texture: Texture2D = null
 var _walk_hframes := 0
@@ -92,6 +98,7 @@ func _ready() -> void:
 	_hide_player_default_visuals()
 	_apply_nearest_texture_filter()
 	_fit_character_to_asset_scale()
+	_fit_talk_target_to_asset_scale()
 	_restore_corridor_context()
 	_apply_room_state()
 	_hub_dialogue_ui.visible = false
@@ -108,6 +115,7 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
+	_update_talk_target_sprite(delta)
 	if _confirm_modal.is_open():
 		_player.velocity = Vector2.ZERO
 		_update_character_sprite(delta)
@@ -204,6 +212,8 @@ func is_room_transitioning() -> bool:
 func are_runtime_sprites_nearest_filtered() -> bool:
 	if _character_sprite.texture_filter != CanvasItem.TEXTURE_FILTER_NEAREST:
 		return false
+	if _talk_target_sprite.texture_filter != CanvasItem.TEXTURE_FILTER_NEAREST:
+		return false
 	for child: Node in _background.get_children():
 		var sprite := child as Sprite2D
 		if sprite != null and sprite.texture != null and sprite.texture_filter != CanvasItem.TEXTURE_FILTER_NEAREST:
@@ -213,6 +223,16 @@ func are_runtime_sprites_nearest_filtered() -> bool:
 
 func get_dialogue_count() -> int:
 	return _dialogue_count
+
+
+func get_talk_target_texture_path() -> String:
+	if _talk_target_sprite.texture == null:
+		return ""
+	return _talk_target_sprite.texture.resource_path
+
+
+func is_talk_target_visible() -> bool:
+	return _talk_target.visible
 
 
 func get_active_dialogue_line_index() -> int:
@@ -324,6 +344,7 @@ func close_dialogue() -> void:
 	_talk_button_label.visible = true
 	_player.set_physics_process(true)
 	_dialogue_line_index = -1
+	_sync_talk_target_visibility()
 	_update_objective_label()
 	# The closing tap can reveal touch controls under the same held press.
 	_was_dialogue_pressed = true
@@ -367,6 +388,7 @@ func _hide_player_default_visuals() -> void:
 
 func _apply_nearest_texture_filter() -> void:
 	_character_sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_talk_target_sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	for child: Node in _background.get_children():
 		var item := child as CanvasItem
 		if item != null:
@@ -383,13 +405,26 @@ func _fit_character_to_asset_scale() -> void:
 	_character_base_position = _character_sprite.position
 
 
+func _fit_talk_target_to_asset_scale() -> void:
+	if talk_target_texture != null:
+		_talk_target_sprite.texture = talk_target_texture
+	var texture := _talk_target_sprite.texture
+	if texture == null:
+		return
+	_talk_target_sprite.hframes = _get_square_sheet_hframes(texture)
+	_talk_target_sprite.vframes = 1
+	if talk_target_asset_scale > 0.0:
+		_talk_target_sprite.scale = Vector2(talk_target_asset_scale, talk_target_asset_scale)
+		_talk_target_sprite.position.y = -_get_talk_target_frame_size().y * talk_target_asset_scale * 0.5
+	_talk_target_sprite.frame = 0
+
+
 ## 멈춤 시 idle 시트로 텍스처 스왑(정사각 프레임 가정 → hframes = 너비/높이).
 func _use_idle_sheet() -> void:
 	if character_idle_texture == null or _character_sprite.texture == character_idle_texture:
 		return
 	_character_sprite.texture = character_idle_texture
-	var height := character_idle_texture.get_height()
-	_character_sprite.hframes = maxi(1, int(round(character_idle_texture.get_width() / float(height)))) if height > 0 else 1
+	_character_sprite.hframes = _get_square_sheet_hframes(character_idle_texture)
 	_character_sprite.vframes = 1
 
 
@@ -405,10 +440,14 @@ func _use_walk_sheet() -> void:
 func _apply_room_state() -> void:
 	_school_bg_left.visible = _current_room_id == ROOM_LEFT
 	_school_bg_right.visible = _current_room_id == ROOM_RIGHT
-	_talk_target.visible = _current_room_id == ROOM_LEFT
 	_camera.limit_right = int(corridor_size.x)
 	if _current_room_id != ROOM_LEFT:
 		close_dialogue()
+	_sync_talk_target_visibility()
+
+
+func _sync_talk_target_visibility() -> void:
+	_talk_target.visible = _current_room_id == ROOM_LEFT and not is_dialogue_ui_visible()
 
 
 func _start_room_transition(target_room_id: StringName) -> void:
@@ -530,6 +569,13 @@ func _update_character_sprite(delta: float) -> void:
 	_character_sprite.frame = int(_walk_elapsed * character_walk_fps) % _get_character_frame_count()
 
 
+func _update_talk_target_sprite(delta: float) -> void:
+	if not _talk_target.visible:
+		return
+	_talk_target_elapsed += delta
+	_talk_target_sprite.frame = int(_talk_target_elapsed * talk_target_idle_fps) % _get_talk_target_frame_count()
+
+
 func _sync_camera() -> void:
 	var half_view := _get_visible_world_size() * 0.5
 	_camera.global_position = Vector2(
@@ -550,6 +596,27 @@ func _get_character_frame_size() -> Vector2:
 
 func _get_character_frame_count() -> int:
 	return maxi(1, _character_sprite.hframes * _character_sprite.vframes)
+
+
+func _get_talk_target_frame_size() -> Vector2:
+	var texture := _talk_target_sprite.texture
+	if texture == null:
+		return Vector2.ZERO
+	return Vector2(
+		texture.get_width() / float(_talk_target_sprite.hframes),
+		texture.get_height() / float(_talk_target_sprite.vframes)
+	)
+
+
+func _get_talk_target_frame_count() -> int:
+	return maxi(1, _talk_target_sprite.hframes * _talk_target_sprite.vframes)
+
+
+func _get_square_sheet_hframes(texture: Texture2D) -> int:
+	var height := texture.get_height()
+	if height <= 0:
+		return 1
+	return maxi(1, int(round(texture.get_width() / float(height))))
 
 
 func _get_character_idle_frame() -> int:
@@ -604,6 +671,7 @@ func _open_dialogue_ui() -> void:
 	_player.velocity = Vector2.ZERO
 	_player.set_physics_process(false)
 	_update_character_sprite(0.0)
+	_sync_talk_target_visibility()
 
 
 func _show_dialogue_line(line_index: int) -> void:
@@ -613,7 +681,9 @@ func _show_dialogue_line(line_index: int) -> void:
 	_hub_dialogue_ui.set_dialogue(
 		DIALOGUE_SPEAKER,
 		DIALOGUE_LINES[_dialogue_line_index],
-		DIALOGUE_MEMORY_LINES[_dialogue_line_index]
+		DIALOGUE_MEMORY_LINES[_dialogue_line_index],
+		HubDialogueUi.PORTRAIT_COLOR,
+		dialogue_portrait_texture
 	)
 	var is_last_line := _dialogue_line_index >= DIALOGUE_LINES.size() - 1
 	_hub_dialogue_ui.set_choices([
