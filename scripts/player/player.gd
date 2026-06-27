@@ -60,6 +60,7 @@ signal run_modifiers_changed(payload: Dictionary)
 @export var dash_dust_visual_height: float = 42.0
 @export var dash_dust_back_offset: float = 30.0
 @export var dash_dust_foot_offset: float = 52.0
+@export var dash_animation_visual_time: float = 0.22
 @export var dash_power_attack_grace_time: float = 0.15  ## 대시 직후 강화 근접 공격 입력 허용 시간(s)
 @export_range(0, 9, 1) var dash_power_attack_damage_bonus := 1
 @export var dash_power_attack_range_multiplier: float = 1.15
@@ -82,6 +83,7 @@ var _is_attacking: bool = false   ## 공격 모션 재생 중(애니 끝날 때�
 var _special_cooldown_timer: float = 0.0
 var _special_recharge_timer: float = 0.0
 var _dodge_timer: float = 0.0
+var _dash_animation_timer: float = 0.0
 var _dodge_direction: Vector2 = Vector2.ZERO
 var _dash_power_attack_timer: float = 0.0
 var _dash_power_attack_consumed: bool = false
@@ -138,6 +140,7 @@ func _physics_process(delta: float) -> void:
 	tick_status_effects(delta)
 	tick_hit_reaction(delta)
 	_dash_power_attack_timer = step_dash_power_attack_window(_dash_power_attack_timer, delta)
+	_dash_animation_timer = step_dash_animation_timer(_dash_animation_timer, delta)
 	_attack_movement_commit_timer = maxf(0.0, _attack_movement_commit_timer - delta)
 	var move := read_input_vector()
 	var movement_blocked := is_status_movement_blocked()
@@ -250,6 +253,7 @@ func reset_motion() -> void:
 	velocity = Vector2.ZERO
 	_attack_movement_commit_timer = 0.0
 	_dodge_timer = 0.0
+	_dash_animation_timer = 0.0
 	_dodge_direction = Vector2.ZERO
 
 
@@ -325,6 +329,20 @@ func dodge_velocity(direction: Vector2, speed: float) -> Vector2:
 
 func step_dash_power_attack_window(timer: float, delta: float) -> float:
 	return maxf(0.0, timer - delta)
+
+
+func step_dash_animation_timer(timer: float, delta: float) -> float:
+	return maxf(0.0, timer - delta)
+
+
+func dash_animation_duration(dodge_time: float, visual_time: float) -> float:
+	return maxf(maxf(0.0, dodge_time), maxf(0.0, visual_time))
+
+
+func dash_animation_speed_scale(base_duration: float, target_duration: float) -> float:
+	if base_duration <= 0.0 or target_duration <= 0.0:
+		return 1.0
+	return clampf(base_duration / target_duration, 0.001, 1.0)
 
 
 func is_dash_power_attack_window_active(dodge_timer: float, grace_timer: float) -> bool:
@@ -594,6 +612,7 @@ func try_start_special_skill(input_vector: Vector2 = Vector2.ZERO) -> bool:
 		return false
 	_dodge_direction = choose_dodge_direction(input_vector, _facing)
 	_dodge_timer = dodge_duration
+	_dash_animation_timer = dash_animation_duration(dodge_duration, dash_animation_visual_time)
 	_dash_power_attack_timer = dodge_duration + dash_power_attack_grace_time
 	_dash_power_attack_consumed = false
 	_invuln_timer = maxf(_invuln_timer, dodge_invuln_time)
@@ -615,6 +634,7 @@ func equip_special_skill(skill_id: StringName, max_uses: int = 3, cooldown: floa
 	_special_cooldown_timer = 0.0
 	_special_recharge_timer = 0.0
 	_dodge_timer = 0.0
+	_dash_animation_timer = 0.0
 	_dash_power_attack_timer = 0.0
 	_dash_power_attack_consumed = false
 	_broadcast_special_skill_state()
@@ -855,7 +875,9 @@ func _play_dodge_anim(dir: Vector2, restart := false) -> void:
 		return
 	if absf(dir.x) > 0.05:
 		_sprite.flip_h = dir.x < 0.0
-	_sprite.speed_scale = 1.0
+	var base_duration := animation_duration_seconds(_sprite.sprite_frames, &"dash")
+	var visual_duration := dash_animation_duration(dodge_duration, dash_animation_visual_time)
+	_sprite.speed_scale = dash_animation_speed_scale(base_duration, visual_duration)
 	if restart or _sprite.animation != &"dash":
 		_sprite.play(&"dash")
 		_sprite.frame = 0
@@ -888,7 +910,7 @@ func _update_animation(move: Vector2) -> void:
 		return
 	if _is_attacking:
 		return  # 공격 중엔 조준 방향 반전을 유지(_play_attack_anim 이 설정)
-	if _dodge_timer > 0.0:
+	if _dodge_timer > 0.0 or _dash_animation_timer > 0.0:
 		_play_dodge_anim(_dodge_direction)
 		return
 	_sprite.speed_scale = 1.0
