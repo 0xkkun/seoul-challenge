@@ -75,6 +75,29 @@ func test_dash_power_attack_hits_farther_and_deals_bonus_damage() -> void:
 	p.free()
 
 
+func test_dash_power_attack_is_consumed_even_while_dodge_remains_active() -> void:
+	var p = PlayerScript.new()
+	add_child(p)
+	p.position = Vector2.ZERO
+	p.try_start_special_skill(Vector2.RIGHT)
+	var first_enemy := StubEnemy.new()
+	first_enemy.position = Vector2(25.0, 0.0)
+	first_enemy.add_to_group(&"enemy")
+	add_child(first_enemy)
+	p._attack_melee(Vector2.RIGHT)
+	_runner.assert_eq(first_enemy.taken, p.melee_damage + p.dash_power_attack_damage_bonus, "first dash attack is powered")
+	first_enemy.free()
+
+	var second_enemy := StubEnemy.new()
+	second_enemy.position = Vector2(25.0, 0.0)
+	second_enemy.add_to_group(&"enemy")
+	add_child(second_enemy)
+	p._attack_melee(Vector2.RIGHT)
+	_runner.assert_eq(second_enemy.taken, p.melee_damage, "second attack in the same dodge is not powered")
+	second_enemy.free()
+	p.free()
+
+
 func test_player_collision_radius_stays_inside_melee_range() -> void:
 	var player := (load("res://scenes/player/player.tscn") as PackedScene).instantiate()
 	add_child(player)

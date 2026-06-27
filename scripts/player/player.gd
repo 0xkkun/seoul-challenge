@@ -57,6 +57,7 @@ var _special_cooldown_timer: float = 0.0
 var _dodge_timer: float = 0.0
 var _dodge_direction: Vector2 = Vector2.ZERO
 var _dash_power_attack_timer: float = 0.0
+var _dash_power_attack_consumed: bool = false
 var _was_special_pressed := false
 var _has_bat: bool = false   ## 야구배트 장착 여부(맵 클리어 보상). 기본 맨손.
 var _facing: Vector2 = Vector2.DOWN
@@ -328,6 +329,7 @@ func try_start_special_skill(input_vector: Vector2 = Vector2.ZERO) -> bool:
 	_dodge_direction = choose_dodge_direction(input_vector, _facing)
 	_dodge_timer = dodge_duration
 	_dash_power_attack_timer = dodge_duration + dash_power_attack_grace_time
+	_dash_power_attack_consumed = false
 	_invuln_timer = maxf(_invuln_timer, dodge_invuln_time)
 	special_skill_uses_remaining = consume_special_use(special_skill_uses_remaining)
 	_special_cooldown_timer = special_skill_cooldown
@@ -342,6 +344,8 @@ func equip_special_skill(skill_id: StringName, max_uses: int = 3, cooldown: floa
 	special_skill_cooldown = maxf(0.0, cooldown)
 	_special_cooldown_timer = 0.0
 	_dodge_timer = 0.0
+	_dash_power_attack_timer = 0.0
+	_dash_power_attack_consumed = false
 	_broadcast_special_skill_state()
 
 
@@ -490,7 +494,10 @@ func _attack_melee(dir: Vector2) -> void:
 	var dmg := bat_damage if _has_bat else melee_damage
 	var rng := bat_range if _has_bat else melee_range
 	var arc := bat_arc if _has_bat else melee_arc
-	var power_attack := is_dash_power_attack_window_active(_dodge_timer, _dash_power_attack_timer)
+	var power_attack := (
+		not _dash_power_attack_consumed
+		and is_dash_power_attack_window_active(_dodge_timer, _dash_power_attack_timer)
+	)
 	var knockback_distance := bat_knockback
 	if power_attack:
 		dmg += dash_power_attack_damage_bonus
@@ -511,6 +518,7 @@ func _attack_melee(dir: Vector2) -> void:
 		_deflect_bullets_in_arc(dir, rng, arc)
 	_show_swing(dir, rng, arc)
 	if power_attack:
+		_dash_power_attack_consumed = true
 		_dash_power_attack_timer = 0.0
 		_show_power_impact(dir, rng, arc)
 
