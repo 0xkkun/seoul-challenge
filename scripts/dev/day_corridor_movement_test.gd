@@ -1210,6 +1210,9 @@ func _apply_ui_automation_metadata() -> void:
 func _handle_back_request() -> void:
 	if _confirm_modal.is_open():
 		return
+	if _hub_dialogue_ui.is_unlock_visible():
+		_request_close_dialogue()
+		return
 	if is_dialogue_ui_visible():
 		_request_close_dialogue()
 		return

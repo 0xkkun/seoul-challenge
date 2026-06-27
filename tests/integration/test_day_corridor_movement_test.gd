@@ -477,8 +477,10 @@ func test_day_corridor_onboarding_reward_back_close_completes_baseball_lobby_que
 	_runner.assert_false(scene.is_dialogue_ui_visible(), "back close hides dialogue content before the unlock popup")
 	_runner.assert_false(dialogue_ui.is_dialogue_content_visible(), "back close keeps the dialogue bar hidden behind the unlock popup")
 
-	_runner.assert_true(scene.perform_uat_action("day_corridor.dialogue.dismiss_unlock"), "unlock dismiss is coordinate-free")
-	_runner.assert_false(scene.is_dialogue_ui_visible(), "unlock dismiss closes the completed reward dialogue")
+	scene.call("_handle_back_request")
+	_runner.assert_false(dialogue_ui.is_unlock_visible(), "back while unlock is visible dismisses the unlock popup")
+	_runner.assert_false(scene.is_return_confirm_visible(), "back while unlock is visible does not open the lobby return confirm")
+	_runner.assert_false(scene.is_dialogue_ui_visible(), "unlock back dismiss closes the completed reward dialogue")
 	_runner.assert_eq(scene.get_objective_text(), "목표: 복도 끝 사물함에서 배트를 챙기고 경복궁으로 다시 가자", "back close keeps the post-reward objective")
 
 
