@@ -13,6 +13,11 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_MIN_COVERAGE = 90.0
 REFERENCE_RE = re.compile(r"res://([^\"'\s\)\]\[,]+)")
+GD_LOAD_REFERENCE_RE = re.compile(
+    r"(?:\b(?:preload|load)\s*\(|\bResourceLoader\.load\s*\()\s*"
+    r"[\"']res://([^\"']+)[\"']"
+)
+GD_EXTENDS_REFERENCE_RE = re.compile(r"^\s*extends\s+[\"']res://([^\"']+)[\"']", re.MULTILINE)
 CLASS_NAME_RE = re.compile(r"^\s*class_name\s+([A-Za-z_][A-Za-z0-9_]*)", re.MULTILINE)
 RESOURCE_SUFFIXES = (".gd", ".tscn", ".tres")
 EXCLUDED_SCRIPT_PREFIXES = (
@@ -126,7 +131,8 @@ def collect_test_seed_paths(root: Path, project_files: set[str]) -> set[str]:
     for path in sorted(project_files):
         if path.startswith("tests/") and path.endswith(RESOURCE_SUFFIXES):
             seeds.add(path)
-            seeds.update(find_resource_references(read_text(root, path)))
+            text = read_text(root, path)
+            seeds.update(find_references_for_file(path, text))
     if "project.godot" in project_files:
         for reference in find_resource_references(read_text(root, "project.godot")):
             if reference.startswith("scripts/autoload/"):
@@ -163,7 +169,7 @@ def trace_covered_scripts(
         if path in production_scripts:
             covered_scripts.add(path)
         text = read_text(root, path)
-        for reference in sorted(find_resource_references(text)):
+        for reference in sorted(find_references_for_file(path, text)):
             if reference.endswith(RESOURCE_SUFFIXES):
                 queue.append(reference)
         for class_path in sorted(find_class_name_references(text, class_name_paths)):
@@ -177,6 +183,26 @@ def find_resource_references(text: str) -> set[str]:
         for match in REFERENCE_RE.finditer(text)
         if match.group(1).strip()
     }
+
+
+def find_gd_load_references(text: str) -> set[str]:
+    references = {
+        match.group(1).strip()
+        for match in GD_LOAD_REFERENCE_RE.finditer(text)
+        if match.group(1).strip()
+    }
+    references.update(
+        match.group(1).strip()
+        for match in GD_EXTENDS_REFERENCE_RE.finditer(text)
+        if match.group(1).strip()
+    )
+    return references
+
+
+def find_references_for_file(path: str, text: str) -> set[str]:
+    if path.endswith(".gd"):
+        return find_gd_load_references(text)
+    return find_resource_references(text)
 
 
 def find_class_name_references(text: str, class_name_paths: dict[str, str]) -> set[str]:

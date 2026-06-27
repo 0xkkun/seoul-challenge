@@ -108,6 +108,38 @@ def test_class_name_references_mark_scripts_covered() -> None:
         assert report.coverage_percent == 100.0
 
 
+def test_gd_navigation_constants_do_not_mark_scene_scripts_covered() -> None:
+    module = load_module()
+    with tempfile.TemporaryDirectory() as temp_dir:
+        root = Path(temp_dir)
+        write(
+            root,
+            "project.godot",
+            '[autoload]\nSceneTransition="*res://scripts/autoload/scene_transition.gd"\n',
+        )
+        write(
+            root,
+            "scripts/autoload/scene_transition.gd",
+            'extends Node\nconst SESSION_SCENE := "res://scenes/session/session_root.tscn"\n',
+        )
+        write(root, "scripts/session/session_root.gd", "extends Node\n")
+        write(
+            root,
+            "scenes/session/session_root.tscn",
+            '\n'.join([
+                '[gd_scene load_steps=2 format=3]',
+                '[ext_resource type="Script" path="res://scripts/session/session_root.gd" id="1"]',
+            ]),
+        )
+
+        report = module.compute_script_coverage(root)
+
+        assert report.total_scripts == 2
+        assert report.covered_scripts == {"scripts/autoload/scene_transition.gd"}
+        assert report.uncovered_scripts == {"scripts/session/session_root.gd"}
+        assert report.coverage_percent == 50.0
+
+
 def test_cli_reports_uncovered_scripts_when_threshold_fails() -> None:
     with tempfile.TemporaryDirectory() as temp_dir:
         root = Path(temp_dir)
@@ -144,6 +176,7 @@ def main() -> None:
     test_resource_graph_marks_scene_and_resource_scripts_covered()
     test_uncovered_scripts_fail_threshold_and_keep_names()
     test_class_name_references_mark_scripts_covered()
+    test_gd_navigation_constants_do_not_mark_scene_scripts_covered()
     test_cli_reports_uncovered_scripts_when_threshold_fails()
     print("[test_verify_script_coverage] OK")
 
