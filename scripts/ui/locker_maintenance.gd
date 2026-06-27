@@ -15,7 +15,7 @@ const WEAPON_BAT := &"bat"
 const WEAPON_AWAKENED_BAT := &"awakened_bat"
 const STAGE_GYEONGBOKGUNG := &"gyeongbokgung"
 const STAGE_GYEONGBOKGUNG_NAME := "경복궁"
-const BAT_NAME_CRACKED := "마지막 시즌의 배트"
+const BAT_NAME_CRACKED := "금 간 나무 배트"
 const BAT_NAME_AWAKENED := "마지막 시즌의 배트"
 const BAT_DESC_CRACKED := "평범한 야구 방망이다.\n자칫하면 부러질 것 같다."
 const BAT_DESC_AWAKENED := "적의 탄을 배트로 되받아친다.\n마지막 시즌의 기억이 깨어났다."
@@ -582,16 +582,22 @@ func _apply_weapon_card_state() -> void:
 	_weapon_status_label.text = "선택한 장비\n\n%s\n\n경복궁으로\n바로 이동" % _bat_display_name()
 
 
+## 이름 경계 = 주장 보상 수령(또는 각성 해금). 보상 전(온보딩/3칸) = 금 간 나무 배트.
 func _bat_display_name() -> String:
-	return BAT_NAME_AWAKENED if _is_awakened_bat_unlocked() else BAT_NAME_CRACKED
+	return BAT_NAME_AWAKENED if (_is_baseball_reward_claimed() or _is_awakened_bat_unlocked()) else BAT_NAME_CRACKED
 
 
+## 설명 경계 = 능력 각성(로비 퀘). 탄 반사 능력 문구는 각성 후에만.
 func _bat_description() -> String:
 	return BAT_DESC_AWAKENED if _is_awakened_bat_unlocked() else BAT_DESC_CRACKED
 
 
 func _is_awakened_bat_unlocked() -> bool:
 	return has_node("/root/ProgressionSystem") and ProgressionSystem.is_weapon_unlocked(WEAPON_AWAKENED_BAT)
+
+
+func _is_baseball_reward_claimed() -> bool:
+	return has_node("/root/SaveManager") and SaveManager.get_flag(SceneTransition.FLAG_BASEBALL_CAPTAIN_REWARD_CLAIMED)
 
 
 func _make_weapon_state_style(selected: bool) -> StyleBox:

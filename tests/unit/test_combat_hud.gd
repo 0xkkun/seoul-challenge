@@ -163,7 +163,7 @@ func test_weapon_state_renders_player_facing_memory_weapon() -> void:
 		return
 
 	_hud.set_weapon_state(&"bat")
-	_runner.assert_eq(_hud.get_weapon_text(), "기억 무기: 마지막 시즌의 배트", "HUD updates weapon display")
+	_runner.assert_eq(_hud.get_weapon_text(), "기억 무기: 금 간 나무 배트", "HUD updates weapon display")
 
 	_hud.set_weapon_state(&"baseball")
 	_runner.assert_eq(_hud.get_weapon_text(), "기억 무기: 없음", "HUD does not render removed baseball memory weapon")

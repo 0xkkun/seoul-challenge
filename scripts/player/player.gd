@@ -16,7 +16,7 @@ const DASH_DUST_FRAME_COUNT := 6
 const BAT_SLASH_VISUAL_SCALE := 1.18
 const POWER_SLASH_VISUAL_SCALE := 1.35
 const WEAPON_NAME_BARE_HANDS := "맨손"
-const WEAPON_NAME_CRACKED_BAT := "마지막 시즌의 배트"
+const WEAPON_NAME_CRACKED_BAT := "금 간 나무 배트"
 const WEAPON_NAME_AWAKENED_BAT := "마지막 시즌의 배트"
 
 ## 발사 순간의 발사 지점(global)과 방향. #10 정화탄이 이 시그널을 받아 스폰한다.
@@ -1463,11 +1463,21 @@ func has_bat() -> bool:
 	return _has_bat
 
 
-## 현재 무기 이름(UI용).
+## 현재 무기 이름(UI용). 이름 경계 = 주장 보상 수령(또는 각성). 능력 각성(_bat_awakened)은 별개.
+## 온보딩/3칸 구간(보상 전) = "금 간 나무 배트", 주장 보상 후 = "마지막 시즌의 배트".
 func current_weapon_name() -> String:
 	if not _has_bat:
 		return WEAPON_NAME_BARE_HANDS
-	return WEAPON_NAME_AWAKENED_BAT if _bat_awakened else WEAPON_NAME_CRACKED_BAT
+	if _bat_awakened or _is_baseball_reward_claimed():
+		return WEAPON_NAME_AWAKENED_BAT
+	return WEAPON_NAME_CRACKED_BAT
+
+
+## 야구부 주장 보상(마지막 시즌의 배트 전달) 수령 여부. 트리 밖(단위 테스트)에선 false.
+func _is_baseball_reward_claimed() -> bool:
+	if not (is_inside_tree() and has_node("/root/SaveManager")):
+		return false
+	return SaveManager.get_flag(SceneTransition.FLAG_BASEBALL_CAPTAIN_REWARD_CLAIMED)
 
 
 func _refresh_bat_awakened_from_progression() -> void:
