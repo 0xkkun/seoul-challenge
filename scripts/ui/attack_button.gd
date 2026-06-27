@@ -13,6 +13,14 @@ func is_held() -> bool:
 	return _active_index != -1
 
 
+func release() -> void:
+	if _active_index == -1:
+		return
+	_active_index = -1
+	_aim = Vector2.ZERO
+	queue_redraw()
+
+
 ## 드래그 방향(정규화, 없으면 ZERO). 플레이어가 공격 조준 방향으로 쓴다.
 func get_aim() -> Vector2:
 	return _aim
@@ -37,9 +45,7 @@ func _on_touch(index: int, pos: Vector2, pressed: bool) -> void:
 			_aim = Vector2.ZERO
 			queue_redraw()
 	elif index == _active_index:
-		_active_index = -1
-		_aim = Vector2.ZERO
-		queue_redraw()
+		release()
 
 
 func _on_drag(pos: Vector2) -> void:

@@ -15,7 +15,8 @@ func test_catalog_exposes_multiple_run_items() -> void:
 	var item_ids: Array[StringName] = catalog.call("item_ids")
 	_runner.assert_true(item_ids.size() >= 3, "catalog exposes at least three map items")
 	var item_def: Dictionary = catalog.call("get_item_def", &"gung_talisman")
-	_runner.assert_eq(item_def.get("display_name", ""), "궁 부적", "damage item has flavor name")
+	_runner.assert_eq(item_def.get("display_name", ""), "강타 부적", "damage item has readable attack name")
+	_runner.assert_true(String(item_def.get("flavor", "")).contains("타격"), "damage item flavor explains hit power")
 	_runner.assert_true((item_def.get("modifiers", {}) as Dictionary).has("melee_damage_add"), "item carries stat modifiers")
 
 

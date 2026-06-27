@@ -4,8 +4,8 @@ const DEFAULT_ITEM_ID := &"gung_talisman"
 
 const ITEMS := {
 	&"gung_talisman": {
-		"display_name": "궁 부적",
-		"flavor": "붉은 궁 부적이 주먹과 배트에 힘을 싣는다.",
+		"display_name": "강타 부적",
+		"flavor": "주먹과 배트의 타격이 묵직해진다.",
 		"modifiers": {
 			"melee_damage_add": 1,
 			"bat_damage_add": 1,

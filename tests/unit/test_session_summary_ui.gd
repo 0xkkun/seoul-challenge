@@ -119,7 +119,7 @@ func test_map_tab_replaces_bottom_action_panel() -> void:
 	_runner.assert_false(_ui.is_action_panel_visible(), "bottom action panel is not visible during gameplay")
 
 	_ui.show_reward_choices(&"combat_1", [
-		{"item_id": &"gung_talisman", "display_name": "궁 부적"},
+		{"item_id": &"gung_talisman", "display_name": "강타 부적"},
 	])
 	_runner.assert_false(_ui.is_action_panel_visible(), "reward overlay does not restore bottom action buttons")
 	_ui.hide_reward_choices()
@@ -156,8 +156,8 @@ func test_reward_choices_render_three_actions_and_emit_selected_id() -> void:
 	_ui.show_reward_choices(&"combat_1", [
 		{
 			"item_id": &"gung_talisman",
-			"display_name": "궁 부적",
-			"flavor": "붉은 궁 부적이 주먹과 배트에 힘을 싣는다.",
+			"display_name": "강타 부적",
+			"flavor": "주먹과 배트의 타격이 묵직해진다.",
 			"effect": "근접 피해 +1 / 배트 피해 +1",
 		},
 		{
@@ -178,7 +178,7 @@ func test_reward_choices_render_three_actions_and_emit_selected_id() -> void:
 	_runner.assert_true(snapshot["visible"], "reward choice overlay is visible")
 	_runner.assert_eq(snapshot["room_id"], &"combat_1", "reward choice keeps source room id")
 	_runner.assert_eq(snapshot["choice_ids"], [&"gung_talisman", &"dokkaebi_fire", &"wind_step"], "reward choices keep stable item order")
-	_runner.assert_eq(snapshot["choice_texts"][0], "궁 부적", "reward button uses display name")
+	_runner.assert_eq(snapshot["choice_texts"][0], "강타 부적", "reward button uses display name")
 	_runner.assert_true(snapshot["choice_flavors"][1].contains("공격 박자"), "reward flavor is available for scan")
 	_runner.assert_true(snapshot.has("choice_effects"), "reward snapshot exposes concrete stat effects")
 	if not snapshot.has("choice_effects"):
