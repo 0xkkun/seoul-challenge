@@ -79,6 +79,13 @@ func test_first_damaged_health_event_vibrates() -> void:
 	_runner.assert_eq(HapticManager.test_log, [L_MEDIUM], "첫 체력 이벤트가 이미 감소 상태면 피격 진동")
 
 
+func test_lethal_first_health_event_preserves_death_haptic() -> void:
+	_at(1000)
+	EventBus.emit_player_health_changed({"current": 0, "max": 3})
+	EventBus.emit_player_died({})
+	_runner.assert_eq(HapticManager.test_log, [L_LONG], "첫 체력 이벤트가 즉사면 사망 진동이 피격 진동보다 우선한다")
+
+
 func test_currency_change_does_not_vibrate() -> void:
 	# currency_changed 는 디자인 리뷰에서 컷(고빈도 + 진행 이벤트와 충돌). 무진동이어야 한다.
 	_at(1000)
