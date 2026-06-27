@@ -52,6 +52,9 @@ func test_touch_controls_exposes_skill_button() -> void:
 	add_child(touch)
 
 	_runner.assert_true(touch.has_method("is_skill_pressed"), "touch controls expose skill input")
+	_runner.assert_true(touch.has_method("get_control_category"), "touch controls expose an input control category")
+	if touch.has_method("get_control_category"):
+		_runner.assert_eq(touch.get_control_category(), "combat", "touch controls default to combat controls")
 	var skill_button := touch.get_node_or_null("SkillButton")
 	_runner.assert_not_null(skill_button, "touch controls mount third skill button")
 	if not touch.has_method("is_skill_pressed") or skill_button == null:
@@ -71,3 +74,24 @@ func test_touch_controls_exposes_skill_button() -> void:
 	})
 	_runner.assert_eq(skill_button.get_uses_label(), "2", "skill button renders remaining uses")
 	_runner.assert_true(is_equal_approx(skill_button.get_cooldown_ratio(), 0.5), "skill button exposes cooldown progress")
+
+
+func test_touch_controls_day_dialogue_category_hides_dodge_button() -> void:
+	var touch := TouchControlsScene.instantiate()
+	add_child(touch)
+
+	var attack_button := touch.get_node_or_null("AttackButton") as Control
+	var skill_button := touch.get_node_or_null("SkillButton") as Control
+	_runner.assert_not_null(attack_button, "touch controls keep a right-side primary action button")
+	_runner.assert_not_null(skill_button, "touch controls mount the skill button")
+	_runner.assert_true(touch.has_method("set_control_category"), "touch controls can switch input control categories")
+	if attack_button == null or skill_button == null or not touch.has_method("set_control_category"):
+		return
+
+	skill_button.set("_active_index", 7)
+	touch.set_control_category("day_dialogue")
+
+	_runner.assert_eq(touch.get_control_category(), "day_dialogue", "day dialogue category is stored")
+	_runner.assert_true(attack_button.visible, "day dialogue keeps the primary right button for talking")
+	_runner.assert_false(skill_button.visible, "day dialogue hides the dodge skill button")
+	_runner.assert_false(touch.is_skill_pressed(), "hidden dodge button does not report held input")

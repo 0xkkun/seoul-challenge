@@ -1,6 +1,7 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://scripts/ui/session_ui_root.gd" id="1_ui"]
+[ext_resource type="Texture2D" path="res://assets/ui/icons/gear.svg" id="2_gear"]
 
 [node name="SessionUIRoot" type="CanvasLayer"]
 unique_name_in_owner = true
@@ -14,11 +15,25 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 
+[node name="MapTabButton" type="Button" parent="Root"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(144, 50)
+layout_mode = 1
+anchors_preset = 0
+offset_left = 12.0
+offset_top = 12.0
+offset_right = 156.0
+offset_bottom = 62.0
+theme_override_font_sizes/font_size = 18
+text = "경복궁"
+icon = ExtResource("2_gear")
+expand_icon = true
+
 [node name="TopPanel" type="HBoxContainer" parent="Root"]
 layout_mode = 1
 anchors_preset = 10
 anchor_right = 1.0
-offset_left = 12.0
+offset_left = 172.0
 offset_top = 12.0
 offset_right = -12.0
 offset_bottom = 44.0
@@ -29,48 +44,12 @@ theme_override_constants/separation = 12
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
-text = "Ready"
+text = "밤런 준비"
 
 [node name="InteractionLabel" type="Label" parent="Root/TopPanel"]
 unique_name_in_owner = true
 layout_mode = 2
-text = "Interactions: 0"
-
-[node name="ActionPanel" type="HBoxContainer" parent="Root"]
-unique_name_in_owner = true
-layout_mode = 1
-anchors_preset = 12
-anchor_top = 1.0
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_left = 12.0
-offset_top = -70.0
-offset_right = -12.0
-offset_bottom = -12.0
-grow_horizontal = 2
-grow_vertical = 0
-theme_override_constants/separation = 8
-
-[node name="PauseButton" type="Button" parent="Root/ActionPanel"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 58)
-layout_mode = 2
-size_flags_horizontal = 3
-text = "Pause"
-
-[node name="ResumeButton" type="Button" parent="Root/ActionPanel"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 58)
-layout_mode = 2
-size_flags_horizontal = 3
-text = "Resume"
-
-[node name="FinishButton" type="Button" parent="Root/ActionPanel"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 58)
-layout_mode = 2
-size_flags_horizontal = 3
-text = "포기"
+text = "진행 0"
 
 [node name="SummaryOverlay" type="Control" parent="Root"]
 unique_name_in_owner = true
@@ -122,6 +101,16 @@ theme_override_font_sizes/font_size = 44
 theme_override_colors/font_color = Color(0.937255, 0.811765, 0.298039, 1)
 text = "탈출 성공"
 horizontal_alignment = 1
+
+[node name="NarrativeLabel" type="Label" parent="Root/SummaryOverlay/SummaryPanel/SummaryMargin/SummaryStack"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+theme_override_colors/font_color = Color(0.941176, 0.901961, 0.627451, 0.94)
+text = "친구의 기억이 조금 돌아왔다. 학교로 돌아가 말을 걸어보자."
+horizontal_alignment = 1
+vertical_alignment = 1
+autowrap_mode = 2
 
 [node name="SummaryContent" type="HBoxContainer" parent="Root/SummaryOverlay/SummaryPanel/SummaryMargin/SummaryStack"]
 layout_mode = 2
@@ -233,7 +222,7 @@ custom_minimum_size = Vector2(0, 58)
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_font_sizes/font_size = 28
-text = "학교로 귀환"
+text = "학교로 돌아가기"
 
 [node name="RetryButton" type="Button" parent="Root/SummaryOverlay/SummaryPanel/SummaryMargin/SummaryStack/SummaryActions"]
 unique_name_in_owner = true
@@ -241,4 +230,4 @@ custom_minimum_size = Vector2(0, 58)
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_font_sizes/font_size = 28
-text = "재도전"
+text = "다시 밤으로"

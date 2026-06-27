@@ -29,6 +29,8 @@ const ACTION_OPEN_DIALOGUE := "day_corridor.dialogue.open"
 const ACTION_DIALOGUE_NEXT := "day_corridor.dialogue.next"
 const ACTION_DIALOGUE_CLOSE := "day_corridor.dialogue.close"
 const ACTION_EXIT_TO_LOBBY := "day_corridor.exit_to_lobby"
+const OBJECTIVE_TALK := "목표: 야구부 주장과 대화하고 밤의 궁으로 나갈 준비를 하자"
+const OBJECTIVE_LOCKER := "목표: 복도 끝 사물함에서 기억 무기를 정비하자"
 const RETURN_TO_LOBBY_MESSAGE := "로비로 돌아갈까요? 진행은 자동 저장됩니다"
 const QUIT_GAME_MESSAGE := "게임을 종료할까요?"
 
@@ -66,6 +68,7 @@ const QUIT_GAME_MESSAGE := "게임을 종료할까요?"
 @onready var _character_sprite: Sprite2D = %CharacterSprite
 @onready var _interaction_prompt: Label = %InteractionPrompt
 @onready var _talk_button_label: Label = %TalkButtonLabel
+@onready var _objective_label: Label = %ObjectiveLabel
 @onready var _hub_dialogue_ui: HubDialogueUi = %HubDialogueUi
 @onready var _fade_overlay: ColorRect = %FadeOverlay
 @onready var _exit_button: Button = %ExitButton
@@ -101,6 +104,7 @@ func _ready() -> void:
 	_hub_dialogue_ui.visible = false
 	_hub_dialogue_ui.set_stage_row_visible(false)
 	_hub_dialogue_ui.choice_selected.connect(_on_hub_dialogue_choice_selected)
+	_update_objective_label()
 	_interaction_prompt.visible = false
 	_apply_ui_automation_metadata()
 	PixelButtonStyle.apply(_exit_button, PixelButtonStyle.VARIANT_PRIMARY, Vector2(144.0, 50.0))
@@ -255,6 +259,10 @@ func is_touch_controls_visible() -> bool:
 	return _touch_controls.visible
 
 
+func get_objective_text() -> String:
+	return _objective_label.text
+
+
 func is_return_confirm_visible() -> bool:
 	return _confirm_modal.is_open()
 
@@ -337,6 +345,7 @@ func close_dialogue() -> void:
 	_player.set_physics_process(true)
 	_dialogue_line_index = -1
 	_sync_talk_target_visibility()
+	_update_objective_label()
 	# The closing tap can reveal touch controls under the same held press.
 	_was_dialogue_pressed = true
 	_update_interaction_prompt()
@@ -668,6 +677,7 @@ func _open_dialogue_ui() -> void:
 func _show_dialogue_line(line_index: int) -> void:
 	_dialogue_count += 1
 	_dialogue_line_index = posmod(line_index, DIALOGUE_LINES.size())
+	_update_objective_label()
 	_hub_dialogue_ui.set_dialogue(
 		DIALOGUE_SPEAKER,
 		DIALOGUE_LINES[_dialogue_line_index],
@@ -700,6 +710,12 @@ func _on_hub_dialogue_choice_selected(choice_id: StringName) -> void:
 			trigger_dialogue()
 		CHOICE_CLOSE:
 			close_dialogue()
+
+
+func _update_objective_label() -> void:
+	if _objective_label == null:
+		return
+	_objective_label.text = OBJECTIVE_LOCKER if _dialogue_count > 0 else OBJECTIVE_TALK
 
 
 func _is_dialogue_close_input_pressed() -> bool:

@@ -25,6 +25,7 @@ func test_lobby_title_scene_uses_title_assets_and_menu_contract() -> void:
 	var background := lobby.get_node("Background") as TextureRect
 	var full_overlay := lobby.get_node("FullOverlay") as ColorRect
 	var title_logo := lobby.get_node("LogoPane/TitleLogo") as TextureRect
+	var tagline_label := lobby.get_node("LogoPane/TaglineLabel") as Label
 	var start_button := lobby.get_node("%StartButton") as Button
 	var settings_button := lobby.get_node("%SettingsButton") as Button
 	var settings_ui := lobby.get_node("%SettingsUI") as SettingsUI
@@ -36,6 +37,7 @@ func test_lobby_title_scene_uses_title_assets_and_menu_contract() -> void:
 	_runner.assert_eq(title_logo.texture.resource_path, "res://assets/branding/title_logo.png", "lobby uses official title logo")
 	_runner.assert_eq(start_button.text, "게임 시작", "start button is localized")
 	_runner.assert_eq(settings_button.text, "설정", "settings button is localized")
+	_runner.assert_eq(tagline_label.text, "낮에 만든 기억으로, 밤의 궁에 들어간다.", "title screen states the core loop")
 	_runner.assert_eq(start_button.focus_mode, Control.FOCUS_NONE, "mobile lobby start button does not render focus chrome")
 	_runner.assert_eq(settings_button.focus_mode, Control.FOCUS_NONE, "mobile lobby settings button does not render focus chrome")
 	_runner.assert_eq(AudioManager.get_current_bgm(), AudioManager.LOBBY_BGM_DEFAULT, "lobby starts the default BGM")
@@ -60,7 +62,7 @@ func test_lobby_title_scene_uses_title_assets_and_menu_contract() -> void:
 	_runner.assert_eq(SceneTransition.get_night_map_select_scene_path(), "res://scenes/ui/night_map_select.tscn", "night map select scene path is exposed")
 	_runner.assert_true(ResourceLoader.exists(SceneTransition.get_night_map_select_scene_path()), "night map select scene resource exists")
 	_runner.assert_false(status_label.visible, "status copy is hidden on title screen")
-	_runner.assert_false(lobby.has_node("LogoPane/TaglineLabel"), "tagline copy is removed")
+	_runner.assert_true(lobby.has_node("LogoPane/TaglineLabel"), "tagline copy frames the title screen")
 	_runner.assert_false(lobby.has_node("MenuPane/FocusHint"), "input hint copy is removed")
 
 	lobby.queue_free()

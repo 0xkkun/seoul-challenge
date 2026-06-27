@@ -42,12 +42,12 @@ theme_override_constants/separation = 12
 [node name="WeaponSlot" type="Label" parent="Root/StubPanel"]
 unique_name_in_owner = true
 layout_mode = 2
-text = "무기: -"
+text = "기억 무기: 준비중"
 
 [node name="SkillSlot" type="Label" parent="Root/StubPanel"]
 unique_name_in_owner = true
 layout_mode = 2
-text = "스킬: -"
+text = "회피: 준비중"
 
 [node name="CurrencySlot" type="Label" parent="Root/StubPanel"]
 unique_name_in_owner = true

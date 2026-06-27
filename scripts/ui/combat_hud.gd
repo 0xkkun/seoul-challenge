@@ -7,8 +7,8 @@ class_name CombatHud
 const HEART_FILLED_COLOR := Color(0.86, 0.22, 0.27)
 const HEART_EMPTY_COLOR := Color(0.25, 0.25, 0.28)
 const HEART_SIZE := Vector2(22, 22)
-const WEAPON_SLOT_STUB_TEXT := "무기: -"
-const SKILL_SLOT_STUB_TEXT := "스킬: -"
+const WEAPON_SLOT_STUB_TEXT := "기억 무기: 준비중"
+const SKILL_SLOT_STUB_TEXT := "회피: 준비중"
 const CURRENCY_SLOT_STUB_TEXT := "엽전: 0"
 
 @onready var _hearts: HBoxContainer = %Hearts
@@ -22,7 +22,7 @@ var _max_health := 0
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
-	_weapon_slot.text = WEAPON_SLOT_STUB_TEXT
+	set_weapon_state(_initial_weapon_id())
 	_skill_slot.text = SKILL_SLOT_STUB_TEXT
 	_currency_slot.text = CURRENCY_SLOT_STUB_TEXT
 	EventBus.player_health_changed.connect(_on_player_health_changed)
@@ -83,6 +83,14 @@ func get_skill_text() -> String:
 	return _skill_slot.text
 
 
+func set_weapon_state(weapon_id: StringName) -> void:
+	_weapon_slot.text = "기억 무기: %s" % _weapon_display_name(weapon_id)
+
+
+func get_weapon_text() -> String:
+	return _weapon_slot.text
+
+
 func set_currency_state(payload: Dictionary) -> void:
 	if not payload.has("ingame"):
 		return
@@ -127,3 +135,19 @@ func _skill_display_name(skill_id: StringName) -> String:
 		&"emergency_dodge":
 			return "회피"
 	return String(skill_id)
+
+
+func _initial_weapon_id() -> StringName:
+	if has_node("/root/GameManager"):
+		return StringName(GameManager.get_active_config().get(SceneTransition.RUN_CONFIG_SELECTED_WEAPON_ID, &""))
+	return &""
+
+
+func _weapon_display_name(weapon_id: StringName) -> String:
+	match weapon_id:
+		&"baseball":
+			return "낡은 야구공"
+		&"bat":
+			return "금 간 배트"
+		_:
+			return "미정"

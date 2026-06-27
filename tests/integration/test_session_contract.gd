@@ -239,6 +239,27 @@ func test_session_root_preserves_existing_config() -> void:
 	session.queue_free()
 
 
+func test_session_map_tab_uses_stage_name_and_replaces_bottom_actions() -> void:
+	GameManager.start_session({
+		"source": "map_tab_test",
+		"stage_name": "창덕궁",
+	})
+
+	var packed := load("res://scenes/session/session_root.tscn") as PackedScene
+	var session := packed.instantiate()
+	add_child(session)
+
+	var session_ui: CanvasLayer = session.get_node("%SessionUIRoot")
+	var map_tab: Button = session_ui.get_node("%MapTabButton")
+	_runner.assert_eq(map_tab.text, "창덕궁", "session map tab uses the active run map name")
+	_runner.assert_false(session_ui.call("is_action_panel_visible"), "session does not expose bottom action buttons")
+	_runner.assert_eq(session_ui.get_node_or_null("%PauseButton"), null, "old pause button is removed from session UI")
+	_runner.assert_eq(session_ui.get_node_or_null("%ResumeButton"), null, "old resume button is removed from session UI")
+	_runner.assert_eq(session_ui.get_node_or_null("%FinishButton"), null, "old finish button is removed from session UI")
+
+	session.queue_free()
+
+
 func test_session_root_applies_locker_weapon_config() -> void:
 	GameManager.start_session({
 		"source": "night_map_select",
@@ -278,16 +299,16 @@ func test_session_ui_can_resume_while_tree_is_paused() -> void:
 	add_child(session)
 
 	var session_ui: CanvasLayer = session.get_node("%SessionUIRoot")
-	var resume_button: Button = session_ui.get_node("%ResumeButton")
+	var map_tab: Button = session_ui.get_node("%MapTabButton")
 
 	session._on_pause_requested()
 	_runner.assert_true(get_tree().paused, "pause request pauses scene tree")
 	_runner.assert_eq(session_ui.process_mode, Node.PROCESS_MODE_ALWAYS)
 	_runner.assert_true(session_ui.can_process(), "session UI still processes while paused")
-	_runner.assert_true(resume_button.can_process(), "resume button still processes while paused")
+	_runner.assert_true(map_tab.can_process(), "map tab still processes while paused")
 
-	session._on_resume_requested()
-	_runner.assert_false(get_tree().paused, "resume request unpauses scene tree")
+	_runner.assert_true(UiTestHarness.press_by_test_id(session_ui, "session.map_tab"), "map tab can be pressed by stable test id")
+	_runner.assert_false(get_tree().paused, "map tab resumes the paused scene tree")
 
 	session.queue_free()
 
@@ -434,7 +455,7 @@ func test_room_change_configures_player_bounds_and_clears_motion() -> void:
 	session.queue_free()
 
 
-func test_session_finish_button_confirms_abandon_to_lobby() -> void:
+func test_session_finish_request_confirms_abandon_to_lobby() -> void:
 	var packed := load("res://scenes/session/session_root.tscn") as PackedScene
 	var session := packed.instantiate()
 	var action_counts := {"returned": 0}

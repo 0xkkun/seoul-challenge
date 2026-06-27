@@ -10,16 +10,20 @@ signal retry_requested
 signal reward_choice_selected(item_id: StringName)
 
 const DEFAULT_MEMORY_REWARD_PER_ROOM := 1
+const DEFAULT_MAP_NAME := "경복궁"
+const MAP_TAB_TEST_ID := "session.map_tab"
+const MAP_TAB_ACTION := "session.map_tab"
 const UNLOCK_LABELS := {
 	&"baseball_stage_3": "야구부 STAGE 3",
 	&"awakened_bat": "마지막 시즌의 배트",
 }
 
+@onready var map_tab_button: Button = %MapTabButton
 @onready var status_label: Label = %StatusLabel
 @onready var interaction_label: Label = %InteractionLabel
-@onready var action_panel: Control = %ActionPanel
 @onready var summary_overlay: Control = %SummaryOverlay
 @onready var result_title_label: Label = %ResultTitleLabel
+@onready var narrative_label: Label = %NarrativeLabel
 @onready var memory_label: Label = %MemoryLabel
 @onready var memory_amount_label: Label = %MemoryAmountLabel
 @onready var students_record_label: Label = %StudentsRecordLabel
@@ -27,9 +31,6 @@ const UNLOCK_LABELS := {
 @onready var rooms_record_label: Label = %RoomsRecordLabel
 @onready var unlocks_record_panel: PanelContainer = %UnlocksRecordPanel
 @onready var unlocks_record_label: Label = %UnlocksRecordLabel
-@onready var pause_button: Button = %PauseButton
-@onready var resume_button: Button = %ResumeButton
-@onready var finish_button: Button = %FinishButton
 @onready var return_button: Button = %ReturnButton
 @onready var retry_button: Button = %RetryButton
 
@@ -43,24 +44,19 @@ func _ready() -> void:
 	layer = RenderLayers.UI_SESSION_LAYER
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	_ensure_reward_choice_overlay()
-	pause_button.set_meta("test_id", "session.pause_button")
-	pause_button.set_meta("uat_action", "session.pause")
-	resume_button.set_meta("test_id", "session.resume_button")
-	resume_button.set_meta("uat_action", "session.resume")
-	finish_button.set_meta("test_id", "session.finish_button")
-	finish_button.set_meta("uat_action", "session.finish")
+	map_tab_button.set_meta("test_id", MAP_TAB_TEST_ID)
+	map_tab_button.set_meta("uat_action", MAP_TAB_ACTION)
 	return_button.set_meta("test_id", "session.return_button")
 	return_button.set_meta("uat_action", "session.return_to_school")
 	retry_button.set_meta("test_id", "session.retry_button")
 	retry_button.set_meta("uat_action", "session.retry")
 	_apply_button_styles()
 	_apply_result_panel_styles()
-	pause_button.pressed.connect(_on_pause_button_pressed)
-	resume_button.pressed.connect(_on_resume_button_pressed)
-	finish_button.pressed.connect(_on_finish_button_pressed)
+	map_tab_button.pressed.connect(_on_map_tab_button_pressed)
 	return_button.pressed.connect(_on_return_button_pressed)
 	retry_button.pressed.connect(_on_retry_button_pressed)
-	set_status("Ready")
+	set_map_name(DEFAULT_MAP_NAME)
+	set_status("밤런 준비")
 	set_interaction_count(0)
 	show_summary({})
 
@@ -93,18 +89,27 @@ func set_status(text: String) -> void:
 	status_label.text = text
 
 
+func set_map_name(text: String) -> void:
+	var map_name := text.strip_edges()
+	map_tab_button.text = map_name if map_name != "" else DEFAULT_MAP_NAME
+
+
+func get_map_name() -> String:
+	return map_tab_button.text
+
+
 func set_interaction_count(count: int) -> void:
-	interaction_label.text = "Interactions: %d" % count
+	interaction_label.text = "진행 %d" % count
 
 
 func show_summary(result: Dictionary) -> void:
 	if result.is_empty():
 		summary_overlay.visible = false
-		action_panel.visible = not is_reward_choice_visible()
 		return
 
 	var summary := _build_summary(result)
 	result_title_label.text = summary["title"]
+	narrative_label.text = summary["narrative"]
 	memory_label.text = "기억 조각"
 	memory_amount_label.text = "+%d" % int(summary["memory_reward"])
 	students_record_label.text = "구출 %d" % int(summary["students_rescued"])
@@ -114,7 +119,6 @@ func show_summary(result: Dictionary) -> void:
 	unlocks_record_panel.visible = not unlock_labels.is_empty()
 	unlocks_record_label.text = "해금 %s" % " / ".join(unlock_labels) if not unlock_labels.is_empty() else ""
 	summary_overlay.visible = true
-	action_panel.visible = false
 	hide_reward_choices()
 
 
@@ -122,6 +126,7 @@ func get_summary_snapshot() -> Dictionary:
 	return {
 		"visible": summary_overlay.visible,
 		"title": result_title_label.text,
+		"narrative": narrative_label.text,
 		"memory_label": memory_label.text,
 		"memory_amount": memory_amount_label.text,
 		"students": students_record_label.text,
@@ -143,18 +148,19 @@ func show_reward_choices(room_id: StringName, choices: Array) -> void:
 		_reward_choice_models.append(choice.duplicate(true))
 	_render_reward_choices()
 	_reward_choice_overlay.visible = not _reward_choice_models.is_empty()
-	action_panel.visible = not _reward_choice_overlay.visible and not summary_overlay.visible
 
 
 func hide_reward_choices() -> void:
 	if _reward_choice_overlay != null:
 		_reward_choice_overlay.visible = false
-	if not summary_overlay.visible:
-		action_panel.visible = true
 
 
 func is_reward_choice_visible() -> bool:
 	return _reward_choice_overlay != null and _reward_choice_overlay.visible
+
+
+func is_action_panel_visible() -> bool:
+	return false
 
 
 func select_reward_choice(item_id: StringName) -> bool:
@@ -190,9 +196,7 @@ func get_reward_choice_snapshot() -> Dictionary:
 
 
 func _apply_button_styles() -> void:
-	PixelButtonStyle.apply(pause_button, PixelButtonStyle.VARIANT_SECONDARY, Vector2(0.0, 58.0))
-	PixelButtonStyle.apply(resume_button, PixelButtonStyle.VARIANT_PRIMARY, Vector2(0.0, 58.0))
-	PixelButtonStyle.apply(finish_button, PixelButtonStyle.VARIANT_DANGER, Vector2(0.0, 58.0))
+	PixelButtonStyle.apply(map_tab_button, PixelButtonStyle.VARIANT_PRIMARY, Vector2(144.0, 50.0))
 	PixelButtonStyle.apply(return_button, PixelButtonStyle.VARIANT_PRIMARY, Vector2(0.0, 58.0))
 	PixelButtonStyle.apply(retry_button, PixelButtonStyle.VARIANT_SECONDARY, Vector2(0.0, 58.0))
 
@@ -306,6 +310,7 @@ func _on_reward_choice_pressed(item_id: StringName) -> void:
 func _build_summary(result: Dictionary) -> Dictionary:
 	return {
 		"title": _result_title(result),
+		"narrative": _result_narrative(result),
 		"memory_reward": _memory_reward(result),
 		"students_rescued": _count_from_keys(result, [
 			"students_rescued",
@@ -335,6 +340,15 @@ func _result_title(result: Dictionary) -> String:
 	if outcome in ["success", "escaped", "complete", "completed"]:
 		return "탈출 성공"
 	return "런 종료"
+
+
+func _result_narrative(result: Dictionary) -> String:
+	var outcome := String(result.get("outcome", "")).to_lower()
+	if outcome in ["death", "dead", "failed"] or bool(result.get("died", false)):
+		return "새벽 종소리와 함께 교실에서 눈을 떴다. 기억 조각은 손에 남아 있다."
+	if bool(result.get("completed", false)) or String(result.get("reason", "")) == "boss_resolved" or outcome in ["success", "escaped", "complete", "completed"]:
+		return "친구의 기억이 조금 돌아왔다. 학교로 돌아가 말을 걸어보자."
+	return "오늘 밤의 기록을 챙겼다. 학교에서 정비하고 다시 나갈 수 있다."
 
 
 func _memory_reward(result: Dictionary) -> int:
@@ -432,16 +446,11 @@ func _non_negative_int(value: Variant) -> int:
 	return maxi(0, parsed)
 
 
-func _on_pause_button_pressed() -> void:
-	pause_requested.emit()
-
-
-func _on_resume_button_pressed() -> void:
-	resume_requested.emit()
-
-
-func _on_finish_button_pressed() -> void:
-	finish_requested.emit()
+func _on_map_tab_button_pressed() -> void:
+	if get_tree().paused:
+		resume_requested.emit()
+	else:
+		pause_requested.emit()
 
 
 func _on_return_button_pressed() -> void:

@@ -44,6 +44,7 @@ func test_day_corridor_scene_uses_mobile_landscape_plate() -> void:
 	_runner.assert_not_null(scene.get_node("%TouchControls"), "touch controls are mounted")
 	_runner.assert_not_null(scene.get_node("%HubDialogueUi"), "hub dialogue UI is mounted")
 	_runner.assert_false(scene.is_dialogue_ui_visible(), "dialogue UI starts hidden")
+	_runner.assert_eq(scene.get_objective_text(), "목표: 야구부 주장과 대화하고 밤의 궁으로 나갈 준비를 하자", "first objective tells the player who to talk to")
 
 
 func test_day_corridor_shows_only_day_character_visual_under_player() -> void:
@@ -74,9 +75,16 @@ func test_day_corridor_routes_touch_attack_to_dialogue_not_combat() -> void:
 
 	var player: Node = scene.get_node("%Player")
 	var proxy: Node = scene.get_node("%MoveOnlyTouchProxy")
+	var touch_controls: Node = scene.get_node("%TouchControls")
+	var attack_button: Control = touch_controls.get_node("AttackButton")
+	var skill_button: Control = touch_controls.get_node("SkillButton")
 
 	_runner.assert_eq(player.get("touch_controls_path"), NodePath("../MoveOnlyTouchProxy"), "player reads touch movement through the move-only proxy")
+	_runner.assert_eq(touch_controls.get_control_category(), "day_dialogue", "day corridor uses the movement/dialogue touch control category")
+	_runner.assert_true(attack_button.visible, "day corridor keeps the touch dialogue button visible")
+	_runner.assert_false(skill_button.visible, "day corridor hides the dodge button")
 	_runner.assert_false(proxy.is_attack_pressed(), "proxy never forwards the touch attack button to player firing")
+	_runner.assert_false(touch_controls.is_skill_pressed(), "day corridor does not expose dodge input through touch controls")
 	_runner.assert_true(scene.is_combat_output_disabled(), "day scene removes projectile output and recoil")
 
 
@@ -236,6 +244,7 @@ func test_day_corridor_dialogue_signal_updates_state() -> void:
 	scene.trigger_dialogue()
 
 	_runner.assert_eq(scene.get_dialogue_count(), 1, "dialogue count increments")
+	_runner.assert_eq(scene.get_objective_text(), "목표: 복도 끝 사물함에서 기억 무기를 정비하자", "objective advances after the first memory beat")
 	_runner.assert_true(scene.is_dialogue_ui_visible(), "dialogue trigger opens the hub dialogue UI")
 	_runner.assert_false(scene.is_touch_controls_visible(), "touch controls hide while the dialogue bar is open")
 	_runner.assert_false(scene.is_talk_target_visible(), "world talk target hides while its portrait is focused")
