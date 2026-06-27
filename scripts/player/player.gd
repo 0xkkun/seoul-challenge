@@ -16,12 +16,12 @@ const DASH_DUST_FRAME_COUNT := 6
 const BAT_SLASH_VISUAL_SCALE := 1.18
 const POWER_SLASH_VISUAL_SCALE := 1.35
 const WEAPON_NAME_BARE_HANDS := "맨손"
-const WEAPON_NAME_CRACKED_BAT := "금 간 나무 배트"
+const WEAPON_NAME_CRACKED_BAT := "마지막 시즌의 배트"
 const WEAPON_NAME_AWAKENED_BAT := "마지막 시즌의 배트"
 
 ## 발사 순간의 발사 지점(global)과 방향. #10 정화탄이 이 시그널을 받아 스폰한다.
 signal fired(muzzle_position: Vector2, direction: Vector2)
-## 무기 변경 — 맨손 → 금 간 나무 배트/각성 배트 등. UI 표시용.
+## 무기 변경 — 맨손 → 마지막 시즌의 배트/각성 배트 등. UI 표시용.
 signal weapon_changed(weapon_name: String)
 ## 특수 스킬 상태 변경 — HUD 표시용.
 signal special_skill_state_changed(payload: Dictionary)

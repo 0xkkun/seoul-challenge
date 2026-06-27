@@ -222,7 +222,7 @@ func test_choices_are_horizontal_models_and_emit_selected_id() -> void:
 func test_unlock_popup_tracks_reward_items() -> void:
 	var items: Array[Dictionary] = [
 		{"id": &"memory_fragment", "name": "기억 조각", "color": HUB_DIALOGUE_SCRIPT.DEFAULT_BALL_COLOR},
-		{"id": &"cracked_bat", "name": "금 간 나무 배트", "color": HUB_DIALOGUE_SCRIPT.DEFAULT_BAT_COLOR},
+		{"id": &"cracked_bat", "name": "마지막 시즌의 배트", "color": HUB_DIALOGUE_SCRIPT.DEFAULT_BAT_COLOR},
 	]
 
 	_ui.show_unlock("새 기억", "2단계 보상", items)
@@ -230,7 +230,7 @@ func test_unlock_popup_tracks_reward_items() -> void:
 	_runner.assert_true(_ui.is_unlock_visible(), "받기 이후 중앙 해금 팝업을 표시한다")
 	_runner.assert_eq(_ui.get_unlock_items().size(), 2, "해금 아이템 두 개를 표시할 수 있다")
 	_runner.assert_eq(_ui.get_unlock_items()[0]["name"], "기억 조각", "첫 번째 해금 아이템 이름 보관")
-	_runner.assert_eq(_ui.get_unlock_items()[1]["name"], "금 간 나무 배트", "두 번째 해금 아이템 이름 보관")
+	_runner.assert_eq(_ui.get_unlock_items()[1]["name"], "마지막 시즌의 배트", "두 번째 해금 아이템 이름 보관")
 
 	_ui.hide_unlock()
 	_runner.assert_false(_ui.is_unlock_visible(), "해금 팝업을 숨길 수 있다")

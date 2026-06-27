@@ -216,7 +216,7 @@ func _initial_weapon_id() -> StringName:
 func _weapon_display_name(weapon_id: StringName) -> String:
 	match weapon_id:
 		&"bat":
-			return "금 간 나무 배트"
+			return "마지막 시즌의 배트"
 		_:
 			return "없음"
 
