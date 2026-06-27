@@ -10,6 +10,7 @@ func _set_runner(runner: Node) -> void:
 
 
 func after_each() -> void:
+	GameManager.reset_session()
 	for child: Node in get_children():
 		child.queue_free()
 
@@ -250,6 +251,12 @@ func test_session_root_mounts_room_manager() -> void:
 
 
 func test_session_root_finish_requires_final_room_clear_on_branching_map() -> void:
+	# 고정 시드로 결정적 분기 레이아웃 생성(랜덤 시드는 non-final leaf 없는 맵을 만들어 flaky).
+	# 시드 7은 room_count 15 에서 항상 non-final 막다른 분기를 포함한다.
+	GameManager.start_session({
+		"source": "branching_seed_test",
+		SceneTransition.RUN_CONFIG_LAYOUT_SEED: 7,
+	})
 	var packed := load("res://scenes/session/session_root.tscn") as PackedScene
 	GameManager.start_session({
 		"source": "seeded_branching_finish_test",
