@@ -10,6 +10,7 @@ func _set_runner(runner: Node) -> void:
 
 
 func after_each() -> void:
+	get_tree().paused = false
 	for child: Node in get_children():
 		child.queue_free()
 
@@ -131,6 +132,24 @@ func test_transition_request_requires_open_door() -> void:
 
 	_runner.assert_true(door.request_transition(), "open door accepts transition request")
 	_runner.assert_eq(requests, [&"S"], "open door emits direction")
+
+
+func test_transition_request_is_blocked_while_tree_paused() -> void:
+	var door := _create_door(&"N")
+	var requests: Array[StringName] = []
+	var on_transition_requested := func(door_dir: StringName) -> void:
+		requests.append(door_dir)
+
+	door.transition_requested.connect(on_transition_requested)
+	door.open()
+	get_tree().paused = true
+
+	_runner.assert_false(door.request_transition(), "paused reward or pause modal blocks door transition")
+	_runner.assert_eq(requests.size(), 0, "paused door transition emits nothing")
+
+	get_tree().paused = false
+	_runner.assert_true(door.request_transition(), "door accepts transition again after unpause")
+	_runner.assert_eq(requests, [&"N"], "unpaused door transition emits once")
 
 
 func test_actor_overlap_transition_emits_once_per_entry() -> void:

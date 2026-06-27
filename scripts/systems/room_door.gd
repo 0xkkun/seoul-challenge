@@ -109,6 +109,8 @@ func check_transition_for_actor(actor: Node2D) -> bool:
 func request_transition() -> bool:
 	if not is_open():
 		return false
+	if get_tree().paused:
+		return false
 	transition_requested.emit(door_dir)
 	return true
 

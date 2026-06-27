@@ -15,6 +15,7 @@ func _set_runner(runner: Node) -> void:
 
 
 func before_each() -> void:
+	get_tree().paused = false
 	_container = Node2D.new()
 	_actor = Node2D.new()
 	_current_room = null
@@ -32,6 +33,7 @@ func before_each() -> void:
 
 
 func after_each() -> void:
+	get_tree().paused = false
 	if EventBus.room_entered.is_connected(_on_event_bus_room_entered):
 		EventBus.room_entered.disconnect(_on_event_bus_room_entered)
 	if EventBus.room_cleared.is_connected(_on_event_bus_room_cleared):
