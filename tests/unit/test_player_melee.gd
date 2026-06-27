@@ -563,25 +563,25 @@ func test_attack_dust_state_places_effect_behind_facing_at_feet() -> void:
 	var right_state: Dictionary = player.call(
 		"build_attack_dust_effect_state",
 		Vector2.RIGHT,
-		Vector2(960.0, 1440.0),
+		Vector2(48.0, 72.0),
 		72.0,
-		26.0,
-		16.0
+		36.0,
+		52.0
 	)
 	var up_state: Dictionary = player.call(
 		"build_attack_dust_effect_state",
 		Vector2.UP,
-		Vector2(960.0, 1440.0),
+		Vector2(48.0, 72.0),
 		72.0,
-		26.0,
-		16.0
+		36.0,
+		52.0
 	)
 
 	_runner.assert_true((right_state["position"] as Vector2).x < 0.0, "right-facing attack places dust behind the player")
-	_runner.assert_true(is_equal_approx((right_state["position"] as Vector2).y, 16.0), "dust keeps a foot-level downward offset")
+	_runner.assert_true(is_equal_approx((right_state["position"] as Vector2).y, 52.0), "dust keeps a foot-level downward offset")
 	_runner.assert_true(is_equal_approx(float(right_state["rotation"]), Vector2.LEFT.angle()), "dust points toward the opposite direction")
-	_runner.assert_true(is_equal_approx((right_state["scale"] as Vector2).x, 72.0 / 1440.0), "dust scales the high-resolution source frame to gameplay size")
-	_runner.assert_true((up_state["position"] as Vector2).y > 16.0, "up-facing attack places dust below the player")
+	_runner.assert_true(is_equal_approx((right_state["scale"] as Vector2).x, 1.0), "dust uses a runtime-sized source frame without shrinking blocky source art")
+	_runner.assert_true((up_state["position"] as Vector2).y > 52.0, "up-facing attack places dust below the player's feet")
 	player.free()
 
 
@@ -595,15 +595,15 @@ func test_attack_dust_diagonal_rotation_snaps_to_cardinal_angles() -> void:
 	var diagonal_state: Dictionary = player.call(
 		"build_attack_dust_effect_state",
 		Vector2(1.0, 1.0),
-		Vector2(960.0, 1440.0),
+		Vector2(48.0, 72.0),
 		72.0,
-		26.0,
-		16.0
+		36.0,
+		52.0
 	)
 	var position := diagonal_state["position"] as Vector2
 	var rotation := float(diagonal_state["rotation"])
 
-	_runner.assert_true(position.x < 0.0 and position.y < 16.0, "diagonal attack still places dust behind the facing direction")
+	_runner.assert_true(position.x < 0.0 and position.y < 52.0, "diagonal attack still places dust behind the facing direction")
 	_runner.assert_true(_is_cardinal_rotation(rotation), "diagonal attack dust snaps rotation to 90-degree angles to avoid nearest-filter mosaic")
 	player.free()
 
@@ -623,11 +623,21 @@ func test_attack_dust_only_triggers_while_moving() -> void:
 func test_player_scene_includes_hidden_attack_dust_effect() -> void:
 	var player := (load("res://scenes/player/player.tscn") as PackedScene).instantiate()
 	add_child(player)
+	var player_sprite := player.get_node_or_null("Sprite") as AnimatedSprite2D
 	var dust_root := player.get_node_or_null("AttackDust") as Node2D
+	var source_sheet := load("res://assets/effects/attack_reverse_dust.png") as Texture2D
 
+	_runner.assert_not_null(player_sprite, "player scene includes the main sprite")
+	_runner.assert_not_null(source_sheet, "attack dust keeps the approved downloaded source sheet")
+	if source_sheet != null:
+		_runner.assert_eq(source_sheet.get_width(), 22080, "attack dust source sheet keeps the downloaded 23-column width")
+		_runner.assert_eq(source_sheet.get_height(), 1440, "attack dust source sheet keeps the downloaded source height")
 	_runner.assert_not_null(dust_root, "player scene includes attack dust effect root")
 	if dust_root != null:
 		_runner.assert_false(dust_root.visible, "attack dust starts hidden")
+		_runner.assert_true(dust_root.z_index > 0, "attack dust renders above floor/background layers")
+		if player_sprite != null:
+			_runner.assert_true(player_sprite.z_index > dust_root.z_index, "player sprite renders over foot dust without hiding it under the floor")
 		var dust_sprite := dust_root.get_node_or_null("DustSprite") as AnimatedSprite2D
 		_runner.assert_not_null(dust_sprite, "attack dust uses an animated sprite sheet")
 		if dust_sprite != null:
@@ -638,9 +648,13 @@ func test_player_scene_includes_hidden_attack_dust_effect() -> void:
 				var first_frame := dust_sprite.sprite_frames.get_frame_texture(&"burst", 0)
 				_runner.assert_not_null(first_frame, "attack dust has a first texture frame")
 				if first_frame != null:
-					_runner.assert_eq(first_frame.resource_path, "res://assets/effects/attack_reverse_dust/frame_00.png", "attack dust uses individual high-resolution frames")
-					_runner.assert_eq(first_frame.get_width(), 960, "attack dust frame keeps the original source width")
-					_runner.assert_eq(first_frame.get_height(), 1440, "attack dust frame keeps the original source height")
+					_runner.assert_eq(first_frame.resource_path, "res://assets/effects/attack_reverse_dust/frame_00.png", "attack dust uses individual runtime frames")
+					_runner.assert_eq(first_frame.get_width(), 48, "attack dust frame matches the runtime VFX width")
+					_runner.assert_eq(first_frame.get_height(), 72, "attack dust frame matches the runtime VFX height")
+					var first_image := first_frame.get_image()
+					_runner.assert_not_null(first_image, "attack dust texture exposes image data for validation")
+					if first_image != null:
+						_runner.assert_true(_count_visible_color_steps(first_image) >= 2, "attack dust runtime frame is baked from the visible source art")
 
 
 func test_moving_attack_shows_dust_behind_facing() -> void:
@@ -660,6 +674,8 @@ func test_moving_attack_shows_dust_behind_facing() -> void:
 	if dust_root != null:
 		_runner.assert_true(dust_root.visible, "moving attack reveals dust root")
 		_runner.assert_true(dust_root.position.x < 0.0, "right-facing moving attack puts dust behind the player")
+		_runner.assert_true(dust_root.position.y > 40.0, "moving attack places dust near the player's feet")
+		_runner.assert_true(dust_root.scale.is_equal_approx(Vector2.ONE), "moving attack displays dust at native runtime scale")
 	if dust_sprite != null:
 		_runner.assert_true(dust_sprite.visible, "moving attack reveals dust sprite")
 		_runner.assert_eq(dust_sprite.frame, 0, "dust animation starts from the first visible frame")
@@ -732,3 +748,13 @@ func _is_cardinal_rotation(rotation: float) -> bool:
 	var quarter_turn := PI * 0.5
 	var snapped := roundf(rotation / quarter_turn) * quarter_turn
 	return is_equal_approx(rotation, snapped)
+
+
+func _count_visible_color_steps(image: Image) -> int:
+	var visible_colors := {}
+	for y in range(image.get_height()):
+		for x in range(image.get_width()):
+			var pixel := image.get_pixel(x, y)
+			if pixel.a > 0.01:
+				visible_colors[pixel.to_html(true)] = true
+	return visible_colors.size()
