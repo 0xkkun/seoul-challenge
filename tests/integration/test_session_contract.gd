@@ -157,6 +157,7 @@ func test_combat_clear_requires_reward_choice_before_room_transition() -> void:
 	var manager := session.get_node("%RoomManager") as RoomManager
 	var actor := session.get_node("%Player") as Node
 	var touch_controls: Node = session.get_node("%TouchControls")
+	var joystick := touch_controls.get_node_or_null("Joystick") as Control
 	var attack_button := touch_controls.get_node_or_null("AttackButton") as Control
 	var session_ui: CanvasLayer = session.get_node("%SessionUIRoot")
 	var combat_room_def := _first_room_of_type(manager.layout, RoomLayout.TYPE_COMBAT)
@@ -165,7 +166,12 @@ func test_combat_clear_requires_reward_choice_before_room_transition() -> void:
 		return
 	_runner.assert_true(manager.enter_room(combat_room_def.room_id), "test enters combat reward room")
 	_runner.assert_false(session_ui.call("is_reward_choice_visible"), "reward choices are hidden before combat clear")
+	_runner.assert_not_null(joystick, "session mounts joystick touch input")
 	_runner.assert_not_null(attack_button, "session mounts attack touch button")
+	if joystick != null:
+		joystick.set("_active_index", 7)
+		joystick.set("_value", Vector2.LEFT)
+		_runner.assert_eq(touch_controls.call("get_move"), Vector2.LEFT, "test starts with held joystick movement")
 	if attack_button != null:
 		attack_button.set("_active_index", 8)
 		_runner.assert_true(touch_controls.call("is_attack_pressed"), "test starts with held attack input")
@@ -175,6 +181,7 @@ func test_combat_clear_requires_reward_choice_before_room_transition() -> void:
 	_runner.assert_true(manager.is_current_room_cleared(), "combat room is cleared")
 	_runner.assert_true(session_ui.call("is_reward_choice_visible"), "combat clear opens reward choice overlay")
 	_runner.assert_true(get_tree().paused, "reward choice pauses room transition input")
+	_runner.assert_eq(touch_controls.call("get_move"), Vector2.ZERO, "reward choice opening releases held joystick movement")
 	_runner.assert_false(touch_controls.call("is_attack_pressed"), "reward choice opening releases held attack input")
 	var snapshot: Dictionary = session_ui.call("get_reward_choice_snapshot")
 	_runner.assert_eq((snapshot["choice_ids"] as Array).size(), 3, "reward choice offers three roguelike options")
