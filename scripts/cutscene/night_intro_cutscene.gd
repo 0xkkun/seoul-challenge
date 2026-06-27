@@ -1,10 +1,11 @@
 class_name NightIntroCutscene
 extends CanvasLayer
-## 밤 인트로 콜드오픈. 첫 밤 진입 직전 1회 재생되는 시네마틱 자막 시퀀스.
+## 밤 인트로 콜드오픈. 첫 밤 진입 직전 1회 재생되는 시네마틱 인트로.
 ##
-## 플레이트 4장을 검정에서 페이드로 띄우고, 한글 자막을 탭으로 진행한다.
-## 마지막 비트가 끝나면 finished 시그널을 방출하고, 호출부가 세션 진입을 이어간다.
-## 자막 문구는 BEATS 에 모여 있어 따로 교체하기 쉽다.
+## 거의 검은 화면(경복궁 플레이트를 어둡게 깔고) 중앙에 한글 내레이션을
+## 인터타이틀처럼 띄우고 탭으로 진행한다. 마지막 비트는 자막이 사라지며
+## 경복궁이 가득 드러난 뒤 암전되고, finished 를 방출해 호출부가 밤 세션으로
+## 잇는다. 자막 문구는 BEATS 에 모여 있어 따로 교체하기 쉽다.
 
 signal finished
 
@@ -14,7 +15,11 @@ const LAYER_INDEX := 120
 const PLATE_FADE_SECONDS := 0.9
 const SUBTITLE_FADE_SECONDS := 0.5
 const PLATE_FADE_OUT_SECONDS := 0.6
-const LETTERBOX_RATIO := 0.12
+## 내레이션 비트에서 플레이트는 어둡게(거의 검정) 깔려 배경 역할만 한다.
+const BACKDROP_ALPHA := 0.4
+## 마지막 리빌: 자막이 사라지며 플레이트가 풀로 차오르고, 잠시 머문 뒤 암전.
+const REVEAL_RISE_SECONDS := 1.1
+const REVEAL_HOLD_SECONDS := 1.6
 
 ## 플레이트 순서는 확정 스토리보드 기준: B → A → C → D.
 const PLATES: Array[String] = [
@@ -27,9 +32,9 @@ const PLATES: Array[String] = [
 ## 각 비트: 어떤 플레이트 위에 어떤 자막 줄들을 순서대로 보여줄지.
 const BEATS: Array[Dictionary] = [
 	{"plate": 0, "lines": ["도시가 잠들면,", "깨어나는 것이 있다."]},
-	{"plate": 1, "lines": ["너는 매일 밤, 그 아래로 내려간다.", "위의 누구도, 그곳을 알지 못한 채."]},
+	{"plate": 1, "lines": ["나는 매일 밤, 그 아래로 내려간다.", "지상의 아무도 모르는 곳으로."]},
 	{"plate": 2, "lines": ["오늘 밤은…", "돌아오지 못할지도 몰라."]},
-	{"plate": 3, "lines": ["그래도, 너는 멈추지 않는다.", "— 밤이 시작된다."]},
+	{"plate": 3, "lines": ["그래도, 나는 멈추지 않는다.", "밤이 시작된다."]},
 ]
 
 var _plate: TextureRect
@@ -75,10 +80,12 @@ func play() -> void:
 		return
 	_ensure_built()
 	_started = true
-	for beat: Dictionary in BEATS:
+	var last_index := BEATS.size() - 1
+	for i: int in BEATS.size():
 		if _skip:
 			break
-		await _show_plate(int(beat["plate"]))
+		var beat: Dictionary = BEATS[i]
+		await _show_plate(int(beat["plate"]), BACKDROP_ALPHA)
 		for line: String in beat["lines"]:
 			if _skip:
 				break
@@ -87,7 +94,10 @@ func play() -> void:
 			await _wait_for_advance()
 		if _skip:
 			break
-		await _fade_plate_out()
+		if i == last_index:
+			await _reveal_finale()
+		else:
+			await _fade_plate_out()
 	_finish()
 
 
@@ -122,69 +132,83 @@ func _build_ui() -> void:
 	_plate.name = "Plate"
 	_plate.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_plate.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	_plate.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	# 전체 표시(맞춤): 상하 잘림 없이 플레이트 전체를 보여준다. 16:9보다 넓은
+	# 가로 단말에서는 좌우에 자연스러운 검은 여백(시네마틱)이 생긴다.
+	_plate.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	_plate.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	_plate.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_plate.modulate = Color(1.0, 1.0, 1.0, 0.0)
 	add_child(_plate)
 
-	_add_letterbox_bar("LetterboxTop", 0.0, LETTERBOX_RATIO)
-	_add_letterbox_bar("LetterboxBottom", 1.0 - LETTERBOX_RATIO, 1.0)
-
+	# 중앙 내레이션: 거의 검은 화면 한가운데에 인터타이틀처럼 띄운다.
+	# 배경 플레이트가 어둡게 깔리고 굵은 아웃라인이 있어 별도 스크림은 불필요.
 	_subtitle = Label.new()
 	_subtitle.name = "Subtitle"
 	_subtitle.anchor_left = 0.08
 	_subtitle.anchor_right = 0.92
-	_subtitle.anchor_top = 0.80
-	_subtitle.anchor_bottom = 0.90
+	_subtitle.anchor_top = 0.40
+	_subtitle.anchor_bottom = 0.60
 	_subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_subtitle.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	_subtitle.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_subtitle.add_theme_font_size_override("font_size", 26)
-	_subtitle.add_theme_color_override("font_color", Color(0.93, 0.94, 0.97))
-	_subtitle.add_theme_color_override("font_outline_color", Color(0.0, 0.0, 0.0, 0.85))
-	_subtitle.add_theme_constant_override("outline_size", 6)
+	_subtitle.add_theme_font_size_override("font_size", 40)
+	_subtitle.add_theme_color_override("font_color", Color(0.96, 0.97, 1.0))
+	_subtitle.add_theme_color_override("font_outline_color", Color(0.0, 0.0, 0.0, 1.0))
+	_subtitle.add_theme_constant_override("outline_size", 10)
 	_subtitle.modulate = Color(1.0, 1.0, 1.0, 0.0)
 	_subtitle.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_subtitle)
 
+	# 진행 힌트: 작게, 우하단 구석. 자막 흐름을 방해하지 않는다.
 	_hint = Label.new()
 	_hint.name = "AdvanceHint"
-	_hint.anchor_left = 0.0
-	_hint.anchor_right = 1.0
-	_hint.anchor_top = 0.93
-	_hint.anchor_bottom = 0.98
-	_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_hint.anchor_left = 0.5
+	_hint.anchor_right = 0.93
+	_hint.anchor_top = 0.92
+	_hint.anchor_bottom = 0.975
+	_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	_hint.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_hint.text = "화면을 탭하여 계속  ·  ESC 건너뛰기"
-	_hint.add_theme_font_size_override("font_size", 14)
-	_hint.add_theme_color_override("font_color", Color(0.7, 0.72, 0.78, 0.6))
+	_hint.text = "탭하여 계속 ▸"
+	_hint.add_theme_font_size_override("font_size", 15)
+	_hint.add_theme_color_override("font_color", Color(0.78, 0.80, 0.86, 0.55))
+	_hint.add_theme_color_override("font_outline_color", Color(0.0, 0.0, 0.0, 0.8))
+	_hint.add_theme_constant_override("outline_size", 3)
 	_hint.modulate = Color(1.0, 1.0, 1.0, 0.0)
 	_hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_hint)
 
 
-func _add_letterbox_bar(bar_name: String, anchor_top: float, anchor_bottom: float) -> void:
-	var bar := ColorRect.new()
-	bar.name = bar_name
-	bar.anchor_left = 0.0
-	bar.anchor_right = 1.0
-	bar.anchor_top = anchor_top
-	bar.anchor_bottom = anchor_bottom
-	bar.color = Color(0.0, 0.0, 0.0, 1.0)
-	bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(bar)
-
-
-func _show_plate(plate_index: int) -> void:
+func _show_plate(plate_index: int, target_alpha: float) -> void:
 	var path := PLATES[plate_index]
 	_plate.texture = load(path)
 	_plate.modulate.a = 0.0
 	_set_subtitle("")
 	_hint.modulate.a = 0.0
 	var tween := create_tween()
-	tween.tween_property(_plate, ^"modulate:a", 1.0, PLATE_FADE_SECONDS)
+	tween.tween_property(_plate, ^"modulate:a", target_alpha, PLATE_FADE_SECONDS)
 	await tween.finished
+
+
+## 마지막 비트: 자막이 사라지며 경복궁이 가득 드러나고, 잠시 머문 뒤 암전한다.
+func _reveal_finale() -> void:
+	var rise := create_tween()
+	rise.set_parallel(true)
+	rise.tween_property(_plate, ^"modulate:a", 1.0, REVEAL_RISE_SECONDS)
+	rise.tween_property(_subtitle, ^"modulate:a", 0.0, REVEAL_RISE_SECONDS)
+	rise.tween_property(_hint, ^"modulate:a", 0.0, REVEAL_RISE_SECONDS)
+	await rise.finished
+	await _hold(REVEAL_HOLD_SECONDS)
+	if _skip:
+		return
+	var fade_out := create_tween()
+	fade_out.tween_property(_plate, ^"modulate:a", 0.0, PLATE_FADE_OUT_SECONDS)
+	await fade_out.finished
+
+
+func _hold(seconds: float) -> void:
+	if _skip or get_tree() == null:
+		return
+	await get_tree().create_timer(seconds).timeout
 
 
 func _set_subtitle(text: String) -> void:
@@ -223,7 +247,8 @@ func _input(event: InputEvent) -> void:
 	if _finished:
 		return
 	if event.is_action_pressed("ui_cancel"):
-		skip()
+		# 가로 모바일: 인트로 중 뒤로/취소는 삼켜서 무시한다(스킵 없음,
+		# 로비 종료 팝업이 인트로 위로 뜨는 것 방지).
 		get_viewport().set_input_as_handled()
 		return
 	if _advance_ready and _is_tap(event):
