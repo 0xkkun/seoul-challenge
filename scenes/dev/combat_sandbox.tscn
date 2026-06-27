@@ -5,7 +5,7 @@
 [ext_resource type="PackedScene" path="res://scenes/enemies/chaser.tscn" id="3_chaser"]
 [ext_resource type="PackedScene" path="res://scenes/enemies/yokai_friend.tscn" id="4_friend"]
 [ext_resource type="PackedScene" path="res://scenes/enemies/boss.tscn" id="5_boss"]
-[ext_resource type="PackedScene" path="res://scenes/enemies/ranged_shooter.tscn" id="6_ranged"]
+[ext_resource type="PackedScene" path="res://scenes/enemies/kumiho.tscn" id="6_ranged"]
 [ext_resource type="PackedScene" path="res://scenes/items/bat_pickup.tscn" id="7_bat"]
 
 [sub_resource type="RectangleShape2D" id="wall_shape"]
@@ -41,7 +41,7 @@ position = Vector2(480, 90)
 [node name="Boss" parent="." instance=ExtResource("5_boss")]
 position = Vector2(720, 270)
 
-[node name="RangedShooter" parent="." instance=ExtResource("6_ranged")]
+[node name="Kumiho" parent="." instance=ExtResource("6_ranged")]
 position = Vector2(160, 480)
 
 [node name="BatPickup" parent="." instance=ExtResource("7_bat")]

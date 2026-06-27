@@ -19,6 +19,9 @@ const ENEMY_BULLET := preload("res://scenes/enemies/enemy_bullet.tscn")
 @export var fire_interval: float = 1.4        ## 발사 간격 (s)
 @export var hit_invuln_time: float = 0.12     ## 피격 직후 중복 피해 방지/플래시 시간
 @export var target_group: StringName = &"player"
+@export var projectile_scene: PackedScene = ENEMY_BULLET
+@export var move_animation: StringName = &"move"
+@export var attack_animation: StringName = &"attack"
 
 var _hp: int = 0
 var _fire_timer: float = 0.0
@@ -26,6 +29,7 @@ var _hit_reaction: Node = null
 var _status_effects: Node = null
 var _movement_bounds := Rect2()
 var _movement_bounds_enabled := false
+@onready var _sprite: AnimatedSprite2D = get_node_or_null(^"Sprite")
 
 
 func _ready() -> void:
@@ -60,6 +64,7 @@ func _physics_process(delta: float) -> void:
 		)
 	move_and_slide()
 	clamp_to_movement_bounds()
+	_update_animation()
 	tick_fire(delta, global_position, target.global_position)
 
 
@@ -96,6 +101,12 @@ func is_ready_to_fire(timer: float) -> bool:
 
 func is_dead(hp: int) -> bool:
 	return hp <= 0
+
+
+func get_projectile_scene_path() -> String:
+	if projectile_scene == null:
+		return ""
+	return projectile_scene.resource_path
 
 
 func set_movement_bounds(bounds: Rect2) -> void:
@@ -159,7 +170,7 @@ func _ensure_hit_reaction() -> Node:
 	_hit_reaction = HitReactionController.new()
 	_hit_reaction.name = "HitReaction"
 	add_child(_hit_reaction)
-	var visual := get_node_or_null(^"Placeholder") as CanvasItem
+	var visual := _get_visual()
 	if visual != null:
 		_hit_reaction.call("bind_visual", visual)
 	return _hit_reaction
@@ -214,6 +225,7 @@ func tick_fire(delta: float, origin: Vector2, target_position: Vector2) -> bool:
 	if not is_ready_to_fire(_fire_timer):
 		return false
 	_fire_timer = fire_interval
+	_play_attack_animation()
 	fired.emit(origin, aim_direction(origin, target_position))
 	return true
 
@@ -246,6 +258,30 @@ func _spawn_bullet(origin: Vector2, direction: Vector2) -> void:
 	var parent := get_parent()
 	if parent == null:
 		return
-	var bullet := ENEMY_BULLET.instantiate()
+	var scene := projectile_scene if projectile_scene != null else ENEMY_BULLET
+	var bullet := scene.instantiate()
 	parent.add_child(bullet)
 	bullet.call("launch", origin, direction)
+
+
+func _update_animation() -> void:
+	if _sprite == null or _sprite.sprite_frames == null:
+		return
+	if _sprite.animation == attack_animation and _sprite.is_playing():
+		return
+	if _sprite.sprite_frames.has_animation(move_animation) and _sprite.animation != move_animation:
+		_sprite.play(move_animation)
+
+
+func _play_attack_animation() -> void:
+	if _sprite == null or _sprite.sprite_frames == null:
+		return
+	if _sprite.sprite_frames.has_animation(attack_animation):
+		_sprite.play(attack_animation)
+
+
+func _get_visual() -> CanvasItem:
+	var sprite := get_node_or_null(^"Sprite") as CanvasItem
+	if sprite != null:
+		return sprite
+	return get_node_or_null(^"Placeholder") as CanvasItem
