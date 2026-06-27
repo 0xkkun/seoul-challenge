@@ -15,6 +15,9 @@ const BAT_HIT := &"bat_hit"
 const CORRIDOR_FOOTSTEP := &"corridor_footstep"
 const GYEONGBOKGUNG_FOOTSTEP := &"gyeongbokgung_footstep"
 const DASH_WIND := &"dash_wind"
+const NIGHT_INTRO_TRANSITION_AB := &"night_intro_transition_ab"
+const NIGHT_INTRO_TRANSITION_BC := &"night_intro_transition_bc"
+const NIGHT_INTRO_TRANSITION_CD := &"night_intro_transition_cd"
 const NIGHT_INTRO_TRANSITION := &"night_intro_transition"
 const NIGHT_INTRO_TRANSITION_C := &"night_intro_transition_c"
 const SESSION_TRANSITION_SFX_IDS: Array[StringName] = [
@@ -47,6 +50,9 @@ const _SFX_STREAM_PATHS := {
 	CORRIDOR_FOOTSTEP: "res://assets/audio/sfx/corridor_footstep.wav",
 	GYEONGBOKGUNG_FOOTSTEP: "res://assets/audio/sfx/gyeongbokgung_footstep.mp3",
 	DASH_WIND: "res://assets/audio/sfx/dash_wind.wav",
+	NIGHT_INTRO_TRANSITION_AB: "res://assets/audio/sfx/night_intro_transition_ab.mp3",
+	NIGHT_INTRO_TRANSITION_BC: "res://assets/audio/sfx/night_intro_transition_bc.mp3",
+	NIGHT_INTRO_TRANSITION_CD: "res://assets/audio/sfx/night_intro_transition_cd.mp3",
 	NIGHT_INTRO_TRANSITION: "res://assets/audio/sfx/night_intro_transition.mp3",
 	NIGHT_INTRO_TRANSITION_C: "res://assets/audio/sfx/night_intro_transition_c.mp3",
 }

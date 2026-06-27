@@ -87,6 +87,21 @@ func test_school_reward_and_victory_sfx_are_registered() -> void:
 		_runner.assert_not_null(load(stream_path) as AudioStreamMP3, "%s SFX loads as MP3" % sfx_id)
 
 
+func test_night_intro_trailer_transition_sfx_are_registered() -> void:
+	var expected_paths := {
+		AudioManager.NIGHT_INTRO_TRANSITION_AB: "res://assets/audio/sfx/night_intro_transition_ab.mp3",
+		AudioManager.NIGHT_INTRO_TRANSITION_BC: "res://assets/audio/sfx/night_intro_transition_bc.mp3",
+		AudioManager.NIGHT_INTRO_TRANSITION_CD: "res://assets/audio/sfx/night_intro_transition_cd.mp3",
+	}
+
+	for sfx_id: StringName in expected_paths.keys():
+		var stream_path := String(expected_paths[sfx_id])
+		_runner.assert_true(AudioManager.has_sfx(sfx_id), "%s trailer transition SFX is registered" % sfx_id)
+		_runner.assert_eq(AudioManager.get_sfx_stream_path(sfx_id), stream_path, "%s trailer transition SFX path is stable" % sfx_id)
+		_runner.assert_true(ResourceLoader.exists(stream_path), "%s trailer transition SFX resource exists" % sfx_id)
+		_runner.assert_not_null(load(stream_path) as AudioStreamMP3, "%s trailer transition SFX loads as MP3" % sfx_id)
+
+
 func test_school_hallway_bgm_is_registered() -> void:
 	var stream_path := AudioManager.get_bgm_stream_path(AudioManager.SCHOOL_HALLWAY_BGM)
 
