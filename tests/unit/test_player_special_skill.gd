@@ -1,6 +1,8 @@
 extends Node
 
 const PlayerScript := preload("res://scripts/player/player.gd")
+const PLAYER_DASH_SHEET_PATH := "res://assets/sprites/player/player_dash.png"
+const PLAYER_DASH_SHEET_SHA256 := "5a4e69b5b9d2ec461aa2f2ab7e78077fda3fd7c21d96a194c84e573e8c15b199"
 
 var _runner: Node
 
@@ -139,6 +141,30 @@ func test_dash_dust_state_places_effect_behind_dash_at_feet() -> void:
 	player.free()
 
 
+func test_player_sprite_frames_include_dash_animation_from_download_asset() -> void:
+	var source_sheet := load(PLAYER_DASH_SHEET_PATH) as Texture2D
+	var frames := load("res://assets/sprites/player/player_baseball_frames.tres") as SpriteFrames
+
+	_runner.assert_not_null(source_sheet, "player dash uses the supplied download dash sheet")
+	if source_sheet != null:
+		_runner.assert_eq(source_sheet.get_width(), 512, "dash source sheet has four 128px frames")
+		_runner.assert_eq(source_sheet.get_height(), 128, "dash source sheet keeps the supplied 128px height")
+		_runner.assert_eq(FileAccess.get_sha256(PLAYER_DASH_SHEET_PATH), PLAYER_DASH_SHEET_SHA256, "dash PNG matches the latest download asset")
+	_runner.assert_not_null(frames, "player sprite frames load")
+	if frames == null:
+		return
+	_runner.assert_true(frames.has_animation(&"dash"), "player sprite frames include dash animation")
+	if not frames.has_animation(&"dash"):
+		return
+	_runner.assert_false(frames.get_animation_loop(&"dash"), "dash animation is a one-shot motion")
+	_runner.assert_eq(frames.get_frame_count(&"dash"), 4, "dash animation uses all four download frames")
+	for index in range(frames.get_frame_count(&"dash")):
+		var atlas := frames.get_frame_texture(&"dash", index) as AtlasTexture
+		_runner.assert_not_null(atlas, "dash frame %d uses an atlas texture" % index)
+		if atlas != null:
+			_runner.assert_eq(atlas.region, Rect2(index * 128, 0, 128, 128), "dash frame %d cuts a clean 128px region" % index)
+
+
 func test_player_scene_includes_hidden_dash_dust_effect() -> void:
 	var player := (load("res://scenes/player/player.tscn") as PackedScene).instantiate()
 	add_child(player)
@@ -166,6 +192,40 @@ func test_player_scene_includes_hidden_dash_dust_effect() -> void:
 			_runner.assert_not_null(dust_sprite.texture, "dash dust sprite has a texture")
 			if dust_sprite.texture != null:
 				_runner.assert_eq(dust_sprite.texture.resource_path, "res://assets/effects/player_dash_dust.png", "dash dust uses the supplied sheet")
+	player.queue_free()
+
+
+func test_start_dodge_plays_character_dash_animation() -> void:
+	var player := (load("res://scenes/player/player.tscn") as PackedScene).instantiate()
+	add_child(player)
+	player.special_skill_max_uses = 1
+	player.special_skill_uses_remaining = 1
+
+	_runner.assert_true(player.try_start_special_skill(Vector2.RIGHT), "ready dodge starts")
+
+	var sprite := player.get_node_or_null("Sprite") as AnimatedSprite2D
+	_runner.assert_not_null(sprite, "player scene includes animated character sprite")
+	if sprite != null:
+		_runner.assert_eq(sprite.animation, &"dash", "dodge button starts the character dash animation")
+		_runner.assert_eq(sprite.frame, 0, "dash animation starts from the first frame")
+		_runner.assert_false(sprite.flip_h, "right dodge keeps the dash sprite facing right")
+	player.queue_free()
+
+
+func test_dash_animation_survives_animation_update_while_dodging() -> void:
+	var player := (load("res://scenes/player/player.tscn") as PackedScene).instantiate()
+	add_child(player)
+	player.special_skill_max_uses = 1
+	player.special_skill_uses_remaining = 1
+
+	_runner.assert_true(player.try_start_special_skill(Vector2.LEFT), "ready dodge starts")
+	player._update_animation(Vector2.LEFT)
+
+	var sprite := player.get_node_or_null("Sprite") as AnimatedSprite2D
+	_runner.assert_not_null(sprite, "player scene includes animated character sprite")
+	if sprite != null:
+		_runner.assert_eq(sprite.animation, &"dash", "movement animation update keeps dash while dodge is active")
+		_runner.assert_true(sprite.flip_h, "left dodge flips the dash sprite")
 	player.queue_free()
 
 

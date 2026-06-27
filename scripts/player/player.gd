@@ -587,6 +587,7 @@ func try_start_special_skill(input_vector: Vector2 = Vector2.ZERO) -> bool:
 	_invuln_timer = maxf(_invuln_timer, dodge_invuln_time)
 	special_skill_uses_remaining = consume_special_use(special_skill_uses_remaining)
 	_show_dash_dust(_dodge_direction)
+	_play_dodge_anim(_dodge_direction, true)
 	_start_special_recharge_if_needed()
 	_broadcast_special_skill_state()
 	return true
@@ -822,6 +823,21 @@ func _play_attack_anim(dir: Vector2) -> void:
 	_sprite.play(&"attack")
 
 
+func _play_dodge_anim(dir: Vector2, restart := false) -> void:
+	if _sprite == null:
+		return
+	if _sprite.sprite_frames == null or not _sprite.sprite_frames.has_animation(&"dash"):
+		return
+	if absf(dir.x) > 0.05:
+		_sprite.flip_h = dir.x < 0.0
+	_sprite.speed_scale = 1.0
+	if restart or _sprite.animation != &"dash":
+		_sprite.play(&"dash")
+		_sprite.frame = 0
+	elif not _sprite.is_playing():
+		_sprite.play()
+
+
 func animation_duration_seconds(frames: SpriteFrames, animation: StringName) -> float:
 	if frames == null or not frames.has_animation(animation):
 		return 0.0
@@ -847,6 +863,9 @@ func _update_animation(move: Vector2) -> void:
 		return
 	if _is_attacking:
 		return  # 공격 중엔 조준 방향 반전을 유지(_play_attack_anim 이 설정)
+	if _dodge_timer > 0.0:
+		_play_dodge_anim(_dodge_direction)
+		return
 	_sprite.speed_scale = 1.0
 	if absf(_facing.x) > 0.05:
 		_sprite.flip_h = _facing.x < 0.0
