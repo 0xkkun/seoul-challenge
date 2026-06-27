@@ -66,7 +66,7 @@ func test_locker_maintenance_uses_dungeon_ui_loadout_hierarchy() -> void:
 	_runner.assert_eq(screen.get_weapon_card_icon_path(LockerMaintenanceScript.WEAPON_BAT), LockerMaintenanceScript.BAT_ICON_PATH, "locker bat card uses the real bat icon asset")
 	_runner.assert_eq(return_button.text, "이전으로", "return CTA does not mention the hallway")
 	_runner.assert_eq(departure_button.text, "경복궁으로", "departure CTA skips the map step")
-	_runner.assert_eq(weapon_status.text, "선택한 장비\n\n금 간 나무 배트\n\n경복궁으로\n바로 이동", "selected loadout is summarized beside the slot")
+	_runner.assert_eq(weapon_status.text, "선택한 장비\n\n마지막 시즌의 배트\n\n경복궁으로\n바로 이동", "selected loadout is summarized beside the slot")
 	var slot_box := bat_card.get_theme_stylebox("normal") as StyleBoxTexture
 	_runner.assert_not_null(slot_box, "selected weapon slot uses the shared textured card frame")
 	if slot_box != null:
@@ -129,7 +129,7 @@ func test_locker_maintenance_buttons_emit_flow_signals() -> void:
 	_runner.assert_eq(weapon_ids, [], "pressing the already-selected single weapon does not emit a redundant change")
 	_runner.assert_false(UiTestHarness.press_by_uat_action(screen, "locker_maintenance.weapon.baseball"), "baseball weapon action is removed")
 	var weapon_status := screen.get_node("LoadoutSummaryPanel/WeaponStatusLabel") as Label
-	_runner.assert_true(weapon_status.text.contains("금 간 나무 배트"), "loadout summary keeps the story-backed weapon")
+	_runner.assert_true(weapon_status.text.contains("마지막 시즌의 배트"), "loadout summary keeps the story-backed weapon")
 
 	_runner.assert_true(UiTestHarness.press_by_uat_action(screen, LockerMaintenanceScript.ACTION_RETURN), "return button can be pressed")
 	_runner.assert_eq(return_count[0], 1, "return button emits return request")
