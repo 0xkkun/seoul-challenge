@@ -445,6 +445,94 @@ func test_dash_power_attack_uses_only_power_effect_not_blue_bat_slash() -> void:
 		_runner.assert_true(power_impact.visible, "dash power attack shows the fire slash effect")
 
 
+func test_attack_dust_state_places_effect_behind_facing_at_feet() -> void:
+	var player = PlayerScript.new()
+	_runner.assert_true(player.has_method("build_attack_dust_effect_state"), "player exposes pure attack dust placement helper")
+	if not player.has_method("build_attack_dust_effect_state"):
+		player.free()
+		return
+
+	var right_state: Dictionary = player.call(
+		"build_attack_dust_effect_state",
+		Vector2.RIGHT,
+		Vector2(960.0, 1440.0),
+		72.0,
+		26.0,
+		16.0
+	)
+	var up_state: Dictionary = player.call(
+		"build_attack_dust_effect_state",
+		Vector2.UP,
+		Vector2(960.0, 1440.0),
+		72.0,
+		26.0,
+		16.0
+	)
+
+	_runner.assert_true((right_state["position"] as Vector2).x < 0.0, "right-facing attack places dust behind the player")
+	_runner.assert_true(is_equal_approx((right_state["position"] as Vector2).y, 16.0), "dust keeps a foot-level downward offset")
+	_runner.assert_true(is_equal_approx(float(right_state["rotation"]), Vector2.LEFT.angle()), "dust points toward the opposite direction")
+	_runner.assert_true(is_equal_approx((right_state["scale"] as Vector2).x, 72.0 / 1440.0), "dust scales the large source frame to gameplay size")
+	_runner.assert_true((up_state["position"] as Vector2).y > 16.0, "up-facing attack places dust below the player")
+	player.free()
+
+
+func test_attack_dust_only_triggers_while_moving() -> void:
+	var player = PlayerScript.new()
+	_runner.assert_true(player.has_method("should_show_attack_dust"), "player exposes dust movement gate helper")
+	if not player.has_method("should_show_attack_dust"):
+		player.free()
+		return
+
+	_runner.assert_true(bool(player.call("should_show_attack_dust", Vector2.RIGHT)), "moving attack shows dust")
+	_runner.assert_false(bool(player.call("should_show_attack_dust", Vector2.ZERO)), "standing attack does not show dust")
+	player.free()
+
+
+func test_player_scene_includes_hidden_attack_dust_effect() -> void:
+	var player := (load("res://scenes/player/player.tscn") as PackedScene).instantiate()
+	add_child(player)
+	var dust_root := player.get_node_or_null("AttackDust") as Node2D
+
+	_runner.assert_not_null(dust_root, "player scene includes attack dust effect root")
+	if dust_root != null:
+		_runner.assert_false(dust_root.visible, "attack dust starts hidden")
+		var dust_sprite := dust_root.get_node_or_null("DustSprite") as AnimatedSprite2D
+		_runner.assert_not_null(dust_sprite, "attack dust uses an animated sprite sheet")
+		if dust_sprite != null:
+			_runner.assert_false(dust_sprite.visible, "attack dust sprite starts hidden with the root")
+			_runner.assert_not_null(dust_sprite.sprite_frames, "attack dust has SpriteFrames")
+			if dust_sprite.sprite_frames != null:
+				_runner.assert_eq(dust_sprite.sprite_frames.get_frame_count(&"burst"), 17, "attack dust sheet uses the 17 non-empty frames")
+				var first_frame := dust_sprite.sprite_frames.get_frame_texture(&"burst", 0) as AtlasTexture
+				_runner.assert_not_null(first_frame, "attack dust frames use atlas regions")
+				if first_frame != null:
+					_runner.assert_eq(first_frame.atlas.resource_path, "res://assets/effects/attack_reverse_dust.png", "attack dust uses the supplied asset")
+					_runner.assert_eq(first_frame.region.size, Vector2(960.0, 1440.0), "attack dust frame size matches the inspected sheet")
+
+
+func test_moving_attack_shows_dust_behind_facing() -> void:
+	var player := (load("res://scenes/player/player.tscn") as PackedScene).instantiate()
+	add_child(player)
+	_runner.assert_true(player.has_method("_show_attack_dust"), "player exposes attack dust trigger")
+	if not player.has_method("_show_attack_dust"):
+		player.queue_free()
+		return
+
+	player.call("_show_attack_dust", Vector2.RIGHT, Vector2.RIGHT)
+
+	var dust_root := player.get_node_or_null("AttackDust") as Node2D
+	var dust_sprite := dust_root.get_node_or_null("DustSprite") as AnimatedSprite2D if dust_root != null else null
+	_runner.assert_not_null(dust_root, "player scene includes attack dust effect root")
+	_runner.assert_not_null(dust_sprite, "attack dust root has a sprite")
+	if dust_root != null:
+		_runner.assert_true(dust_root.visible, "moving attack reveals dust root")
+		_runner.assert_true(dust_root.position.x < 0.0, "right-facing moving attack puts dust behind the player")
+	if dust_sprite != null:
+		_runner.assert_true(dust_sprite.visible, "moving attack reveals dust sprite")
+		_runner.assert_eq(dust_sprite.frame, 0, "dust animation starts from the first visible frame")
+
+
 func test_player_scene_includes_fire_power_slash_effect() -> void:
 	var player := (load("res://scenes/player/player.tscn") as PackedScene).instantiate()
 	add_child(player)
