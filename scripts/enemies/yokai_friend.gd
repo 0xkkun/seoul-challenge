@@ -1,7 +1,7 @@
 extends CharacterBody2D
 ## #18 요괴화 친구 중간보스 — 처치가 아니라 기절→정화.
 ##
-## 추적(CHASING) → 데미지로 기절 게이지가 차면 STUNNED → 그동안 플레이어가 근접+홀드로
+## 추적(CHASING) → 데미지로 기절 게이지가 차면 STUNNED → 그동안 플레이어가 근접 유지로
 ## 정화 진행 → 완료 시 purified 방출(친구 구출). 기절이 풀리면 다시 추적.
 ## 최종 보스(#17)와는 별개. 적 프리미티브를 재사용하되 죽지 않는다.
 
@@ -33,7 +33,7 @@ enum State { CHASING, STUNNED, PURIFIED }
 
 @export var max_stun: int = 5            ## 기절까지 필요한 누적 피해
 @export var stun_duration: float = 3.0   ## 기절 지속(이 안에 정화 못하면 복귀)
-@export var purify_time: float = 1.2      ## 정화 완료까지 홀드 시간 (s)
+@export var purify_time: float = 1.2      ## 정화 완료까지 근접 유지 시간 (s)
 @export var purify_range: float = 60.0    ## 정화 가능 거리 (px)
 @export var purify_progress_radius: float = 52.0
 @export var move_speed: float = 80.0
@@ -221,11 +221,9 @@ func _process_stun(delta: float) -> void:
 		_return_to_chase_after_stun()
 
 
-## 플레이어가 정화 중인가 — 근접 + 발사 입력 홀드.
+## 플레이어가 정화 중인가 — 공격 입력과 분리하고 근접 유지로만 판정한다.
 func _player_is_purifying(target: Node2D) -> bool:
-	if not _player_in_purify_range(target):
-		return false
-	return target.has_method("is_firing") and target.is_firing()
+	return _player_in_purify_range(target)
 
 
 func _complete_purify() -> void:
