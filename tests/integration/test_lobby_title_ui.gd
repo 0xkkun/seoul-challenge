@@ -37,7 +37,7 @@ func test_lobby_title_scene_uses_title_assets_and_menu_contract() -> void:
 	_runner.assert_eq(title_logo.texture.resource_path, "res://assets/branding/title_logo.png", "lobby uses official title logo")
 	_runner.assert_eq(start_button.text, "게임 시작", "start button is localized")
 	_runner.assert_eq(settings_button.text, "설정", "settings button is localized")
-	_runner.assert_eq(tagline_label.text, "낮에 만든 기억으로, 밤의 궁에 들어간다.", "title screen states the core loop")
+	_runner.assert_eq(tagline_label.text, "낮에 모은 기억으로 밤의 궁에 들어간다.", "title screen states the core loop")
 	_runner.assert_eq(start_button.focus_mode, Control.FOCUS_NONE, "mobile lobby start button does not render focus chrome")
 	_runner.assert_eq(settings_button.focus_mode, Control.FOCUS_NONE, "mobile lobby settings button does not render focus chrome")
 	_runner.assert_eq(AudioManager.get_current_bgm(), AudioManager.LOBBY_BGM_DEFAULT, "lobby starts the default BGM")

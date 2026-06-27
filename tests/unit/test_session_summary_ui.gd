@@ -38,7 +38,7 @@ func test_success_result_renders_player_facing_summary() -> void:
 	_runner.assert_eq(snapshot["memory_label"], "기억 조각", "permanent reward label is concise")
 	_runner.assert_eq(snapshot["memory_amount"], "+42", "permanent reward is the largest result number")
 	_runner.assert_eq(snapshot["students"], "구출 3", "rescued students render as a record chip")
-	_runner.assert_eq(snapshot["friends"], "친구 1", "purified friends render as a record chip")
+	_runner.assert_eq(snapshot["friends"], "정화 1", "purified friends render as a record chip")
 	_runner.assert_eq(snapshot["rooms"], "방 18", "room count renders as a record chip")
 	_runner.assert_eq(snapshot["unlocks"], "", "no unlock row is rendered without unlocks")
 	_assert_no_explainer_copy(snapshot)
@@ -58,7 +58,7 @@ func test_death_result_keeps_same_layout_without_loss_copy() -> void:
 	_runner.assert_true(snapshot["narrative"].contains("기억 조각은 손에 남아 있다"), "death summary reassures retained progress")
 	_runner.assert_eq(snapshot["memory_amount"], "+5", "death still foregrounds earned memory")
 	_runner.assert_eq(snapshot["students"], "구출 1", "death keeps the record stack")
-	_runner.assert_eq(snapshot["friends"], "친구 0", "zero values stay aligned in the same chip")
+	_runner.assert_eq(snapshot["friends"], "정화 0", "zero values stay aligned in the same chip")
 	_runner.assert_eq(snapshot["rooms"], "방 7", "room count remains visible")
 	_assert_no_explainer_copy(snapshot)
 
@@ -74,7 +74,7 @@ func test_run_result_contract_derives_records_from_existing_payload() -> void:
 	var snapshot: Dictionary = _ui.get_summary_snapshot()
 	_runner.assert_eq(snapshot["title"], "탈출 성공", "completed run maps to success")
 	_runner.assert_eq(snapshot["memory_amount"], "+3", "existing cleared rooms derive memory reward")
-	_runner.assert_eq(snapshot["friends"], "친구 1", "boss result derives purified friend count")
+	_runner.assert_eq(snapshot["friends"], "정화 1", "boss result derives purified friend count")
 	_runner.assert_eq(snapshot["rooms"], "방 3", "cleared rooms drive room record")
 
 
@@ -88,7 +88,7 @@ func test_explicit_zero_reward_is_not_derived_from_rooms() -> void:
 
 	var snapshot: Dictionary = _ui.get_summary_snapshot()
 	_runner.assert_eq(snapshot["memory_amount"], "+0", "explicit zero reward is honored")
-	_runner.assert_eq(snapshot["friends"], "친구 0", "explicit zero friend count is honored")
+	_runner.assert_eq(snapshot["friends"], "정화 0", "explicit zero friend count is honored")
 	_runner.assert_eq(snapshot["rooms"], "방 2", "room records still derive when not explicit")
 
 
@@ -169,13 +169,13 @@ func test_reward_choices_render_three_actions_and_emit_selected_id() -> void:
 		{
 			"item_id": &"gung_talisman",
 			"display_name": "강타 부적",
-			"flavor": "주먹과 배트의 타격이 묵직해진다.",
+			"flavor": "주먹과 배트에 힘이 실린다.",
 			"effect": "근접 피해 +1 / 배트 피해 +1",
 		},
 		{
 			"item_id": &"dokkaebi_fire",
 			"display_name": "도깨비불",
-			"flavor": "푸른 불씨가 공격 박자를 앞당긴다.",
+			"flavor": "푸른 불씨가 공격 타이밍을 앞당긴다.",
 			"effect": "근접 공격 간격 -16% / 투척 간격 -16%",
 		},
 		{
@@ -191,7 +191,7 @@ func test_reward_choices_render_three_actions_and_emit_selected_id() -> void:
 	_runner.assert_eq(snapshot["room_id"], &"combat_1", "reward choice keeps source room id")
 	_runner.assert_eq(snapshot["choice_ids"], [&"gung_talisman", &"dokkaebi_fire", &"wind_step"], "reward choices keep stable item order")
 	_runner.assert_eq(snapshot["choice_texts"][0], "강타 부적", "reward button uses display name")
-	_runner.assert_true(snapshot["choice_flavors"][1].contains("공격 박자"), "reward flavor is available for scan")
+	_runner.assert_true(snapshot["choice_flavors"][1].contains("공격 타이밍"), "reward flavor is available for scan")
 	_runner.assert_true(snapshot.has("choice_effects"), "reward snapshot exposes concrete stat effects")
 	if not snapshot.has("choice_effects"):
 		return
@@ -210,7 +210,7 @@ func test_reward_choice_open_starts_slide_fade_animation() -> void:
 		{
 			"item_id": &"gung_talisman",
 			"display_name": "강타 부적",
-			"flavor": "주먹과 배트의 타격이 묵직해진다.",
+			"flavor": "주먹과 배트에 힘이 실린다.",
 			"effect": "근접 피해 +1 / 배트 피해 +1",
 		},
 	])
@@ -238,7 +238,7 @@ func test_summary_renders_baseball_unlocks_when_present() -> void:
 	})
 
 	var snapshot: Dictionary = _ui.get_summary_snapshot()
-	_runner.assert_true(snapshot["unlocks"].contains("야구부 STAGE 3"), "stage unlock is shown")
+	_runner.assert_true(snapshot["unlocks"].contains("야구부 3단계"), "stage unlock is shown")
 	_runner.assert_true(snapshot["unlocks"].contains("마지막 시즌의 배트"), "awakened bat unlock is shown")
 
 

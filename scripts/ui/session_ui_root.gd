@@ -22,7 +22,7 @@ const REWARD_CHOICE_PANEL_OFFSET_BOTTOM := 164.0
 const REWARD_CHOICE_PANEL_SLIDE_OFFSET := 36.0
 const REWARD_CHOICE_OPEN_DURATION := 0.18
 const UNLOCK_LABELS := {
-	&"baseball_stage_3": "야구부 STAGE 3",
+	&"baseball_stage_3": "야구부 3단계",
 	&"awakened_bat": "마지막 시즌의 배트",
 }
 
@@ -120,7 +120,7 @@ func get_map_name() -> String:
 
 
 func set_interaction_count(count: int) -> void:
-	interaction_label.text = "진행 %d" % count
+	interaction_label.text = "진행도 %d" % count
 
 
 func show_summary(result: Dictionary) -> void:
@@ -134,7 +134,7 @@ func show_summary(result: Dictionary) -> void:
 	memory_label.text = "기억 조각"
 	memory_amount_label.text = "+%d" % int(summary["memory_reward"])
 	students_record_label.text = "구출 %d" % int(summary["students_rescued"])
-	friends_record_label.text = "친구 %d" % int(summary["friends_purified"])
+	friends_record_label.text = "정화 %d" % int(summary["friends_purified"])
 	rooms_record_label.text = "방 %d" % int(summary["rooms_cleared"])
 	var unlock_labels: Array[String] = summary["unlocks"]
 	unlocks_record_panel.visible = not unlock_labels.is_empty()
@@ -385,7 +385,7 @@ func _reward_choice_button_text(display_name: String, flavor: String, effect: St
 	if flavor != "":
 		parts.append(flavor)
 	if effect != "":
-		parts.append("스탯: %s" % effect)
+		parts.append("효과: %s" % effect)
 	return "\n".join(parts)
 
 
@@ -432,7 +432,7 @@ func _result_title(result: Dictionary) -> String:
 		return "탈출 성공"
 	if outcome in ["success", "escaped", "complete", "completed"]:
 		return "탈출 성공"
-	return "런 종료"
+	return "밤 종료"
 
 
 func _result_narrative(result: Dictionary) -> String:
@@ -441,7 +441,7 @@ func _result_narrative(result: Dictionary) -> String:
 		return "새벽 종소리와 함께 교실에서 눈을 떴다. 기억 조각은 손에 남아 있다."
 	if bool(result.get("completed", false)) or String(result.get("reason", "")) == "boss_resolved" or outcome in ["success", "escaped", "complete", "completed"]:
 		return "친구의 기억이 조금 돌아왔다. 학교로 돌아가 말을 걸어보자."
-	return "오늘 밤의 기록을 챙겼다. 학교에서 정비하고 다시 나갈 수 있다."
+	return "오늘 밤의 기록을 챙겼다. 학교에서 정비한 뒤 다시 나갈 수 있다."
 
 
 func _memory_reward(result: Dictionary) -> int:

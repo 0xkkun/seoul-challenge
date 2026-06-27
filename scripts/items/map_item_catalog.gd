@@ -5,7 +5,7 @@ const DEFAULT_ITEM_ID := &"gung_talisman"
 const ITEMS := {
 	&"gung_talisman": {
 		"display_name": "강타 부적",
-		"flavor": "주먹과 배트의 타격이 묵직해진다.",
+		"flavor": "주먹과 배트에 힘이 실린다.",
 		"modifiers": {
 			"melee_damage_add": 1,
 			"bat_damage_add": 1,
@@ -13,7 +13,7 @@ const ITEMS := {
 	},
 	&"dokkaebi_fire": {
 		"display_name": "도깨비불",
-		"flavor": "푸른 불씨가 공격 박자를 앞당긴다.",
+		"flavor": "푸른 불씨가 공격 타이밍을 앞당긴다.",
 		"modifiers": {
 			"attack_cooldown_mult": 0.84,
 			"fire_cooldown_mult": 0.84,
@@ -28,7 +28,7 @@ const ITEMS := {
 	},
 	&"moon_guard": {
 		"display_name": "달빛 호신부",
-		"flavor": "달빛이 하트 한 칸을 임시로 감싼다.",
+		"flavor": "달빛이 체력 한 칸을 잠시 감싼다.",
 		"modifiers": {
 			"max_health_add": 1,
 		},

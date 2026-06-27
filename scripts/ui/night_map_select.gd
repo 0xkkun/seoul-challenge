@@ -56,7 +56,7 @@ func _build_ui() -> void:
 	title.anchor_top = 0.055
 	title.anchor_right = 0.48
 	title.anchor_bottom = 0.14
-	title.text = "야간 지도"
+	title.text = "밤 지도"
 	title.add_theme_font_size_override("font_size", 40)
 	title.add_theme_color_override("font_color", DungeonTheme.COLOR_GOLD)
 	add_child(title)
@@ -67,7 +67,7 @@ func _build_ui() -> void:
 	subtitle.anchor_top = 0.145
 	subtitle.anchor_right = 0.74
 	subtitle.anchor_bottom = 0.20
-	subtitle.text = "정비한 장비로 진입할 밤런 경로를 고른다."
+	subtitle.text = "정비한 장비로 오늘 밤 향할 길을 고른다."
 	subtitle.add_theme_font_size_override("font_size", 18)
 	subtitle.add_theme_color_override("font_color", DungeonTheme.COLOR_MUTED_TEXT)
 	add_child(subtitle)
@@ -86,7 +86,7 @@ func _build_ui() -> void:
 
 	_route_label = Label.new()
 	_route_label.name = "MapLabel"
-	_route_label.text = "학교 정비실  ─  광화문 봉인문  ─  경복궁\n\n잠김: 창덕궁 · 덕수궁 · 종묘\n\n오늘 밤 갈 수 있는 궁은 경복궁뿐이다."
+	_route_label.text = "학교 정비실  ─  광화문 봉인문  ─  경복궁\n\n아직 잠김: 창덕궁 · 덕수궁 · 종묘\n\n오늘 밤은 경복궁으로만 갈 수 있다."
 	_route_label.add_theme_font_size_override("font_size", 24)
 	_route_label.add_theme_color_override("font_color", DungeonTheme.COLOR_TEXT)
 	_route_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -108,7 +108,7 @@ func _build_ui() -> void:
 
 	var destination := Label.new()
 	destination.name = "DestinationLabel"
-	destination.text = "선택됨\n밤의 경복궁\n\n시간  야간\n위험도  보통\n장비  기억 무기\n목표  친구 정화와 탈출"
+	destination.text = "선택한 곳\n밤의 경복궁\n\n시간  밤\n위험도  보통\n장비  기억 무기\n목표  친구 정화 · 탈출"
 	destination.add_theme_font_size_override("font_size", 22)
 	destination.add_theme_color_override("font_color", DungeonTheme.COLOR_TEXT)
 	destination.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -118,11 +118,11 @@ func _build_ui() -> void:
 
 	var return_rect := MobileSafeArea.bottom_anchored_rect(0.06, 0.24, 0.13)
 	var depart_rect := MobileSafeArea.bottom_anchored_rect(0.66, 0.28, 0.13)
-	var return_button := _make_action_button("ReturnButton", "정비\n돌아가기", return_rect, ACTION_RETURN)
+	var return_button := _make_action_button("ReturnButton", "정비실로\n돌아가기", return_rect, ACTION_RETURN)
 	add_child(return_button)
 	return_button.pressed.connect(_on_return_pressed)
 
-	_depart_button = _make_action_button("GyeongbokgungButton", "밤의 경복궁\n진입", depart_rect, ACTION_SELECT_GYEONGBOKGUNG)
+	_depart_button = _make_action_button("GyeongbokgungButton", "경복궁으로\n들어가기", depart_rect, ACTION_SELECT_GYEONGBOKGUNG)
 	add_child(_depart_button)
 	_depart_button.pressed.connect(_on_gyeongbokgung_pressed)
 

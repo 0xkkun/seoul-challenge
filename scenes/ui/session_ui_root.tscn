@@ -183,7 +183,7 @@ unique_name_in_owner = true
 layout_mode = 2
 theme_override_font_sizes/font_size = 30
 theme_override_colors/font_color = Color(0.407843, 0.686275, 0.94902, 1)
-text = "친구 1"
+text = "정화 1"
 horizontal_alignment = 1
 vertical_alignment = 1
 
