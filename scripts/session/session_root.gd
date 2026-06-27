@@ -34,6 +34,7 @@ const COMBAT_FEEDBACK_MAX_OFFSET := 7.0
 @onready var interaction_system: Node = %InteractionSystem
 @onready var room_manager: RoomManager = %RoomManager
 @onready var death_return_controller: DeathReturnController = %DeathReturnController
+@onready var touch_controls: Node = %TouchControls
 @onready var session_ui_root: CanvasLayer = %SessionUIRoot
 @onready var player_camera: Camera2D = %PlayerCamera
 @onready var _fade_rect: ColorRect = $FadeLayer/FadeRect
@@ -315,6 +316,7 @@ func _show_room_reward_choices(room_id: StringName) -> void:
 		return
 	_pending_reward_room_id = room_id
 	_paused_before_reward_choice = get_tree().paused
+	_release_combat_touch_inputs()
 	get_tree().paused = true
 	session_ui_root.call("show_reward_choices", room_id, choices)
 	session_ui_root.set_status("전투 보상")
@@ -370,6 +372,11 @@ func _reward_choice_ids(room_id: StringName, count: int) -> Array[StringName]:
 		if result.size() >= count:
 			break
 	return result
+
+
+func _release_combat_touch_inputs() -> void:
+	if touch_controls != null and touch_controls.has_method("release_combat_inputs"):
+		touch_controls.call("release_combat_inputs")
 
 
 func camera_feedback_offset(direction: Vector2, intensity: float) -> Vector2:

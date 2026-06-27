@@ -52,6 +52,13 @@ func is_skill_pressed() -> bool:
 	return _skill.is_held()
 
 
+func release_combat_inputs() -> void:
+	if _attack != null and _attack.has_method("release"):
+		_attack.call("release")
+	if _skill != null and _skill.has_method("release"):
+		_skill.call("release")
+
+
 func set_skill_state(payload: Dictionary) -> void:
 	if _skill.has_method("set_skill_state"):
 		_skill.call("set_skill_state", payload)

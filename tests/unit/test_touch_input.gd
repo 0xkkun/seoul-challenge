@@ -76,6 +76,29 @@ func test_touch_controls_exposes_skill_button() -> void:
 	_runner.assert_true(is_equal_approx(skill_button.get_cooldown_ratio(), 0.5), "skill button exposes cooldown progress")
 
 
+func test_touch_controls_can_release_combat_inputs_for_modal_open() -> void:
+	var touch := TouchControlsScene.instantiate()
+	add_child(touch)
+
+	var attack_button := touch.get_node_or_null("AttackButton") as Control
+	var skill_button := touch.get_node_or_null("SkillButton") as Control
+	_runner.assert_not_null(attack_button, "touch controls mount attack button")
+	_runner.assert_not_null(skill_button, "touch controls mount skill button")
+	_runner.assert_true(touch.has_method("release_combat_inputs"), "touch controls expose modal-safe input release")
+	if attack_button == null or skill_button == null or not touch.has_method("release_combat_inputs"):
+		return
+
+	attack_button.set("_active_index", 4)
+	skill_button.set("_active_index", 5)
+	_runner.assert_true(touch.is_attack_pressed(), "held attack starts active")
+	_runner.assert_true(touch.is_skill_pressed(), "held skill starts active")
+
+	touch.call("release_combat_inputs")
+
+	_runner.assert_false(touch.is_attack_pressed(), "modal release clears held attack")
+	_runner.assert_false(touch.is_skill_pressed(), "modal release clears held skill")
+
+
 func test_touch_controls_day_dialogue_category_hides_dodge_button() -> void:
 	var touch := TouchControlsScene.instantiate()
 	add_child(touch)
