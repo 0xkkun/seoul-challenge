@@ -1,0 +1,102 @@
+[gd_resource type="SpriteFrames" load_steps=15 format=3]
+
+[ext_resource type="Texture2D" path="res://assets/effects/boss_ground_impact.png" id="1_ground"]
+
+[sub_resource type="AtlasTexture" id="ground0"]
+atlas = ExtResource("1_ground")
+region = Rect2(0, 0, 48, 18)
+
+[sub_resource type="AtlasTexture" id="ground1"]
+atlas = ExtResource("1_ground")
+region = Rect2(48, 0, 48, 18)
+
+[sub_resource type="AtlasTexture" id="ground2"]
+atlas = ExtResource("1_ground")
+region = Rect2(96, 0, 48, 18)
+
+[sub_resource type="AtlasTexture" id="ground3"]
+atlas = ExtResource("1_ground")
+region = Rect2(144, 0, 48, 18)
+
+[sub_resource type="AtlasTexture" id="ground4"]
+atlas = ExtResource("1_ground")
+region = Rect2(192, 0, 48, 18)
+
+[sub_resource type="AtlasTexture" id="ground5"]
+atlas = ExtResource("1_ground")
+region = Rect2(240, 0, 48, 18)
+
+[sub_resource type="AtlasTexture" id="ground6"]
+atlas = ExtResource("1_ground")
+region = Rect2(288, 0, 48, 18)
+
+[sub_resource type="AtlasTexture" id="ground7"]
+atlas = ExtResource("1_ground")
+region = Rect2(336, 0, 48, 18)
+
+[sub_resource type="AtlasTexture" id="ground8"]
+atlas = ExtResource("1_ground")
+region = Rect2(384, 0, 48, 18)
+
+[sub_resource type="AtlasTexture" id="ground9"]
+atlas = ExtResource("1_ground")
+region = Rect2(432, 0, 48, 18)
+
+[sub_resource type="AtlasTexture" id="ground10"]
+atlas = ExtResource("1_ground")
+region = Rect2(480, 0, 48, 18)
+
+[sub_resource type="AtlasTexture" id="ground11"]
+atlas = ExtResource("1_ground")
+region = Rect2(528, 0, 48, 18)
+
+[sub_resource type="AtlasTexture" id="ground12"]
+atlas = ExtResource("1_ground")
+region = Rect2(576, 0, 48, 18)
+
+[resource]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("ground0")
+}, {
+"duration": 1.0,
+"texture": SubResource("ground1")
+}, {
+"duration": 1.0,
+"texture": SubResource("ground2")
+}, {
+"duration": 1.0,
+"texture": SubResource("ground3")
+}, {
+"duration": 1.0,
+"texture": SubResource("ground4")
+}, {
+"duration": 1.0,
+"texture": SubResource("ground5")
+}, {
+"duration": 1.0,
+"texture": SubResource("ground6")
+}, {
+"duration": 1.0,
+"texture": SubResource("ground7")
+}, {
+"duration": 1.0,
+"texture": SubResource("ground8")
+}, {
+"duration": 1.0,
+"texture": SubResource("ground9")
+}, {
+"duration": 1.0,
+"texture": SubResource("ground10")
+}, {
+"duration": 1.0,
+"texture": SubResource("ground11")
+}, {
+"duration": 1.0,
+"texture": SubResource("ground12")
+}],
+"loop": false,
+"name": &"impact",
+"speed": 24.0
+}]
