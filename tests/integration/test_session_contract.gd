@@ -266,7 +266,8 @@ func test_session_result_tracks_baseball_friend_purification_unlocks() -> void:
 
 	_runner.assert_eq(result["friends_purified"], 1, "session result counts purified friends")
 	_runner.assert_eq(result["friend_ids"], [&"baseball_captain"], "session result records the baseball friend id")
-	_runner.assert_true((result["unlocks"] as Array).has(&"awakened_bat"), "session result includes awakened bat unlock")
+	# #243: 강화배트는 정화에서 분리됨 — 정화 런 결과엔 stage 3 만, 배트는 없음(로비 퀘스트에서 해금).
+	_runner.assert_false((result["unlocks"] as Array).has(&"awakened_bat"), "session result excludes awakened bat on purify alone")
 	_runner.assert_true((result["unlocks"] as Array).has(&"baseball_stage_3"), "session result includes baseball stage 3 unlock")
 
 	session.queue_free()
@@ -301,7 +302,8 @@ func test_boss_victory_result_keeps_baseball_friend_unlocks() -> void:
 	_runner.assert_false(GameManager.is_session_active(), "boss victory finishes the active run")
 	_runner.assert_eq(result.get("friends_purified", 0), 1, "boss victory result counts purified friends")
 	_runner.assert_eq(result.get("friend_ids", []), [&"baseball_captain"], "boss victory result records the baseball friend id")
-	_runner.assert_true((result.get("unlocks", []) as Array).has(&"awakened_bat"), "boss victory result includes awakened bat unlock")
+	# #243: 정화 런(로비 퀘스트 전)이므로 결과에 강화배트 없음, stage 3 만.
+	_runner.assert_false((result.get("unlocks", []) as Array).has(&"awakened_bat"), "boss victory result excludes awakened bat on purify alone")
 	_runner.assert_true((result.get("unlocks", []) as Array).has(&"baseball_stage_3"), "boss victory result includes baseball stage 3 unlock")
 
 	session.queue_free()
@@ -399,7 +401,7 @@ func test_session_root_applies_locker_weapon_config() -> void:
 	session.queue_free()
 
 
-func test_session_player_refreshes_awakened_bat_after_baseball_friend_purified() -> void:
+func test_session_player_awakens_bat_on_lobby_quest_not_purify() -> void:
 	var packed := load("res://scenes/session/session_root.tscn") as PackedScene
 	var session := packed.instantiate()
 	add_child(session)
@@ -422,8 +424,16 @@ func test_session_player_refreshes_awakened_bat_after_baseball_friend_purified()
 		var friend := friends[0] as Node
 		friend.emit_signal("purified", friend)
 
-	_runner.assert_true(ProgressionSystem.is_weapon_unlocked(&"awakened_bat"), "purification unlocks awakened bat")
-	_runner.assert_true(actor.call("is_bat_awakened"), "session player receives the unlock event")
+	# #243: 정화만으론 배트가 해금·각성되지 않는다(정화/언락 분리).
+	_runner.assert_false(ProgressionSystem.is_weapon_unlocked(&"awakened_bat"), "purification alone does not unlock awakened bat")
+	_runner.assert_false(actor.call("is_bat_awakened"), "session player stays un-awakened after purify alone")
+	_runner.assert_eq(actor.call("current_weapon_name"), "금 간 나무 배트", "player keeps regular bat after purify alone")
+
+	# 로비 퀘스트 완료가 강화배트를 해금하고, 같은 런의 플레이어가 unlock_changed 로 각성한다.
+	ProgressionSystem.record_quest_completed(ProgressionSystem.QUEST_BASEBALL_CAPTAIN_LOBBY)
+
+	_runner.assert_true(ProgressionSystem.is_weapon_unlocked(&"awakened_bat"), "lobby quest unlocks awakened bat")
+	_runner.assert_true(actor.call("is_bat_awakened"), "session player receives the quest unlock event")
 	_runner.assert_eq(actor.call("current_weapon_name"), "마지막 시즌의 배트", "session player shows awakened bat label")
 	_runner.assert_true(combat_hud.call("get_weapon_text").contains("마지막 시즌의 배트"), "HUD updates to awakened bat label")
 

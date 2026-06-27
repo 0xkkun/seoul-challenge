@@ -18,6 +18,7 @@ const TEST_ID_EXIT_BUTTON := "day_corridor.exit_button"
 const ACTION_OPEN_DIALOGUE := "day_corridor.dialogue.open"
 const ACTION_DIALOGUE_NEXT := "day_corridor.dialogue.next"
 const ACTION_DIALOGUE_CLOSE := "day_corridor.dialogue.close"
+const ACTION_DISMISS_UNLOCK := "day_corridor.dialogue.dismiss_unlock"
 const ACTION_EXIT_TO_LOBBY := "day_corridor.exit_to_lobby"
 const OBJECTIVE_TALK := "목표: 야구부 주장과 이야기하고, 밤의 궁으로 갈 준비를 하자"
 const OBJECTIVE_LOCKER := "목표: 복도 끝 사물함에서 기억 무기를 챙기자"
@@ -385,6 +386,12 @@ func perform_uat_action(action_name: String) -> bool:
 				return false
 			_hub_dialogue_ui.select_choice(CHOICE_CLOSE)
 			return true
+		ACTION_DISMISS_UNLOCK:
+			# #243: 실기기 UAT 가 좌표 탭 없이 강화배트 팝업을 닫는다(안드로이드 좌표 탭 금지 규칙).
+			if not _hub_dialogue_ui.is_unlock_visible():
+				return false
+			_hub_dialogue_ui.hide_unlock()
+			return true
 		ACTION_EXIT_TO_LOBBY:
 			_request_return_to_lobby()
 			return true
@@ -436,6 +443,11 @@ func _last_run_outcome() -> StringName:
 
 
 func close_dialogue() -> void:
+	# #243: 강화배트 팝업이 떠 있는 채로 back/ESC 등이 close_dialogue 를 직접 부르면, hide_unlock 없이
+	# CanvasLayer 가 숨어 unlock_hidden 이 영영 발사되지 않는다(ghost popup/소프트락). 먼저 오버레이를 정리해
+	# 탭·back·ESC 모든 close 경로를 안전하게 한다. hide_unlock 은 예약된 one-shot 을 정상 발사시킨다(멱등).
+	if _hub_dialogue_ui.is_unlock_visible():
+		_hub_dialogue_ui.hide_unlock()
 	_hub_dialogue_ui.visible = false
 	_touch_controls.visible = true
 	_talk_button_label.visible = true
@@ -982,7 +994,40 @@ func _on_hub_dialogue_choice_selected(choice_id: StringName) -> void:
 		CHOICE_NEXT:
 			trigger_dialogue()
 		CHOICE_CLOSE:
+			# #243: 정화 후 people2 대화를 완주하면 야구부 주장 로비 퀘스트가 완료된다.
+			# 게이트가 발동하면 강화배트 팝업이 뜨고, 팝업이 닫힐 때까지 대화 닫기를 미룬다.
+			if _try_complete_baseball_lobby_quest():
+				return
 			close_dialogue()
+
+
+## 정화 후(post_purify tier) people2 대화 완주 = 로비 퀘스트 완료. 발동 시 강화배트를 해금하고
+## 팝업을 띄운 뒤, 팝업이 닫힐 때(unlock_hidden) 대화를 닫도록 one-shot 으로 예약한다. (#243)
+## CanvasLayer 인 HubDialogueUi 를 지금 닫으면 같은 레이어의 언락 오버레이도 렌더되지 않으므로 닫기를 미룬다.
+## 게이트가 발동해 닫기를 미뤘으면 true 를 반환한다.
+func _try_complete_baseball_lobby_quest() -> bool:
+	var progression := get_node_or_null(^"/root/ProgressionSystem")
+	if progression == null:
+		return false
+	if progression.is_quest_completed(ProgressionSystem.QUEST_BASEBALL_CAPTAIN_LOBBY):
+		return false
+	if _current_rumor_tier() != DaySchoolRumors.TIER_POST_PURIFY:
+		return false
+
+	if not _hub_dialogue_ui.unlock_hidden.is_connected(_on_quest_unlock_hidden):
+		_hub_dialogue_ui.unlock_hidden.connect(_on_quest_unlock_hidden, CONNECT_ONE_SHOT)
+	# 동기적으로 unlock_changed → HubDialogueUi 가 강화배트 팝업을 띄운다.
+	progression.record_quest_completed(ProgressionSystem.QUEST_BASEBALL_CAPTAIN_LOBBY)
+	# 팝업이 뜨지 않았다면(이미 해금된 무기 등) 미룰 이유가 없으니 예약을 해제하고 일반 닫기로 넘긴다.
+	if not _hub_dialogue_ui.is_unlock_visible():
+		if _hub_dialogue_ui.unlock_hidden.is_connected(_on_quest_unlock_hidden):
+			_hub_dialogue_ui.unlock_hidden.disconnect(_on_quest_unlock_hidden)
+		return false
+	return true
+
+
+func _on_quest_unlock_hidden() -> void:
+	close_dialogue()
 
 
 func _update_objective_label() -> void:

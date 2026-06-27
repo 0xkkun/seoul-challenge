@@ -178,6 +178,19 @@ func test_baseball_unlock_event_updates_stage_and_popup() -> void:
 	_runner.assert_eq(_ui.get_unlock_items()[0]["name"], "마지막 시즌의 배트", "각성 배트 아이템명을 표시")
 
 
+func test_stage3_only_unlock_does_not_show_bat_popup() -> void:
+	# #243 회귀 가드: 정화 시점 payload(baseball_stage_3 단독, 강화배트 없음)로는 배트 팝업이 뜨면 안 된다.
+	# 정화/언락 분리 — 누가 팝업 조건을 stage_3 까지 되돌리면 이 테스트가 잡는다.
+	EventBus.emit_unlock_changed({
+		"friend_id": &"baseball_captain",
+		"unlocks": [&"baseball_stage_3"],
+		"club_stages": {&"baseball": 3},
+	})
+
+	_runner.assert_eq(_ui.get_current_stage(), 3, "stage 3 으로는 갱신")
+	_runner.assert_false(_ui.is_unlock_visible(), "강화배트 없는 payload 로는 배트 팝업을 띄우지 않는다")
+
+
 func test_choices_are_horizontal_models_and_emit_selected_id() -> void:
 	var selected_ids: Array[StringName] = []
 	_ui.choice_selected.connect(func(choice_id: StringName) -> void: selected_ids.append(choice_id))

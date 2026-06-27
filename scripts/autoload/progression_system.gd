@@ -12,14 +12,13 @@ const FRIEND_CLUBS := {
 	&"baseball_captain": &"baseball",
 }
 
-## club_id -> 정화 시 해금되는 무기들.
-const CLUB_AWAKEN_WEAPONS := {
-	&"baseball": [&"awakened_bat"],
-}
+## 로비 퀘스트 id. 정화 후 로비에서 야구부 주장과 재대화를 완료하면 강화배트가 해금된다 (#243).
+const QUEST_BASEBALL_CAPTAIN_LOBBY := &"baseball_captain_lobby"
 
 var _purified_friend_ids: Array[StringName] = []
 var _club_stages: Dictionary = {}
 var _unlocked_weapons: Dictionary = {}
+var _completed_quests: Dictionary = {}
 
 
 func _ready() -> void:
@@ -41,9 +40,14 @@ func is_weapon_unlocked(weapon_id: StringName) -> bool:
 	return bool(_unlocked_weapons.get(weapon_id, false))
 
 
+func is_quest_completed(quest_id: StringName) -> bool:
+	return bool(_completed_quests.get(quest_id, false))
+
+
 # --- 기록 ---
 
-## 친구 정화 기록 — 야구부 주장이면 STAGE 3 + 각성 배트를 해금하고 profile 에 저장한다.
+## 친구 정화 기록 — 야구부 주장이면 STAGE 3 을 기록하고 profile 에 저장한다.
+## #243: 강화배트는 더 이상 정화 시점에 해금하지 않는다. 로비 퀘스트 완료(record_quest_completed)에서 해금한다.
 func record_friend_purified(friend_id: StringName) -> void:
 	var unlocks: Array[StringName] = []
 	var changed := false
@@ -58,16 +62,36 @@ func record_friend_purified(friend_id: StringName) -> void:
 			_club_stages[club] = PURIFIED_STAGE
 			changed = true
 			unlocks.append(StringName("%s_stage_%d" % [String(club), PURIFIED_STAGE]))
-		for weapon: StringName in CLUB_AWAKEN_WEAPONS.get(club, []):
-			if not is_weapon_unlocked(weapon):
-				_unlocked_weapons[weapon] = true
-				changed = true
-				unlocks.append(weapon)
 
 	if not changed:
 		return
 	_save()
 	_emit_unlock_changed(friend_id, unlocks)
+
+
+## 로비 퀘스트 완료 기록 — 야구부 주장 로비 퀘스트면 강화배트를 해금한다 (#243). 멱등.
+func record_quest_completed(quest_id: StringName) -> void:
+	if is_quest_completed(quest_id):
+		return
+	_completed_quests[quest_id] = true
+
+	var unlocks: Array[StringName] = []
+	if quest_id == QUEST_BASEBALL_CAPTAIN_LOBBY:
+		_apply_weapon_unlocks([AWAKENED_BAT], unlocks)
+
+	_save()
+	# 야구부 주장 라인의 퀘스트이므로 friend_id 로 baseball_captain 을 싣는다(HubDialogueUi 가드 통과용).
+	_emit_unlock_changed(&"baseball_captain", unlocks)
+
+
+## 무기 집합을 해금하고, *실제로 새로 해금된* 무기만 out_unlocks 에 추가한다.
+## 이미 해금된 무기는 다시 emit 하지 않아 가짜 중복 보상 팝업을 막는다 (#243).
+func _apply_weapon_unlocks(weapons: Array, out_unlocks: Array[StringName]) -> void:
+	for weapon: Variant in weapons:
+		var weapon_id := StringName(weapon)
+		if not is_weapon_unlocked(weapon_id):
+			_unlocked_weapons[weapon_id] = true
+			out_unlocks.append(weapon_id)
 
 
 # --- 저장/로드 ---
@@ -76,6 +100,7 @@ func reload_profile() -> void:
 	_purified_friend_ids = []
 	_club_stages = {}
 	_unlocked_weapons = {}
+	_completed_quests = {}
 	if not has_node("/root/SaveManager"):
 		return
 
@@ -89,6 +114,8 @@ func reload_profile() -> void:
 		_club_stages[StringName(club)] = int(data["club_stages"][club])
 	for weapon: Variant in data.get("unlocked_weapons", {}):
 		_unlocked_weapons[StringName(weapon)] = bool(data["unlocked_weapons"][weapon])
+	for quest: Variant in data.get("completed_quests", {}):
+		_completed_quests[StringName(quest)] = bool(data["completed_quests"][quest])
 
 
 func reset_for_tests() -> void:
@@ -103,6 +130,7 @@ func _save() -> void:
 		"purified_friend_ids": _purified_friend_ids.duplicate(),
 		"club_stages": _club_stages.duplicate(),
 		"unlocked_weapons": _unlocked_weapons.duplicate(),
+		"completed_quests": _completed_quests.duplicate(),
 	}
 	SaveManager.save_profile(profile)
 
