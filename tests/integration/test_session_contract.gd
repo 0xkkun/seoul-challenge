@@ -48,6 +48,59 @@ func test_session_interaction_and_summary() -> void:
 	session.queue_free()
 
 
+func test_session_root_uses_new_layout_seed_without_config() -> void:
+	var packed := load("res://scenes/session/session_root.tscn") as PackedScene
+	var layout_ids := {}
+
+	for _index: int in range(4):
+		GameManager.reset_session()
+		var session := packed.instantiate()
+		add_child(session)
+		var manager := session.get_node("%RoomManager") as RoomManager
+		_runner.assert_not_null(manager.layout, "session creates a run layout")
+		if manager.layout != null:
+			layout_ids[manager.layout.layout_id] = true
+		remove_child(session)
+		session.free()
+
+	_runner.assert_true(layout_ids.size() > 1, "new runs without an explicit seed do not reuse one layout id")
+
+
+func test_session_root_honors_explicit_layout_seed_config() -> void:
+	var packed := load("res://scenes/session/session_root.tscn") as PackedScene
+	var layouts: Array[RoomLayout] = []
+
+	for _index: int in range(2):
+		GameManager.start_session({
+			"source": "seeded_test",
+			SceneTransition.RUN_CONFIG_LAYOUT_SEED: 40,
+		})
+		var session := packed.instantiate()
+		add_child(session)
+		var manager := session.get_node("%RoomManager") as RoomManager
+		layouts.append(manager.layout)
+		remove_child(session)
+		session.free()
+
+	_runner.assert_eq(layouts.size(), 2, "test created two seeded run layouts")
+	_runner.assert_eq(layouts[0].layout_id, &"generated_40", "explicit seed sets the generated layout id")
+	_runner.assert_eq(_layout_signature(layouts[0]), _layout_signature(layouts[1]), "explicit seed keeps layout generation deterministic")
+
+	GameManager.start_session({
+		"source": "seeded_test",
+		SceneTransition.RUN_CONFIG_LAYOUT_SEED: 41,
+	})
+	var different_session := packed.instantiate()
+	add_child(different_session)
+	var different_manager := different_session.get_node("%RoomManager") as RoomManager
+	_runner.assert_true(
+		_layout_signature(layouts[0]) != _layout_signature(different_manager.layout),
+		"different explicit seeds can change the room map"
+	)
+	remove_child(different_session)
+	different_session.free()
+
+
 func test_session_interaction_scope_reaches_current_shop_room() -> void:
 	var packed := load("res://scenes/session/session_root.tscn") as PackedScene
 	var session := packed.instantiate()
@@ -429,3 +482,20 @@ func _first_connected_room_id(layout: RoomLayout, room_id: StringName) -> String
 	for connected_room_id: StringName in layout.get_connected_room_ids(room_id):
 		return connected_room_id
 	return &""
+
+
+func _layout_signature(layout: RoomLayout) -> String:
+	var parts: Array[String] = []
+	for room_def: RoomDef in layout.room_defs:
+		var connections: Array[String] = []
+		for connected_id: StringName in room_def.connections:
+			connections.append(String(connected_id))
+		connections.sort()
+		parts.append("%s:%s:%s:%s" % [
+			room_def.room_id,
+			room_def.room_type,
+			room_def.grid_pos,
+			",".join(connections),
+		])
+	parts.sort()
+	return "|".join(parts)
