@@ -81,23 +81,114 @@ func test_touch_controls_can_release_combat_inputs_for_modal_open() -> void:
 	var touch := TouchControlsScene.instantiate()
 	add_child(touch)
 
+	var joystick := touch.get_node_or_null("Joystick") as Control
 	var attack_button := touch.get_node_or_null("AttackButton") as Control
 	var skill_button := touch.get_node_or_null("SkillButton") as Control
+	_runner.assert_not_null(joystick, "touch controls mount joystick")
 	_runner.assert_not_null(attack_button, "touch controls mount attack button")
 	_runner.assert_not_null(skill_button, "touch controls mount skill button")
 	_runner.assert_true(touch.has_method("release_combat_inputs"), "touch controls expose modal-safe input release")
-	if attack_button == null or skill_button == null or not touch.has_method("release_combat_inputs"):
+	if joystick == null or attack_button == null or skill_button == null or not touch.has_method("release_combat_inputs"):
 		return
 
+	joystick.set("_active_index", 3)
+	joystick.set("_value", Vector2.LEFT)
 	attack_button.set("_active_index", 4)
 	skill_button.set("_active_index", 5)
+	_runner.assert_eq(touch.get_move(), Vector2.LEFT, "held joystick starts active")
 	_runner.assert_true(touch.is_attack_pressed(), "held attack starts active")
 	_runner.assert_true(touch.is_skill_pressed(), "held skill starts active")
 
 	touch.call("release_combat_inputs")
 
+	_runner.assert_eq(touch.get_move(), Vector2.ZERO, "modal release clears held joystick movement")
 	_runner.assert_false(touch.is_attack_pressed(), "modal release clears held attack")
 	_runner.assert_false(touch.is_skill_pressed(), "modal release clears held skill")
+
+
+func test_touch_controls_hidden_state_releases_and_masks_all_inputs() -> void:
+	var touch := TouchControlsScene.instantiate()
+	add_child(touch)
+
+	var joystick := touch.get_node_or_null("Joystick") as Control
+	var attack_button := touch.get_node_or_null("AttackButton") as Control
+	var skill_button := touch.get_node_or_null("SkillButton") as Control
+	_runner.assert_not_null(joystick, "touch controls mount joystick")
+	_runner.assert_not_null(attack_button, "touch controls mount attack button")
+	_runner.assert_not_null(skill_button, "touch controls mount skill button")
+	if joystick == null or attack_button == null or skill_button == null:
+		return
+
+	joystick.set("_active_index", 3)
+	joystick.set("_value", Vector2.RIGHT)
+	attack_button.set("_active_index", 4)
+	skill_button.set("_active_index", 5)
+
+	touch.visible = false
+
+	_runner.assert_eq(touch.get_move(), Vector2.ZERO, "hidden touch controls never leak joystick movement")
+	_runner.assert_false(touch.is_attack_pressed(), "hidden touch controls never leak held attack")
+	_runner.assert_false(touch.is_skill_pressed(), "hidden touch controls never leak held skill")
+	_runner.assert_eq(joystick.get("_active_index"), -1, "hiding controls releases the joystick touch index")
+	_runner.assert_eq(attack_button.get("_active_index"), -1, "hiding controls releases the attack touch index")
+	_runner.assert_eq(skill_button.get("_active_index"), -1, "hiding controls releases the skill touch index")
+
+
+func test_hidden_touch_controls_ignore_new_touch_events_until_shown() -> void:
+	var touch := TouchControlsScene.instantiate()
+	add_child(touch)
+
+	var joystick := touch.get_node_or_null("Joystick") as Control
+	var attack_button := touch.get_node_or_null("AttackButton") as Control
+	var skill_button := touch.get_node_or_null("SkillButton") as Control
+	_runner.assert_not_null(joystick, "touch controls mount joystick")
+	_runner.assert_not_null(attack_button, "touch controls mount attack button")
+	_runner.assert_not_null(skill_button, "touch controls mount skill button")
+	if joystick == null or attack_button == null or skill_button == null:
+		return
+
+	touch.visible = false
+	joystick.call("_input", _screen_touch(9, joystick.get_global_rect().get_center(), true))
+	attack_button.call("_input", _screen_touch(10, attack_button.get_global_rect().get_center(), true))
+	skill_button.call("_input", _screen_touch(11, skill_button.get_global_rect().get_center(), true))
+
+	_runner.assert_eq(joystick.get("_active_index"), -1, "hidden joystick ignores new touch starts")
+	_runner.assert_eq(attack_button.get("_active_index"), -1, "hidden attack button ignores new touch starts")
+	_runner.assert_eq(skill_button.get("_active_index"), -1, "hidden skill button ignores new touch starts")
+
+	touch.visible = true
+
+	_runner.assert_eq(touch.get_move(), Vector2.ZERO, "showing controls does not resurrect hidden joystick touches")
+	_runner.assert_false(touch.is_attack_pressed(), "showing controls does not resurrect hidden attack touches")
+	_runner.assert_false(touch.is_skill_pressed(), "showing controls does not resurrect hidden skill touches")
+
+
+func test_touch_control_children_release_when_hidden_directly() -> void:
+	var touch := TouchControlsScene.instantiate()
+	add_child(touch)
+
+	var joystick := touch.get_node_or_null("Joystick") as Control
+	var attack_button := touch.get_node_or_null("AttackButton") as Control
+	var skill_button := touch.get_node_or_null("SkillButton") as Control
+	_runner.assert_not_null(joystick, "touch controls mount joystick")
+	_runner.assert_not_null(attack_button, "touch controls mount attack button")
+	_runner.assert_not_null(skill_button, "touch controls mount skill button")
+	if joystick == null or attack_button == null or skill_button == null:
+		return
+
+	joystick.set("_active_index", 3)
+	joystick.set("_value", Vector2.LEFT)
+	attack_button.set("_active_index", 4)
+	skill_button.set("_active_index", 5)
+
+	joystick.visible = false
+	attack_button.visible = false
+	skill_button.visible = false
+
+	_runner.assert_eq(joystick.get("_active_index"), -1, "hidden joystick releases its touch index")
+	_runner.assert_eq(joystick.get("_value"), Vector2.ZERO, "hidden joystick clears movement")
+	_runner.assert_eq(attack_button.get("_active_index"), -1, "hidden attack button releases its touch index")
+	_runner.assert_eq(skill_button.get("_active_index"), -1, "hidden skill button releases its touch index")
 
 
 func test_touch_controls_day_dialogue_category_hides_dodge_button() -> void:
@@ -135,3 +226,11 @@ func test_touch_controls_respect_landscape_phone_safe_area() -> void:
 	_runner.assert_eq(attack_button.offset_right, -float(touch_insets["right"]), "공격 버튼은 우측 노치/라운드 코너를 피한다")
 	_runner.assert_eq(attack_button.offset_bottom, -float(touch_insets["bottom"]), "공격 버튼은 홈 인디케이터 위로 올라온다")
 	_runner.assert_eq(skill_button.offset_bottom, -float(touch_insets["bottom"]), "스킬 버튼도 하단 gesture bar를 피한다")
+
+
+func _screen_touch(index: int, position: Vector2, pressed: bool) -> InputEventScreenTouch:
+	var event := InputEventScreenTouch.new()
+	event.index = index
+	event.position = position
+	event.pressed = pressed
+	return event

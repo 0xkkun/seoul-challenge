@@ -2,6 +2,7 @@ extends Node
 ## #13 전투 HUD 하트 — 체력 변화가 하트 표시에 반영되는지 검증한다.
 
 const COMBAT_HUD_SCENE := preload("res://scenes/ui/combat_hud.tscn")
+const APPROVED_YEOPJEON_ICON_SHA256 := "1ecd8b6b97d37077dde5533ecceac7dc7a82efe2624cb857b91b2ed3f7cd88f2"
 const MobileSafeArea := preload("res://scripts/ui/mobile_safe_area.gd")
 
 var _runner: Node
@@ -60,6 +61,28 @@ func test_health_is_clamped_to_valid_range() -> void:
 	_runner.assert_eq(_hud.get_filled_heart_count(), 0, "체력 0이면 채워진 하트가 없다")
 
 
+func test_top_hud_slots_leave_space_for_upgraded_hearts() -> void:
+	_hud.set_health(7, 7)
+
+	var health_panel := _hud.get_node("Root/HealthPanel") as Control
+	var hearts := _hud.get_node("%Hearts") as HBoxContainer
+	var stub_panel := _hud.get_node("Root/StubPanel") as Control
+	if not stub_panel.visible:
+		_runner.assert_false(stub_panel.visible, "hidden top HUD status slots cannot overlap upgraded hearts")
+		return
+
+	var heart_width := 0.0
+	for heart: Control in hearts.get_children():
+		heart_width += heart.custom_minimum_size.x
+	var gap_width := float(maxi(0, hearts.get_child_count() - 1) * hearts.get_theme_constant("separation"))
+	var upgraded_hearts_right := health_panel.offset_left + heart_width + gap_width
+
+	_runner.assert_true(
+		stub_panel.get_global_rect().position.x >= upgraded_hearts_right + 8.0,
+		"top HUD status slots leave breathing room after seven upgraded hearts"
+	)
+
+
 func test_skill_state_renders_uses_and_cooldown() -> void:
 	_runner.assert_true(_hud.has_method("set_skill_state"), "HUD exposes skill state setter")
 	_runner.assert_true(_hud.has_method("get_skill_text"), "HUD exposes skill text for tests")
@@ -88,7 +111,17 @@ func test_weapon_state_renders_player_facing_memory_weapon() -> void:
 	_runner.assert_eq(_hud.get_weapon_text(), "기억 무기: 야구방망이", "HUD names the selected memory weapon")
 
 	_hud.set_weapon_state(&"bat")
-	_runner.assert_eq(_hud.get_weapon_text(), "기억 무기: 금 간 배트", "HUD updates weapon display")
+	_runner.assert_eq(_hud.get_weapon_text(), "기억 무기: 금 간 나무 배트", "HUD updates weapon display")
+
+
+func test_weapon_name_renders_awakened_bat_display_name() -> void:
+	_runner.assert_true(_hud.has_method("set_weapon_name"), "HUD can accept player-facing weapon names")
+	if not _hud.has_method("set_weapon_name"):
+		return
+
+	_hud.call("set_weapon_name", "마지막 시즌의 배트")
+
+	_runner.assert_eq(_hud.get_weapon_text(), "기억 무기: 마지막 시즌의 배트", "HUD shows awakened bat display name")
 
 
 func test_skill_state_event_updates_skill_slot() -> void:
@@ -119,6 +152,11 @@ func test_currency_state_renders_ingame_balance() -> void:
 	_runner.assert_eq(_hud.get_currency_text(), "7", "HUD renders only the ingame balance number")
 	_runner.assert_false(_hud.get_currency_text().contains("엽전"), "HUD removes the currency word label")
 	_runner.assert_eq(_hud.get_currency_icon_path(), "res://assets/ui/icons/currency/yeopjeon.png", "HUD uses the yeopjeon icon asset")
+
+
+func test_currency_icon_matches_approved_source_asset() -> void:
+	var icon_hash := FileAccess.get_sha256("res://assets/ui/icons/currency/yeopjeon.png")
+	_runner.assert_eq(icon_hash, APPROVED_YEOPJEON_ICON_SHA256, "HUD yeopjeon icon matches the approved source asset")
 
 
 func test_currency_changed_event_updates_currency_slot() -> void:

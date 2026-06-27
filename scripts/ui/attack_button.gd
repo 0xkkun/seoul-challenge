@@ -52,7 +52,15 @@ func _ready() -> void:
 	_attack_icon = load(ATTACK_ICON_PATH) as Texture2D
 
 
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_VISIBILITY_CHANGED and not visible:
+		release()
+
+
 func _input(event: InputEvent) -> void:
+	if not is_visible_in_tree():
+		release()
+		return
 	if event is InputEventScreenTouch:
 		_on_touch(event.index, event.position, event.pressed)
 	elif event is InputEventScreenDrag and event.index == _active_index:

@@ -58,7 +58,7 @@ func trigger_death_return() -> void:
 	elif return_to_hub_callable.is_valid():
 		return_to_hub_callable.call()
 	else:
-		SceneTransition.go_to_lobby()
+		SceneTransition.go_to_day_lobby()
 
 
 func _build_death_result() -> Dictionary:

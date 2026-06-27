@@ -95,7 +95,7 @@
     <text x="332" y="200" class="small ink">투척 무기</text>
     <rect x="434" y="160" width="140" height="56" fill="#fff6d9" stroke="#11141d" stroke-width="2"/>
     <rect x="458" y="176" width="24" height="24" fill="#8a8c96" stroke="#15171d" stroke-width="3"/>
-    <text x="491" y="184" class="label ink">금 간 배트</text>
+    <text x="491" y="184" class="label ink">금 간 나무 배트</text>
     <text x="491" y="200" class="small ink">근접 무기</text>
   </g>
 </svg>

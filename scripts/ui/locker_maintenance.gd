@@ -189,7 +189,7 @@ func _build_weapon_cards() -> void:
 
 	_bat_card = _make_weapon_card(
 		"BatCard",
-		"금 간 배트\n\n근거리 / 큰 반동\n위력  ■■■■□\n속도  ■□□□□\n\n적 밀쳐냄",
+		"금 간 나무 배트\n\n근거리 / 큰 반동\n위력  ■■■■□\n속도  ■□□□□\n\n적 밀쳐냄",
 		Rect2(0.365, 0.32, 0.265, 0.36),
 		ACTION_SELECT_BAT
 	)
@@ -462,7 +462,7 @@ func _apply_weapon_card_state() -> void:
 		"normal",
 		_make_weapon_state_style(_selected_weapon_id == WEAPON_BAT)
 	)
-	var weapon_name := "야구방망이" if _selected_weapon_id == WEAPON_BASEBALL else "금 간 배트"
+	var weapon_name := "야구방망이" if _selected_weapon_id == WEAPON_BASEBALL else "금 간 나무 배트"
 	_weapon_status_label.text = "선택된 기억\n\n%s\n\n지도에서\n경복궁 선택" % weapon_name
 
 

@@ -2,12 +2,27 @@ extends Node
 ## #18 요괴화 친구 중간보스 — 추적/기절/정화 단위 테스트.
 
 const FriendScene := preload("res://scenes/enemies/yokai_friend.tscn")
+const TEST_PLAYER_GROUP := &"test_purify_player"
+
+class PurifyTarget:
+	extends Node2D
+
+	var firing := false
+
+	func is_firing() -> bool:
+		return firing
 
 var _runner: Node
 
 
 func _set_runner(runner: Node) -> void:
 	_runner = runner
+
+
+func after_each() -> void:
+	for child: Node in get_children():
+		remove_child(child)
+		child.free()
 
 
 func test_chase_points_toward_target() -> void:
@@ -62,3 +77,81 @@ func test_purify_completes_after_hold_time() -> void:
 	_runner.assert_false(f.apply_purify(0.5), "0.5초론 정화 미완(purify_time 1.2)")
 	_runner.assert_true(f.apply_purify(0.8), "누적 1.3 ≥ 1.2 → 정화 완료")
 	f.free()
+
+
+func test_stun_reveals_purify_cue_without_text_prompt() -> void:
+	var f = FriendScene.instantiate()
+	add_child(f)
+
+	f.take_damage(5)
+
+	var cue := f.get_node_or_null("PurifyCue") as Node2D
+	_runner.assert_not_null(cue, "기절하면 정화 링 노드를 만든다")
+	var snapshot: Dictionary = f.call("get_purify_visual_snapshot")
+	_runner.assert_true(bool(snapshot["visible"]), "기절 중 정화 링이 보인다")
+	_runner.assert_eq(snapshot["state"], &"ready", "홀드 전에는 정화 가능 상태")
+	_runner.assert_eq(snapshot["progress"], 0.0, "처음 정화 진행도는 0")
+	_runner.assert_true(int(snapshot["range_point_count"]) >= 24, "정화 가능 범위를 링으로 보여준다")
+	_runner.assert_false(bool(snapshot["has_text_prompt"]), "조작 설명 문구 대신 비주얼만 쓴다")
+
+
+func test_purify_hold_updates_progress_ring_and_beam() -> void:
+	var f = FriendScene.instantiate()
+	f.target_group = TEST_PLAYER_GROUP
+	var target := PurifyTarget.new()
+	target.add_to_group(TEST_PLAYER_GROUP)
+	add_child(f)
+	add_child(target)
+	f.global_position = Vector2.ZERO
+	target.global_position = Vector2(30.0, 0.0)
+	target.firing = true
+
+	f.take_damage(5)
+	f.call("_process_stun", 0.6)
+
+	var snapshot: Dictionary = f.call("get_purify_visual_snapshot")
+	_runner.assert_true(bool(snapshot["in_range"]), "정화 가능 거리 안에 있음을 표시한다")
+	_runner.assert_true(bool(snapshot["channeling"]), "공격 홀드 중 채널링 상태를 표시한다")
+	_runner.assert_true(float(snapshot["progress"]) > 0.45, "홀드 진행도가 링에 반영된다")
+	_runner.assert_true(int(snapshot["progress_point_count"]) > 4, "진행 링이 일부 채워진다")
+	_runner.assert_true(bool(snapshot["progress_visible"]), "홀드 중 진행 링이 실제로 표시된다")
+	_runner.assert_true(bool(snapshot["beam_visible"]), "홀드 중 친구와 플레이어 사이 빛줄기를 보여준다")
+	_runner.assert_true(bool(snapshot["beam_glow_visible"]), "홀드 중 빛줄기 글로우를 함께 보여준다")
+
+
+func test_releasing_purify_hold_resets_progress_and_hides_beam() -> void:
+	var f = FriendScene.instantiate()
+	f.target_group = TEST_PLAYER_GROUP
+	var target := PurifyTarget.new()
+	target.add_to_group(TEST_PLAYER_GROUP)
+	add_child(f)
+	add_child(target)
+	target.global_position = Vector2(30.0, 0.0)
+	target.firing = true
+
+	f.take_damage(5)
+	f.call("_process_stun", 0.5)
+	target.firing = false
+	f.call("_process_stun", 0.1)
+
+	var snapshot: Dictionary = f.call("get_purify_visual_snapshot")
+	_runner.assert_eq(snapshot["state"], &"ready", "홀드를 놓으면 다시 정화 가능 상태")
+	_runner.assert_eq(snapshot["progress"], 0.0, "홀드를 놓으면 진행도가 리셋된다")
+	_runner.assert_false(bool(snapshot["beam_visible"]), "홀드를 놓으면 빛줄기를 숨긴다")
+
+
+func test_purify_completion_spawns_detached_burst_before_friend_is_removed() -> void:
+	var f = FriendScene.instantiate()
+	f.target_group = TEST_PLAYER_GROUP
+	var target := PurifyTarget.new()
+	target.add_to_group(TEST_PLAYER_GROUP)
+	add_child(f)
+	add_child(target)
+	target.global_position = Vector2(30.0, 0.0)
+	target.firing = true
+
+	f.take_damage(5)
+	f.call("_process_stun", f.purify_time + 0.05)
+
+	var burst := get_node_or_null("PurifyCompletionBurst") as Node2D
+	_runner.assert_not_null(burst, "정화 완료 순간 친구와 분리된 완료 파동을 만든다")

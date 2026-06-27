@@ -139,7 +139,8 @@ func test_session_interaction_scope_reaches_current_shop_room() -> void:
 	session.trigger_sample_interaction()
 
 	_runner.assert_eq(CurrencySystem.get_ingame(), 2, "session interaction can purchase from current shop room")
-	_runner.assert_eq(actor.call("current_weapon_name"), "야구배트", "session shop interaction equips purchased item")
+	_runner.assert_true(actor.call("has_bat"), "session shop interaction equips purchased item")
+	_runner.assert_eq(actor.call("current_weapon_name"), "금 간 나무 배트", "session shop interaction shows cracked bat label")
 
 	session.queue_free()
 
@@ -156,6 +157,7 @@ func test_combat_clear_requires_reward_choice_before_room_transition() -> void:
 	var manager := session.get_node("%RoomManager") as RoomManager
 	var actor := session.get_node("%Player") as Node
 	var touch_controls: Node = session.get_node("%TouchControls")
+	var joystick := touch_controls.get_node_or_null("Joystick") as Control
 	var attack_button := touch_controls.get_node_or_null("AttackButton") as Control
 	var session_ui: CanvasLayer = session.get_node("%SessionUIRoot")
 	var combat_room_def := _first_room_of_type(manager.layout, RoomLayout.TYPE_COMBAT)
@@ -164,7 +166,12 @@ func test_combat_clear_requires_reward_choice_before_room_transition() -> void:
 		return
 	_runner.assert_true(manager.enter_room(combat_room_def.room_id), "test enters combat reward room")
 	_runner.assert_false(session_ui.call("is_reward_choice_visible"), "reward choices are hidden before combat clear")
+	_runner.assert_not_null(joystick, "session mounts joystick touch input")
 	_runner.assert_not_null(attack_button, "session mounts attack touch button")
+	if joystick != null:
+		joystick.set("_active_index", 7)
+		joystick.set("_value", Vector2.LEFT)
+		_runner.assert_eq(touch_controls.call("get_move"), Vector2.LEFT, "test starts with held joystick movement")
 	if attack_button != null:
 		attack_button.set("_active_index", 8)
 		_runner.assert_true(touch_controls.call("is_attack_pressed"), "test starts with held attack input")
@@ -174,6 +181,7 @@ func test_combat_clear_requires_reward_choice_before_room_transition() -> void:
 	_runner.assert_true(manager.is_current_room_cleared(), "combat room is cleared")
 	_runner.assert_true(session_ui.call("is_reward_choice_visible"), "combat clear opens reward choice overlay")
 	_runner.assert_true(get_tree().paused, "reward choice pauses room transition input")
+	_runner.assert_eq(touch_controls.call("get_move"), Vector2.ZERO, "reward choice opening releases held joystick movement")
 	_runner.assert_false(touch_controls.call("is_attack_pressed"), "reward choice opening releases held attack input")
 	var snapshot: Dictionary = session_ui.call("get_reward_choice_snapshot")
 	_runner.assert_eq((snapshot["choice_ids"] as Array).size(), 3, "reward choice offers three roguelike options")
@@ -332,6 +340,27 @@ func test_session_map_tab_uses_stage_name_and_replaces_bottom_actions() -> void:
 	session.queue_free()
 
 
+func test_session_combat_hud_avoids_top_right_minimap() -> void:
+	GameManager.start_session({
+		"source": "hud_layout_test",
+		SceneTransition.RUN_CONFIG_SELECTED_WEAPON_ID: &"bat",
+	})
+
+	var packed := load("res://scenes/session/session_root.tscn") as PackedScene
+	var session := packed.instantiate()
+	add_child(session)
+
+	var hud_panel := session.get_node("%CombatHud/Root/StubPanel") as Control
+	var minimap := session.get_node("MinimapLayer/Minimap") as Control
+	if not hud_panel.visible:
+		_runner.assert_false(hud_panel.visible, "hidden combat HUD text cannot overlap the minimap")
+		session.queue_free()
+		return
+	_runner.assert_false(hud_panel.get_global_rect().intersects(minimap.get_global_rect()), "combat HUD text does not overlap the minimap")
+
+	session.queue_free()
+
+
 func test_session_root_applies_locker_weapon_config() -> void:
 	GameManager.start_session({
 		"source": "night_map_select",
@@ -343,8 +372,40 @@ func test_session_root_applies_locker_weapon_config() -> void:
 	add_child(session)
 	var actor: Node = session.get_node("%Player")
 
-	_runner.assert_eq(actor.call("current_weapon_name"), "야구배트", "bat locker selection equips the run actor")
+	_runner.assert_true(actor.call("has_bat"), "bat locker selection equips the run actor")
+	_runner.assert_eq(actor.call("current_weapon_name"), "금 간 나무 배트", "bat locker selection shows cracked bat label")
 	_runner.assert_false(bool(actor.get("ranged_enabled")), "bat locker selection keeps ranged baseball disabled")
+
+	session.queue_free()
+
+
+func test_session_player_refreshes_awakened_bat_after_baseball_friend_purified() -> void:
+	var packed := load("res://scenes/session/session_root.tscn") as PackedScene
+	var session := packed.instantiate()
+	add_child(session)
+
+	var manager := session.get_node("%RoomManager") as RoomManager
+	var actor: Node = session.get_node("%Player")
+	var combat_hud := session.get_node("%CombatHud") as CanvasLayer
+	actor.call("equip_bat")
+	_runner.assert_eq(actor.call("current_weapon_name"), "금 간 나무 배트", "run starts with regular bat")
+	_runner.assert_true(combat_hud.call("get_weapon_text").contains("금 간 나무 배트"), "HUD shows regular bat after equip")
+	var friend_room_def := _first_room_of_type(manager.layout, RoomLayout.TYPE_FRIEND)
+	_runner.assert_not_null(friend_room_def, "session run layout includes a friend room")
+	if friend_room_def == null:
+		session.queue_free()
+		return
+	_runner.assert_true(manager.enter_room(friend_room_def.room_id), "test enters generated friend room")
+	var friends: Array = manager.current_room.call("get_active_friends")
+	_runner.assert_eq(friends.size(), 1, "friend room spawns the purification target")
+	if friends.size() == 1:
+		var friend := friends[0] as Node
+		friend.emit_signal("purified", friend)
+
+	_runner.assert_true(ProgressionSystem.is_weapon_unlocked(&"awakened_bat"), "purification unlocks awakened bat")
+	_runner.assert_true(actor.call("is_bat_awakened"), "session player receives the unlock event")
+	_runner.assert_eq(actor.call("current_weapon_name"), "마지막 시즌의 배트", "session player shows awakened bat label")
+	_runner.assert_true(combat_hud.call("get_weapon_text").contains("마지막 시즌의 배트"), "HUD updates to awakened bat label")
 
 	session.queue_free()
 
@@ -492,7 +553,7 @@ func test_session_result_actions_unpause_and_preserve_retry_config() -> void:
 	session.queue_free()
 
 
-func test_player_death_shows_game_over_summary_without_lobby_transition() -> void:
+func test_player_death_shows_game_over_summary_without_immediate_transition() -> void:
 	var packed := load("res://scenes/session/session_root.tscn") as PackedScene
 	var session := packed.instantiate()
 	var action_counts := {"returned": 0}
@@ -509,7 +570,7 @@ func test_player_death_shows_game_over_summary_without_lobby_transition() -> voi
 	_runner.assert_eq(snapshot["title"], "쓰러짐", "death summary uses game over title")
 	_runner.assert_false(GameManager.is_session_active(), "death finishes the active run")
 	_runner.assert_eq(GameManager.get_last_result().get("outcome", ""), "death", "death result is saved")
-	_runner.assert_eq(action_counts["returned"], 0, "death does not immediately transition to lobby")
+	_runner.assert_eq(action_counts["returned"], 0, "death does not immediately transition to school")
 	_runner.assert_true(get_tree().paused, "gameplay freezes under the game over summary")
 
 	get_tree().paused = false
@@ -552,7 +613,7 @@ func test_room_change_configures_player_bounds_and_clears_motion() -> void:
 	session.queue_free()
 
 
-func test_session_finish_request_confirms_abandon_to_lobby() -> void:
+func test_session_finish_request_confirms_abandon_to_school() -> void:
 	var packed := load("res://scenes/session/session_root.tscn") as PackedScene
 	var session := packed.instantiate()
 	var action_counts := {"returned": 0}
@@ -573,7 +634,7 @@ func test_session_finish_request_confirms_abandon_to_lobby() -> void:
 
 	session._on_finish_requested()
 	_runner.assert_true(UiTestHarness.press_by_test_id(session, ConfirmModal.TEST_ID_YES), "yes confirms abandon")
-	_runner.assert_eq(action_counts["returned"], 1, "abandon returns to lobby once")
+	_runner.assert_eq(action_counts["returned"], 1, "abandon returns to school once")
 	_runner.assert_false(GameManager.is_session_active(), "abandon resets the active run")
 
 	session.queue_free()
