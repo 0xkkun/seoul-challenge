@@ -9,7 +9,9 @@ const ATTACK_ICON_PATH := "res://assets/ui/icons/combat/damage_1.png"
 const ICON_ALPHA := 0.56
 const ATTACK_ICON_SCALE := 0.44
 const DIALOGUE_ICON_SCALE := 0.34
-const DIALOGUE_TAIL_BLOCKS := 3
+const DIALOGUE_TAIL_BLOCKS := 1
+const DIALOGUE_TAIL_STYLE := "emoji_corner"
+const DIALOGUE_TAIL_DRAW_ORDER := "after_bubble"
 const OUTER_RING_ALPHA := 0.28
 const OUTER_RING_PRESSED_ALPHA := 0.42
 const INNER_RING_ALPHA := 0.10
@@ -21,6 +23,7 @@ var _start_pos: Vector2 = Vector2.ZERO
 var _aim: Vector2 = Vector2.ZERO
 var _icon_mode := ICON_MODE_ATTACK
 var _attack_icon: Texture2D
+var _dialogue_bubble_style := StyleBoxFlat.new()
 
 
 func is_held() -> bool:
@@ -62,7 +65,9 @@ func get_visual_contract() -> Dictionary:
 		"icon_path": "" if _icon_mode == ICON_MODE_DIALOGUE else ATTACK_ICON_PATH,
 		"icon_alpha": ICON_ALPHA,
 		"icon_scale": _current_icon_scale(),
+		"dialogue_tail_style": DIALOGUE_TAIL_STYLE,
 		"dialogue_tail_blocks": DIALOGUE_TAIL_BLOCKS,
+		"dialogue_tail_draw_order": DIALOGUE_TAIL_DRAW_ORDER,
 		"label_text": "",
 		"outer_ring_alpha": OUTER_RING_ALPHA,
 		"inner_ring_alpha": INNER_RING_ALPHA,
@@ -136,27 +141,54 @@ func _draw_attack_icon(center: Vector2, radius: float) -> void:
 
 
 func _draw_dialogue_icon(center: Vector2, radius: float) -> void:
-	var icon_size := Vector2.ONE * (radius * 2.0 * DIALOGUE_ICON_SCALE)
-	var icon_rect := Rect2(center - icon_size * 0.5, icon_size)
-	var pixel := maxf(2.0, floorf(icon_size.x / 11.0))
+	var geometry := build_dialogue_icon_geometry(center, radius)
+	var bubble := geometry["bubble"] as Rect2
+	var tail_points := geometry["tail_points"] as Array
+	var line_rects := geometry["line_rects"] as Array
+	var pixel := float(geometry["pixel"])
 	var color := Color(1, 1, 1, ICON_ALPHA)
 	var fill := Color(1, 1, 1, ICON_ALPHA * 0.18)
+	var tail_polygon := PackedVector2Array([
+		tail_points[0] as Vector2,
+		tail_points[1] as Vector2,
+		tail_points[2] as Vector2,
+	])
+	draw_style_box(_make_dialogue_bubble_style(fill, color, pixel), bubble)
+	draw_polygon(tail_polygon, PackedColorArray([fill]))
+	draw_polyline(tail_polygon, color, pixel, true)
+	for line_rect: Rect2 in line_rects:
+		draw_rect(line_rect, color, true)
+
+
+func build_dialogue_icon_geometry(center: Vector2, radius: float) -> Dictionary:
+	var icon_size := Vector2.ONE * (radius * 2.0 * DIALOGUE_ICON_SCALE)
+	var icon_rect := Rect2(center - icon_size * 0.5, icon_size)
+	var pixel := maxf(2.0, floorf(icon_size.x / 12.0))
 	var bubble := Rect2(
-		Vector2(snappedf(icon_rect.position.x + pixel, pixel), snappedf(icon_rect.position.y + pixel * 1.4, pixel)),
-		Vector2(snappedf(icon_size.x - pixel * 2.0, pixel), snappedf(icon_size.y - pixel * 3.2, pixel))
+		Vector2(snappedf(icon_rect.position.x + pixel, pixel), snappedf(icon_rect.position.y + pixel * 1.35, pixel)),
+		Vector2(snappedf(icon_size.x - pixel * 2.0, pixel), snappedf(icon_size.y - pixel * 3.6, pixel))
 	)
-	draw_rect(bubble, fill, true)
-	draw_rect(bubble, color, false, pixel)
-	var tail_origin_x := bubble.position.x + bubble.size.x * 0.22
-	for index in DIALOGUE_TAIL_BLOCKS:
-		var tail := Rect2(
-			Vector2(tail_origin_x + pixel * float(index), bubble.end.y - pixel + pixel * float(index)),
-			Vector2(pixel * 2.0, pixel)
-		)
-		draw_rect(tail, color, true)
+	var tail_start := Vector2(bubble.position.x + pixel * 3.0, bubble.end.y - pixel * 0.25)
+	var tail_tip := Vector2(tail_start.x + pixel * 2.0, bubble.end.y + pixel * 2.0)
+	var tail_end := Vector2(tail_start.x + pixel * 5.0, bubble.end.y - pixel * 0.25)
 	var line_y := bubble.position.y + bubble.size.y * 0.42
-	draw_rect(Rect2(Vector2(bubble.position.x + pixel * 2.0, line_y), Vector2(bubble.size.x - pixel * 4.0, pixel)), color, true)
-	draw_rect(Rect2(Vector2(bubble.position.x + pixel * 2.0, line_y + pixel * 2.0), Vector2(bubble.size.x - pixel * 6.0, pixel)), color, true)
+	return {
+		"bubble": bubble,
+		"tail_points": [tail_start, tail_tip, tail_end],
+		"line_rects": [
+			Rect2(Vector2(bubble.position.x + pixel * 2.6, line_y), Vector2(bubble.size.x - pixel * 5.2, pixel)),
+			Rect2(Vector2(bubble.position.x + pixel * 2.6, line_y + pixel * 2.2), Vector2(bubble.size.x - pixel * 7.2, pixel)),
+		],
+		"pixel": pixel,
+	}
+
+
+func _make_dialogue_bubble_style(fill: Color, border: Color, pixel: float) -> StyleBoxFlat:
+	_dialogue_bubble_style.bg_color = fill
+	_dialogue_bubble_style.border_color = border
+	_dialogue_bubble_style.set_border_width_all(int(maxf(1.0, roundf(pixel))))
+	_dialogue_bubble_style.set_corner_radius_all(int(maxf(2.0, roundf(pixel * 2.2))))
+	return _dialogue_bubble_style
 
 
 func _current_icon_scale() -> float:
