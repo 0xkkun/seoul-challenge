@@ -1,7 +1,14 @@
 extends Node
 
 const WOLF_SCENE_PATH := "res://scenes/enemies/wolf.tscn"
+const WOLF_MOVE_SHEET_PATH := "res://assets/sprites/enemies/wolf/wolf_move.png"
+const WOLF_ATTACK_SHEET_PATH := "res://assets/sprites/enemies/wolf/wolf_attack.png"
+const WOLF_MOVE_SHEET_SHA256 := "c387dce1e93e24cd636ad7a608dbb8e380226c8d5d7cea637eaf1a5f44f6b586"
+const WOLF_ATTACK_SHEET_SHA256 := "bcb494db2673ab595a7b6559532eeac0986a2afbf221eeceb03f934d79734d23"
 const COMBAT_ROOM_SCENE_PATH := "res://scenes/interactables/combat_room.tscn"
+const PlayerScript := preload("res://scripts/player/player.gd")
+const PlayerScene := preload("res://scenes/player/player.tscn")
+const L_STRONG := 2
 
 var _runner: Node
 
@@ -17,6 +24,19 @@ class DamageTarget:
 
 func _set_runner(runner: Node) -> void:
 	_runner = runner
+
+
+func test_wolf_png_sources_match_latest_download_assets() -> void:
+	_runner.assert_eq(
+		FileAccess.get_sha256(WOLF_MOVE_SHEET_PATH),
+		WOLF_MOVE_SHEET_SHA256,
+		"wolf move source sheet matches the latest downloaded asset"
+	)
+	_runner.assert_eq(
+		FileAccess.get_sha256(WOLF_ATTACK_SHEET_PATH),
+		WOLF_ATTACK_SHEET_SHA256,
+		"wolf attack source sheet matches the latest downloaded asset"
+	)
 
 
 func test_wolf_scene_uses_5_move_and_6_attack_frames() -> void:
@@ -36,6 +56,55 @@ func test_wolf_scene_uses_5_move_and_6_attack_frames() -> void:
 	_runner.assert_eq(frames.get_frame_count(&"attack"), 6, "wolf attack sheet is split into six 144px frames")
 	_runner.assert_true(frames.get_animation_loop(&"move"), "wolf movement loops")
 	_runner.assert_false(frames.get_animation_loop(&"attack"), "wolf attack does not loop")
+
+
+func test_wolf_takes_three_default_bat_hits() -> void:
+	_runner.assert_true(ResourceLoader.exists(WOLF_SCENE_PATH), "wolf dash enemy scene exists")
+	if not ResourceLoader.exists(WOLF_SCENE_PATH):
+		return
+
+	var player := PlayerScript.new()
+	var enemy := (load(WOLF_SCENE_PATH) as PackedScene).instantiate()
+	add_child(player)
+	add_child(enemy)
+
+	_runner.assert_true(enemy.max_hp > player.bat_damage * 2, "wolf should survive two default bat hits")
+	_runner.assert_true(enemy.max_hp <= player.bat_damage * 3, "wolf should die by the third default bat hit")
+
+
+func test_wolf_contact_range_starts_before_body_overlap() -> void:
+	_runner.assert_true(ResourceLoader.exists(WOLF_SCENE_PATH), "wolf dash enemy scene exists")
+	if not ResourceLoader.exists(WOLF_SCENE_PATH):
+		return
+
+	var enemy := (load(WOLF_SCENE_PATH) as PackedScene).instantiate()
+	var player := PlayerScene.instantiate()
+
+	var enemy_collision := enemy.get_node_or_null("Collision") as CollisionShape2D
+	var player_collision := player.get_node_or_null("Collision") as CollisionShape2D
+	_runner.assert_not_null(enemy_collision, "wolf has a collision shape")
+	_runner.assert_not_null(player_collision, "player has a collision shape")
+	if enemy_collision == null or player_collision == null:
+		enemy.free()
+		player.free()
+		return
+
+	var enemy_shape := enemy_collision.shape as CircleShape2D
+	var player_shape := player_collision.shape as CircleShape2D
+	_runner.assert_not_null(enemy_shape, "wolf collision shape is circular")
+	_runner.assert_not_null(player_shape, "player collision shape is circular")
+	if enemy_shape == null or player_shape == null:
+		enemy.free()
+		player.free()
+		return
+
+	var body_touch_distance := enemy_shape.radius + player_shape.radius
+	_runner.assert_true(
+		enemy.contact_range >= body_touch_distance + 16.0,
+		"wolf dash hit range should start before collision bodies overlap"
+	)
+	enemy.free()
+	player.free()
 
 
 func test_wolf_dash_state_machine_prepares_charges_and_recovers() -> void:
@@ -136,6 +205,45 @@ func test_wolf_dash_hit_is_blocked_while_stunned() -> void:
 	_runner.assert_eq(target.damage_taken, 0, "stunned wolf dash cannot damage the player")
 
 
+func test_wolf_spawn_fade_blocks_dash_damage_and_restores_visual() -> void:
+	_runner.assert_true(ResourceLoader.exists(WOLF_SCENE_PATH), "wolf dash enemy scene exists")
+	if not ResourceLoader.exists(WOLF_SCENE_PATH):
+		return
+
+	var enemy := (load(WOLF_SCENE_PATH) as PackedScene).instantiate()
+	var target := DamageTarget.new()
+	add_child(enemy)
+	add_child(target)
+	enemy.global_position = Vector2.ZERO
+	target.global_position = Vector2.RIGHT * 8.0
+	var sprite := enemy.get_node_or_null("Sprite") as CanvasItem
+	_runner.assert_not_null(sprite, "wolf has a fadeable visual")
+	if sprite == null:
+		return
+	var base_modulate := sprite.modulate
+
+	_runner.assert_true(enemy.has_method("start_spawn_fade"), "wolf exposes spawn fade API")
+	_runner.assert_true(enemy.has_method("is_spawn_protected"), "wolf exposes spawn protection state")
+	_runner.assert_true(enemy.has_method("tick_spawn_fade"), "wolf exposes spawn fade tick API")
+	if not enemy.has_method("start_spawn_fade") or not enemy.has_method("is_spawn_protected") or not enemy.has_method("tick_spawn_fade"):
+		return
+
+	enemy.call("tick_dash_ai", 0.1, enemy.global_position, target.global_position)
+	enemy.call("tick_dash_ai", enemy.dash_windup_time, enemy.global_position, target.global_position)
+	_runner.assert_eq(enemy.call("get_dash_state"), &"dash", "test setup puts wolf in active dash")
+
+	enemy.call("start_spawn_fade", 0.2)
+	enemy.call("_try_dash_hit", target)
+	_runner.assert_eq(target.damage_taken, 0, "spawning wolf dash cannot damage the player")
+	_runner.assert_true(sprite.modulate.a < base_modulate.a, "spawn fade starts transparent")
+
+	enemy.call("tick_spawn_fade", 0.25)
+	_runner.assert_false(enemy.call("is_spawn_protected"), "spawn protection ends after fade")
+	_runner.assert_eq(sprite.modulate, base_modulate, "spawn fade restores the original wolf visual")
+	enemy.call("_try_dash_hit", target)
+	_runner.assert_eq(target.damage_taken, enemy.contact_damage, "wolf dash damage works after spawn protection")
+
+
 func test_wolf_dash_can_be_parried_into_recovery() -> void:
 	_runner.assert_true(ResourceLoader.exists(WOLF_SCENE_PATH), "wolf dash enemy scene exists")
 	if not ResourceLoader.exists(WOLF_SCENE_PATH):
@@ -161,6 +269,35 @@ func test_wolf_dash_can_be_parried_into_recovery() -> void:
 
 	enemy.call("_try_dash_hit", target)
 	_runner.assert_eq(target.damage_taken, 0, "parried wolf dash cannot damage after being stopped")
+
+
+func test_wolf_dash_parry_vibrates() -> void:
+	_runner.assert_true(ResourceLoader.exists(WOLF_SCENE_PATH), "wolf dash enemy scene exists")
+	if not ResourceLoader.exists(WOLF_SCENE_PATH):
+		return
+
+	HapticManager.test_mode = true
+	HapticManager.test_log.clear()
+	HapticManager._enabled = true
+	HapticManager._last_any_ms = -100000
+	HapticManager._last_cat_ms.clear()
+	HapticManager._test_now = 1000
+
+	var enemy := (load(WOLF_SCENE_PATH) as PackedScene).instantiate()
+	var target := DamageTarget.new()
+	add_child(enemy)
+	add_child(target)
+	enemy.global_position = Vector2.ZERO
+	target.global_position = Vector2.RIGHT * 8.0
+	enemy.call("tick_dash_ai", 0.1, enemy.global_position, target.global_position)
+	enemy.call("tick_dash_ai", enemy.dash_windup_time, enemy.global_position, target.global_position)
+
+	enemy.call("parry_dash", Vector2.LEFT)
+
+	_runner.assert_eq(HapticManager.test_log, [L_STRONG], "늑대 돌격 패링은 강한 진동을 준다")
+	HapticManager.test_mode = false
+	HapticManager.test_log.clear()
+	HapticManager._test_now = -1
 
 
 func test_combat_room_can_spawn_wolf_dash_enemy_from_config() -> void:

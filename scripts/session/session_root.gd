@@ -13,7 +13,6 @@ const START_ROOM_SCENE_PATH := "res://scenes/interactables/start_room.tscn"
 const COMBAT_ROOM_SCENE_PATH := "res://scenes/interactables/combat_room.tscn"
 const EVENT_ROOM_SCENE_PATH := "res://scenes/interactables/rescue_room.tscn"
 const TREASURE_ROOM_SCENE_PATH := "res://scenes/interactables/treasure_room.tscn"
-const SHOP_ROOM_SCENE_PATH := "res://scenes/interactables/shop_room.tscn"
 const FRIEND_ROOM_SCENE_PATH := "res://scenes/interactables/friend_room.tscn"
 const FINAL_ROOM_SCENE_PATH := "res://scenes/interactables/boss_room.tscn"
 const DEFAULT_STAGE_NAME := "경복궁"
@@ -25,6 +24,9 @@ const WEAPON_BAT := &"bat"
 const COMBAT_FEEDBACK_RECOVER_TIME := 0.10
 const COMBAT_FEEDBACK_MAX_OFFSET := 7.0
 const ROOM_ENTRY_SPAWN_INSET := Vector2(140.0, 96.0)
+const TOP_LEFT_HUD_GAP := 8.0
+const BASEBALL_ONBOARDING_LAYOUT_ID := &"onboarding_baseball_captain"
+const REWARD_CHOICE_DELAY_SECONDS := 1.0
 
 @onready var world_layer: Node2D = $WorldLayer
 @onready var room_layer: Node2D = %RoomLayer
@@ -59,6 +61,8 @@ var _rewarded_room_ids := {}
 var _pending_reward_room_id: StringName = &""
 var _paused_before_reward_choice := false
 var _pause_modal_open := false
+var _reward_choice_delay_timer: Timer = null
+var _touch_controls_visible_before_reward_choice := true
 
 
 func _ready() -> void:
@@ -66,6 +70,7 @@ func _ready() -> void:
 	_apply_render_layers()
 	if not GameManager.is_session_active():
 		GameManager.start_session({"source": "session_root"})
+	AudioManager.play_bgm(AudioManager.NIGHT_RUN_SUSPENSE_BGM)
 	_apply_session_loadout()
 	_connect_player_weapon_events()
 	_sync_combat_hud_health()
@@ -79,6 +84,7 @@ func _ready() -> void:
 	_connect_run_reward_events()
 	room_manager.room_changed.connect(_on_room_changed)
 	room_manager.configure(_build_run_layout(), room_layer, actor)
+	room_manager.transition_blocked_callable = Callable(self, "_is_room_transition_blocked_by_reward")
 	room_manager.start_layout()
 	_minimap.configure_from_manager(room_manager)
 	_apply_landscape_safe_area()
@@ -102,9 +108,26 @@ func _apply_render_layers() -> void:
 func _apply_landscape_safe_area() -> void:
 	var insets := MobileSafeArea.landscape_minimum_insets()
 	MobileSafeArea.apply_edge_offsets(_minimap, -1.0, float(insets["top"]), float(insets["right"]), -1.0)
+	_keep_combat_health_below_map_tab()
+
+
+func _keep_combat_health_below_map_tab() -> void:
+	var health_panel := combat_hud.get_node_or_null("Root/HealthPanel") as Control
+	var map_tab := session_ui_root.get_node_or_null("%MapTabButton") as Control
+	if health_panel == null or map_tab == null:
+		return
+	var health_height := health_panel.offset_bottom - health_panel.offset_top
+	var target_top := map_tab.get_global_rect().end.y + TOP_LEFT_HUD_GAP
+	if health_panel.get_global_rect().position.y >= target_top:
+		return
+	health_panel.offset_top = target_top
+	health_panel.offset_bottom = target_top + health_height
 
 
 func _exit_tree() -> void:
+	_cancel_reward_choice_delay()
+	if room_manager != null:
+		room_manager.transition_blocked_callable = Callable()
 	_disconnect_progression_events()
 	_disconnect_combat_feedback_events()
 	_disconnect_run_reward_events()
@@ -131,15 +154,78 @@ func advance_room(preferred_room_id: StringName = &"") -> bool:
 
 
 func _build_run_layout() -> RoomLayout:
+	if _is_baseball_onboarding_run():
+		return _build_baseball_onboarding_layout()
 	var generator := RoomLayoutGenerator.new()
 	generator.start_scene_path = START_ROOM_SCENE_PATH
 	generator.combat_scene_path = COMBAT_ROOM_SCENE_PATH
 	generator.event_scene_path = EVENT_ROOM_SCENE_PATH
 	generator.treasure_scene_path = TREASURE_ROOM_SCENE_PATH
-	generator.shop_scene_path = SHOP_ROOM_SCENE_PATH
 	generator.friend_scene_path = FRIEND_ROOM_SCENE_PATH
 	generator.final_scene_path = FINAL_ROOM_SCENE_PATH
 	return generator.generate(_resolve_run_layout_seed(), {"room_count": RUN_LAYOUT_ROOM_COUNT})
+
+
+func _build_baseball_onboarding_layout() -> RoomLayout:
+	var layout := RoomLayout.new()
+	layout.layout_id = BASEBALL_ONBOARDING_LAYOUT_ID
+	layout.start_room_id = &"start"
+	layout.allow_short_story_layout = true
+	layout.required_clears_for_hidden_reveal = 0
+	layout.room_defs = [
+		_make_room_def(&"start", RoomLayout.TYPE_START, START_ROOM_SCENE_PATH, [&"combat_1"], Vector2i.ZERO),
+		_make_room_def(
+			&"combat_1",
+			RoomLayout.TYPE_COMBAT,
+			COMBAT_ROOM_SCENE_PATH,
+			[&"start", &"friend_1"],
+			Vector2i(1, 0),
+			{
+				"chaser_count": 1,
+				"ranged_count": 0,
+				"wolf_count": 0,
+				"elite_chaser_count": 0,
+				"elite_ranged_count": 0,
+				"elite_wolf_count": 0,
+				"wave_count": 1,
+			}
+		),
+		_make_room_def(
+			&"friend_1",
+			RoomLayout.TYPE_FRIEND,
+			FRIEND_ROOM_SCENE_PATH,
+			[&"combat_1"],
+			Vector2i(2, 0),
+			{"friend_id": &"baseball_captain"}
+		),
+	]
+	return layout
+
+
+func _make_room_def(
+	room_id: StringName,
+	room_type: StringName,
+	scene_path: String,
+	connections: Array,
+	grid_pos: Vector2i,
+	room_config: Dictionary = {}
+) -> RoomDef:
+	var room_def := RoomDef.new()
+	var typed_connections: Array[StringName] = []
+	for connection: Variant in connections:
+		typed_connections.append(StringName(connection))
+	room_def.room_id = room_id
+	room_def.room_type = room_type
+	room_def.scene_path = scene_path
+	room_def.connections = typed_connections
+	room_def.grid_pos = grid_pos
+	room_def.room_config = room_config.duplicate(true)
+	return room_def
+
+
+func _is_baseball_onboarding_run() -> bool:
+	var config := GameManager.get_active_config()
+	return StringName(config.get(SceneTransition.RUN_CONFIG_ONBOARDING_KIND, &"")) == SceneTransition.ONBOARDING_KIND_BASEBALL_CAPTAIN
 
 
 func _resolve_run_layout_seed() -> int:
@@ -212,6 +298,7 @@ func _sync_combat_hud_health() -> void:
 
 
 func finish_session(overrides: Dictionary = {}) -> Dictionary:
+	_clear_pending_reward_choice()
 	var result := _build_session_result(overrides)
 	GameManager.finish_session(result)
 	session_ui_root.show_summary(result)
@@ -248,6 +335,7 @@ func _build_death_result() -> Dictionary:
 
 
 func _show_death_summary(result: Dictionary) -> void:
+	_clear_pending_reward_choice()
 	get_tree().paused = true
 	session_ui_root.set_status("쓰러짐")
 	session_ui_root.show_summary(result)
@@ -352,16 +440,99 @@ func _on_room_cleared_for_reward(payload: Dictionary) -> void:
 		return
 	if _rewarded_room_ids.has(room_id) or _pending_reward_room_id != &"":
 		return
-	_show_room_reward_choices(room_id)
+	if _build_reward_choice_models(room_id).is_empty():
+		return
+	_pending_reward_room_id = room_id
+	_start_reward_choice_delay()
+
+
+func _start_reward_choice_delay() -> void:
+	var timer := _ensure_reward_choice_delay_timer()
+	timer.stop()
+	timer.start(REWARD_CHOICE_DELAY_SECONDS)
+
+
+func _ensure_reward_choice_delay_timer() -> Timer:
+	if _reward_choice_delay_timer != null and is_instance_valid(_reward_choice_delay_timer):
+		return _reward_choice_delay_timer
+	_reward_choice_delay_timer = Timer.new()
+	_reward_choice_delay_timer.name = "RewardChoiceDelayTimer"
+	_reward_choice_delay_timer.one_shot = true
+	_reward_choice_delay_timer.wait_time = REWARD_CHOICE_DELAY_SECONDS
+	_reward_choice_delay_timer.process_mode = Node.PROCESS_MODE_PAUSABLE
+	add_child(_reward_choice_delay_timer)
+	_reward_choice_delay_timer.timeout.connect(_on_reward_choice_delay_timeout)
+	return _reward_choice_delay_timer
+
+
+func _cancel_reward_choice_delay() -> void:
+	if _reward_choice_delay_timer != null and is_instance_valid(_reward_choice_delay_timer):
+		_reward_choice_delay_timer.stop()
+
+
+func _clear_pending_reward_choice() -> void:
+	_cancel_reward_choice_delay()
+	_pending_reward_room_id = &""
+	_restore_touch_controls_after_reward_choice()
+
+
+func _on_reward_choice_delay_timeout() -> void:
+	if _pending_reward_room_id == &"":
+		return
+	if _rewarded_room_ids.has(_pending_reward_room_id):
+		_pending_reward_room_id = &""
+		return
+	if room_manager == null or _pending_reward_room_id != room_manager.current_room_id:
+		_pending_reward_room_id = &""
+		return
+	if session_ui_root != null and session_ui_root.has_method("is_reward_choice_visible") and bool(session_ui_root.call("is_reward_choice_visible")):
+		return
+	if _should_defer_reward_choice_open():
+		_start_reward_choice_delay()
+		return
+	_show_room_reward_choices(_pending_reward_room_id)
+
+
+func _should_defer_reward_choice_open() -> bool:
+	if get_tree().paused:
+		return true
+	if _confirm_modal != null and _confirm_modal.is_open():
+		return true
+	return false
+
+
+func flush_pending_reward_choice_for_tests() -> bool:
+	if _pending_reward_room_id == &"":
+		return false
+	_cancel_reward_choice_delay()
+	_on_reward_choice_delay_timeout()
+	return session_ui_root != null and session_ui_root.has_method("is_reward_choice_visible") and bool(session_ui_root.call("is_reward_choice_visible"))
+
+
+func _is_room_transition_blocked_by_reward(_current_room_id: StringName, _preferred_room_id: StringName) -> bool:
+	return _pending_reward_room_id != &""
+
+
+func get_reward_choice_delay_snapshot() -> Dictionary:
+	var time_left := 0.0
+	if _reward_choice_delay_timer != null and is_instance_valid(_reward_choice_delay_timer):
+		time_left = _reward_choice_delay_timer.time_left
+	return {
+		"pending_room_id": _pending_reward_room_id,
+		"time_left": time_left,
+		"is_transition_blocked": _pending_reward_room_id != &"",
+	}
 
 
 func _show_room_reward_choices(room_id: StringName) -> void:
 	var choices := _build_reward_choice_models(room_id)
 	if choices.is_empty():
+		_pending_reward_room_id = &""
 		return
 	_pending_reward_room_id = room_id
 	_paused_before_reward_choice = get_tree().paused
 	_release_combat_touch_inputs()
+	_hide_touch_controls_for_reward_choice()
 	get_tree().paused = true
 	session_ui_root.call("show_reward_choices", room_id, choices)
 	session_ui_root.set_status("전투 보상")
@@ -379,6 +550,8 @@ func _on_reward_choice_selected(item_id: StringName) -> void:
 	if session_ui_root.has_method("hide_reward_choices"):
 		session_ui_root.call("hide_reward_choices")
 	get_tree().paused = _paused_before_reward_choice
+	_restore_touch_controls_after_reward_choice()
+	_reset_current_room_door_transition_latches()
 	session_ui_root.set_status("보상 획득")
 	if has_node("/root/EventBus"):
 		EventBus.emit_interaction_completed({
@@ -424,6 +597,28 @@ func _release_combat_touch_inputs() -> void:
 		touch_controls.call("release_combat_inputs")
 
 
+func _hide_touch_controls_for_reward_choice() -> void:
+	if touch_controls == null:
+		return
+	_touch_controls_visible_before_reward_choice = touch_controls.visible
+	touch_controls.visible = false
+
+
+func _restore_touch_controls_after_reward_choice() -> void:
+	if touch_controls == null:
+		return
+	touch_controls.visible = _touch_controls_visible_before_reward_choice
+
+
+func _reset_current_room_door_transition_latches() -> void:
+	if room_manager == null or room_manager.current_room == null:
+		return
+	if not room_manager.current_room.has_method("get_doors"):
+		return
+	for door: RoomDoor in room_manager.current_room.call("get_doors"):
+		door.configure_actor(actor)
+
+
 func camera_feedback_offset(direction: Vector2, intensity: float) -> Vector2:
 	var safe_direction := direction.normalized() if direction.length() > 0.001 else Vector2.RIGHT
 	var amount := clampf(intensity, 1.0, COMBAT_FEEDBACK_MAX_OFFSET)
@@ -449,6 +644,25 @@ func _on_friend_purified(payload: Dictionary) -> void:
 	if friend_id == &"" or _friend_ids.has(friend_id):
 		return
 	_friend_ids.append(friend_id)
+	if _is_baseball_onboarding_run() and friend_id == &"baseball_captain":
+		_finish_baseball_onboarding(payload)
+
+
+func _finish_baseball_onboarding(payload: Dictionary) -> void:
+	if not has_node("/root/GameManager") or not GameManager.is_session_active():
+		return
+	var room_id := StringName(payload.get("room_id", room_manager.current_room_id))
+	if room_id != &"":
+		room_manager.cleared_room_ids[room_id] = true
+	if has_node("/root/SaveManager"):
+		SaveManager.set_flag(SceneTransition.FLAG_ONBOARDING_BASEBALL_COMPLETE, true)
+		SaveManager.set_flag(SceneTransition.FLAG_BASEBALL_CAPTAIN_REWARD_CLAIMED, false)
+	finish_session({
+		"reason": "onboarding_friend_purified",
+		"outcome": "onboarding_complete",
+		"completed": true,
+		"onboarding_kind": SceneTransition.ONBOARDING_KIND_BASEBALL_CAPTAIN,
+	})
 
 
 func _on_unlock_changed(payload: Dictionary) -> void:

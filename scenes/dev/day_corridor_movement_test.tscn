@@ -8,7 +8,7 @@
 [ext_resource type="Script" path="res://scripts/dev/day_corridor_touch_proxy.gd" id="6_proxy"]
 [ext_resource type="Texture2D" path="res://assets/characters/student/walking.png" id="7_student"]
 [ext_resource type="Texture2D" path="res://assets/characters/student/idle.png" id="12_idle"]
-[ext_resource type="Texture2D" path="res://assets/characters/school/people2.png" id="14_people2"]
+[ext_resource type="Texture2D" path="res://assets/characters/school/baseball_captain.png" id="14_people2"]
 [ext_resource type="Texture2D" path="res://assets/characters/school/people3.png" id="15_people3"]
 [ext_resource type="Texture2D" path="res://assets/characters/school/people4.png" id="16_people4"]
 [ext_resource type="PackedScene" path="res://scenes/ui/hub_dialogue_ui.tscn" id="8_dialogue"]
@@ -72,8 +72,27 @@ position = Vector2(0, -128)
 scale = Vector2(2, 2)
 texture_filter = 1
 texture = ExtResource("14_people2")
-hframes = 8
+hframes = 6
 vframes = 1
+
+[node name="TalkTargetCalloutLabel" type="Label" parent="LeftSchoolCharacters/TalkTarget"]
+unique_name_in_owner = true
+z_index = 12
+offset_left = -102.0
+offset_top = -312.0
+offset_right = 102.0
+offset_bottom = -276.0
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_colors/font_outline_color = Color(0.04, 0.05, 0.08, 1)
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.5)
+theme_override_constants/outline_size = 8
+theme_override_constants/shadow_offset_x = 1
+theme_override_constants/shadow_offset_y = 2
+theme_override_font_sizes/font_size = 22
+theme_override_styles/normal = SubResource("StyleBoxFlat_rumor_pill")
+text = "!  야구부 주장"
+horizontal_alignment = 1
+vertical_alignment = 1
 
 [node name="RightSchoolCharacters" type="Node2D" parent="."]
 unique_name_in_owner = true
@@ -204,13 +223,43 @@ anchor_left = 0.5
 anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
-offset_left = -42.0
+offset_left = -148.0
 offset_top = -198.0
-offset_right = 42.0
+offset_right = 148.0
 offset_bottom = -164.0
 grow_horizontal = 2
 grow_vertical = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_colors/font_outline_color = Color(0.04, 0.05, 0.08, 1)
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.5)
+theme_override_constants/outline_size = 8
+theme_override_constants/shadow_offset_x = 1
+theme_override_constants/shadow_offset_y = 2
 theme_override_font_sizes/font_size = 24
+theme_override_styles/normal = SubResource("StyleBoxFlat_rumor_pill")
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="GyeongbokgungRunArrowLabel" type="Label" parent="UiLayer"]
+unique_name_in_owner = true
+visible = false
+anchor_left = 1.0
+anchor_top = 0.5
+anchor_right = 1.0
+anchor_bottom = 0.5
+offset_left = -220.0
+offset_top = -48.0
+offset_right = -60.0
+offset_bottom = 36.0
+mouse_filter = 2
+theme_override_colors/font_color = Color(0, 0, 0, 1)
+theme_override_colors/font_outline_color = Color(1, 1, 1, 0.92)
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.28)
+theme_override_constants/outline_size = 10
+theme_override_constants/shadow_offset_x = 1
+theme_override_constants/shadow_offset_y = 3
+theme_override_font_sizes/font_size = 56
+text = ">>>"
 horizontal_alignment = 1
 vertical_alignment = 1
 

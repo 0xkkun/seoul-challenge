@@ -20,11 +20,29 @@ func test_intro_has_four_beats_over_four_plates() -> void:
 		)
 		var lines: Array = beat["lines"]
 		_runner.assert_true(lines.size() > 0, "each beat shows at least one subtitle line")
+		for line: Dictionary in lines:
+			_runner.assert_true(
+				String(line.get("text", "")).length() > 0,
+				"each line carries non-empty subtitle text"
+			)
 
 
 func test_intro_plate_assets_are_importable() -> void:
 	for path: String in NightIntroCutsceneScript.PLATES:
 		_runner.assert_true(ResourceLoader.exists(path), "plate asset exists and is imported: %s" % path)
+
+
+func test_intro_narration_clips_are_importable() -> void:
+	var clip_count := 0
+	for beat: Dictionary in NightIntroCutsceneScript.BEATS:
+		for line: Dictionary in beat["lines"]:
+			if line.has("audio"):
+				clip_count += 1
+				_runner.assert_true(
+					ResourceLoader.exists(String(line["audio"])),
+					"narration clip exists and is imported: %s" % line["audio"]
+				)
+	_runner.assert_true(clip_count >= 7, "narration covers the voiced lines")
 
 
 func test_skip_finishes_immediately_before_playing() -> void:

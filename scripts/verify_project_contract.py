@@ -54,6 +54,12 @@ PROJECT_NEEDLES = {
     "mobile compatibility renderer": 'renderer/rendering_method.mobile="gl_compatibility"',
 }
 
+ANDROID_EXPORT_NEEDLES = {
+    "android preset": 'name="Android"',
+    "debug package": 'package/unique_name="com.oxkkun.afterschool.debug"',
+    "vibrate permission": '"android.permission.VIBRATE"',
+}
+
 
 def fail(message: str) -> None:
     print(f"[verify_project_contract] FAIL: {message}", file=sys.stderr)
@@ -113,10 +119,18 @@ def verify_docs_match() -> None:
         fail("docs/architecture.md must list world and UI render layer constants")
 
 
+def verify_android_export_preset() -> None:
+    text = read("export_presets.cfg")
+    missing = [name for name, needle in ANDROID_EXPORT_NEEDLES.items() if needle not in text]
+    if missing:
+        fail("missing Android export preset invariant(s): " + ", ".join(missing))
+
+
 def main() -> None:
     verify_required_files()
     verify_project_settings()
     verify_docs_match()
+    verify_android_export_preset()
     print("[verify_project_contract] OK: project contract matches template baseline")
 
 

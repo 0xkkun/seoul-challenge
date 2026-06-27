@@ -53,8 +53,8 @@ const DELIVERY_BY_SPEAKER := {
 ## 화자 id → 표시 이름/포트레이트 메타. set_dialogue 1번째 인자는 표시 이름이지 id가 아님.
 const SPEAKER_META := {
 	SPEAKER_PEOPLE2: {
-		"display_name": "반 친구",
-		"portrait": "res://assets/characters/school/people2.png",
+		"display_name": "야구부 주장",
+		"portrait": "res://assets/characters/school/baseball_captain.png",
 		"portrait_frame": 1,  # frame 1 = 눈뜬 정적 (test_hub_dialogue_ui.gd)
 	},
 	SPEAKER_PEOPLE3: {"display_name": "지나가던 학생", "portrait": "", "portrait_frame": 0},

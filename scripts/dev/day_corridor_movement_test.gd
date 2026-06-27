@@ -22,8 +22,31 @@ const ACTION_DISMISS_UNLOCK := "day_corridor.dialogue.dismiss_unlock"
 const ACTION_EXIT_TO_LOBBY := "day_corridor.exit_to_lobby"
 const OBJECTIVE_TALK := "목표: 야구부 주장과 이야기하고, 밤의 궁으로 갈 준비를 하자"
 const OBJECTIVE_LOCKER := "목표: 복도 끝 사물함에서 기억 무기를 챙기자"
+const OBJECTIVE_BASEBALL_REWARD := "목표: 야구부 주장에게 돌아가 배트와 단서를 받자"
+const OBJECTIVE_REENTER_GYEONGBOKGUNG := "목표: 복도 끝 사물함에서 배트를 챙기고 경복궁으로 다시 가자"
+const RUN_NAVIGATION_ARROW_TEXT := ">>>"
 const RETURN_TO_LOBBY_MESSAGE := "로비로 돌아갈까요? 진행 상황은 자동으로 저장됩니다."
 const QUIT_GAME_MESSAGE := "게임을 종료할까요?"
+const BASEBALL_CAPTAIN_DISPLAY_NAME := "야구부 주장"
+const BASEBALL_CAPTAIN_PROMPT_TEXT := "야구부 주장  말 걸기"
+const BASEBALL_CAPTAIN_REWARD_CALLOUT_TEXT := "!  야구부 주장"
+const CRACKED_BAT_ID := &"cracked_bat"
+const CRACKED_BAT_NAME := "금 간 나무 배트"
+const CRACKED_BAT_POPUP_SUBTITLE := "야구부 주장이 건넨 기억 무기"
+const BASEBALL_REWARD_LINES := [
+	{
+		"text": "고마워. 아까는 내가 제정신이 아니었던 것 같아.",
+		"memory": "기억: 운동장 흙먼지와 거칠어진 숨",
+	},
+	{
+		"text": "이 금 간 나무 배트 가져가. 밤에 다시 들어가야 한다면 네 손에 있는 게 나아.",
+		"memory": "기억: 사물함 안쪽에 기대 둔 금 간 나무 배트",
+	},
+	{
+		"text": "네가 찾는 친구는 [b]도깨비왕[/b]에게 잡혀갔다는 말이 있어. 아니면 그보다 더 큰 무언가일지도 몰라.",
+		"memory": "기억: 궁궐 어둠 너머의 낮은 웃음",
+	},
+]
 
 @export var corridor_size := Vector2(2172.0, 720.0)
 @export var floor_y := 628.0
@@ -65,6 +88,7 @@ const QUIT_GAME_MESSAGE := "게임을 종료할까요?"
 @onready var _right_school_characters: Node2D = %RightSchoolCharacters
 @onready var _talk_target: Node2D = %TalkTarget
 @onready var _talk_target_sprite: Sprite2D = %TalkTargetSprite
+@onready var _talk_target_callout_label: Label = %TalkTargetCalloutLabel
 @onready var _right_student3_sprite: Sprite2D = %RightStudent3Sprite
 @onready var _right_crowd_sprite: Sprite2D = %RightCrowdSprite
 @onready var _right_student3: Node2D = %RightStudent3
@@ -76,6 +100,7 @@ const QUIT_GAME_MESSAGE := "게임을 종료할까요?"
 @onready var _interaction_prompt: Label = %InteractionPrompt
 @onready var _talk_button_label: Label = %TalkButtonLabel
 @onready var _objective_label: Label = %ObjectiveLabel
+@onready var _gyeongbokgung_run_arrow_label: Label = %GyeongbokgungRunArrowLabel
 @onready var _hub_dialogue_ui: HubDialogueUi = %HubDialogueUi
 @onready var _fade_overlay: ColorRect = %FadeOverlay
 @onready var _exit_button: Button = %ExitButton
@@ -84,6 +109,8 @@ const QUIT_GAME_MESSAGE := "게임을 종료할까요?"
 var _dialogue_count := 0
 var _dialogue_line_index := -1
 var _dialogue_lines: Array[Dictionary] = []
+var _dialogue_claims_baseball_reward := false
+var _baseball_reward_pickup_popup_shown := false
 var _was_dialogue_pressed := false
 var _walk_elapsed := 0.0
 var _idle_elapsed := 0.0
@@ -125,7 +152,9 @@ func _ready() -> void:
 	_hub_dialogue_ui.set_stage_row_visible(false)
 	_hub_dialogue_ui.choice_selected.connect(_on_hub_dialogue_choice_selected)
 	_update_objective_label()
+	_update_run_navigation_arrow()
 	_interaction_prompt.visible = false
+	_update_talk_target_callout()
 	_apply_ui_automation_metadata()
 	PixelButtonStyle.apply(_exit_button, PixelButtonStyle.VARIANT_PRIMARY, Vector2(144.0, 50.0))
 	_exit_button.pressed.connect(_request_return_to_lobby)
@@ -144,6 +173,11 @@ func _process(delta: float) -> void:
 		return
 	if _is_room_transitioning:
 		_player.velocity = Vector2.ZERO
+		_sync_camera()
+		return
+	if _hub_dialogue_ui.is_unlock_visible():
+		_player.velocity = Vector2.ZERO
+		_update_character_sprite(delta)
 		_sync_camera()
 		return
 	if is_dialogue_ui_visible():
@@ -315,7 +349,7 @@ func get_dialogue_choice_ids() -> Array[StringName]:
 
 
 func is_dialogue_ui_visible() -> bool:
-	return _hub_dialogue_ui.visible
+	return _hub_dialogue_ui.visible and _hub_dialogue_ui.is_dialogue_content_visible()
 
 
 func is_touch_controls_visible() -> bool:
@@ -372,17 +406,17 @@ func is_combat_output_disabled() -> bool:
 func perform_uat_action(action_name: String) -> bool:
 	match action_name:
 		ACTION_OPEN_DIALOGUE:
-			if is_dialogue_ui_visible() or not is_player_in_dialogue_range():
+			if is_dialogue_ui_visible() or _hub_dialogue_ui.is_unlock_visible() or not is_player_in_dialogue_range():
 				return false
 			trigger_dialogue()
 			return true
 		ACTION_DIALOGUE_NEXT:
-			if not is_dialogue_ui_visible() or not get_dialogue_choice_ids().has(CHOICE_NEXT):
+			if not is_dialogue_ui_visible() or _hub_dialogue_ui.is_unlock_visible() or not get_dialogue_choice_ids().has(CHOICE_NEXT):
 				return false
 			_hub_dialogue_ui.select_choice(CHOICE_NEXT)
 			return true
 		ACTION_DIALOGUE_CLOSE:
-			if not is_dialogue_ui_visible() or not get_dialogue_choice_ids().has(CHOICE_CLOSE):
+			if not is_dialogue_ui_visible() or _hub_dialogue_ui.is_unlock_visible() or not get_dialogue_choice_ids().has(CHOICE_CLOSE):
 				return false
 			_hub_dialogue_ui.select_choice(CHOICE_CLOSE)
 			return true
@@ -400,8 +434,12 @@ func perform_uat_action(action_name: String) -> bool:
 
 
 func trigger_dialogue() -> void:
+	if _hub_dialogue_ui.is_unlock_visible():
+		return
 	if is_dialogue_ui_visible():
 		if _dialogue_lines.is_empty():
+			return
+		if _hub_dialogue_ui.is_unlock_visible():
 			return
 		_show_dialogue_line((_dialogue_line_index + 1) % _dialogue_lines.size())
 		return
@@ -414,6 +452,11 @@ func trigger_dialogue() -> void:
 
 ## people2 대사를 현재 진행도 tier + 컨텍스트로 해석한다. 대화 open 시점에 호출.
 func _resolve_dialogue_lines() -> void:
+	_dialogue_claims_baseball_reward = _needs_baseball_reward_dialogue()
+	_baseball_reward_pickup_popup_shown = false
+	if _dialogue_claims_baseball_reward:
+		_dialogue_lines = _baseball_reward_lines()
+		return
 	_dialogue_lines = DaySchoolRumors.pick_lines(
 		DaySchoolRumors.SPEAKER_PEOPLE2, _current_rumor_tier(), _rumor_context()
 	)
@@ -448,16 +491,28 @@ func close_dialogue() -> void:
 	# 탭·back·ESC 모든 close 경로를 안전하게 한다. hide_unlock 은 예약된 one-shot 을 정상 발사시킨다(멱등).
 	if _hub_dialogue_ui.is_unlock_visible():
 		_hub_dialogue_ui.hide_unlock()
+	if _is_baseball_reward_dialogue_complete():
+		_claim_baseball_reward_dialogue()
 	_hub_dialogue_ui.visible = false
 	_touch_controls.visible = true
 	_talk_button_label.visible = true
 	_player.set_physics_process(true)
 	_dialogue_line_index = -1
+	_dialogue_claims_baseball_reward = false
+	_baseball_reward_pickup_popup_shown = false
 	_sync_talk_target_visibility()
 	_update_objective_label()
 	# The closing tap can reveal touch controls under the same held press.
 	_was_dialogue_pressed = true
 	_update_interaction_prompt()
+
+
+func _request_close_dialogue() -> void:
+	if _is_baseball_reward_dialogue_complete():
+		_claim_baseball_reward_dialogue()
+		if _try_complete_baseball_lobby_quest():
+			return
+	close_dialogue()
 
 
 func _notification(what: int) -> void:
@@ -620,6 +675,7 @@ func _request_locker_maintenance(edge_id: StringName) -> void:
 		return
 	_is_maintenance_requested = true
 	_last_maintenance_edge = edge_id
+	_update_run_navigation_arrow()
 	_player.velocity = Vector2.ZERO
 	SceneTransition.set_pending_day_corridor_context({
 		SceneTransition.DAY_CORRIDOR_CONTEXT_ROOM_ID: _current_room_id,
@@ -926,14 +982,30 @@ func _center_or_clamp(value: float, half_view: float, world_size: float) -> floa
 
 
 func _update_interaction_prompt() -> void:
-	_interaction_prompt.visible = not is_dialogue_ui_visible() and is_player_in_dialogue_range()
+	var prompt_visible := not is_dialogue_ui_visible() and not _hub_dialogue_ui.is_unlock_visible() and is_player_in_dialogue_range()
+	_interaction_prompt.visible = prompt_visible
+	_interaction_prompt.text = BASEBALL_CAPTAIN_PROMPT_TEXT if prompt_visible else ""
+	_update_talk_target_callout()
+
+
+func _update_talk_target_callout() -> void:
+	if _talk_target_callout_label == null:
+		return
+	var should_show := not is_dialogue_ui_visible() and not _hub_dialogue_ui.is_unlock_visible() and _talk_target.visible
+	if _needs_baseball_reward_dialogue():
+		_talk_target_callout_label.text = BASEBALL_CAPTAIN_REWARD_CALLOUT_TEXT
+	elif _dialogue_count <= 0 and not _has_claimed_baseball_reward():
+		_talk_target_callout_label.text = BASEBALL_CAPTAIN_DISPLAY_NAME
+	else:
+		should_show = false
+	_talk_target_callout_label.visible = should_show
 
 
 func _process_dialogue_input() -> void:
 	var pressed := is_dialogue_input_pressed()
 	if is_dialogue_ui_visible():
 		if _is_dialogue_close_input_pressed():
-			close_dialogue()
+			_request_close_dialogue()
 		_was_dialogue_pressed = pressed
 		return
 	if pressed and not _was_dialogue_pressed and is_player_in_dialogue_range():
@@ -949,6 +1021,8 @@ func _open_dialogue_ui() -> void:
 	_player.set_physics_process(false)
 	_update_character_sprite(0.0)
 	_sync_talk_target_visibility()
+	_update_talk_target_callout()
+	_update_run_navigation_arrow()
 
 
 func _show_dialogue_line(line_index: int) -> void:
@@ -980,6 +1054,7 @@ func _show_dialogue_line(line_index: int) -> void:
 			"uat_action": ACTION_DIALOGUE_CLOSE if is_last_line else ACTION_DIALOGUE_NEXT,
 		},
 	])
+	_maybe_show_baseball_reward_pickup_popup()
 	dialogue_requested.emit({
 		"count": _dialogue_count,
 		"line": line_text,
@@ -994,17 +1069,25 @@ func _on_hub_dialogue_choice_selected(choice_id: StringName) -> void:
 		CHOICE_NEXT:
 			trigger_dialogue()
 		CHOICE_CLOSE:
-			# #243: 정화 후 people2 대화를 완주하면 야구부 주장 로비 퀘스트가 완료된다.
-			# 게이트가 발동하면 강화배트 팝업이 뜨고, 팝업이 닫힐 때까지 대화 닫기를 미룬다.
-			if _try_complete_baseball_lobby_quest():
-				return
-			close_dialogue()
+			_request_close_dialogue()
 
 
-## 정화 후(post_purify tier) people2 대화 완주 = 로비 퀘스트 완료. 발동 시 강화배트를 해금하고
-## 팝업을 띄운 뒤, 팝업이 닫힐 때(unlock_hidden) 대화를 닫도록 one-shot 으로 예약한다. (#243)
-## CanvasLayer 인 HubDialogueUi 를 지금 닫으면 같은 레이어의 언락 오버레이도 렌더되지 않으므로 닫기를 미룬다.
-## 게이트가 발동해 닫기를 미뤘으면 true 를 반환한다.
+func _maybe_show_baseball_reward_pickup_popup() -> void:
+	if not _dialogue_claims_baseball_reward:
+		return
+	if _dialogue_line_index != 1:
+		return
+	if _baseball_reward_pickup_popup_shown:
+		return
+	_baseball_reward_pickup_popup_shown = true
+	_hub_dialogue_ui.show_unlock(CRACKED_BAT_NAME, CRACKED_BAT_POPUP_SUBTITLE, [
+		{"id": CRACKED_BAT_ID, "name": CRACKED_BAT_NAME, "color": HubDialogueUi.DEFAULT_BAT_COLOR},
+	])
+
+
+## 정화 후(post_purify tier) people2 대화 완주 = 로비 퀘스트 완료. 대화 바를 먼저 닫고
+## 같은 CanvasLayer 에 강화배트 팝업만 남겨, 팝업이 "대화가 끝난 뒤" 보이도록 한다.
+## 게이트가 발동해 팝업만 남겼으면 true 를 반환한다.
 func _try_complete_baseball_lobby_quest() -> bool:
 	var progression := get_node_or_null(^"/root/ProgressionSystem")
 	if progression == null:
@@ -1014,16 +1097,34 @@ func _try_complete_baseball_lobby_quest() -> bool:
 	if _current_rumor_tier() != DaySchoolRumors.TIER_POST_PURIFY:
 		return false
 
-	if not _hub_dialogue_ui.unlock_hidden.is_connected(_on_quest_unlock_hidden):
-		_hub_dialogue_ui.unlock_hidden.connect(_on_quest_unlock_hidden, CONNECT_ONE_SHOT)
-	# 동기적으로 unlock_changed → HubDialogueUi 가 강화배트 팝업을 띄운다.
+	_prepare_dialogue_closed_for_quest_unlock()
 	progression.record_quest_completed(ProgressionSystem.QUEST_BASEBALL_CAPTAIN_LOBBY)
 	# 팝업이 뜨지 않았다면(이미 해금된 무기 등) 미룰 이유가 없으니 예약을 해제하고 일반 닫기로 넘긴다.
 	if not _hub_dialogue_ui.is_unlock_visible():
 		if _hub_dialogue_ui.unlock_hidden.is_connected(_on_quest_unlock_hidden):
 			_hub_dialogue_ui.unlock_hidden.disconnect(_on_quest_unlock_hidden)
 		return false
+	_update_interaction_prompt()
+	_update_run_navigation_arrow()
 	return true
+
+
+func _prepare_dialogue_closed_for_quest_unlock() -> void:
+	if not _hub_dialogue_ui.unlock_hidden.is_connected(_on_quest_unlock_hidden):
+		_hub_dialogue_ui.unlock_hidden.connect(_on_quest_unlock_hidden, CONNECT_ONE_SHOT)
+	_hub_dialogue_ui.visible = true
+	_hub_dialogue_ui.set_dialogue_content_visible(false)
+	_touch_controls.visible = false
+	_talk_button_label.visible = false
+	_player.velocity = Vector2.ZERO
+	_player.set_physics_process(false)
+	_dialogue_line_index = -1
+	_dialogue_claims_baseball_reward = false
+	_baseball_reward_pickup_popup_shown = false
+	_sync_talk_target_visibility()
+	_update_objective_label()
+	_was_dialogue_pressed = true
+	_update_interaction_prompt()
 
 
 func _on_quest_unlock_hidden() -> void:
@@ -1033,7 +1134,64 @@ func _on_quest_unlock_hidden() -> void:
 func _update_objective_label() -> void:
 	if _objective_label == null:
 		return
-	_objective_label.text = OBJECTIVE_LOCKER if _dialogue_count > 0 else OBJECTIVE_TALK
+	var objective_text := OBJECTIVE_LOCKER if _dialogue_count > 0 else OBJECTIVE_TALK
+	if _needs_baseball_reward_dialogue():
+		objective_text = OBJECTIVE_BASEBALL_REWARD
+	elif _has_claimed_baseball_reward():
+		objective_text = OBJECTIVE_REENTER_GYEONGBOKGUNG
+	_objective_label.text = objective_text
+	_update_run_navigation_arrow()
+
+
+func _update_run_navigation_arrow() -> void:
+	if _gyeongbokgung_run_arrow_label == null:
+		return
+	_gyeongbokgung_run_arrow_label.text = RUN_NAVIGATION_ARROW_TEXT
+	_gyeongbokgung_run_arrow_label.visible = _should_show_run_navigation_arrow()
+
+
+func _should_show_run_navigation_arrow() -> bool:
+	if not _has_claimed_baseball_reward():
+		return false
+	if _needs_baseball_reward_dialogue():
+		return false
+	if is_dialogue_ui_visible():
+		return false
+	if _hub_dialogue_ui != null and _hub_dialogue_ui.is_unlock_visible():
+		return false
+	if _confirm_modal != null and _confirm_modal.is_open():
+		return false
+	return not _is_maintenance_requested
+
+
+func _needs_baseball_reward_dialogue() -> bool:
+	if not has_node(^"/root/SaveManager"):
+		return false
+	return (
+		SaveManager.get_flag(SceneTransition.FLAG_ONBOARDING_BASEBALL_COMPLETE)
+		and not SaveManager.get_flag(SceneTransition.FLAG_BASEBALL_CAPTAIN_REWARD_CLAIMED)
+	)
+
+
+func _has_claimed_baseball_reward() -> bool:
+	return has_node(^"/root/SaveManager") and SaveManager.get_flag(SceneTransition.FLAG_BASEBALL_CAPTAIN_REWARD_CLAIMED)
+
+
+func _claim_baseball_reward_dialogue() -> void:
+	if not has_node(^"/root/SaveManager"):
+		return
+	SaveManager.set_flag(SceneTransition.FLAG_BASEBALL_CAPTAIN_REWARD_CLAIMED, true)
+
+
+func _is_baseball_reward_dialogue_complete() -> bool:
+	return _dialogue_claims_baseball_reward and _dialogue_line_index >= _dialogue_lines.size() - 1
+
+
+func _baseball_reward_lines() -> Array[Dictionary]:
+	var lines: Array[Dictionary] = []
+	for entry: Dictionary in BASEBALL_REWARD_LINES:
+		lines.append(entry.duplicate(true))
+	return lines
 
 
 func _is_dialogue_close_input_pressed() -> bool:
@@ -1052,8 +1210,11 @@ func _apply_ui_automation_metadata() -> void:
 func _handle_back_request() -> void:
 	if _confirm_modal.is_open():
 		return
+	if _hub_dialogue_ui.is_unlock_visible():
+		_request_close_dialogue()
+		return
 	if is_dialogue_ui_visible():
-		close_dialogue()
+		_request_close_dialogue()
 		return
 	_request_return_to_lobby()
 
@@ -1065,8 +1226,9 @@ func _request_return_to_lobby() -> void:
 	_confirm_modal.open(
 		RETURN_TO_LOBBY_MESSAGE,
 		Callable(self, "_return_to_lobby"),
-		Callable()
+		Callable(self, "_update_run_navigation_arrow")
 	)
+	_update_run_navigation_arrow()
 
 
 func _return_to_lobby() -> void:
@@ -1083,8 +1245,9 @@ func _request_quit_game() -> void:
 	_confirm_modal.open(
 		QUIT_GAME_MESSAGE,
 		Callable(self, "_quit_game"),
-		Callable()
+		Callable(self, "_update_run_navigation_arrow")
 	)
+	_update_run_navigation_arrow()
 
 
 func _quit_game() -> void:

@@ -14,13 +14,24 @@ const DEFAULT_MAP_NAME := "경복궁"
 const MAP_TAB_TEST_ID := "session.map_tab"
 const MAP_TAB_ACTION := "session.map_tab"
 const MobileSafeArea := preload("res://scripts/ui/mobile_safe_area.gd")
-const REWARD_CHOICE_DIM_ALPHA := 0.66
-const REWARD_CHOICE_PANEL_OFFSET_LEFT := -380.0
-const REWARD_CHOICE_PANEL_OFFSET_TOP := -164.0
-const REWARD_CHOICE_PANEL_OFFSET_RIGHT := 380.0
-const REWARD_CHOICE_PANEL_OFFSET_BOTTOM := 164.0
-const REWARD_CHOICE_PANEL_SLIDE_OFFSET := 36.0
+const REWARD_CHOICE_ROW_OFFSET_LEFT := -390.0
+const REWARD_CHOICE_ROW_OFFSET_TOP := -84.0
+const REWARD_CHOICE_ROW_OFFSET_RIGHT := 390.0
+const REWARD_CHOICE_ROW_OFFSET_BOTTOM := 84.0
+const REWARD_CHOICE_TITLE_TEXT := "방 클리어 보상"
+const REWARD_CHOICE_TITLE_OFFSET_TOP := -170.0
+const REWARD_CHOICE_TITLE_OFFSET_BOTTOM := -124.0
+const REWARD_CHOICE_CARD_SIZE := Vector2(244.0, 146.0)
+const REWARD_CHOICE_DIM_ALPHA := 0.28
+const REWARD_CHOICE_CARD_TITLE_FONT_SIZE := 25
+const REWARD_CHOICE_CARD_EFFECT_FONT_SIZE := 15
+const REWARD_CHOICE_CARD_TITLE_OUTLINE := 4
+const REWARD_CHOICE_CARD_EFFECT_OUTLINE := 1
+const REWARD_CHOICE_CARD_TITLE_COLOR := Color(1.0, 0.835294, 0.258824, 1.0)
+const REWARD_CHOICE_CARD_EFFECT_COLOR := Color(0.88, 0.86, 0.66, 0.94)
 const REWARD_CHOICE_OPEN_DURATION := 0.18
+const REWARD_CHOICE_CARD_STAGGER := 0.045
+const REWARD_CHOICE_CARD_START_SCALE := Vector2(0.94, 0.94)
 const UNLOCK_LABELS := {
 	&"baseball_stage_3": "야구부 3단계",
 	&"awakened_bat": "마지막 시즌의 배트",
@@ -45,8 +56,9 @@ const UNLOCK_LABELS := {
 
 var _reward_choice_overlay: Control = null
 var _reward_choice_dim: ColorRect = null
-var _reward_choice_panel: PanelContainer = null
+var _reward_choice_title_label: Label = null
 var _reward_choice_row: HBoxContainer = null
+var _reward_choice_cards: Array[Button] = []
 var _reward_choice_room_id: StringName = &""
 var _reward_choice_models: Array[Dictionary] = []
 var _reward_choice_open_tween: Tween = null
@@ -242,34 +254,60 @@ func get_reward_choice_ids() -> Array[StringName]:
 
 func get_reward_choice_snapshot() -> Dictionary:
 	var texts: Array[String] = []
-	var flavors: Array[String] = []
 	var effects: Array[String] = []
+	var button_texts: Array[String] = []
+	var title_font_sizes: Array[int] = []
+	var effect_font_sizes: Array[int] = []
+	var title_outline_sizes: Array[int] = []
+	var effect_outline_sizes: Array[int] = []
 	for choice: Dictionary in _reward_choice_models:
 		texts.append(String(choice.get("display_name", "")))
-		flavors.append(String(choice.get("flavor", "")))
 		effects.append(String(choice.get("effect", "")))
+	if _reward_choice_row != null:
+		for child: Node in _reward_choice_row.get_children():
+			if child is Button:
+				var card := child as Button
+				button_texts.append(_reward_choice_card_snapshot_text(card))
+				title_font_sizes.append(_reward_choice_label_font_size(card, "RewardTitleLabel"))
+				effect_font_sizes.append(_reward_choice_label_font_size(card, "RewardEffectLabel"))
+				title_outline_sizes.append(_reward_choice_label_outline_size(card, "RewardTitleLabel"))
+				effect_outline_sizes.append(_reward_choice_label_outline_size(card, "RewardEffectLabel"))
 	return {
 		"visible": is_reward_choice_visible(),
 		"room_id": _reward_choice_room_id,
 		"choice_ids": get_reward_choice_ids(),
 		"choice_texts": texts,
-		"choice_flavors": flavors,
 		"choice_effects": effects,
+		"choice_button_texts": button_texts,
+		"choice_title_font_sizes": title_font_sizes,
+		"choice_effect_font_sizes": effect_font_sizes,
+		"choice_title_outline_sizes": title_outline_sizes,
+		"choice_effect_outline_sizes": effect_outline_sizes,
+		"visible_card_count": _reward_choice_cards.size(),
+		"has_backdrop": _reward_choice_dim != null and is_instance_valid(_reward_choice_dim),
+		"dim_alpha": _reward_choice_dim.color.a if _reward_choice_dim != null and is_instance_valid(_reward_choice_dim) else 0.0,
+		"has_outer_panel": false,
+		"has_title": _reward_choice_title_label != null and is_instance_valid(_reward_choice_title_label) and _reward_choice_title_label.text != "",
+		"title": _reward_choice_title_label.text if _reward_choice_title_label != null and is_instance_valid(_reward_choice_title_label) else "",
 	}
 
 
 func get_reward_choice_animation_snapshot() -> Dictionary:
 	_ensure_reward_choice_overlay()
+	var card_alphas: Array = []
+	var card_scales: Array = []
+	for card: Button in _reward_choice_cards:
+		card_alphas.append(card.modulate.a)
+		card_scales.append(card.scale)
 	return {
 		"visible": is_reward_choice_visible(),
 		"overlay_process_mode": _reward_choice_overlay.process_mode,
-		"dim_alpha": _reward_choice_dim.modulate.a,
-		"panel_alpha": _reward_choice_panel.modulate.a,
-		"panel_offset_top": _reward_choice_panel.offset_top,
-		"target_offset_top": REWARD_CHOICE_PANEL_OFFSET_TOP,
-		"panel_offset_bottom": _reward_choice_panel.offset_bottom,
-		"target_offset_bottom": REWARD_CHOICE_PANEL_OFFSET_BOTTOM,
-		"slide_offset": REWARD_CHOICE_PANEL_SLIDE_OFFSET,
+		"has_backdrop": _reward_choice_dim != null and is_instance_valid(_reward_choice_dim),
+		"dim_alpha": _reward_choice_dim.color.a if _reward_choice_dim != null and is_instance_valid(_reward_choice_dim) else 0.0,
+		"has_outer_panel": false,
+		"title": _reward_choice_title_label.text if _reward_choice_title_label != null and is_instance_valid(_reward_choice_title_label) else "",
+		"card_alphas": card_alphas,
+		"card_scales": card_scales,
 	}
 
 
@@ -291,52 +329,46 @@ func _ensure_reward_choice_overlay() -> void:
 	_reward_choice_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
 	root.add_child(_reward_choice_overlay)
 
-	var dim := ColorRect.new()
-	dim.name = "RewardChoiceDim"
-	dim.color = Color(0.0156863, 0.0156863, 0.0235294, REWARD_CHOICE_DIM_ALPHA)
-	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_reward_choice_overlay.add_child(dim)
-	_reward_choice_dim = dim
+	_reward_choice_dim = ColorRect.new()
+	_reward_choice_dim.name = "RewardChoiceDim"
+	_reward_choice_dim.color = Color(0.0, 0.0, 0.0, REWARD_CHOICE_DIM_ALPHA)
+	_reward_choice_dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_reward_choice_dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_reward_choice_overlay.add_child(_reward_choice_dim)
 
-	var panel := PanelContainer.new()
-	panel.name = "RewardChoicePanel"
-	panel.anchor_left = 0.5
-	panel.anchor_top = 0.5
-	panel.anchor_right = 0.5
-	panel.anchor_bottom = 0.5
-	panel.offset_left = REWARD_CHOICE_PANEL_OFFSET_LEFT
-	panel.offset_top = REWARD_CHOICE_PANEL_OFFSET_TOP
-	panel.offset_right = REWARD_CHOICE_PANEL_OFFSET_RIGHT
-	panel.offset_bottom = REWARD_CHOICE_PANEL_OFFSET_BOTTOM
-	panel.add_theme_stylebox_override("panel", _reward_choice_panel_style())
-	_reward_choice_overlay.add_child(panel)
-	_reward_choice_panel = panel
-
-	var margin := MarginContainer.new()
-	margin.name = "RewardChoiceMargin"
-	margin.add_theme_constant_override("margin_left", 20)
-	margin.add_theme_constant_override("margin_top", 18)
-	margin.add_theme_constant_override("margin_right", 20)
-	margin.add_theme_constant_override("margin_bottom", 18)
-	panel.add_child(margin)
-
-	var stack := VBoxContainer.new()
-	stack.name = "RewardChoiceStack"
-	stack.add_theme_constant_override("separation", 14)
-	margin.add_child(stack)
-
-	var title := Label.new()
-	title.name = "RewardChoiceTitle"
-	title.text = "전투 보상"
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 34)
-	title.add_theme_color_override("font_color", Color(0.937255, 0.811765, 0.298039, 1.0))
-	stack.add_child(title)
+	_reward_choice_title_label = Label.new()
+	_reward_choice_title_label.name = "RewardChoiceTitle"
+	_reward_choice_title_label.text = REWARD_CHOICE_TITLE_TEXT
+	_reward_choice_title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_reward_choice_title_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_reward_choice_title_label.add_theme_font_size_override("font_size", 30)
+	_reward_choice_title_label.add_theme_color_override("font_color", Color(0.937255, 0.811765, 0.298039, 1.0))
+	_reward_choice_title_label.add_theme_color_override("font_outline_color", Color(0.0, 0.0, 0.0, 0.85))
+	_reward_choice_title_label.add_theme_constant_override("outline_size", 4)
+	_reward_choice_title_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_reward_choice_title_label.anchor_left = 0.5
+	_reward_choice_title_label.anchor_top = 0.5
+	_reward_choice_title_label.anchor_right = 0.5
+	_reward_choice_title_label.anchor_bottom = 0.5
+	_reward_choice_title_label.offset_left = -260.0
+	_reward_choice_title_label.offset_top = REWARD_CHOICE_TITLE_OFFSET_TOP
+	_reward_choice_title_label.offset_right = 260.0
+	_reward_choice_title_label.offset_bottom = REWARD_CHOICE_TITLE_OFFSET_BOTTOM
+	_reward_choice_overlay.add_child(_reward_choice_title_label)
 
 	_reward_choice_row = HBoxContainer.new()
 	_reward_choice_row.name = "RewardChoiceRow"
 	_reward_choice_row.add_theme_constant_override("separation", 12)
-	stack.add_child(_reward_choice_row)
+	_reward_choice_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	_reward_choice_row.anchor_left = 0.5
+	_reward_choice_row.anchor_top = 0.5
+	_reward_choice_row.anchor_right = 0.5
+	_reward_choice_row.anchor_bottom = 0.5
+	_reward_choice_row.offset_left = REWARD_CHOICE_ROW_OFFSET_LEFT
+	_reward_choice_row.offset_top = REWARD_CHOICE_ROW_OFFSET_TOP
+	_reward_choice_row.offset_right = REWARD_CHOICE_ROW_OFFSET_RIGHT
+	_reward_choice_row.offset_bottom = REWARD_CHOICE_ROW_OFFSET_BOTTOM
+	_reward_choice_overlay.add_child(_reward_choice_row)
 
 	_reset_reward_choice_animation_to_rest()
 
@@ -344,18 +376,18 @@ func _ensure_reward_choice_overlay() -> void:
 func _show_reward_choice_overlay_animated() -> void:
 	_kill_reward_choice_open_tween()
 	_reward_choice_overlay.visible = true
-	_reward_choice_dim.modulate.a = 0.0
-	_reward_choice_panel.modulate.a = 0.0
-	_reward_choice_panel.offset_top = REWARD_CHOICE_PANEL_OFFSET_TOP + REWARD_CHOICE_PANEL_SLIDE_OFFSET
-	_reward_choice_panel.offset_bottom = REWARD_CHOICE_PANEL_OFFSET_BOTTOM + REWARD_CHOICE_PANEL_SLIDE_OFFSET
+	for card: Button in _reward_choice_cards:
+		card.modulate.a = 0.0
+		card.scale = REWARD_CHOICE_CARD_START_SCALE
 
 	_reward_choice_open_tween = create_tween()
 	_reward_choice_open_tween.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
 	_reward_choice_open_tween.set_parallel(true)
-	_reward_choice_open_tween.tween_property(_reward_choice_dim, "modulate:a", 1.0, REWARD_CHOICE_OPEN_DURATION)
-	_reward_choice_open_tween.tween_property(_reward_choice_panel, "modulate:a", 1.0, REWARD_CHOICE_OPEN_DURATION)
-	_reward_choice_open_tween.tween_property(_reward_choice_panel, "offset_top", REWARD_CHOICE_PANEL_OFFSET_TOP, REWARD_CHOICE_OPEN_DURATION).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-	_reward_choice_open_tween.tween_property(_reward_choice_panel, "offset_bottom", REWARD_CHOICE_PANEL_OFFSET_BOTTOM, REWARD_CHOICE_OPEN_DURATION).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	for index: int in range(_reward_choice_cards.size()):
+		var card := _reward_choice_cards[index]
+		var delay := float(index) * REWARD_CHOICE_CARD_STAGGER
+		_reward_choice_open_tween.tween_property(card, "modulate:a", 1.0, REWARD_CHOICE_OPEN_DURATION).set_delay(delay)
+		_reward_choice_open_tween.tween_property(card, "scale", Vector2.ONE, REWARD_CHOICE_OPEN_DURATION).set_delay(delay).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
 
 func _kill_reward_choice_open_tween() -> void:
@@ -365,52 +397,114 @@ func _kill_reward_choice_open_tween() -> void:
 
 
 func _reset_reward_choice_animation_to_rest() -> void:
+	if _reward_choice_row != null:
+		_reward_choice_row.offset_left = REWARD_CHOICE_ROW_OFFSET_LEFT
+		_reward_choice_row.offset_top = REWARD_CHOICE_ROW_OFFSET_TOP
+		_reward_choice_row.offset_right = REWARD_CHOICE_ROW_OFFSET_RIGHT
+		_reward_choice_row.offset_bottom = REWARD_CHOICE_ROW_OFFSET_BOTTOM
+	for card: Button in _reward_choice_cards:
+		card.modulate.a = 1.0
+		card.scale = Vector2.ONE
 	if _reward_choice_dim != null:
-		_reward_choice_dim.modulate.a = 1.0
-	if _reward_choice_panel != null:
-		_reward_choice_panel.modulate.a = 1.0
-		_reward_choice_panel.offset_left = REWARD_CHOICE_PANEL_OFFSET_LEFT
-		_reward_choice_panel.offset_top = REWARD_CHOICE_PANEL_OFFSET_TOP
-		_reward_choice_panel.offset_right = REWARD_CHOICE_PANEL_OFFSET_RIGHT
-		_reward_choice_panel.offset_bottom = REWARD_CHOICE_PANEL_OFFSET_BOTTOM
-
-
-func _reward_choice_panel_style() -> StyleBox:
-	# Shared textured popup frame; the RewardChoiceMargin handles inner padding.
-	return DungeonUiTheme.framed_panel_style(10.0, 8.0)
+		_reward_choice_dim.color.a = REWARD_CHOICE_DIM_ALPHA
+	if _reward_choice_title_label != null:
+		_reward_choice_title_label.text = REWARD_CHOICE_TITLE_TEXT
+		_reward_choice_title_label.modulate.a = 1.0
 
 
 func _render_reward_choices() -> void:
 	_ensure_reward_choice_overlay()
+	_reward_choice_cards.clear()
 	for child: Node in _reward_choice_row.get_children():
 		_reward_choice_row.remove_child(child)
 		child.queue_free()
 	for choice: Dictionary in _reward_choice_models:
 		var item_id := StringName(choice.get("item_id", &""))
 		var display_name := String(choice.get("display_name", String(item_id)))
-		var flavor := String(choice.get("flavor", ""))
 		var effect := String(choice.get("effect", ""))
 		var button := Button.new()
 		button.name = "RewardChoice%sButton" % _node_suffix_for_reward_id(item_id)
-		button.text = _reward_choice_button_text(display_name, flavor, effect)
-		button.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		button.custom_minimum_size = Vector2(228.0, 138.0)
+		button.text = ""
+		button.custom_minimum_size = REWARD_CHOICE_CARD_SIZE
 		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		button.add_theme_font_size_override("font_size", 20)
 		button.set_meta("test_id", "session.reward_choice.%s" % String(item_id))
 		button.set_meta("uat_action", "session.reward_choice.%s" % String(item_id))
 		button.pressed.connect(_on_reward_choice_pressed.bind(item_id))
-		PixelButtonStyle.apply(button, PixelButtonStyle.VARIANT_PRIMARY, Vector2(228.0, 138.0))
+		PixelButtonStyle.apply(button, PixelButtonStyle.VARIANT_PRIMARY, REWARD_CHOICE_CARD_SIZE)
+		button.pivot_offset = REWARD_CHOICE_CARD_SIZE * 0.5
+		_add_reward_choice_card_content(button, display_name, effect)
 		_reward_choice_row.add_child(button)
+		_reward_choice_cards.append(button)
 
 
-func _reward_choice_button_text(display_name: String, flavor: String, effect: String) -> String:
-	var parts: Array[String] = [display_name]
-	if flavor != "":
-		parts.append(flavor)
-	if effect != "":
-		parts.append("효과: %s" % effect)
+func _add_reward_choice_card_content(button: Button, display_name: String, effect: String) -> void:
+	var margin := MarginContainer.new()
+	margin.name = "RewardCardMargin"
+	margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	margin.set_anchors_preset(Control.PRESET_FULL_RECT)
+	margin.add_theme_constant_override("margin_left", 14)
+	margin.add_theme_constant_override("margin_top", 14)
+	margin.add_theme_constant_override("margin_right", 14)
+	margin.add_theme_constant_override("margin_bottom", 12)
+	button.add_child(margin)
+
+	var stack := VBoxContainer.new()
+	stack.name = "RewardCardTextStack"
+	stack.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	stack.alignment = BoxContainer.ALIGNMENT_CENTER
+	stack.add_theme_constant_override("separation", 9)
+	margin.add_child(stack)
+
+	var title := Label.new()
+	title.name = "RewardTitleLabel"
+	title.text = display_name
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	title.add_theme_font_size_override("font_size", REWARD_CHOICE_CARD_TITLE_FONT_SIZE)
+	title.add_theme_color_override("font_color", REWARD_CHOICE_CARD_TITLE_COLOR)
+	title.add_theme_color_override("font_outline_color", Color(0.0, 0.0, 0.0, 0.88))
+	title.add_theme_constant_override("outline_size", REWARD_CHOICE_CARD_TITLE_OUTLINE)
+	title.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	stack.add_child(title)
+
+	var effect_label := Label.new()
+	effect_label.name = "RewardEffectLabel"
+	effect_label.text = "효과: %s" % effect if effect != "" else ""
+	effect_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	effect_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	effect_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	effect_label.add_theme_font_size_override("font_size", REWARD_CHOICE_CARD_EFFECT_FONT_SIZE)
+	effect_label.add_theme_color_override("font_color", REWARD_CHOICE_CARD_EFFECT_COLOR)
+	effect_label.add_theme_color_override("font_outline_color", Color(0.0, 0.0, 0.0, 0.65))
+	effect_label.add_theme_constant_override("outline_size", REWARD_CHOICE_CARD_EFFECT_OUTLINE)
+	effect_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	stack.add_child(effect_label)
+
+
+func _reward_choice_card_snapshot_text(card: Button) -> String:
+	var title := _reward_choice_card_label(card, "RewardTitleLabel")
+	var effect := _reward_choice_card_label(card, "RewardEffectLabel")
+	var parts: Array[String] = []
+	if title != null:
+		parts.append(title.text)
+	if effect != null and effect.text != "":
+		parts.append(effect.text)
 	return "\n".join(parts)
+
+
+func _reward_choice_label_font_size(card: Button, label_name: String) -> int:
+	var label := _reward_choice_card_label(card, label_name)
+	return label.get_theme_font_size("font_size") if label != null else 0
+
+
+func _reward_choice_label_outline_size(card: Button, label_name: String) -> int:
+	var label := _reward_choice_card_label(card, label_name)
+	return label.get_theme_constant("outline_size") if label != null else 0
+
+
+func _reward_choice_card_label(card: Button, label_name: String) -> Label:
+	return card.find_child(label_name, true, false) as Label
 
 
 func _node_suffix_for_reward_id(item_id: StringName) -> String:
@@ -446,6 +540,8 @@ func _build_summary(result: Dictionary) -> Dictionary:
 
 func _result_title(result: Dictionary) -> String:
 	var outcome := String(result.get("outcome", "")).to_lower()
+	if String(result.get("reason", "")) == "onboarding_friend_purified":
+		return "정화 완료"
 	if outcome in ["death", "dead", "failed"]:
 		return "쓰러짐"
 	if bool(result.get("died", false)):
@@ -461,9 +557,14 @@ func _result_title(result: Dictionary) -> String:
 
 func _result_narrative(result: Dictionary) -> String:
 	var outcome := String(result.get("outcome", "")).to_lower()
+	var reason := String(result.get("reason", ""))
 	if outcome in ["death", "dead", "failed"] or bool(result.get("died", false)):
 		return "새벽 종소리와 함께 교실에서 눈을 떴다. 혼 조각은 손에 남아 있다."
-	if bool(result.get("completed", false)) or String(result.get("reason", "")) == "boss_resolved" or outcome in ["success", "escaped", "complete", "completed"]:
+	if reason == "onboarding_friend_purified":
+		return "야구부 주장이 제정신을 되찾았다. 학교로 돌아가 배트와 단서를 받자."
+	if reason == "boss_resolved":
+		return "도깨비왕은 쓰러졌지만 친구는 돌아오지 않았다. 범인은 아직 따로 있다."
+	if bool(result.get("completed", false)) or outcome in ["success", "escaped", "complete", "completed"]:
 		return "친구의 기억이 조금 돌아왔다. 학교로 돌아가 말을 걸어보자."
 	return "오늘 밤의 기록을 챙겼다. 학교에서 정비한 뒤 다시 나갈 수 있다."
 
@@ -497,10 +598,6 @@ func _friends_purified(result: Dictionary) -> int:
 	])
 	if bool(explicit["found"]):
 		return int(explicit["count"])
-	if result.has("boss_id") or String(result.get("reason", "")) == "boss_resolved":
-		return 1
-	if bool(result.get("boss_defeated", false)):
-		return 1
 	return 0
 
 

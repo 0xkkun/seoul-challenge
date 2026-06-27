@@ -110,11 +110,12 @@ func test_delivery_derived_from_speaker() -> void:
 	_runner.assert_eq(RUMORS.delivery_for(RUMORS.SPEAKER_PEOPLE4), RUMORS.DELIVERY_AMBIENT_CROWD, "people4 = crowd")
 
 
-func test_people2_portrait_frame_is_one() -> void:
+func test_people2_meta_points_to_baseball_captain() -> void:
 	# 대화 UI 계약: 눈뜬 정적 프레임 = 1
 	var meta: Dictionary = RUMORS.speaker_meta(RUMORS.SPEAKER_PEOPLE2)
+	_runner.assert_eq(String(meta.get("display_name", "")), "야구부 주장", "people2 표시 이름은 MVP NPC 역할명")
 	_runner.assert_eq(int(meta.get("portrait_frame", -1)), 1, "people2 포트레이트 frame 1")
 	_runner.assert_eq(
-		String(meta.get("portrait", "")), "res://assets/characters/school/people2.png",
+		String(meta.get("portrait", "")), "res://assets/characters/school/baseball_captain.png",
 		"people2 포트레이트 경로"
 	)

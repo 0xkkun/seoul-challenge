@@ -74,8 +74,39 @@ func test_run_result_contract_derives_records_from_existing_payload() -> void:
 	var snapshot: Dictionary = _ui.get_summary_snapshot()
 	_runner.assert_eq(snapshot["title"], "탈출 성공", "completed run maps to success")
 	_runner.assert_eq(snapshot["memory_amount"], "+3", "existing cleared rooms derive memory reward")
-	_runner.assert_eq(snapshot["friends"], "정화 1", "boss result derives purified friend count")
+	_runner.assert_eq(snapshot["friends"], "정화 0", "boss result does not count as a purified friend")
 	_runner.assert_eq(snapshot["rooms"], "방 3", "cleared rooms drive room record")
+
+
+func test_onboarding_completion_summary_points_back_to_baseball_captain() -> void:
+	_ui.show_summary({
+		"reason": "onboarding_friend_purified",
+		"completed": true,
+		"memory_reward": 1,
+		"friend_ids": [&"baseball_captain"],
+		"rooms_cleared": 2,
+	})
+
+	var snapshot: Dictionary = _ui.get_summary_snapshot()
+	_runner.assert_eq(snapshot["title"], "정화 완료", "onboarding completion uses a purification header")
+	_runner.assert_true(snapshot["narrative"].contains("야구부 주장"), "onboarding summary directs the player back to the captain")
+	_runner.assert_eq(snapshot["friends"], "정화 1", "onboarding friend id still counts as one purification")
+
+
+func test_boss_resolved_summary_keeps_open_ending() -> void:
+	_ui.show_summary({
+		"reason": "boss_resolved",
+		"completed": true,
+		"memory_reward": 3,
+		"rooms_cleared": 15,
+		"boss_id": &"gyeongbokgung_boss",
+	})
+
+	var snapshot: Dictionary = _ui.get_summary_snapshot()
+	_runner.assert_eq(snapshot["title"], "탈출 성공", "boss clear still completes the run")
+	_runner.assert_true(snapshot["narrative"].contains("돌아오지 않았다"), "boss clear does not pretend the friend returned")
+	_runner.assert_true(snapshot["narrative"].contains("범인"), "boss clear foreshadows the unresolved culprit")
+	_runner.assert_eq(snapshot["friends"], "정화 0", "boss clear is not a purification")
 
 
 func test_explicit_zero_reward_is_not_derived_from_rooms() -> void:
@@ -191,12 +222,44 @@ func test_reward_choices_render_three_actions_and_emit_selected_id() -> void:
 	_runner.assert_eq(snapshot["room_id"], &"combat_1", "reward choice keeps source room id")
 	_runner.assert_eq(snapshot["choice_ids"], [&"gung_talisman", &"dokkaebi_fire", &"wind_step"], "reward choices keep stable item order")
 	_runner.assert_eq(snapshot["choice_texts"][0], "강타 부적", "reward button uses display name")
-	_runner.assert_true(snapshot["choice_flavors"][1].contains("공격 타이밍"), "reward flavor is available for scan")
+	_runner.assert_false(snapshot.has("choice_flavors"), "reward choice snapshot omits flavor descriptions from the card contract")
+	var button_texts := snapshot.get("choice_button_texts", []) as Array
+	_runner.assert_eq(button_texts.size(), 3, "reward snapshot exposes rendered button copy for every card")
+	if button_texts.size() == 3:
+		_runner.assert_false(String(button_texts[1]).contains("공격 타이밍"), "reward button omits flavor description copy")
 	_runner.assert_true(snapshot.has("choice_effects"), "reward snapshot exposes concrete stat effects")
 	if not snapshot.has("choice_effects"):
 		return
 	_runner.assert_eq(snapshot["choice_effects"][0], "근접 피해 +1 / 배트 피해 +1", "reward card exposes concrete stat effect")
 	_runner.assert_true(snapshot["choice_effects"][1].contains("간격 -16%"), "tempo reward exposes concrete cooldown effect")
+	_runner.assert_true(snapshot.has("visible_card_count"), "reward snapshot exposes rendered card count")
+	_runner.assert_true(snapshot.has("has_backdrop"), "reward snapshot exposes backdrop contract")
+	_runner.assert_true(snapshot.has("has_outer_panel"), "reward snapshot exposes outer panel contract")
+	_runner.assert_true(snapshot.has("has_title"), "reward snapshot exposes title contract")
+	if not snapshot.has("visible_card_count") or not snapshot.has("has_backdrop") or not snapshot.has("has_outer_panel") or not snapshot.has("has_title"):
+		return
+	_runner.assert_eq(snapshot["visible_card_count"], 3, "reward choice renders only the three visible cards")
+	_runner.assert_true(snapshot["has_backdrop"], "reward choice dims the full gameplay view behind the cards")
+	_runner.assert_false(snapshot["has_outer_panel"], "reward choice removes the framed outer panel")
+	_runner.assert_true(snapshot["has_title"], "reward choice keeps a visible room-clear reward title")
+	_runner.assert_eq(snapshot.get("title", ""), "방 클리어 보상", "reward title names the modal purpose")
+	_runner.assert_true(float(snapshot.get("dim_alpha", 0.0)) > 0.0, "reward backdrop is visible")
+	_runner.assert_true(float(snapshot.get("dim_alpha", 0.0)) <= 0.35, "reward backdrop stays lightly dimmed")
+	_runner.assert_true(snapshot.has("choice_title_font_sizes"), "reward snapshot exposes card title font sizes")
+	_runner.assert_true(snapshot.has("choice_effect_font_sizes"), "reward snapshot exposes card effect font sizes")
+	_runner.assert_true(snapshot.has("choice_title_outline_sizes"), "reward snapshot exposes card title outline sizes")
+	_runner.assert_true(snapshot.has("choice_effect_outline_sizes"), "reward snapshot exposes card effect outline sizes")
+	var title_font_sizes := snapshot.get("choice_title_font_sizes", []) as Array
+	var effect_font_sizes := snapshot.get("choice_effect_font_sizes", []) as Array
+	var title_outline_sizes := snapshot.get("choice_title_outline_sizes", []) as Array
+	var effect_outline_sizes := snapshot.get("choice_effect_outline_sizes", []) as Array
+	_runner.assert_eq(title_font_sizes.size(), 3, "reward snapshot tracks title font size for each card")
+	_runner.assert_eq(effect_font_sizes.size(), 3, "reward snapshot tracks effect font size for each card")
+	_runner.assert_eq(title_outline_sizes.size(), 3, "reward snapshot tracks title outline for each card")
+	_runner.assert_eq(effect_outline_sizes.size(), 3, "reward snapshot tracks effect outline for each card")
+	if title_font_sizes.size() == 3 and effect_font_sizes.size() == 3 and title_outline_sizes.size() == 3 and effect_outline_sizes.size() == 3:
+		_runner.assert_true(int(title_font_sizes[0]) >= int(effect_font_sizes[0]) + 6, "reward card title reads larger than effect copy")
+		_runner.assert_true(int(title_outline_sizes[0]) > int(effect_outline_sizes[0]), "reward card title uses stronger outline than effect copy")
 
 	_runner.assert_true(_ui.select_reward_choice(&"dokkaebi_fire"), "reward choice can be selected by id")
 	_runner.assert_eq(selected_ids, [&"dokkaebi_fire"], "selection emits item id once")
@@ -221,10 +284,21 @@ func test_reward_choice_open_starts_slide_fade_animation() -> void:
 	var snapshot: Dictionary = _ui.call("get_reward_choice_animation_snapshot")
 	_runner.assert_true(snapshot["visible"], "reward overlay is visible before animation completes")
 	_runner.assert_eq(snapshot["overlay_process_mode"], Node.PROCESS_MODE_ALWAYS, "reward overlay can animate while gameplay is paused")
-	_runner.assert_eq(snapshot["dim_alpha"], 0.0, "backdrop starts transparent for fade-in")
-	_runner.assert_eq(snapshot["panel_alpha"], 0.0, "reward panel starts transparent for fade-in")
-	_runner.assert_true(float(snapshot["panel_offset_top"]) > float(snapshot["target_offset_top"]), "reward panel starts below its target position")
-	_runner.assert_true(float(snapshot["panel_offset_bottom"]) > float(snapshot["target_offset_bottom"]), "reward panel keeps height while starting lower")
+	_runner.assert_true(snapshot.has("has_backdrop"), "reward animation snapshot exposes backdrop contract")
+	_runner.assert_true(snapshot.has("has_outer_panel"), "reward animation snapshot exposes outer panel contract")
+	_runner.assert_true(snapshot.has("card_alphas"), "reward animation snapshot exposes card alpha values")
+	_runner.assert_true(snapshot.has("card_scales"), "reward animation snapshot exposes card scale values")
+	if not snapshot.has("has_backdrop") or not snapshot.has("has_outer_panel") or not snapshot.has("card_alphas") or not snapshot.has("card_scales"):
+		return
+	_runner.assert_true(snapshot["has_backdrop"], "reward animation includes the dimmed full-screen backdrop")
+	_runner.assert_false(snapshot["has_outer_panel"], "reward animation has no outer panel frame")
+	_runner.assert_eq(snapshot.get("title", ""), "방 클리어 보상", "reward animation snapshot exposes the visible title")
+	_runner.assert_true(float(snapshot.get("dim_alpha", 0.0)) <= 0.35, "reward animation keeps the backdrop subtle")
+	var card_alphas: Array = snapshot["card_alphas"]
+	var card_scales: Array = snapshot["card_scales"]
+	_runner.assert_eq(card_alphas.size(), 1, "animation tracks the rendered reward card")
+	_runner.assert_eq(card_alphas[0], 0.0, "reward card starts transparent for fade-in")
+	_runner.assert_true((card_scales[0] as Vector2).x < 1.0, "reward card starts slightly smaller for pop-in")
 
 
 func test_summary_renders_baseball_unlocks_when_present() -> void:

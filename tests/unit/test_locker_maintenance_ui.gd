@@ -35,7 +35,7 @@ func test_locker_maintenance_focuses_on_memory_weapons_and_single_map_entry() ->
 	var map_button := UiTestHarness.find_by_uat_action(screen, LockerMaintenanceScript.ACTION_OPEN_MAP) as Button
 	_runner.assert_not_null(map_button, "map action is available only as the bottom button")
 	if map_button != null:
-		_runner.assert_eq(map_button.text, "☾ 지도", "map button uses short icon copy")
+		_runner.assert_eq(map_button.text, "지도", "map button uses text-only copy")
 	_runner.assert_false(screen.has_node("TodayPrepPanel"), "today prep checklist panel is intentionally absent")
 	_runner.assert_false(screen.has_node("MapPreviewPanel"), "map preview panel is intentionally absent")
 	_runner.assert_false(screen.has_node("StudentIdCard"), "student id slot is intentionally removed from the maintenance layout")
@@ -57,8 +57,8 @@ func test_locker_maintenance_uses_dungeon_ui_loadout_hierarchy() -> void:
 	_runner.assert_eq(baseball_card, null, "story-unused baseball memory weapon card is removed")
 	_runner.assert_eq(bat_card.focus_mode, Control.FOCUS_NONE, "weapon slot does not show desktop focus chrome")
 	_runner.assert_eq(screen.get_weapon_card_icon_path(LockerMaintenanceScript.WEAPON_BAT), LockerMaintenanceScript.BAT_ICON_PATH, "locker bat card uses the real bat icon asset")
-	_runner.assert_eq(return_button.text, "↩ 복도", "return CTA uses short icon copy")
-	_runner.assert_eq(map_button.text, "☾ 지도", "map CTA uses short icon copy")
+	_runner.assert_eq(return_button.text, "복도", "return CTA uses text-only copy")
+	_runner.assert_eq(map_button.text, "지도", "map CTA uses text-only copy")
 	_runner.assert_eq(weapon_status.text, "선택한 기억\n\n금 간 나무 배트\n\n지도에서\n경복궁으로 이동", "selected loadout is summarized beside the slot")
 	_assert_flat_style_border(bat_card.get_theme_stylebox("normal"), 4, "selected weapon slot uses a thick border")
 	_assert_pixel_button_style(return_button, PixelButtonStyle.VARIANT_SECONDARY, "return")

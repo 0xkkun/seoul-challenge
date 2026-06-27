@@ -70,6 +70,29 @@ func test_lobby_title_scene_uses_title_assets_and_menu_contract() -> void:
 	lobby.queue_free()
 
 
+func test_first_night_config_starts_baseball_onboarding_with_story_bat() -> void:
+	var packed := load("res://scenes/lobby/lobby.tscn") as PackedScene
+	var lobby := packed.instantiate()
+	add_child(lobby)
+
+	var config: Dictionary = lobby.call("_first_night_config")
+	_runner.assert_eq(config.get("source", ""), "intro", "first launch still starts from the intro handoff")
+	_runner.assert_eq(config.get("stage_id", &""), &"gyeongbokgung", "onboarding uses the MVP palace stage")
+	_runner.assert_eq(config.get("stage_name", ""), "경복궁", "onboarding map label stays player-facing")
+	_runner.assert_eq(
+		config.get(SceneTransition.RUN_CONFIG_ONBOARDING_KIND, &""),
+		SceneTransition.ONBOARDING_KIND_BASEBALL_CAPTAIN,
+		"first launch starts the baseball captain onboarding run"
+	)
+	_runner.assert_eq(
+		config.get(SceneTransition.RUN_CONFIG_SELECTED_WEAPON_ID, &""),
+		&"bat",
+		"first night equips the story bat so the attack sprite is visible immediately"
+	)
+
+	lobby.queue_free()
+
+
 func test_lobby_settings_button_opens_settings_popup() -> void:
 	var packed := load("res://scenes/lobby/lobby.tscn") as PackedScene
 	var lobby := packed.instantiate()

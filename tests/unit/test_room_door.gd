@@ -20,7 +20,6 @@ func test_ready_applies_locked_state_and_palette_layout() -> void:
 	var visual := door.get_node("DoorVisual") as ColorRect
 	var transition_area := door.get_node("TransitionArea") as Area2D
 	var collision_shape := door.get_node("TransitionArea/CollisionShape2D") as CollisionShape2D
-	var ping_marker := door.get_node("PingMarker") as Label
 	var rectangle := collision_shape.shape as RectangleShape2D
 
 	_runner.assert_true(door.is_locked(), "door starts locked")
@@ -28,7 +27,7 @@ func test_ready_applies_locked_state_and_palette_layout() -> void:
 	_runner.assert_eq(visual.size, RoomPalette.DOOR_SIZE, "door visual uses palette size")
 	_runner.assert_eq(visual.color, RoomPalette.DOOR_LOCKED_COLOR, "locked door uses palette color")
 	_runner.assert_false(transition_area.monitoring, "locked door disables transition monitoring")
-	_runner.assert_false(ping_marker.visible, "locked door hides exit ping")
+	_runner.assert_true(door.get_node_or_null("PingMarker") == null, "door does not create an overlapping world exit indicator")
 	_runner.assert_not_null(rectangle, "door creates rectangle trigger shape")
 	if rectangle != null:
 		_runner.assert_eq(rectangle.size, RoomPalette.DOOR_TRIGGER_SIZE, "trigger shape uses palette size")
@@ -45,9 +44,8 @@ func test_open_and_lock_emit_state_changes_once_per_change() -> void:
 	door.open()
 	door.open()
 
-	var ping_marker := door.get_node("PingMarker") as Label
 	var portal_visual := door.get_node_or_null("PortalVisual") as Node2D
-	_runner.assert_true(ping_marker.visible, "open door shows exit ping")
+	_runner.assert_true(door.get_node_or_null("PingMarker") == null, "open door keeps the portal as the only exit indicator")
 	_runner.assert_not_null(portal_visual, "open door creates a portal visual")
 	if portal_visual != null:
 		_runner.assert_true(portal_visual.visible, "open door shows portal visual")
@@ -57,7 +55,7 @@ func test_open_and_lock_emit_state_changes_once_per_change() -> void:
 
 	_runner.assert_true(door.is_locked(), "door returns to locked state")
 	_runner.assert_eq(visual.color, RoomPalette.DOOR_LOCKED_COLOR, "locked color reapplies")
-	_runner.assert_false(ping_marker.visible, "locked door hides exit ping again")
+	_runner.assert_true(door.get_node_or_null("PingMarker") == null, "locked door still has no world exit indicator")
 	if portal_visual != null:
 		_runner.assert_false(portal_visual.visible, "locked door hides portal visual again")
 	_runner.assert_eq(states, [RoomDoor.DoorState.OPEN, RoomDoor.DoorState.LOCKED], "state signal emits only on changes")

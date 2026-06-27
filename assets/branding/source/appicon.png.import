@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://btue3kestblo7"
-path="res://.godot/imported/yeopjeon.png-05b4eb326277c48133b444b02517b5c2.ctex"
+uid="uid://6o75klgipdqh"
+path="res://.godot/imported/appicon.png-2f834c6cd655c9c3022d67f24e14e01b.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/ui/icons/currency/yeopjeon.png"
-dest_files=["res://.godot/imported/yeopjeon.png-05b4eb326277c48133b444b02517b5c2.ctex"]
+source_file="res://assets/branding/source/appicon.png"
+dest_files=["res://.godot/imported/appicon.png-2f834c6cd655c9c3022d67f24e14e01b.ctex"]
 
 [params]
 

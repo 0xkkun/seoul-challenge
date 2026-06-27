@@ -15,6 +15,7 @@ const MAX_ROOM_COUNT := 64
 @export var start_room_id: StringName = TYPE_START
 @export var room_defs: Array[RoomDef] = []
 @export var required_clears_for_hidden_reveal := 0
+@export var allow_short_story_layout := false
 
 
 func get_room(room_id: StringName) -> RoomDef:
@@ -112,8 +113,10 @@ func validate_layout() -> PackedStringArray:
 	var rooms_by_id := {}
 	var grid_positions := {}
 
-	if room_defs.size() < MIN_ROOM_COUNT or room_defs.size() > MAX_ROOM_COUNT:
+	if not allow_short_story_layout and (room_defs.size() < MIN_ROOM_COUNT or room_defs.size() > MAX_ROOM_COUNT):
 		errors.append("layout must contain %d to %d rooms" % [MIN_ROOM_COUNT, MAX_ROOM_COUNT])
+	elif allow_short_story_layout and room_defs.size() < 1:
+		errors.append("layout must contain at least one room")
 
 	for room_def: RoomDef in room_defs:
 		if room_def == null:
@@ -159,16 +162,12 @@ func validate_layout() -> PackedStringArray:
 		errors.append("start room is missing: %s" % start_room_id)
 	if type_counts[TYPE_START] != 1:
 		errors.append("layout must contain exactly one start room")
-	if type_counts[TYPE_COMBAT] < 2:
+	if not allow_short_story_layout and type_counts[TYPE_COMBAT] < 2:
 		errors.append("layout must contain at least two combat rooms")
-	if type_counts[TYPE_EVENT] != 1:
-		errors.append("layout must contain exactly one event room")
-	if type_counts[TYPE_FINAL] != 1:
+	if not allow_short_story_layout and type_counts[TYPE_EVENT] > 1:
+		errors.append("layout must contain at most one event room")
+	if not allow_short_story_layout and type_counts[TYPE_FINAL] != 1:
 		errors.append("layout must contain exactly one final room")
-
-	for room_def: RoomDef in room_defs:
-		if room_def != null and room_def.room_type == TYPE_FINAL and not room_def.hidden:
-			errors.append("final room must start hidden")
 
 	return errors
 

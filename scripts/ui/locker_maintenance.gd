@@ -375,10 +375,10 @@ func _pip_bbcode(level: int, max_level: int) -> String:
 func _build_action_bar() -> void:
 	var return_rect := MobileSafeArea.bottom_anchored_rect(0.06, 0.30, 0.13)
 	var map_rect := MobileSafeArea.bottom_anchored_rect(0.61, 0.33, 0.13)
-	_return_button = _make_action_button("ReturnButton", "↩ 복도", return_rect, ACTION_RETURN)
+	_return_button = _make_action_button("ReturnButton", "복도", return_rect, ACTION_RETURN)
 	add_child(_return_button)
 
-	_map_button = _make_action_button("MapButton", "☾ 지도", map_rect, ACTION_OPEN_MAP)
+	_map_button = _make_action_button("MapButton", "지도", map_rect, ACTION_OPEN_MAP)
 	add_child(_map_button)
 
 	_return_button.pressed.connect(_on_return_pressed)

@@ -3,6 +3,7 @@ extends Node
 const KUMIHO_SCENE_PATH := "res://scenes/enemies/kumiho.tscn"
 const KUMIHO_FIREBALL_SCENE_PATH := "res://scenes/enemies/kumiho_fireball.tscn"
 const COMBAT_ROOM_SCENE_PATH := "res://scenes/interactables/combat_room.tscn"
+const PlayerScript := preload("res://scripts/player/player.gd")
 
 var _runner: Node
 
@@ -11,7 +12,7 @@ func _set_runner(runner: Node) -> void:
 	_runner = runner
 
 
-func test_kumiho_scene_uses_5_move_and_6_attack_frames() -> void:
+func test_kumiho_scene_uses_5_move_and_5_attack_frames() -> void:
 	_runner.assert_true(ResourceLoader.exists(KUMIHO_SCENE_PATH), "kumiho ranged enemy scene exists")
 	if not ResourceLoader.exists(KUMIHO_SCENE_PATH):
 		return
@@ -28,7 +29,7 @@ func test_kumiho_scene_uses_5_move_and_6_attack_frames() -> void:
 	if frames == null:
 		return
 	_runner.assert_eq(frames.get_frame_count(&"move"), 5, "kumiho move sheet is split into five 128px frames")
-	_runner.assert_eq(frames.get_frame_count(&"attack"), 6, "kumiho attack sheet is split into six 128px frames")
+	_runner.assert_eq(frames.get_frame_count(&"attack"), 5, "kumiho attack sheet is split into five 128px frames")
 	_runner.assert_true(frames.get_animation_loop(&"move"), "kumiho movement loops")
 	_runner.assert_false(frames.get_animation_loop(&"attack"), "kumiho attack does not loop")
 
@@ -65,6 +66,20 @@ func test_kumiho_fires_fireball_and_plays_attack_animation() -> void:
 	_runner.assert_not_null(sprite, "kumiho sprite remains mounted after firing")
 	if sprite != null:
 		_runner.assert_eq(sprite.animation, &"attack", "kumiho switches to attack animation when firing")
+
+
+func test_kumiho_takes_two_default_bat_hits() -> void:
+	_runner.assert_true(ResourceLoader.exists(KUMIHO_SCENE_PATH), "kumiho ranged enemy scene exists")
+	if not ResourceLoader.exists(KUMIHO_SCENE_PATH):
+		return
+
+	var player := PlayerScript.new()
+	var enemy := (load(KUMIHO_SCENE_PATH) as PackedScene).instantiate()
+	add_child(player)
+	add_child(enemy)
+
+	_runner.assert_true(enemy.max_hp > player.bat_damage, "kumiho should survive one default bat hit")
+	_runner.assert_true(enemy.max_hp <= player.bat_damage * 2, "kumiho should die by the second default bat hit")
 
 
 func test_kumiho_attack_faces_target_even_while_retreating() -> void:

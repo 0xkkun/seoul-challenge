@@ -12,6 +12,8 @@ func _set_runner(runner: Node) -> void:
 
 
 func before_each() -> void:
+	Settings.reset_defaults()
+	AudioManager.reset()
 	PoolManager.clear_all()
 	GameManager.reset_session()
 	SaveManager.reset_profile()
@@ -21,6 +23,8 @@ func before_each() -> void:
 
 func after_each() -> void:
 	get_tree().paused = false
+	AudioManager.reset()
+	Settings.reset_defaults()
 	PoolManager.clear_all()
 	GameManager.reset_session()
 	SaveManager.reset_profile()
@@ -118,29 +122,158 @@ func test_session_root_honors_explicit_layout_seed_config() -> void:
 	different_session.free()
 
 
-func test_session_interaction_scope_reaches_current_shop_room() -> void:
+func test_session_root_uses_three_room_baseball_onboarding_layout() -> void:
+	GameManager.start_session({
+		"source": "intro",
+		"stage_id": &"gyeongbokgung",
+		"stage_name": "경복궁",
+		SceneTransition.RUN_CONFIG_ONBOARDING_KIND: SceneTransition.ONBOARDING_KIND_BASEBALL_CAPTAIN,
+	})
+	var packed := load("res://scenes/session/session_root.tscn") as PackedScene
+	var session := packed.instantiate()
+	add_child(session)
+
+	var manager := session.get_node("%RoomManager") as RoomManager
+	var actor := session.get_node("%Player") as Node
+	_runner.assert_not_null(manager.layout, "onboarding session creates a layout")
+	if manager.layout == null:
+		session.queue_free()
+		return
+	_runner.assert_eq(manager.layout.layout_id, &"onboarding_baseball_captain", "onboarding layout is explicit, not generated")
+	_runner.assert_eq(manager.layout.get_room_ids(), [&"start", &"combat_1", &"friend_1"], "onboarding is exactly three straight rooms")
+	_runner.assert_eq(manager.layout.get_connected_room_ids(&"start"), [&"combat_1"], "start connects only to the tutorial combat room")
+	_runner.assert_eq(manager.layout.get_connected_room_ids(&"combat_1"), [&"start", &"friend_1"], "combat room connects linearly to the friend room")
+	_runner.assert_eq(manager.layout.get_connected_room_ids(&"friend_1"), [&"combat_1"], "friend room is the onboarding endpoint")
+	_runner.assert_eq((manager.layout.get_room(&"combat_1") as RoomDef).room_type, RoomLayout.TYPE_COMBAT, "middle onboarding room teaches combat")
+	_runner.assert_eq((manager.layout.get_room(&"friend_1") as RoomDef).room_type, RoomLayout.TYPE_FRIEND, "final onboarding room is the purification target")
+	_runner.assert_eq((manager.layout.get_room(&"combat_1") as RoomDef).room_config.get("chaser_count", -1), 1, "onboarding combat keeps one close-range enemy")
+	_runner.assert_false(actor.call("has_bat"), "onboarding starts before the bat reward is claimed")
+
+	session.queue_free()
+
+
+func test_generated_session_rooms_never_enter_empty_uncleared_state() -> void:
+	var packed := load("res://scenes/session/session_root.tscn") as PackedScene
+
+	for layout_seed: int in range(50):
+		PoolManager.clear_all()
+		GameManager.reset_session()
+		GameManager.start_session({
+			"source": "empty_room_guard_test",
+			SceneTransition.RUN_CONFIG_LAYOUT_SEED: layout_seed,
+		})
+		var session := packed.instantiate()
+		add_child(session)
+		var manager := session.get_node("%RoomManager") as RoomManager
+
+		for room_def: RoomDef in manager.layout.room_defs:
+			_runner.assert_true(manager.enter_room(room_def.room_id), "seed %d enters %s" % [layout_seed, room_def.room_id])
+			_runner.assert_false(
+				_is_empty_uncleared_room(session, manager),
+				"seed %d %s/%s has no active objective and no open exit" % [layout_seed, room_def.room_id, room_def.room_type]
+			)
+
+		remove_child(session)
+		session.free()
+
+
+func test_west_entry_combat_spawns_objective_in_initial_mobile_view() -> void:
+	GameManager.start_session({
+		"source": "combat_initial_view_test",
+		SceneTransition.RUN_CONFIG_LAYOUT_SEED: 40,
+	})
 	var packed := load("res://scenes/session/session_root.tscn") as PackedScene
 	var session := packed.instantiate()
 	add_child(session)
 
 	var manager := session.get_node("%RoomManager") as RoomManager
 	var actor := session.get_node("%Player") as Node2D
-	var shop_room_def := _first_room_of_type(manager.layout, RoomLayout.TYPE_SHOP)
-	_runner.assert_not_null(shop_room_def, "session run layout includes shop room")
-	if shop_room_def == null:
+	var combat_room_def := _first_room_of_type(manager.layout, RoomLayout.TYPE_COMBAT)
+	_runner.assert_not_null(combat_room_def, "session run layout includes combat room")
+	if combat_room_def == null:
+		session.queue_free()
 		return
-	_runner.assert_true(manager.enter_room(shop_room_def.room_id), "test enters shop room directly")
-	_runner.assert_true(manager.current_room.has_method("get_offer_position"), "shop room exposes offer position")
-	if not manager.current_room.has_method("get_offer_position"):
+
+	_runner.assert_true(manager.enter_room(combat_room_def.room_id, &"W"), "test enters combat room from the west door")
+	var enemies: Array = manager.current_room.call("get_active_enemies")
+	_runner.assert_true(enemies.size() > 0, "combat room spawns enemies")
+	_runner.assert_true(
+		_any_node_in_initial_mobile_view(actor, enemies),
+		"west-entry combat shows at least one enemy in the first mobile viewport"
+	)
+
+	session.queue_free()
+
+
+func test_west_entry_friend_room_spawns_target_in_initial_mobile_view() -> void:
+	GameManager.start_session({
+		"source": "friend_initial_view_test",
+		SceneTransition.RUN_CONFIG_LAYOUT_SEED: 40,
+	})
+	var packed := load("res://scenes/session/session_root.tscn") as PackedScene
+	var session := packed.instantiate()
+	add_child(session)
+
+	var manager := session.get_node("%RoomManager") as RoomManager
+	var actor := session.get_node("%Player") as Node2D
+	var friend_room_def := _first_room_of_type(manager.layout, RoomLayout.TYPE_FRIEND)
+	_runner.assert_not_null(friend_room_def, "session run layout includes friend room")
+	if friend_room_def == null:
+		session.queue_free()
 		return
-	actor.global_position = manager.current_room.call("get_offer_position", &"bat")
-	EventBus.emit_currency_changed({"kind": "ingame", "amount": 6})
 
-	session.trigger_sample_interaction()
+	_runner.assert_true(manager.enter_room(friend_room_def.room_id, &"W"), "test enters friend room from the west door")
+	var friends: Array = manager.current_room.call("get_active_friends")
+	_runner.assert_eq(friends.size(), 1, "friend room spawns the purification target")
+	_runner.assert_true(
+		_any_node_in_initial_mobile_view(actor, friends),
+		"west-entry friend room shows the purification target in the first mobile viewport"
+	)
 
-	_runner.assert_eq(CurrencySystem.get_ingame(), 2, "session interaction can purchase from current shop room")
-	_runner.assert_true(actor.call("has_bat"), "session shop interaction equips purchased item")
-	_runner.assert_eq(actor.call("current_weapon_name"), "금 간 나무 배트", "session shop interaction shows cracked bat label")
+	session.queue_free()
+
+
+func test_baseball_onboarding_friend_purification_finishes_run_and_sets_reward_flag() -> void:
+	GameManager.start_session({
+		"source": "intro",
+		SceneTransition.RUN_CONFIG_ONBOARDING_KIND: SceneTransition.ONBOARDING_KIND_BASEBALL_CAPTAIN,
+	})
+	var packed := load("res://scenes/session/session_root.tscn") as PackedScene
+	var session := packed.instantiate()
+	add_child(session)
+
+	var manager := session.get_node("%RoomManager") as RoomManager
+	_runner.assert_true(manager.enter_room(&"friend_1"), "test enters the onboarding friend room")
+	var friends: Array = manager.current_room.call("get_active_friends")
+	_runner.assert_eq(friends.size(), 1, "onboarding friend room spawns the captain target")
+	if friends.size() == 1:
+		var friend := friends[0] as Node
+		friend.emit_signal("purified", friend)
+
+	var result := GameManager.get_last_result()
+	var session_ui: CanvasLayer = session.get_node("%SessionUIRoot")
+	_runner.assert_false(GameManager.is_session_active(), "purifying the onboarding target finishes the tutorial run")
+	_runner.assert_eq(result.get("reason", ""), "onboarding_friend_purified", "result distinguishes onboarding completion")
+	_runner.assert_eq(result.get("onboarding_kind", &""), SceneTransition.ONBOARDING_KIND_BASEBALL_CAPTAIN, "result records the onboarding kind")
+	_runner.assert_eq(result.get("friend_ids", []), [&"baseball_captain"], "onboarding result records the purified captain")
+	_runner.assert_true(SaveManager.get_flag(SceneTransition.FLAG_ONBOARDING_BASEBALL_COMPLETE), "day corridor reward dialogue is unlocked")
+	_runner.assert_false(SaveManager.get_flag(SceneTransition.FLAG_BASEBALL_CAPTAIN_REWARD_CLAIMED), "bat reward is still pending until the captain dialogue")
+	_runner.assert_true(session_ui.call("is_summary_visible"), "onboarding completion opens the result summary")
+
+	session.queue_free()
+
+
+func test_session_generated_layout_omits_disabled_shop_and_event_rooms() -> void:
+	var packed := load("res://scenes/session/session_root.tscn") as PackedScene
+	var session := packed.instantiate()
+	add_child(session)
+
+	var manager := session.get_node("%RoomManager") as RoomManager
+	_runner.assert_not_null(manager.layout, "session creates a generated layout")
+	if manager.layout == null:
+		return
+	_runner.assert_eq(_first_room_of_type(manager.layout, RoomLayout.TYPE_SHOP), null, "generated session layout does not expose shop rooms")
+	_runner.assert_eq(_first_room_of_type(manager.layout, RoomLayout.TYPE_EVENT), null, "generated session layout does not expose event/info rooms")
 
 	session.queue_free()
 
@@ -179,8 +312,19 @@ func test_combat_clear_requires_reward_choice_before_room_transition() -> void:
 	_defeat_all_combat_waves(manager.current_room)
 
 	_runner.assert_true(manager.is_current_room_cleared(), "combat room is cleared")
-	_runner.assert_true(session_ui.call("is_reward_choice_visible"), "combat clear opens reward choice overlay")
+	_runner.assert_false(session_ui.call("is_reward_choice_visible"), "combat clear waits before showing reward choice cards")
+	_runner.assert_false(get_tree().paused, "reward delay lets death cleanup and fade finish before pausing")
+	_runner.assert_true(touch_controls.visible, "reward delay keeps combat controls visible until cards appear")
+	_runner.assert_true(touch_controls.call("get_move") != Vector2.ZERO, "reward delay does not release held joystick until cards appear")
+	_runner.assert_true(session.has_method("flush_pending_reward_choice_for_tests"), "session exposes deterministic reward delay flush")
+	if not session.has_method("flush_pending_reward_choice_for_tests"):
+		session.queue_free()
+		return
+	_runner.assert_true(session.call("flush_pending_reward_choice_for_tests"), "test flushes the pending reward delay")
+
+	_runner.assert_true(session_ui.call("is_reward_choice_visible"), "reward delay opens reward choice cards")
 	_runner.assert_true(get_tree().paused, "reward choice pauses room transition input")
+	_runner.assert_false(touch_controls.visible, "reward choice hides paused combat controls behind the cards")
 	_runner.assert_eq(touch_controls.call("get_move"), Vector2.ZERO, "reward choice opening releases held joystick movement")
 	_runner.assert_false(touch_controls.call("is_attack_pressed"), "reward choice opening releases held attack input")
 	var snapshot: Dictionary = session_ui.call("get_reward_choice_snapshot")
@@ -196,7 +340,56 @@ func test_combat_clear_requires_reward_choice_before_room_transition() -> void:
 
 	_runner.assert_false(session_ui.call("is_reward_choice_visible"), "reward choice closes after selection")
 	_runner.assert_false(get_tree().paused, "selection resumes the run")
+	_runner.assert_true(touch_controls.visible, "selection restores combat controls")
 	_runner.assert_true((actor.call("get_run_modifier_ids") as Array).has(chosen_item), "chosen reward applies to player run modifiers")
+
+	session.queue_free()
+
+
+func test_combat_reward_delay_waits_for_pause_modal_to_close() -> void:
+	GameManager.start_session({
+		"source": "reward_pause_modal_test",
+		SceneTransition.RUN_CONFIG_LAYOUT_SEED: 40,
+	})
+	var packed := load("res://scenes/session/session_root.tscn") as PackedScene
+	var session := packed.instantiate()
+	add_child(session)
+
+	var manager := session.get_node("%RoomManager") as RoomManager
+	var session_ui: CanvasLayer = session.get_node("%SessionUIRoot")
+	var modal := session.get_node("%ConfirmModal")
+	var combat_room_def := _first_room_of_type(manager.layout, RoomLayout.TYPE_COMBAT)
+	_runner.assert_not_null(combat_room_def, "session run layout includes combat room")
+	if combat_room_def == null:
+		session.queue_free()
+		return
+	_runner.assert_true(manager.enter_room(combat_room_def.room_id), "test enters combat reward room")
+
+	_defeat_all_combat_waves(manager.current_room)
+	_runner.assert_true(manager.is_current_room_cleared(), "combat room is cleared")
+	_runner.assert_false(session_ui.call("is_reward_choice_visible"), "combat clear starts with delayed reward hidden")
+
+	session._on_pause_requested()
+	_runner.assert_true(modal.is_open(), "pause request opens confirm modal during reward delay")
+	_runner.assert_true(get_tree().paused, "pause modal pauses gameplay during reward delay")
+	_runner.assert_true(session.has_method("flush_pending_reward_choice_for_tests"), "session exposes deterministic reward delay flush")
+	if not session.has_method("flush_pending_reward_choice_for_tests"):
+		session.queue_free()
+		return
+	_runner.assert_false(session.call("flush_pending_reward_choice_for_tests"), "reward delay does not open cards while pause modal is open")
+	_runner.assert_false(session_ui.call("is_reward_choice_visible"), "reward choices stay hidden under pause modal")
+	_runner.assert_true(modal.is_open(), "pause modal remains the active modal")
+	_runner.assert_true(get_tree().paused, "tree remains paused only by the pause modal")
+
+	session._on_resume_requested()
+	_runner.assert_false(modal.is_open(), "continue closes the pause modal")
+	_runner.assert_false(get_tree().paused, "continue resumes gameplay before reward cards open")
+	_runner.assert_true(session.call("flush_pending_reward_choice_for_tests"), "pending reward opens after gameplay resumes")
+	_runner.assert_true(session_ui.call("is_reward_choice_visible"), "reward cards open after pause modal closes")
+	var snapshot: Dictionary = session_ui.call("get_reward_choice_snapshot")
+	var chosen_item := (snapshot["choice_ids"] as Array)[0] as StringName
+	_runner.assert_true(session_ui.call("select_reward_choice", chosen_item), "player can resolve reward after pause modal")
+	_runner.assert_false(get_tree().paused, "reward selection resumes gameplay instead of restoring stale pause")
 
 	session.queue_free()
 
@@ -211,6 +404,7 @@ func test_combat_reward_modal_wins_over_exit_door_open_transition() -> void:
 	add_child(session)
 
 	var manager := session.get_node("%RoomManager") as RoomManager
+	var actor := session.get_node("%Player") as Node2D
 	var session_ui: CanvasLayer = session.get_node("%SessionUIRoot")
 	var combat_room_def := _first_room_of_type(manager.layout, RoomLayout.TYPE_COMBAT)
 	_runner.assert_not_null(combat_room_def, "session run layout includes combat room")
@@ -226,22 +420,30 @@ func test_combat_reward_modal_wins_over_exit_door_open_transition() -> void:
 	if exit_door == null:
 		session.queue_free()
 		return
-	var transition_attempts := 0
-	var on_exit_opened := func(_door_dir: StringName, state: int) -> void:
-		if state == RoomDoor.DoorState.OPEN:
-			if exit_door.request_transition():
-				transition_attempts += 1
-
-	exit_door.state_changed.connect(on_exit_opened)
 	for enemy: Node in manager.current_room.call("get_active_enemies"):
 		if enemy.has_method("take_damage"):
 			enemy.call("take_damage", 99)
 
-	_runner.assert_true(session_ui.call("is_reward_choice_visible"), "combat clear opens reward before exit transition can steal the room")
+	_runner.assert_false(session_ui.call("is_reward_choice_visible"), "combat clear waits before reward cards appear")
+	_runner.assert_false(get_tree().paused, "reward delay does not freeze death cleanup")
+	actor.global_position = exit_door.global_position
+	_runner.assert_true(exit_door.check_transition_for_actor(actor), "standing on the exit can attempt transition during reward delay")
+	_runner.assert_eq(manager.current_room_id, combat_room_id, "pending reward delay ignores the consumed overlap transition")
+	_runner.assert_true(exit_door.request_transition(), "open exit can request transition during reward delay")
+	_runner.assert_eq(manager.current_room_id, combat_room_id, "pending reward delay keeps player in the cleared combat room")
+	_runner.assert_true(session.has_method("flush_pending_reward_choice_for_tests"), "session exposes deterministic reward delay flush")
+	if not session.has_method("flush_pending_reward_choice_for_tests"):
+		session.queue_free()
+		return
+	_runner.assert_true(session.call("flush_pending_reward_choice_for_tests"), "test flushes the pending reward delay")
+	_runner.assert_true(session_ui.call("is_reward_choice_visible"), "reward delay opens reward before exit transition can steal the room")
 	_runner.assert_eq(manager.current_room_id, combat_room_id, "reward pause keeps player in the cleared combat room")
-	_runner.assert_eq(transition_attempts, 0, "exit door transition is blocked while reward modal pauses")
+	var snapshot: Dictionary = session_ui.call("get_reward_choice_snapshot")
+	var chosen_item := (snapshot["choice_ids"] as Array)[0] as StringName
+	_runner.assert_true(session_ui.call("select_reward_choice", chosen_item), "player can resolve the pending reward")
+	_runner.assert_true(exit_door.check_transition_for_actor(actor), "reward resolution resets the consumed exit overlap")
+	_runner.assert_true(manager.current_room_id != combat_room_id, "player standing on the exit transitions after reward selection")
 
-	exit_door.state_changed.disconnect(on_exit_opened)
 	session.queue_free()
 
 
@@ -321,6 +523,18 @@ func test_session_root_preserves_existing_config() -> void:
 	session.queue_free()
 
 
+func test_session_root_starts_night_run_suspense_bgm() -> void:
+	var packed := load("res://scenes/session/session_root.tscn") as PackedScene
+	var session := packed.instantiate()
+	add_child(session)
+
+	_runner.assert_eq(AudioManager.get_current_bgm(), AudioManager.NIGHT_RUN_SUSPENSE_BGM, "session root starts the night run suspense BGM")
+	_runner.assert_eq(AudioManager.get_current_bgm_path(), "res://assets/audio/bgm/night_run_suspense_bgm.ogg", "session root uses the night run suspense BGM stream")
+	_runner.assert_true(AudioManager.is_bgm_playing(), "session root leaves the night run BGM active")
+
+	session.queue_free()
+
+
 func test_session_map_tab_uses_stage_name_and_replaces_bottom_actions() -> void:
 	GameManager.start_session({
 		"source": "map_tab_test",
@@ -370,8 +584,10 @@ func test_session_combat_hud_shows_initial_player_health() -> void:
 
 	var actor := session.get_node("%Player") as Node
 	var combat_hud := session.get_node("%CombatHud") as CanvasLayer
+	var session_ui := session.get_node("%SessionUIRoot") as CanvasLayer
 	var health_panel := combat_hud.get_node("Root/HealthPanel") as Control
 	var hearts := combat_hud.get_node("%Hearts") as HBoxContainer
+	var map_tab := session_ui.get_node("%MapTabButton") as Button
 
 	_runner.assert_true(combat_hud.visible, "전투 HUD 레이어는 세션 진입 직후 보인다")
 	_runner.assert_true(health_panel.is_visible_in_tree(), "생명력 패널은 세션 진입 직후 표시된다")
@@ -379,6 +595,10 @@ func test_session_combat_hud_shows_initial_player_health() -> void:
 	_runner.assert_eq(combat_hud.call("get_current_health"), actor.call("get_health"), "HUD는 플레이어 현재 체력을 즉시 반영한다")
 	_runner.assert_eq(hearts.get_child_count(), int(actor.get("max_health")), "현재 체력만큼 렌더링할 하트 노드가 생성된다")
 	_runner.assert_true(health_panel.get_global_rect().size.x > 0.0, "생명력 패널은 화면에 그릴 폭을 가진다")
+	_runner.assert_false(
+		health_panel.get_global_rect().intersects(map_tab.get_global_rect()),
+		"생명력 패널은 좌상단 맵 탭에 가려지지 않는다"
+	)
 
 	session.queue_free()
 
@@ -794,6 +1014,59 @@ func _first_room_of_type(layout: RoomLayout, room_type: StringName) -> RoomDef:
 		if room_def.room_type == room_type:
 			return room_def
 	return null
+
+
+func _is_empty_uncleared_room(session: Node, manager: RoomManager) -> bool:
+	if manager == null or manager.current_room == null:
+		return true
+	if manager.is_current_room_cleared():
+		return false
+	var room := manager.current_room
+	if _active_count(room, "get_active_enemies") > 0:
+		return false
+	if _active_count(room, "get_active_students") > 0:
+		return false
+	if _active_count(room, "get_active_friends") > 0:
+		return false
+	if room.has_method("has_requested_spawn") and bool(room.call("has_requested_spawn")):
+		var active_boss: Variant = session.get("_active_boss")
+		if active_boss is Node and is_instance_valid(active_boss) and not (active_boss as Node).is_queued_for_deletion():
+			return false
+	return not _has_open_exit(room)
+
+
+func _active_count(room: Node, method_name: String) -> int:
+	if room == null or not room.has_method(method_name):
+		return 0
+	var nodes: Array = room.call(method_name)
+	return nodes.size()
+
+
+func _has_open_exit(room: Node) -> bool:
+	if room == null or not room.has_method("get_doors"):
+		return false
+	for door: RoomDoor in room.call("get_doors"):
+		if door.is_open():
+			return true
+	return false
+
+
+func _any_node_in_initial_mobile_view(actor: Node2D, nodes: Array) -> bool:
+	if actor == null:
+		return false
+	var view := _initial_mobile_view_rect(actor)
+	for node: Node in nodes:
+		if node is Node2D and view.has_point((node as Node2D).global_position):
+			return true
+	return false
+
+
+func _initial_mobile_view_rect(actor: Node2D) -> Rect2:
+	var viewport_size := Vector2(
+		float(ProjectSettings.get_setting("display/window/size/viewport_width")),
+		float(ProjectSettings.get_setting("display/window/size/viewport_height"))
+	)
+	return Rect2(actor.global_position - viewport_size * 0.5, viewport_size)
 
 
 func _defeat_all_combat_waves(room: Node) -> void:

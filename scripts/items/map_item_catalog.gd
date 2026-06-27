@@ -33,12 +33,20 @@ const ITEMS := {
 			"max_health_add": 1,
 		},
 	},
+	&"nurse_bandage": {
+		"display_name": "보건실 반창고",
+		"flavor": "보건실에서 챙긴 반창고가 상처를 빠르게 덮는다.",
+		"modifiers": {
+			"health_restore_add": 2,
+		},
+	},
 }
 
 const _BASE_MODIFIERS := {
 	"melee_damage_add": 0,
 	"bat_damage_add": 0,
 	"max_health_add": 0,
+	"health_restore_add": 0,
 	"special_skill_uses_add": 0,
 	"move_speed_mult": 1.0,
 	"attack_cooldown_mult": 1.0,
@@ -49,6 +57,7 @@ const _EFFECT_ORDER := [
 	"melee_damage_add",
 	"bat_damage_add",
 	"max_health_add",
+	"health_restore_add",
 	"special_skill_uses_add",
 	"move_speed_mult",
 	"attack_cooldown_mult",
@@ -155,6 +164,8 @@ static func _modifier_effect_text(modifier_key: String, value: Variant) -> Strin
 			return _signed_integer_effect("배트 피해", int(value))
 		"max_health_add":
 			return _signed_integer_effect("최대 체력", int(value))
+		"health_restore_add":
+			return _signed_integer_effect("체력 회복", int(value))
 		"special_skill_uses_add":
 			return _signed_integer_effect("회피 횟수", int(value))
 		"move_speed_mult":

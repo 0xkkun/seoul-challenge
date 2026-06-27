@@ -48,9 +48,9 @@ func generate(layout_seed: int, params: Dictionary = {}) -> RoomLayout:
 	var distances := _compute_distances(adjacency, 0)
 	var final_index := _pick_final_room_index(cells, adjacency, distances)
 	var friend_index := _pick_friend_room_index_for_final(cells, final_index, adjacency, distances, [0, final_index])
-	var event_index := _pick_special_room_index(cells, adjacency, distances, [0, final_index, friend_index])
-	var treasure_index := _pick_special_room_index(cells, adjacency, distances, [0, final_index, friend_index, event_index])
-	var shop_index := _pick_special_room_index(cells, adjacency, distances, [0, final_index, friend_index, event_index, treasure_index])
+	var event_index := -1
+	var shop_index := -1
+	var treasure_index := -1
 	var room_ids := _assign_room_ids(cells.size(), final_index, friend_index, event_index, treasure_index, shop_index)
 	var max_combat_distance := _max_combat_distance(
 		cells.size(),
@@ -65,7 +65,7 @@ func generate(layout_seed: int, params: Dictionary = {}) -> RoomLayout:
 	var layout := RoomLayout.new()
 	layout.layout_id = StringName("generated_%d" % layout_seed)
 	layout.start_room_id = &"start"
-	layout.required_clears_for_hidden_reveal = _hidden_reveal_threshold(cells.size())
+	layout.required_clears_for_hidden_reveal = 0
 	layout.room_defs = []
 
 	for index: int in range(cells.size()):
@@ -73,7 +73,7 @@ func generate(layout_seed: int, params: Dictionary = {}) -> RoomLayout:
 		room_def.room_id = room_ids[index]
 		room_def.room_type = _room_type_for_index(index, final_index, friend_index, event_index, treasure_index, shop_index)
 		room_def.scene_path = _scene_path_for_type(room_def.room_type, scene_paths)
-		room_def.hidden = index == final_index
+		room_def.hidden = false
 		room_def.connections = _connection_ids_for_index(index, cells, adjacency, room_ids)
 		room_def.grid_pos = cells[index] - cells[0]
 		room_def.room_config = _room_config_for_type(
@@ -83,19 +83,11 @@ func generate(layout_seed: int, params: Dictionary = {}) -> RoomLayout:
 		)
 		layout.room_defs.append(room_def)
 
-	_enforce_final_friend_gate(layout)
 	return layout
 
 
 func _minimum_grid_dimension_for_count(target_count: int) -> int:
 	return maxi(3, int(ceil(sqrt(float(target_count)))) * 2)
-
-
-func _hidden_reveal_threshold(room_count: int) -> int:
-	var non_final_count := room_count - 1
-	if non_final_count <= 4:
-		return non_final_count
-	return clampi(int(ceil(float(non_final_count) * 0.65)), 4, non_final_count - 1)
 
 
 func _generate_cells(

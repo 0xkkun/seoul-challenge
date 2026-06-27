@@ -21,6 +21,10 @@ const WOLF_SPAWN_FACTORS: Array[Vector2] = [
 	Vector2(0.05, -0.1),
 ]
 const ELITE_COLOR := Color(0.95, 0.72, 0.22, 1.0)
+const ENTRY_FORWARD_DISTANCE := 250.0
+const ENTRY_FORWARD_SPREAD := 240.0
+const ENTRY_LATERAL_SPREAD := 180.0
+const SPAWN_BOUNDS_INSET := 48.0
 
 signal combat_started(room_id: StringName, enemy_count: int)
 signal combat_resolved(room_id: StringName)
@@ -41,8 +45,7 @@ signal enemy_count_changed(remaining_count: int)
 @export_range(1.0, 2.0, 0.05) var elite_speed_multiplier := 1.15
 @export_range(0.2, 1.0, 0.05) var elite_fire_interval_multiplier := 0.75
 @export_range(0, 6, 1) var elite_contact_damage_bonus := 1
-@export_range(0, 99, 1) var enemy_defeat_ingame_reward := 1
-@export_range(0, 99, 1) var combat_clear_ingame_reward := 3
+@export_range(0.0, 2.0, 0.05) var spawn_fade_time := 0.35
 
 var _combat_started := false
 var _combat_resolved := false
@@ -101,7 +104,6 @@ func resolve_combat() -> void:
 	if _combat_resolved:
 		return
 	_combat_resolved = true
-	_emit_ingame_reward(combat_clear_ingame_reward, "combat_clear")
 	combat_resolved.emit(room_id)
 	combat_cleared.emit(room_id)
 	enemy_count_changed.emit(0)
@@ -172,11 +174,7 @@ func _spawn_next_wave() -> void:
 		enemy_count_changed.emit(_active_enemies.size())
 		return
 
-	var remaining_waves := maxi(1, wave_count - _waves_spawned)
-	var batch_size := maxi(1, int(ceil(float(_pending_spawn_entries.size()) / float(remaining_waves))))
-	for _index: int in range(batch_size):
-		if _pending_spawn_entries.is_empty():
-			break
+	while not _pending_spawn_entries.is_empty():
 		var entry: Dictionary = _pending_spawn_entries.pop_front()
 		_spawn_enemy_entry(entry)
 	_waves_spawned += 1
@@ -236,6 +234,8 @@ func _spawn_enemy_instance(
 	(enemy as Node2D).position = _spawn_position_for_factor(spawn_factors[sequence % spawn_factors.size()])
 	if enemy.has_method("set_movement_bounds"):
 		enemy.call("set_movement_bounds", _enemy_movement_bounds())
+	if enemy.has_method("start_spawn_fade"):
+		enemy.call("start_spawn_fade", spawn_fade_time)
 	_connect_enemy(enemy)
 	_active_enemies.append(enemy)
 
@@ -277,7 +277,6 @@ func _on_enemy_defeated(enemy: Node) -> void:
 	if not _active_enemies.has(enemy):
 		return
 	_active_enemies.erase(enemy)
-	_emit_ingame_reward(enemy_defeat_ingame_reward, "enemy_defeated")
 	var remaining := get_remaining_enemy_count()
 	if remaining == 0 and not _pending_spawn_entries.is_empty():
 		_spawn_next_wave()
@@ -306,7 +305,20 @@ func _resolve_enemy_layer() -> Node2D:
 
 func _spawn_position_for_factor(spawn_factor: Vector2) -> Vector2:
 	var room_bounds := RoomPalette.get_room_bounds()
-	return room_bounds.position + room_bounds.size * 0.5 + room_bounds.size * 0.5 * spawn_factor
+	if _actor == null:
+		return room_bounds.position + room_bounds.size * 0.5 + room_bounds.size * 0.5 * spawn_factor
+	var actor_position := to_local(_actor.global_position)
+	var forward := (Vector2.ZERO - actor_position).normalized()
+	if forward.length() <= 0.001:
+		forward = Vector2.RIGHT
+	var lateral := Vector2(-forward.y, forward.x)
+	var distance := ENTRY_FORWARD_DISTANCE + spawn_factor.x * ENTRY_FORWARD_SPREAD
+	var target := actor_position + forward * distance + lateral * spawn_factor.y * ENTRY_LATERAL_SPREAD
+	var safe_bounds := room_bounds.grow(-SPAWN_BOUNDS_INSET)
+	return Vector2(
+		clampf(target.x, safe_bounds.position.x, safe_bounds.end.x),
+		clampf(target.y, safe_bounds.position.y, safe_bounds.end.y)
+	)
 
 
 func _enemy_movement_bounds() -> Rect2:
@@ -338,14 +350,3 @@ func _has_property(node: Node, property_name: String) -> bool:
 			return true
 	return false
 
-
-func _emit_ingame_reward(amount: int, reason: String) -> void:
-	if amount <= 0 or not has_node("/root/EventBus"):
-		return
-	EventBus.emit_currency_changed({
-		"kind": "ingame",
-		"amount": amount,
-		"reason": reason,
-		"room_id": room_id,
-		"room_type": room_type,
-	})

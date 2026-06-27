@@ -1,7 +1,7 @@
 extends CanvasLayer
 ## 전투 HUD — 플레이어 체력을 하트로 표시한다.
 ## EventBus.player_health_changed({"current": int, "max": int}) 를 구독해 갱신한다.
-## 무기/재화 슬롯은 후속 이슈를 위한 placeholder stub 이다.
+## 무기 슬롯은 후속 이슈를 위한 placeholder stub 이다.
 class_name CombatHud
 
 const HEART_FILLED_COLOR := Color(0.86, 0.22, 0.27)
@@ -9,8 +9,6 @@ const HEART_EMPTY_COLOR := Color(0.25, 0.25, 0.28)
 const HEART_SIZE := Vector2(22, 22)
 const WEAPON_SLOT_STUB_TEXT := "기억 무기: 준비 중"
 const SKILL_SLOT_STUB_TEXT := "회피: 준비 중"
-const CURRENCY_ICON_PATH := "res://assets/ui/icons/currency/yeopjeon.png"
-const CURRENCY_SLOT_STUB_TEXT := "0"
 const MobileSafeArea := preload("res://scripts/ui/mobile_safe_area.gd")
 
 @onready var _hearts: HBoxContainer = %Hearts
@@ -18,8 +16,6 @@ const MobileSafeArea := preload("res://scripts/ui/mobile_safe_area.gd")
 @onready var _stub_panel: HBoxContainer = $Root/StubPanel
 @onready var _weapon_slot: Label = %WeaponSlot
 @onready var _skill_slot: Label = %SkillSlot
-@onready var _currency_icon: TextureRect = %CurrencyIcon
-@onready var _currency_slot: Label = %CurrencyAmountLabel
 
 var _current_health := 0
 var _max_health := 0
@@ -30,12 +26,8 @@ func _ready() -> void:
 	_apply_landscape_safe_area()
 	set_weapon_state(_initial_weapon_id())
 	_skill_slot.text = SKILL_SLOT_STUB_TEXT
-	_currency_slot.text = CURRENCY_SLOT_STUB_TEXT
 	EventBus.player_health_changed.connect(_on_player_health_changed)
 	EventBus.special_skill_state_changed.connect(_on_special_skill_state_changed)
-	EventBus.currency_changed.connect(_on_currency_changed)
-	if has_node("/root/CurrencySystem"):
-		set_currency_state({"ingame": CurrencySystem.get_ingame()})
 	_render_hearts()
 
 
@@ -45,8 +37,6 @@ func _exit_tree() -> void:
 			EventBus.player_health_changed.disconnect(_on_player_health_changed)
 		if EventBus.special_skill_state_changed.is_connected(_on_special_skill_state_changed):
 			EventBus.special_skill_state_changed.disconnect(_on_special_skill_state_changed)
-		if EventBus.currency_changed.is_connected(_on_currency_changed):
-			EventBus.currency_changed.disconnect(_on_currency_changed)
 
 
 ## 체력을 직접 지정한다. (전투 미연동 상태에서의 stub/테스트 진입점)
@@ -102,23 +92,6 @@ func get_weapon_text() -> String:
 	return _weapon_slot.text
 
 
-func set_currency_state(payload: Dictionary) -> void:
-	if not payload.has("ingame"):
-		return
-	var ingame := maxi(0, int(payload.get("ingame", 0)))
-	_currency_slot.text = str(ingame)
-
-
-func get_currency_text() -> String:
-	return _currency_slot.text
-
-
-func get_currency_icon_path() -> String:
-	if _currency_icon.texture == null:
-		return ""
-	return _currency_icon.texture.resource_path
-
-
 func _on_player_health_changed(payload: Dictionary) -> void:
 	var current := int(payload.get("current", _current_health))
 	var max_health := int(payload.get("max", _max_health))
@@ -127,10 +100,6 @@ func _on_player_health_changed(payload: Dictionary) -> void:
 
 func _on_special_skill_state_changed(payload: Dictionary) -> void:
 	set_skill_state(payload)
-
-
-func _on_currency_changed(payload: Dictionary) -> void:
-	set_currency_state(payload)
 
 
 func _render_hearts() -> void:

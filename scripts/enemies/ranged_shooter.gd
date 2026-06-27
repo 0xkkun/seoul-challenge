@@ -10,7 +10,9 @@ signal fired(origin: Vector2, direction: Vector2)
 
 const HitReactionController = preload("res://scripts/combat/hit_reaction_controller.gd")
 const StatusEffectController = preload("res://scripts/combat/status_effect_controller.gd")
+const SpawnFadeController = preload("res://scripts/combat/spawn_fade_controller.gd")
 const EnemyDeathFade = preload("res://scripts/combat/enemy_death_fade.gd")
+const EnemyHealthBar = preload("res://scripts/enemies/enemy_health_bar.gd")
 const ENEMY_BULLET := preload("res://scenes/enemies/enemy_bullet.tscn")
 const FACING_DEADZONE := 0.01
 
@@ -24,12 +26,17 @@ const FACING_DEADZONE := 0.01
 @export var projectile_scene: PackedScene = ENEMY_BULLET
 @export var move_animation: StringName = &"move"
 @export var attack_animation: StringName = &"attack"
+@export var health_bar_width: float = 36.0
+@export var health_bar_height: float = 4.0
+@export var spawn_fade_time: float = 0.35
 
 var _hp: int = 0
 var _fire_timer: float = 0.0
 var _dead := false
 var _hit_reaction: Node = null
 var _status_effects: Node = null
+var _spawn_fade: Node = null
+var _health_bar: RefCounted = null
 var _movement_bounds := Rect2()
 var _movement_bounds_enabled := false
 @onready var _sprite: AnimatedSprite2D = get_node_or_null(^"Sprite")
@@ -41,12 +48,21 @@ func _ready() -> void:
 	add_to_group(&"enemy")
 	_ensure_hit_reaction()
 	_ensure_status_effects()
+	_ensure_spawn_fade()
+	_reset_health_bar()
 	fired.connect(_spawn_bullet)
 
 
 func _physics_process(delta: float) -> void:
 	tick_hit_reaction(delta)
 	tick_status_effects(delta)
+	tick_spawn_fade(delta)
+	if is_spawn_protected():
+		velocity = Vector2.ZERO
+		move_and_slide()
+		clamp_to_movement_bounds()
+		_update_animation()
+		return
 	var target := _find_target()
 	if target == null:
 		return
@@ -65,6 +81,7 @@ func _physics_process(delta: float) -> void:
 			range_deadzone,
 			move_speed * get_status_speed_multiplier()
 		)
+		velocity = clamp_velocity_to_movement_bounds(global_position, velocity, delta)
 	move_and_slide()
 	clamp_to_movement_bounds()
 	_update_animation()
@@ -153,6 +170,22 @@ func clamp_position_to_bounds(position: Vector2, bounds: Rect2) -> Vector2:
 	)
 
 
+func clamp_velocity_to_movement_bounds(position: Vector2, next_velocity: Vector2, delta: float) -> Vector2:
+	if not _movement_bounds_enabled or delta <= 0.0:
+		return next_velocity
+	var projected := position + next_velocity * delta
+	var clamped_velocity := next_velocity
+	if projected.x < _movement_bounds.position.x and next_velocity.x < 0.0:
+		clamped_velocity.x = 0.0
+	elif projected.x > _movement_bounds.end.x and next_velocity.x > 0.0:
+		clamped_velocity.x = 0.0
+	if projected.y < _movement_bounds.position.y and next_velocity.y < 0.0:
+		clamped_velocity.y = 0.0
+	elif projected.y > _movement_bounds.end.y and next_velocity.y > 0.0:
+		clamped_velocity.y = 0.0
+	return clamped_velocity
+
+
 # --- 피격 반응 (계약 #136) ---
 
 func is_hit_invulnerable() -> bool:
@@ -222,8 +255,35 @@ func _ensure_status_effects() -> Node:
 	return _status_effects
 
 
+# --- 등장 페이드 / 스폰 보호 ---
+
+func start_spawn_fade(duration: float = -1.0) -> void:
+	var fade_duration := spawn_fade_time if duration < 0.0 else duration
+	_ensure_spawn_fade().call("start", fade_duration, _get_visual())
+
+
+func tick_spawn_fade(delta: float) -> void:
+	_ensure_spawn_fade().call("tick", delta)
+
+
+func is_spawn_protected() -> bool:
+	return bool(_ensure_spawn_fade().call("is_active"))
+
+
+func _ensure_spawn_fade() -> Node:
+	if _spawn_fade != null and is_instance_valid(_spawn_fade):
+		return _spawn_fade
+	_spawn_fade = SpawnFadeController.new()
+	_spawn_fade.name = "SpawnFade"
+	add_child(_spawn_fade)
+	_spawn_fade.call("bind_visual", _get_visual())
+	return _spawn_fade
+
+
 ## 발사 쿨다운을 진행하고, 준비되면 fired 를 방출하고 타이머를 리셋한다. 발사했으면 true.
 func tick_fire(delta: float, origin: Vector2, target_position: Vector2) -> bool:
+	if is_spawn_protected():
+		return false
 	_fire_timer = step_fire_cooldown(_fire_timer, delta)
 	if not is_ready_to_fire(_fire_timer):
 		return false
@@ -241,7 +301,8 @@ func take_damage(amount: int) -> void:
 	if _dead or is_hit_invulnerable():
 		return
 	HapticManager.on_enemy_hit()
-	_hp -= amount
+	_hp = maxi(0, _hp - amount)
+	_update_health_bar()
 	if is_dead(_hp):
 		_die()
 	else:
@@ -316,3 +377,33 @@ func _get_visual() -> CanvasItem:
 	if sprite != null:
 		return sprite
 	return get_node_or_null(^"Placeholder") as CanvasItem
+
+
+func _get_health_bar() -> RefCounted:
+	if _health_bar == null:
+		_health_bar = EnemyHealthBar.new()
+		var bg := get_node_or_null(^"HealthBarBg") as ColorRect
+		var fill := get_node_or_null(^"HealthBarFill") as ColorRect
+		_health_bar.call("bind", bg, fill)
+	return _health_bar
+
+
+func _layout_health_bar() -> void:
+	var bar := _get_health_bar()
+	bar.call("configure", health_bar_width, health_bar_height)
+	bar.call("reposition_above_visual", _get_visual())
+
+
+func _reset_health_bar() -> void:
+	_layout_health_bar()
+	_get_health_bar().call("hide_bar")
+
+
+func _update_health_bar() -> void:
+	_layout_health_bar()
+	_get_health_bar().call("update", float(_hp), float(max_hp))
+
+
+func get_health_bar_snapshot() -> Dictionary:
+	_layout_health_bar()
+	return _get_health_bar().call("get_snapshot") as Dictionary

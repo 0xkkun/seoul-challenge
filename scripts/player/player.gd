@@ -10,7 +10,7 @@ const HitReactionController = preload("res://scripts/combat/hit_reaction_control
 const StatusEffectController = preload("res://scripts/combat/status_effect_controller.gd")
 const MetaUpgradeCatalog = preload("res://scripts/items/meta_upgrade_catalog.gd")
 const SLASH_FRAME_WIDTH := 64.0
-const ATTACK_DUST_FRAME_SIZE := Vector2(960.0, 1440.0)
+const ATTACK_DUST_FRAME_SIZE := Vector2(48.0, 72.0)
 const BAT_SLASH_VISUAL_SCALE := 1.18
 const POWER_SLASH_VISUAL_SCALE := 1.35
 const WEAPON_NAME_BARE_HANDS := "맨손"
@@ -50,9 +50,9 @@ signal run_modifiers_changed(payload: Dictionary)
 @export var swing_visual_time: float = 0.12  ## 휘두르기 시각 표시 시간 (s)
 @export var bat_swing_visual_time: float = 0.16  ## 배트 초승달 슬래시 표시 시간(s)
 @export var power_impact_visual_time: float = 0.18  ## 강공격 이펙트 재생 시간(s)
-@export var attack_dust_visual_height: float = 72.0  ## 큰 원본 먼지 프레임을 발밑 크기로 축소
-@export var attack_dust_back_offset: float = 26.0  ## 바라보는 방향의 반대쪽 발밑 거리(px)
-@export var attack_dust_foot_offset: float = 16.0  ## 캐릭터 중심에서 발밑으로 내리는 오프셋(px)
+@export var attack_dust_visual_height: float = 72.0  ## 런타임 크기 먼지 프레임을 발밑에 표시
+@export var attack_dust_back_offset: float = 36.0  ## 바라보는 방향의 반대쪽 발밑 거리(px)
+@export var attack_dust_foot_offset: float = 52.0  ## 캐릭터 중심에서 발밑으로 내리는 오프셋(px)
 @export var attack_dust_move_threshold: float = 0.1
 @export var dash_power_attack_grace_time: float = 0.15  ## 대시 직후 강화 근접 공격 입력 허용 시간(s)
 @export_range(0, 9, 1) var dash_power_attack_damage_bonus := 1
@@ -348,6 +348,10 @@ func damaged_health(current: int, amount: int) -> int:
 	return maxi(0, current - amount)
 
 
+func restored_health(current: int, amount: int, health_limit: int) -> int:
+	return clampi(current + maxi(0, amount), 0, maxi(0, health_limit))
+
+
 # --- 체력/피격 (계약: EventBus.player_health_changed 발신) ---
 
 func get_health() -> int:
@@ -360,6 +364,7 @@ func apply_run_modifier(item_id: StringName) -> bool:
 	_capture_base_run_stats()
 	_run_modifier_ids.append(item_id)
 	_apply_run_modifier_stats()
+	_apply_instant_item_effects(item_id)
 	_broadcast_run_modifiers_changed()
 	return true
 
@@ -741,6 +746,18 @@ func _apply_run_modifier_stats() -> void:
 	_broadcast_special_skill_state()
 
 
+func _apply_instant_item_effects(item_id: StringName) -> void:
+	var item_def := MapItemCatalog.get_item_def(item_id)
+	var modifiers: Dictionary = item_def.get("modifiers", {})
+	var restore_amount := int(modifiers.get("health_restore_add", 0))
+	if restore_amount <= 0:
+		return
+	var previous_health := _health
+	_health = restored_health(_health, restore_amount, max_health)
+	if previous_health != _health:
+		_broadcast_health()
+
+
 func _apply_stats(stats: Dictionary) -> void:
 	move_speed = float(stats.get("move_speed", move_speed))
 	attack_cooldown = float(stats.get("attack_cooldown", attack_cooldown))
@@ -899,8 +916,8 @@ func _attack_ranged(dir: Vector2) -> void:
 
 func _melee_feedback_intensity(power_attack: bool) -> float:
 	if power_attack:
-		return 5.0
-	return 3.5 if _has_bat else 2.4
+		return 7.0
+	return 5.5 if _has_bat else 3.0
 
 
 func _emit_combat_feedback(kind: StringName, dir: Vector2, hit_count: int, intensity: float) -> void:
@@ -1037,24 +1054,17 @@ func build_attack_dust_effect_state(
 	back_offset: float,
 	foot_offset: float
 ) -> Dictionary:
-	var safe_dir := facing.normalized() if facing.length() > 0.001 else Vector2.RIGHT
-	var opposite_dir := -safe_dir
+	var horizontal_dir := Vector2.LEFT if facing.x >= 0.0 else Vector2.RIGHT
 	var safe_frame_height := maxf(1.0, frame_size.y)
 	var scale_value := maxf(0.001, visual_height / safe_frame_height)
-	var rotation := snap_attack_dust_rotation(opposite_dir.angle())
+	var back_offset_value := maxf(0.0, back_offset)
+	var foot_position := Vector2(0.0, foot_offset)
+	var trailing_position := horizontal_dir * back_offset_value
 	return {
-		"position": opposite_dir * maxf(0.0, back_offset) + Vector2(0.0, foot_offset),
-		"rotation": rotation,
+		"position": foot_position + trailing_position,
+		"rotation": horizontal_dir.angle(),
 		"scale": Vector2(scale_value, scale_value),
 	}
-
-
-func snap_attack_dust_rotation(rotation: float) -> float:
-	var quarter_turn := PI * 0.5
-	var snapped := roundf(rotation / quarter_turn) * quarter_turn
-	if is_equal_approx(snapped, -PI):
-		return PI
-	return snapped
 
 
 func _show_attack_dust(dir: Vector2, move_input: Vector2) -> void:

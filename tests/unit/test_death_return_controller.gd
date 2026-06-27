@@ -77,14 +77,14 @@ func test_falls_back_to_hub_when_game_over_flow_is_missing() -> void:
 	_runner.assert_eq(_hub_calls, 1, "fallback 은 기존 허브 전환 유지")
 
 
-func test_permanent_currency_survives_death_ingame_resets() -> void:
+func test_permanent_currency_survives_death_without_ingame_reset_path() -> void:
 	GameManager.start_session({"source": "test"})
 	EventBus.emit_currency_changed({"kind": "permanent", "amount": 5})
 	EventBus.emit_currency_changed({"kind": "ingame", "amount": 4})
 	EventBus.emit_player_health_changed({"current": 0, "max": 3})
 
 	_runner.assert_eq(CurrencySystem.get_permanent(), 5, "영구 재화는 사망 후에도 유지")
-	_runner.assert_eq(CurrencySystem.get_ingame(), 0, "런 종료 시 인게임 재화 리셋")
+	_runner.assert_false(CurrencySystem.has_method("get_ingame"), "삭제된 인게임 엽전 리셋 경로에 의존하지 않는다")
 	_runner.assert_eq(_game_over_results.size(), 1, "재화 정산 후 게임오버 UI 표시")
 
 

@@ -3,6 +3,8 @@ extends Room
 
 const YOKAI_FRIEND_SCENE = preload("res://scenes/enemies/yokai_friend.tscn")
 const FRIEND_SPAWN_FACTOR := Vector2(0.35, 0.0)
+const ENTRY_FORWARD_DISTANCE := 260.0
+const SPAWN_BOUNDS_INSET := 48.0
 
 signal friend_encounter_started(room_id: StringName)
 signal friend_encounter_resolved(room_id: StringName, friend_id: StringName)
@@ -37,6 +39,11 @@ func enter() -> void:
 
 func is_cleared() -> bool:
 	return _encounter_resolved
+
+
+func apply_room_config(config: Dictionary) -> void:
+	if config.has("friend_id"):
+		friend_id = StringName(config.get("friend_id", friend_id))
 
 
 func get_active_friends() -> Array[Node]:
@@ -83,13 +90,29 @@ func _spawn_friend() -> void:
 		return
 	_friend_layer.add_child(friend)
 	friend.name = String(friend_id)
-	(friend as Node2D).position = RoomPalette.ROOM_HALF_SIZE * FRIEND_SPAWN_FACTOR
+	(friend as Node2D).position = _friend_spawn_position()
 	if friend.has_signal("purified"):
 		var callback := Callable(self, "_on_friend_purified")
 		if not friend.is_connected("purified", callback):
 			friend.connect("purified", callback)
 	_active_friends.append(friend)
 	friend_count_changed.emit(_active_friends.size())
+
+
+func _friend_spawn_position() -> Vector2:
+	var room_bounds := RoomPalette.get_room_bounds()
+	if _actor == null:
+		return RoomPalette.ROOM_HALF_SIZE * FRIEND_SPAWN_FACTOR
+	var actor_position := to_local(_actor.global_position)
+	var forward := (Vector2.ZERO - actor_position).normalized()
+	if forward.length() <= 0.001:
+		forward = Vector2.RIGHT
+	var target := actor_position + forward * ENTRY_FORWARD_DISTANCE
+	var safe_bounds := room_bounds.grow(-SPAWN_BOUNDS_INSET)
+	return Vector2(
+		clampf(target.x, safe_bounds.position.x, safe_bounds.end.x),
+		clampf(target.y, safe_bounds.position.y, safe_bounds.end.y)
+	)
 
 
 func _on_friend_purified(friend: Node) -> void:

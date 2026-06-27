@@ -5,7 +5,7 @@ const NightIntroCutscene := preload("res://scripts/cutscene/night_intro_cutscene
 
 ## 최초 1회 게임 시작 시 밤 인트로 콜드오픈을 재생했는지 표시하는 세이브 플래그.
 const FLAG_SEEN_NIGHT_INTRO := &"seen_night_intro"
-## 인트로 직후 바로 진입할 첫 밤(경복궁) 세션 설정.
+## 인트로 직후 바로 진입할 첫 온보딩(경복궁) 세션 설정.
 const FIRST_NIGHT_STAGE_ID := &"gyeongbokgung"
 const FIRST_NIGHT_STAGE_NAME := "경복궁"
 const FIRST_NIGHT_WEAPON_ID := &"bat"
@@ -70,7 +70,7 @@ func _should_play_intro() -> bool:
 	return has_node("/root/SaveManager") and not SaveManager.get_flag(FLAG_SEEN_NIGHT_INTRO)
 
 
-## 게임 시작 → 밤 콜드오픈 → 곧바로 첫 밤(경복궁) 세션으로 진입(낮 플로우 건너뜀).
+## 게임 시작 → 밤 콜드오픈 → 곧바로 첫 온보딩(경복궁) 세션으로 진입(낮 플로우 건너뜀).
 func _play_intro_then_first_night() -> void:
 	var intro := NightIntroCutscene.new()
 	add_child(intro)
@@ -98,6 +98,7 @@ func _first_night_config() -> Dictionary:
 		"stage_id": FIRST_NIGHT_STAGE_ID,
 		"stage_name": FIRST_NIGHT_STAGE_NAME,
 		SceneTransition.RUN_CONFIG_SELECTED_WEAPON_ID: FIRST_NIGHT_WEAPON_ID,
+		SceneTransition.RUN_CONFIG_ONBOARDING_KIND: SceneTransition.ONBOARDING_KIND_BASEBALL_CAPTAIN,
 	}
 
 

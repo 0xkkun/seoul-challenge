@@ -161,86 +161,14 @@ func test_treasure_room_auto_picks_up_on_enter_to_avoid_softlock() -> void:
 	_runner.assert_eq(actor.get("melee_damage"), 2, "auto pickup applies the run item to the player")
 
 
-func test_shop_room_bat_purchase_spends_ingame_and_equips_player() -> void:
-	var room := _instantiate_shop_room()
-	if room == null:
-		return
-	var player := _instantiate_player()
-	if player == null:
-		return
-	add_child(room)
-	add_child(player)
-	room.enter()
-	EventBus.emit_currency_changed({"kind": "ingame", "amount": 6})
-
-	_runner.assert_true(room.call("purchase_offer", &"bat", player), "bat offer can be purchased with enough ingame currency")
-
-	_runner.assert_eq(CurrencySystem.get_ingame(), 2, "bat purchase spends its ingame cost")
-	_runner.assert_true(player.call("has_bat"), "bat purchase equips the stronger melee item")
-	_runner.assert_eq(player.call("current_weapon_name"), "금 간 나무 배트", "bat purchase shows the cracked bat name")
-	_runner.assert_true(room.call("is_offer_sold", &"bat"), "bat offer is marked sold")
-	_runner.assert_true(String(room.call("get_offer_text", &"bat")).contains("구매 완료"), "shop label shows sold state")
+func test_disabled_shop_room_scene_is_removed_with_yeopjeon_currency() -> void:
+	_runner.assert_false(
+		ResourceLoader.exists("res://scenes/interactables/shop_room.tscn"),
+		"disabled shop room scene is removed with unused ingame yeopjeon"
+	)
 
 
-func test_shop_room_syncs_sold_bat_from_equipped_player_without_name_match() -> void:
-	var room := _instantiate_shop_room()
-	if room == null:
-		return
-	var player := _instantiate_player()
-	if player == null:
-		return
-	add_child(room)
-	add_child(player)
-	player.call("equip_bat")
-
-	room.configure_actor(player)
-	room.enter()
-
-	_runner.assert_true(room.call("is_offer_sold", &"bat"), "shop checks equipped state instead of display name")
-	_runner.assert_true(String(room.call("get_offer_text", &"bat")).contains("구매 완료"), "shop label stays sold after entering with a bat")
-
-
-func test_shop_room_dodge_refill_purchase_spends_ingame_and_upgrades_special() -> void:
-	var room := _instantiate_shop_room()
-	if room == null:
-		return
-	var player := _instantiate_player()
-	if player == null:
-		return
-	add_child(room)
-	add_child(player)
-	room.enter()
-	EventBus.emit_currency_changed({"kind": "ingame", "amount": 5})
-
-	_runner.assert_true(room.call("purchase_offer", &"dodge_refill", player), "dodge refill can be purchased with enough ingame currency")
-
-	_runner.assert_eq(CurrencySystem.get_ingame(), 2, "dodge refill spends its ingame cost")
-	_runner.assert_eq(player.get("special_skill_id"), &"emergency_dodge", "purchase keeps emergency dodge equipped")
-	_runner.assert_eq(player.get("special_skill_max_uses"), 5, "purchase raises dodge charges")
-	_runner.assert_true(is_equal_approx(float(player.get("special_skill_cooldown")), 1.0), "purchase lowers dodge cooldown")
-	_runner.assert_true(room.call("is_offer_sold", &"dodge_refill"), "dodge refill offer is marked sold")
-
-
-func test_shop_room_rejects_purchase_without_enough_ingame_currency() -> void:
-	var room := _instantiate_shop_room()
-	if room == null:
-		return
-	var player := _instantiate_player()
-	if player == null:
-		return
-	add_child(room)
-	add_child(player)
-	room.enter()
-	EventBus.emit_currency_changed({"kind": "ingame", "amount": 2})
-
-	_runner.assert_false(room.call("purchase_offer", &"bat", player), "shop rejects unaffordable offer")
-
-	_runner.assert_eq(CurrencySystem.get_ingame(), 2, "failed purchase keeps ingame balance")
-	_runner.assert_eq(player.call("current_weapon_name"), "맨손", "failed purchase does not equip item")
-	_runner.assert_false(room.call("is_offer_sold", &"bat"), "failed purchase does not mark offer sold")
-
-
-func test_minimap_data_marks_current_visible_and_boss_hidden() -> void:
+func test_minimap_data_marks_current_visible_and_boss_unlocked() -> void:
 	var layout := load("res://resources/layouts/gyeongbokgung.tres") as RoomLayout
 	var data: Dictionary = MinimapDataScript.build_from_layout(layout, &"combat_1", {})
 	var current_room := _find_room(data["rooms"], &"combat_1")
@@ -250,30 +178,28 @@ func test_minimap_data_marks_current_visible_and_boss_hidden() -> void:
 	_runner.assert_true(current_room["current"], "current room is marked")
 	_runner.assert_true(current_room["visible"], "current room is visible")
 	_runner.assert_eq(boss_room["minimap_type"], &"boss", "final room is exposed as boss type")
-	_runner.assert_true(boss_room["hidden"], "boss room keeps hidden flag")
-	_runner.assert_false(boss_room["visible"], "boss room starts hidden on minimap")
+	_runner.assert_false(boss_room["hidden"], "boss room does not keep a hidden gate flag")
+	_runner.assert_true(boss_room["visible"], "boss room is not hidden by layout data")
 
 	var cleared := {
 		&"start": true,
 		&"combat_1": true,
 		&"treasure_1": true,
 		&"combat_2": true,
-		&"shop_1": true,
-		&"event_1": true,
 	}
-	var revealed_data: Dictionary = MinimapDataScript.build_from_layout(layout, &"event_1", cleared)
+	var revealed_data: Dictionary = MinimapDataScript.build_from_layout(layout, &"friend_1", cleared)
 	var revealed_boss := _find_room(revealed_data["rooms"], &"final_1")
 	var friend_room := _find_room(revealed_data["rooms"], &"friend_1")
 	_runner.assert_false(friend_room.is_empty(), "minimap data includes friend room")
 	if friend_room.is_empty():
 		return
 	_runner.assert_eq(friend_room["minimap_type"], &"friend", "friend room is exposed as friend type")
-	_runner.assert_false(revealed_boss["visible"], "boss stays hidden until friend room clears")
+	_runner.assert_true(revealed_boss["visible"], "boss does not wait for friend room clear in layout data")
 
 	cleared[&"friend_1"] = true
 	revealed_data = MinimapDataScript.build_from_layout(layout, &"friend_1", cleared)
 	revealed_boss = _find_room(revealed_data["rooms"], &"final_1")
-	_runner.assert_true(revealed_boss["visible"], "layout reveal rules can expose boss room data later")
+	_runner.assert_true(revealed_boss["visible"], "boss room data stays visible after friend room clears")
 
 
 func test_minimap_data_keeps_treasure_and_shop_visible() -> void:
@@ -311,31 +237,3 @@ func _make_room_def(room_id: StringName, room_type: StringName) -> RoomDef:
 	room_def.scene_path = "res://scenes/session/room_base.tscn"
 	return room_def
 
-
-func _instantiate_shop_room() -> Node:
-	_runner.assert_true(ResourceLoader.exists("res://scenes/interactables/shop_room.tscn"), "shop room scene exists")
-	if not ResourceLoader.exists("res://scenes/interactables/shop_room.tscn"):
-		return null
-	var packed := load("res://scenes/interactables/shop_room.tscn") as PackedScene
-	_runner.assert_not_null(packed, "shop room scene loads")
-	if packed == null:
-		return null
-	var room := packed.instantiate()
-	_runner.assert_true(room.has_method("purchase_offer"), "shop room exposes purchase API")
-	_runner.assert_true(room.has_method("is_offer_sold"), "shop room exposes sold-state API")
-	_runner.assert_true(room.has_method("get_offer_text"), "shop room exposes offer UI text for tests")
-	return room
-
-
-func _instantiate_player() -> Node:
-	_runner.assert_true(ResourceLoader.exists("res://scenes/player/player.tscn"), "player scene exists")
-	if not ResourceLoader.exists("res://scenes/player/player.tscn"):
-		return null
-	var packed := load("res://scenes/player/player.tscn") as PackedScene
-	_runner.assert_not_null(packed, "player scene loads")
-	if packed == null:
-		return null
-	var player := packed.instantiate()
-	_runner.assert_true(player.has_method("equip_bat"), "player exposes bat upgrade")
-	_runner.assert_true(player.has_method("equip_special_skill"), "player exposes special skill upgrade")
-	return player

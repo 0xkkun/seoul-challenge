@@ -64,7 +64,7 @@ func test_run_controller_drives_layout_to_completion() -> void:
 		if not controller.is_completed():
 			_runner.assert_true(advanced, "run advances before completion")
 
-	_runner.assert_eq(changed_rooms, [&"start", &"combat_1", &"treasure_1", &"combat_2", &"shop_1", &"event_1", &"friend_1", &"final_1"])
+	_runner.assert_eq(changed_rooms, [&"start", &"combat_1", &"treasure_1", &"combat_2", &"friend_1", &"final_1"])
 	_runner.assert_eq(finished_payloads.size(), 1, "session finished once")
 	if finished_payloads.size() == 1:
 		_runner.assert_eq(finished_payloads[0]["layout_id"], &"gyeongbokgung", "result includes layout id")
@@ -125,7 +125,7 @@ func test_run_flow_demo_scene_executes_to_completion() -> void:
 			_runner.assert_true(advanced, "demo advances before completion")
 
 	_runner.assert_eq(controller.get_current_room_id(), &"final_1", "demo reaches final room")
-	_runner.assert_eq(controller.visited_room_ids.size(), 8, "demo visits fixed layout rooms")
+	_runner.assert_eq(controller.visited_room_ids.size(), 6, "demo visits fixed layout rooms")
 
 
 func _advance_until_completed(controller: RunController, actor: Node2D, guard_message: String) -> void:
