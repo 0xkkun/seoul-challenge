@@ -25,6 +25,7 @@ const WEAPON_BAT := &"bat"
 const COMBAT_FEEDBACK_RECOVER_TIME := 0.10
 const COMBAT_FEEDBACK_MAX_OFFSET := 7.0
 const ROOM_ENTRY_SPAWN_INSET := Vector2(140.0, 96.0)
+const TOP_LEFT_HUD_GAP := 8.0
 
 @onready var world_layer: Node2D = $WorldLayer
 @onready var room_layer: Node2D = %RoomLayer
@@ -102,6 +103,20 @@ func _apply_render_layers() -> void:
 func _apply_landscape_safe_area() -> void:
 	var insets := MobileSafeArea.landscape_minimum_insets()
 	MobileSafeArea.apply_edge_offsets(_minimap, -1.0, float(insets["top"]), float(insets["right"]), -1.0)
+	_keep_combat_health_below_map_tab()
+
+
+func _keep_combat_health_below_map_tab() -> void:
+	var health_panel := combat_hud.get_node_or_null("Root/HealthPanel") as Control
+	var map_tab := session_ui_root.get_node_or_null("%MapTabButton") as Control
+	if health_panel == null or map_tab == null:
+		return
+	var health_height := health_panel.offset_bottom - health_panel.offset_top
+	var target_top := map_tab.get_global_rect().end.y + TOP_LEFT_HUD_GAP
+	if health_panel.get_global_rect().position.y >= target_top:
+		return
+	health_panel.offset_top = target_top
+	health_panel.offset_bottom = target_top + health_height
 
 
 func _exit_tree() -> void:

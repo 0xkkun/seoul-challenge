@@ -370,8 +370,10 @@ func test_session_combat_hud_shows_initial_player_health() -> void:
 
 	var actor := session.get_node("%Player") as Node
 	var combat_hud := session.get_node("%CombatHud") as CanvasLayer
+	var session_ui := session.get_node("%SessionUIRoot") as CanvasLayer
 	var health_panel := combat_hud.get_node("Root/HealthPanel") as Control
 	var hearts := combat_hud.get_node("%Hearts") as HBoxContainer
+	var map_tab := session_ui.get_node("%MapTabButton") as Button
 
 	_runner.assert_true(combat_hud.visible, "전투 HUD 레이어는 세션 진입 직후 보인다")
 	_runner.assert_true(health_panel.is_visible_in_tree(), "생명력 패널은 세션 진입 직후 표시된다")
@@ -379,6 +381,10 @@ func test_session_combat_hud_shows_initial_player_health() -> void:
 	_runner.assert_eq(combat_hud.call("get_current_health"), actor.call("get_health"), "HUD는 플레이어 현재 체력을 즉시 반영한다")
 	_runner.assert_eq(hearts.get_child_count(), int(actor.get("max_health")), "현재 체력만큼 렌더링할 하트 노드가 생성된다")
 	_runner.assert_true(health_panel.get_global_rect().size.x > 0.0, "생명력 패널은 화면에 그릴 폭을 가진다")
+	_runner.assert_false(
+		health_panel.get_global_rect().intersects(map_tab.get_global_rect()),
+		"생명력 패널은 좌상단 맵 탭에 가려지지 않는다"
+	)
 
 	session.queue_free()
 
