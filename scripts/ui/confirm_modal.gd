@@ -34,7 +34,8 @@ func open(
 	on_no: Callable = Callable(),
 	danger: bool = false,
 	yes_text: String = "예",
-	no_text: String = "아니오"
+	no_text: String = "아니오",
+	no_variant: StringName = PixelButtonStyle.VARIANT_SECONDARY
 ) -> void:
 	_message_label.text = message
 	_yes_button.text = yes_text
@@ -42,7 +43,7 @@ func open(
 	_yes_callback = on_yes
 	_no_callback = on_no
 	_danger = danger
-	_apply_button_styles(_danger)
+	_apply_button_styles(_danger, no_variant)
 	visible = true
 	_yes_button.grab_focus.call_deferred()
 
@@ -89,9 +90,9 @@ func _close() -> void:
 	_no_callback = Callable()
 
 
-func _apply_button_styles(danger: bool) -> void:
+func _apply_button_styles(danger: bool, no_variant: StringName = PixelButtonStyle.VARIANT_SECONDARY) -> void:
 	var yes_variant := PixelButtonStyle.VARIANT_DANGER if danger else PixelButtonStyle.VARIANT_PRIMARY
 	PixelButtonStyle.apply(_yes_button, yes_variant, Vector2(132.0, 50.0))
-	PixelButtonStyle.apply(_no_button, PixelButtonStyle.VARIANT_SECONDARY, Vector2(132.0, 50.0))
+	PixelButtonStyle.apply(_no_button, no_variant, Vector2(132.0, 50.0))
 	FontRoles.apply_pixel(_yes_button)
 	FontRoles.apply_pixel(_no_button)
