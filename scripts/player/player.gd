@@ -62,6 +62,8 @@ var _invuln_timer: float = 0.0
 var _touch: Node = null
 var _base_run_stats := {}
 var _run_modifier_ids: Array[StringName] = []
+var _movement_bounds := Rect2()
+var _movement_bounds_enabled := false
 var _status_effects: Node = null
 
 @onready var _swing_visual: Node2D = get_node_or_null(^"MeleeSwing")
@@ -108,6 +110,7 @@ func _physics_process(delta: float) -> void:
 		move.y *= vertical_speed_factor
 		velocity = step_velocity(velocity, move, delta, get_status_speed_multiplier())
 	move_and_slide()
+	clamp_to_movement_bounds()
 	_process_attack(delta)
 	_update_animation(move)
 
@@ -127,6 +130,53 @@ func step_velocity(current: Vector2, input_vector: Vector2, delta: float, speed_
 	var target := desired_velocity(input_vector, speed_multiplier)
 	var rate := acceleration if input_vector.length() > 0.01 else friction
 	return current.move_toward(target, rate * delta)
+
+
+func clamp_position_to_bounds(position: Vector2, bounds: Rect2) -> Vector2:
+	if bounds.size.x <= 0.0 or bounds.size.y <= 0.0:
+		return position
+	return Vector2(
+		clampf(position.x, bounds.position.x, bounds.end.x),
+		clampf(position.y, bounds.position.y, bounds.end.y)
+	)
+
+
+func set_movement_bounds(bounds: Rect2) -> void:
+	_movement_bounds = bounds
+	_movement_bounds_enabled = bounds.size.x > 0.0 and bounds.size.y > 0.0
+	clamp_to_movement_bounds()
+
+
+func clear_movement_bounds() -> void:
+	_movement_bounds = Rect2()
+	_movement_bounds_enabled = false
+
+
+func has_movement_bounds() -> bool:
+	return _movement_bounds_enabled
+
+
+func get_movement_bounds() -> Rect2:
+	return _movement_bounds
+
+
+func clamp_to_movement_bounds() -> bool:
+	if not _movement_bounds_enabled:
+		return false
+	var before := global_position
+	var clamped := clamp_position_to_bounds(before, _movement_bounds)
+	global_position = clamped
+	if not is_equal_approx(before.x, clamped.x):
+		velocity.x = 0.0
+	if not is_equal_approx(before.y, clamped.y):
+		velocity.y = 0.0
+	return not before.is_equal_approx(clamped)
+
+
+func reset_motion() -> void:
+	velocity = Vector2.ZERO
+	_dodge_timer = 0.0
+	_dodge_direction = Vector2.ZERO
 
 
 ## 이동 입력이 있으면 그 방향으로 facing 갱신, 없으면 마지막 facing 유지.

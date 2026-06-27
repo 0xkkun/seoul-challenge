@@ -284,6 +284,40 @@ func test_player_death_shows_game_over_summary_without_lobby_transition() -> voi
 	session.queue_free()
 
 
+func test_room_change_configures_player_bounds_and_clears_motion() -> void:
+	var packed := load("res://scenes/session/session_root.tscn") as PackedScene
+	var session := packed.instantiate()
+	add_child(session)
+
+	var manager := session.get_node("%RoomManager") as RoomManager
+	var actor := session.get_node("%Player") as CharacterBody2D
+	_runner.assert_true(actor.has_method("has_movement_bounds"), "세션 플레이어는 방 이동 경계 상태를 노출한다")
+	_runner.assert_true(actor.has_method("get_movement_bounds"), "세션 플레이어는 현재 방 이동 경계를 노출한다")
+	if not actor.has_method("has_movement_bounds") or not actor.has_method("get_movement_bounds"):
+		session.queue_free()
+		return
+	_runner.assert_true(actor.call("has_movement_bounds"), "시작 방 진입 시 플레이어 이동 경계가 설정된다")
+	var start_bounds: Rect2 = actor.call("get_movement_bounds")
+	_runner.assert_eq(start_bounds.size, RoomPalette.ROOM_SIZE, "플레이어 이동 경계는 방 바닥 크기를 따른다")
+
+	var connected_room_id := _first_connected_room_id(manager.layout, manager.current_room_id)
+	_runner.assert_true(connected_room_id != &"", "테스트용 다음 방이 존재한다")
+	if connected_room_id == &"":
+		session.queue_free()
+		return
+	actor.velocity = Vector2(999.0, 0.0)
+
+	_runner.assert_true(manager.enter_room(connected_room_id), "테스트가 다음 방으로 직접 진입한다")
+	_runner.assert_eq(actor.velocity, Vector2.ZERO, "방 전환 뒤 남은 X축 속도를 초기화한다")
+	var next_bounds: Rect2 = actor.call("get_movement_bounds")
+	_runner.assert_eq(next_bounds.position, manager.current_room.global_position - RoomPalette.ROOM_HALF_SIZE, "이동 경계는 현재 방 전역 위치에 맞춰 갱신된다")
+	_runner.assert_eq(next_bounds.size, RoomPalette.ROOM_SIZE, "다음 방 이동 경계도 방 바닥 크기를 따른다")
+	var local_spawn := actor.global_position - manager.current_room.global_position
+	_runner.assert_true(local_spawn.x >= -RoomPalette.ROOM_HALF_SIZE.x and local_spawn.x <= RoomPalette.ROOM_HALF_SIZE.x, "방 전환 후 플레이어는 X축 바닥 경계 안에 배치된다")
+
+	session.queue_free()
+
+
 func test_session_finish_button_confirms_abandon_to_lobby() -> void:
 	var packed := load("res://scenes/session/session_root.tscn") as PackedScene
 	var session := packed.instantiate()
@@ -389,3 +423,9 @@ func _first_room_of_type(layout: RoomLayout, room_type: StringName) -> RoomDef:
 		if room_def.room_type == room_type:
 			return room_def
 	return null
+
+
+func _first_connected_room_id(layout: RoomLayout, room_id: StringName) -> StringName:
+	for connected_room_id: StringName in layout.get_connected_room_ids(room_id):
+		return connected_room_id
+	return &""
