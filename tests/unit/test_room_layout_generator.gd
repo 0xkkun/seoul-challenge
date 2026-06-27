@@ -183,6 +183,7 @@ func _assert_layout_invariants(layout: RoomLayout, expected_count: int) -> void:
 		_runner.assert_false(ids.has(room_def.room_id), "room id is unique")
 		ids[room_def.room_id] = true
 		_runner.assert_false(String(room_def.room_id).begins_with("event"), "generated layout does not assign event/info room ids")
+		_runner.assert_false(String(room_def.room_id).begins_with("treasure"), "generated layout does not assign treasure/key room ids")
 		_runner.assert_false(String(room_def.room_id).begins_with("shop"), "generated layout does not assign shop room ids")
 		if type_counts.has(room_def.room_type):
 			type_counts[room_def.room_type] += 1
@@ -196,10 +197,10 @@ func _assert_layout_invariants(layout: RoomLayout, expected_count: int) -> void:
 
 	_runner.assert_eq(type_counts[RoomLayout.TYPE_START], 1, "one start room")
 	_runner.assert_true(type_counts[RoomLayout.TYPE_COMBAT] >= 2, "at least two combat rooms")
-	_runner.assert_eq(type_counts[RoomLayout.TYPE_COMBAT], expected_count - 4, "disabled special room slots become combat rooms")
+	_runner.assert_eq(type_counts[RoomLayout.TYPE_COMBAT], expected_count - 3, "disabled special room slots become combat rooms")
 	_runner.assert_eq(type_counts[RoomLayout.TYPE_EVENT], 0, "generated layouts do not expose event/info rooms")
 	_runner.assert_eq(type_counts[RoomLayout.TYPE_FRIEND], 1, "one friend room")
-	_runner.assert_eq(type_counts[RoomLayout.TYPE_TREASURE], 1, "one treasure room")
+	_runner.assert_eq(type_counts[RoomLayout.TYPE_TREASURE], 0, "generated layouts do not expose treasure/key rooms")
 	_runner.assert_eq(type_counts[RoomLayout.TYPE_SHOP], 0, "generated layouts do not expose shop rooms")
 	_runner.assert_eq(type_counts[RoomLayout.TYPE_FINAL], 1, "one final room")
 	_runner.assert_eq(final_rooms.size(), 1, "final room exists")

@@ -230,9 +230,7 @@ func test_session_root_mounts_room_manager() -> void:
 		"session run map includes an alternate route beyond a pure tree"
 	)
 	var treasure_defs := _room_defs_of_type(manager.layout, RoomLayout.TYPE_TREASURE)
-	_runner.assert_eq(treasure_defs.size(), 1, "session run map includes one treasure room")
-	if treasure_defs.size() == 1:
-		_runner.assert_eq(treasure_defs[0].scene_path, "res://scenes/interactables/treasure_room.tscn", "session treasure room uses treasure scene")
+	_runner.assert_eq(treasure_defs.size(), 0, "session run map does not expose treasure/key rooms")
 	var friend_defs := _room_defs_of_type(manager.layout, RoomLayout.TYPE_FRIEND)
 	_runner.assert_eq(friend_defs.size(), 1, "session run map includes one friend room")
 	if friend_defs.size() == 1:
