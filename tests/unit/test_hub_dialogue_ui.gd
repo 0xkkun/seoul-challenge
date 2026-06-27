@@ -36,10 +36,16 @@ func test_component_uses_landscape_reference_frame() -> void:
 func test_unlock_popup_sits_above_dialogue_bar_in_reference_frame() -> void:
 	var popup_rect: Rect2 = _ui.get_unlock_popup_reference_rect()
 	var dialogue_rect: Rect2 = _ui.get_dialogue_bar_reference_rect()
+	var unlock_overlay := _ui.get_node("%UnlockOverlay") as Control
+	var dialogue_bar := _ui.get_node("%DialogueBar") as PanelContainer
 
 	_runner.assert_true(
 		popup_rect.end.y < dialogue_rect.position.y,
 		"해금 팝업은 기준 프레임에서 대화 바 위에 있어야 한다"
+	)
+	_runner.assert_true(
+		unlock_overlay.z_index > dialogue_bar.z_index,
+		"해금 팝업 오버레이는 대화 바보다 위에 그려져야 한다"
 	)
 
 
