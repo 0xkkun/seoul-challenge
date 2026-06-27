@@ -35,7 +35,7 @@ const RETURN_TO_LOBBY_MESSAGE := "로비로 돌아갈까요? 진행은 자동 �
 const QUIT_GAME_MESSAGE := "게임을 종료할까요?"
 
 @export var corridor_size := Vector2(2172.0, 720.0)
-@export var floor_y := 616.0
+@export var floor_y := 628.0
 @export var player_left_bound := 96.0
 @export var player_right_bound := 2076.0
 @export var talk_radius := 120.0
@@ -49,8 +49,10 @@ const QUIT_GAME_MESSAGE := "게임을 종료할까요?"
 @export var character_idle_bob_px := 0.0
 @export var talk_target_texture: Texture2D
 @export var talk_target_asset_scale := 2.0
-@export var talk_target_idle_fps := 1.6
+@export var talk_target_idle_fps := 4.0
 @export var dialogue_portrait_texture: Texture2D
+@export var dialogue_portrait_frame := 1
+@export var ambient_student_idle_fps := 4.0
 @export var room_transition_fade_time := 0.18
 @export var room_transition_spawn_inset := 320.0
 @export var outer_edge_scene_transition_enabled := true
@@ -62,8 +64,12 @@ const QUIT_GAME_MESSAGE := "게임을 종료할까요?"
 @onready var _player: CharacterBody2D = %Player
 @onready var _touch_controls: Node = %TouchControls
 @onready var _camera: Camera2D = %Camera2D
+@onready var _left_school_characters: Node2D = %LeftSchoolCharacters
+@onready var _right_school_characters: Node2D = %RightSchoolCharacters
 @onready var _talk_target: Node2D = %TalkTarget
 @onready var _talk_target_sprite: Sprite2D = %TalkTargetSprite
+@onready var _right_student3_sprite: Sprite2D = %RightStudent3Sprite
+@onready var _right_crowd_sprite: Sprite2D = %RightCrowdSprite
 @onready var _day_character_root: Node2D = %DayCharacterRoot
 @onready var _character_sprite: Sprite2D = %CharacterSprite
 @onready var _interaction_prompt: Label = %InteractionPrompt
@@ -80,6 +86,8 @@ var _was_dialogue_pressed := false
 var _walk_elapsed := 0.0
 var _idle_elapsed := 0.0
 var _talk_target_elapsed := 0.0
+var _ambient_student_elapsed := 0.0
+var _ambient_student_sprites: Array[Sprite2D] = []
 var _character_base_position := Vector2.ZERO
 var _walk_texture: Texture2D = null
 var _walk_hframes := 0
@@ -96,9 +104,12 @@ func _ready() -> void:
 	SceneTransition.configure_exit_requests()
 	_disable_combat_output()
 	_hide_player_default_visuals()
+	_ambient_student_sprites = [_right_student3_sprite, _right_crowd_sprite]
 	_apply_nearest_texture_filter()
+	_apply_school_character_visual_treatment()
 	_fit_character_to_asset_scale()
 	_fit_talk_target_to_asset_scale()
+	_fit_ambient_school_character_sprites()
 	_restore_corridor_context()
 	_apply_room_state()
 	_hub_dialogue_ui.visible = false
@@ -116,6 +127,7 @@ func _ready() -> void:
 
 func _process(delta: float) -> void:
 	_update_talk_target_sprite(delta)
+	_update_ambient_school_character_sprites(delta)
 	if _confirm_modal.is_open():
 		_player.velocity = Vector2.ZERO
 		_update_character_sprite(delta)
@@ -231,8 +243,49 @@ func get_talk_target_texture_path() -> String:
 	return _talk_target_sprite.texture.resource_path
 
 
+func get_school_character_texture_paths() -> Array[String]:
+	var paths: Array[String] = []
+	for sprite: Sprite2D in _get_school_character_sprites():
+		if sprite.texture != null:
+			paths.append(sprite.texture.resource_path)
+	return paths
+
+
+func get_left_school_character_count() -> int:
+	return _count_sprite_descendants(_left_school_characters)
+
+
+func get_right_school_character_count() -> int:
+	return _count_sprite_descendants(_right_school_characters)
+
+
+func is_left_school_character_group_visible() -> bool:
+	return _left_school_characters.visible
+
+
+func is_right_school_character_group_visible() -> bool:
+	return _right_school_characters.visible
+
+
 func is_talk_target_visible() -> bool:
 	return _talk_target.visible
+
+
+func do_school_characters_match_background_tint() -> bool:
+	var target_tint := _school_bg_left.self_modulate
+	for sprite: Sprite2D in _get_school_character_sprites():
+		if sprite.self_modulate != target_tint:
+			return false
+	return true
+
+
+func do_school_characters_match_player_scale() -> bool:
+	for sprite: Sprite2D in _get_school_character_sprites():
+		if not is_equal_approx(sprite.scale.x, character_asset_scale):
+			return false
+		if not is_equal_approx(sprite.scale.y, character_asset_scale):
+			return false
+	return true
 
 
 func get_active_dialogue_line_index() -> int:
@@ -388,11 +441,18 @@ func _hide_player_default_visuals() -> void:
 
 func _apply_nearest_texture_filter() -> void:
 	_character_sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	_talk_target_sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	for sprite: Sprite2D in _get_school_character_sprites():
+		sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	for child: Node in _background.get_children():
 		var item := child as CanvasItem
 		if item != null:
 			item.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+
+
+func _apply_school_character_visual_treatment() -> void:
+	var target_tint := _school_bg_left.self_modulate
+	for sprite: Sprite2D in _get_school_character_sprites():
+		sprite.self_modulate = target_tint
 
 
 func _fit_character_to_asset_scale() -> void:
@@ -416,7 +476,19 @@ func _fit_talk_target_to_asset_scale() -> void:
 	if talk_target_asset_scale > 0.0:
 		_talk_target_sprite.scale = Vector2(talk_target_asset_scale, talk_target_asset_scale)
 		_talk_target_sprite.position.y = -_get_talk_target_frame_size().y * talk_target_asset_scale * 0.5
-	_talk_target_sprite.frame = 0
+	_talk_target_sprite.frame = clampi(dialogue_portrait_frame, 0, _get_talk_target_frame_count() - 1)
+
+
+func _fit_ambient_school_character_sprites() -> void:
+	for sprite: Sprite2D in _ambient_student_sprites:
+		if sprite.texture == null:
+			continue
+		sprite.hframes = _get_square_sheet_hframes(sprite.texture)
+		sprite.vframes = 1
+		sprite.scale = Vector2(character_asset_scale, character_asset_scale)
+		if sprite.scale.y > 0.0:
+			sprite.position.y = -_get_sprite_frame_size(sprite).y * sprite.scale.y * 0.5
+		sprite.frame = clampi(sprite.frame, 0, _get_sprite_frame_count(sprite) - 1)
 
 
 ## 멈춤 시 idle 시트로 텍스처 스왑(정사각 프레임 가정 → hframes = 너비/높이).
@@ -440,6 +512,8 @@ func _use_walk_sheet() -> void:
 func _apply_room_state() -> void:
 	_school_bg_left.visible = _current_room_id == ROOM_LEFT
 	_school_bg_right.visible = _current_room_id == ROOM_RIGHT
+	_left_school_characters.visible = _current_room_id == ROOM_LEFT
+	_right_school_characters.visible = _current_room_id == ROOM_RIGHT
 	_camera.limit_right = int(corridor_size.x)
 	if _current_room_id != ROOM_LEFT:
 		close_dialogue()
@@ -447,7 +521,7 @@ func _apply_room_state() -> void:
 
 
 func _sync_talk_target_visibility() -> void:
-	_talk_target.visible = _current_room_id == ROOM_LEFT and not is_dialogue_ui_visible()
+	_talk_target.visible = _current_room_id == ROOM_LEFT
 
 
 func _start_room_transition(target_room_id: StringName) -> void:
@@ -573,7 +647,18 @@ func _update_talk_target_sprite(delta: float) -> void:
 	if not _talk_target.visible:
 		return
 	_talk_target_elapsed += delta
-	_talk_target_sprite.frame = int(_talk_target_elapsed * talk_target_idle_fps) % _get_talk_target_frame_count()
+	var frame_count := _get_talk_target_frame_count()
+	_talk_target_sprite.frame = int(_talk_target_elapsed * talk_target_idle_fps + dialogue_portrait_frame) % frame_count
+
+
+func _update_ambient_school_character_sprites(delta: float) -> void:
+	if _ambient_student_sprites.is_empty():
+		return
+	_ambient_student_elapsed += delta
+	for index in _ambient_student_sprites.size():
+		var sprite := _ambient_student_sprites[index]
+		var frame_count := _get_sprite_frame_count(sprite)
+		sprite.frame = int(_ambient_student_elapsed * ambient_student_idle_fps + index * 2) % frame_count
 
 
 func _sync_camera() -> void:
@@ -610,6 +695,39 @@ func _get_talk_target_frame_size() -> Vector2:
 
 func _get_talk_target_frame_count() -> int:
 	return maxi(1, _talk_target_sprite.hframes * _talk_target_sprite.vframes)
+
+
+func _get_sprite_frame_size(sprite: Sprite2D) -> Vector2:
+	if sprite.texture == null:
+		return Vector2.ZERO
+	return Vector2(
+		sprite.texture.get_width() / float(sprite.hframes),
+		sprite.texture.get_height() / float(sprite.vframes)
+	)
+
+
+func _get_sprite_frame_count(sprite: Sprite2D) -> int:
+	return maxi(1, sprite.hframes * sprite.vframes)
+
+
+func _get_school_character_sprites() -> Array[Sprite2D]:
+	var sprites: Array[Sprite2D] = []
+	if _talk_target_sprite != null:
+		sprites.append(_talk_target_sprite)
+	if _right_student3_sprite != null:
+		sprites.append(_right_student3_sprite)
+	if _right_crowd_sprite != null:
+		sprites.append(_right_crowd_sprite)
+	return sprites
+
+
+func _count_sprite_descendants(root: Node) -> int:
+	var count := 0
+	for child: Node in root.get_children():
+		if child is Sprite2D:
+			count += 1
+		count += _count_sprite_descendants(child)
+	return count
 
 
 func _get_square_sheet_hframes(texture: Texture2D) -> int:
@@ -683,7 +801,9 @@ func _show_dialogue_line(line_index: int) -> void:
 		DIALOGUE_LINES[_dialogue_line_index],
 		DIALOGUE_MEMORY_LINES[_dialogue_line_index],
 		HubDialogueUi.PORTRAIT_COLOR,
-		dialogue_portrait_texture
+		dialogue_portrait_texture,
+		dialogue_portrait_frame,
+		false
 	)
 	var is_last_line := _dialogue_line_index >= DIALOGUE_LINES.size() - 1
 	_hub_dialogue_ui.set_choices([
