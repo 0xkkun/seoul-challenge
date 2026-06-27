@@ -26,7 +26,8 @@ const OBJECTIVE_BASEBALL_REWARD := "목표: 야구부 주장에게 돌아가 배
 const OBJECTIVE_REENTER_GYEONGBOKGUNG := "목표: 복도 끝 사물함에서 배트를 챙기고 경복궁으로 다시 가자"
 const OBJECTIVE_BOSS_RESULT_REPORT := "목표: 야구부 주장에게 도깨비왕의 결말을 전하자"
 const OBJECTIVE_BOSS_RESULT_ACKNOWLEDGED := "목표: 친구의 행방은 아직 미궁 속이다"
-const RUN_NAVIGATION_ARROW_TEXT := ">>>"
+const RUN_NAVIGATION_LEFT_ARROW_TEXT := "<<<"
+const RUN_NAVIGATION_RIGHT_ARROW_TEXT := ">>>"
 const BOSS_REPORT_ARROW_TEXT := "<<<"
 const RETURN_TO_LOBBY_MESSAGE := "로비로 돌아갈까요? 진행 상황은 자동으로 저장됩니다."
 const QUIT_GAME_MESSAGE := "게임을 종료할까요?"
@@ -116,6 +117,7 @@ const BOSS_RESULT_REPORT_LINES := [
 @onready var _talk_button_label: Label = %TalkButtonLabel
 @onready var _objective_label: Label = %ObjectiveLabel
 @onready var _gyeongbokgung_run_arrow_label: Label = %GyeongbokgungRunArrowLabel
+@onready var _gyeongbokgung_run_left_arrow_label: Label = %GyeongbokgungRunLeftArrowLabel
 @onready var _hub_dialogue_ui: HubDialogueUi = %HubDialogueUi
 @onready var _fade_overlay: ColorRect = %FadeOverlay
 @onready var _exit_button: Button = %ExitButton
@@ -139,6 +141,7 @@ var _crowd_label_elapsed := 0.0
 var _student3_label_shown_for_entry := false
 var _ambient_tier := DaySchoolRumors.TIER_FIRST_VISIT
 var _run_navigation_arrow_tween: Tween
+var _run_navigation_left_arrow_tween: Tween
 var _boss_report_arrow_tween: Tween
 var _character_base_position := Vector2.ZERO
 var _walk_texture: Texture2D = null
@@ -380,12 +383,19 @@ func get_objective_text() -> String:
 
 
 func is_run_navigation_arrow_glow_active() -> bool:
-	return (
+	var right_active := (
 		_gyeongbokgung_run_arrow_label != null
 		and _gyeongbokgung_run_arrow_label.visible
 		and _run_navigation_arrow_tween != null
 		and _run_navigation_arrow_tween.is_valid()
 	)
+	var left_active := (
+		_gyeongbokgung_run_left_arrow_label != null
+		and _gyeongbokgung_run_left_arrow_label.visible
+		and _run_navigation_left_arrow_tween != null
+		and _run_navigation_left_arrow_tween.is_valid()
+	)
+	return right_active and left_active
 
 
 func is_boss_report_arrow_glow_active() -> bool:
@@ -483,6 +493,7 @@ func trigger_dialogue() -> void:
 	_resolve_dialogue_lines()
 	if _dialogue_lines.is_empty():
 		return
+	_play_dialogue_open_sfx()
 	_open_dialogue_ui()
 	_show_dialogue_line(0)
 
@@ -608,6 +619,7 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _disable_combat_output() -> void:
 	_player.set("recoil_strength", 0.0)
+	_player.set("movement_footstep_sfx_id", &"")
 	var launcher := _player.get_node_or_null("ProjectileLauncher")
 	if launcher != null:
 		_player.remove_child(launcher)
@@ -713,6 +725,7 @@ func _start_room_transition(target_room_id: StringName) -> void:
 	if target_room_id != ROOM_LEFT and target_room_id != ROOM_RIGHT:
 		return
 	_player.velocity = Vector2.ZERO
+	_play_school_room_transition_sfx()
 	if room_transition_fade_time <= 0.0:
 		_finish_room_transition(target_room_id)
 		return
@@ -1188,6 +1201,7 @@ func _try_complete_baseball_lobby_quest() -> bool:
 
 	_prepare_dialogue_closed_for_quest_unlock()
 	progression.record_quest_completed(ProgressionSystem.QUEST_BASEBALL_CAPTAIN_LOBBY)
+	_play_quest_reward_sfx()
 	# 팝업이 뜨지 않았다면(이미 해금된 무기 등) 미룰 이유가 없으니 예약을 해제하고 일반 닫기로 넘긴다.
 	if not _hub_dialogue_ui.is_unlock_visible():
 		if _hub_dialogue_ui.unlock_hidden.is_connected(_on_quest_unlock_hidden):
@@ -1242,13 +1256,21 @@ func _update_navigation_arrows() -> void:
 
 
 func _update_run_navigation_arrow() -> void:
-	if _gyeongbokgung_run_arrow_label == null:
-		return
-	_gyeongbokgung_run_arrow_label.text = RUN_NAVIGATION_ARROW_TEXT
+	_set_run_navigation_arrow_texts()
 	var should_show := _should_show_run_navigation_arrow()
-	_gyeongbokgung_run_arrow_label.visible = should_show
+	if _gyeongbokgung_run_arrow_label != null:
+		_gyeongbokgung_run_arrow_label.visible = should_show
+	if _gyeongbokgung_run_left_arrow_label != null:
+		_gyeongbokgung_run_left_arrow_label.visible = should_show
 	if should_show:
-		_run_navigation_arrow_tween = _start_navigation_arrow_glow(_gyeongbokgung_run_arrow_label, _run_navigation_arrow_tween)
+		_run_navigation_arrow_tween = _start_navigation_arrow_glow(
+			_gyeongbokgung_run_arrow_label,
+			_run_navigation_arrow_tween
+		)
+		_run_navigation_left_arrow_tween = _start_navigation_arrow_glow(
+			_gyeongbokgung_run_left_arrow_label,
+			_run_navigation_left_arrow_tween
+		)
 	else:
 		_stop_run_navigation_arrow_glow()
 
@@ -1304,7 +1326,9 @@ func _start_navigation_arrow_glow(label: Label, current_tween: Tween) -> Tween:
 
 func _stop_run_navigation_arrow_glow() -> void:
 	_stop_navigation_arrow_glow(_gyeongbokgung_run_arrow_label, _run_navigation_arrow_tween)
+	_stop_navigation_arrow_glow(_gyeongbokgung_run_left_arrow_label, _run_navigation_left_arrow_tween)
 	_run_navigation_arrow_tween = null
+	_run_navigation_left_arrow_tween = null
 
 
 func _stop_boss_report_arrow_glow() -> void:
@@ -1377,6 +1401,28 @@ func _claim_baseball_reward_dialogue() -> void:
 	if not has_node(^"/root/SaveManager"):
 		return
 	SaveManager.set_flag(SceneTransition.FLAG_BASEBALL_CAPTAIN_REWARD_CLAIMED, true)
+
+
+func _play_dialogue_open_sfx() -> void:
+	if has_node("/root/AudioManager"):
+		AudioManager.play_sfx(AudioManager.UI_BUTTON_PRESS)
+
+
+func _play_school_room_transition_sfx() -> void:
+	if has_node("/root/AudioManager"):
+		AudioManager.play_sfx(AudioManager.SCHOOL_SCENE_PAGE_FLIP)
+
+
+func _play_quest_reward_sfx() -> void:
+	if has_node("/root/AudioManager"):
+		AudioManager.play_sfx(AudioManager.QUEST_REWARD_LEVEL_UP)
+
+
+func _set_run_navigation_arrow_texts() -> void:
+	if _gyeongbokgung_run_arrow_label != null:
+		_gyeongbokgung_run_arrow_label.text = RUN_NAVIGATION_RIGHT_ARROW_TEXT
+	if _gyeongbokgung_run_left_arrow_label != null:
+		_gyeongbokgung_run_left_arrow_label.text = RUN_NAVIGATION_LEFT_ARROW_TEXT
 
 
 func _claim_boss_result_report_dialogue() -> void:

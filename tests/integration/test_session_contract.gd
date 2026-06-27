@@ -42,12 +42,14 @@ func test_session_interaction_and_summary() -> void:
 	_runner.assert_eq(session.completed_interactions, 1, "interaction updates session count")
 	_runner.assert_eq(PoolManager.get_active_count(&"sample_marker"), 1, "interaction spawns pooled marker")
 
+	AudioManager.reset()
 	var result: Dictionary = session.finish_session()
 	_runner.assert_eq(result["interactions"], 1)
 	_runner.assert_eq(result["rooms_cleared"], 1, "session summary includes cleared rooms")
 	_runner.assert_eq(result["memory_reward"], 1, "session summary includes permanent reward delta")
 	_runner.assert_eq(result["current_room_id"], &"start", "session summary includes current room")
 	_runner.assert_false(GameManager.is_session_active(), "session is no longer active")
+	_runner.assert_eq(AudioManager.get_played_sfx(), [AudioManager.RUN_VICTORY], "finishing an in-game run plays the victory SFX")
 
 	session.queue_free()
 
@@ -609,6 +611,43 @@ func test_session_root_starts_night_run_suspense_bgm() -> void:
 	_runner.assert_eq(AudioManager.get_current_bgm(), AudioManager.NIGHT_RUN_SUSPENSE_BGM, "session root starts the night run suspense BGM")
 	_runner.assert_eq(AudioManager.get_current_bgm_path(), "res://assets/audio/bgm/night_run_suspense_bgm.ogg", "session root uses the night run suspense BGM stream")
 	_runner.assert_true(AudioManager.is_bgm_playing(), "session root leaves the night run BGM active")
+
+	session.queue_free()
+
+
+func test_session_player_walk_plays_gyeongbokgung_footstep() -> void:
+	var packed := load("res://scenes/session/session_root.tscn") as PackedScene
+	var session := packed.instantiate()
+	add_child(session)
+
+	var actor := session.get_node("%Player") as CharacterBody2D
+	_runner.assert_eq(actor.get("movement_footstep_sfx_id"), AudioManager.GYEONGBOKGUNG_FOOTSTEP, "night run player uses the Gyeongbokgung footstep SFX")
+	var stride_distance := float(actor.get("movement_footstep_stride_distance"))
+	_runner.assert_true(stride_distance >= 96.0 and stride_distance <= 128.0, "night run player ties footstep cadence to travelled distance")
+	var walking_speed := 260.0
+	AudioManager.reset()
+
+	actor.velocity = Vector2(120.0, 0.0)
+	actor.call("_update_movement_footstep", (stride_distance - 1.0) / walking_speed, stride_distance - 1.0, true)
+	_runner.assert_eq(AudioManager.get_played_sfx(), [], "night run player waits until enough distance is travelled")
+	actor.call("_update_movement_footstep", 1.0 / walking_speed, 1.0, true)
+	_runner.assert_eq(AudioManager.get_played_sfx(), [AudioManager.GYEONGBOKGUNG_FOOTSTEP], "night run player plays a step at the stride distance")
+
+	actor.call("_update_movement_footstep", 0.3, stride_distance * 2.0, false)
+	_runner.assert_eq(AudioManager.get_played_sfx(), [AudioManager.GYEONGBOKGUNG_FOOTSTEP], "night run player stops footstep cadence when movement input is released")
+	actor.call("_update_movement_footstep", (stride_distance - 1.0) / walking_speed, stride_distance - 1.0, true)
+	_runner.assert_eq(AudioManager.get_played_sfx(), [AudioManager.GYEONGBOKGUNG_FOOTSTEP], "night run player resets cadence after stopping")
+	actor.call("_update_movement_footstep", 1.0 / walking_speed, 1.0, true)
+	_runner.assert_eq(
+		AudioManager.get_played_sfx(),
+		[AudioManager.GYEONGBOKGUNG_FOOTSTEP, AudioManager.GYEONGBOKGUNG_FOOTSTEP],
+		"night run player resumes footstep cadence from movement distance"
+	)
+	AudioManager.reset()
+	actor.call("reset_motion")
+	actor.velocity = Vector2(320.0, 0.0)
+	actor.call("_update_movement_footstep", 0.1, stride_distance * 1.25, true)
+	_runner.assert_eq(AudioManager.get_played_sfx(), [AudioManager.GYEONGBOKGUNG_FOOTSTEP], "night run player handles higher movement speed with distance-based cadence")
 
 	session.queue_free()
 

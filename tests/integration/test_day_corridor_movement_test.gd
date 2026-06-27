@@ -112,6 +112,7 @@ func test_day_corridor_routes_touch_attack_to_dialogue_not_combat() -> void:
 	var talk_button_label := scene.get_node("%TalkButtonLabel") as Label
 
 	_runner.assert_eq(player.get("touch_controls_path"), NodePath("../MoveOnlyTouchProxy"), "player reads touch movement through the move-only proxy")
+	_runner.assert_eq(player.get("movement_footstep_sfx_id"), &"", "day corridor disables the night-run player footstep loop")
 	_runner.assert_eq(touch_controls.get_control_category(), "day_dialogue", "day corridor uses the movement/dialogue touch control category")
 	_runner.assert_true(attack_button.visible, "day corridor keeps the touch dialogue button visible")
 	_runner.assert_false(skill_button.visible, "day corridor hides the dodge button")
@@ -219,6 +220,7 @@ func test_day_corridor_internal_edges_fade_between_corridor_rooms() -> void:
 	var left_bg: Sprite2D = scene.get_node("%SchoolBgLeft")
 	var right_bg: Sprite2D = scene.get_node("%SchoolBgRight")
 	var sprite: Sprite2D = scene.get_node("%CharacterSprite")
+	AudioManager.reset()
 
 	_runner.assert_eq(scene.get_current_room_id(), &"left", "scene starts on the left school corridor plate")
 	_runner.assert_true(left_bg.visible, "left background starts visible")
@@ -227,6 +229,7 @@ func test_day_corridor_internal_edges_fade_between_corridor_rooms() -> void:
 	player.global_position = Vector2(scene.get_player_right_bound() + 1.0, scene.get_floor_y())
 	player.velocity.x = 80.0
 	_runner.assert_true(scene.update_room_transition_request(), "left room right edge transitions to right room")
+	_runner.assert_eq(AudioManager.get_played_sfx(), [AudioManager.SCHOOL_SCENE_PAGE_FLIP], "school room transition plays the page flip SFX")
 	_runner.assert_eq(scene.get_current_room_id(), &"right", "transition lands on right room")
 	_runner.assert_false(left_bg.visible, "left background hides after transition")
 	_runner.assert_true(right_bg.visible, "right background shows after transition")
@@ -238,6 +241,11 @@ func test_day_corridor_internal_edges_fade_between_corridor_rooms() -> void:
 	player.global_position = Vector2(scene.get_player_left_bound() - 1.0, scene.get_floor_y())
 	player.velocity.x = -80.0
 	_runner.assert_true(scene.update_room_transition_request(), "right room left edge transitions to left room")
+	_runner.assert_eq(
+		AudioManager.get_played_sfx(),
+		[AudioManager.SCHOOL_SCENE_PAGE_FLIP, AudioManager.SCHOOL_SCENE_PAGE_FLIP],
+		"school room transition plays on both corridor directions"
+	)
 	_runner.assert_eq(scene.get_current_room_id(), &"left", "transition lands back on left room")
 	_runner.assert_true(scene.is_left_school_character_group_visible(), "left school characters restore after transition back")
 	_runner.assert_false(scene.is_right_school_character_group_visible(), "right school characters hide after transition back")
@@ -311,6 +319,7 @@ func test_day_corridor_dialogue_signal_updates_state() -> void:
 	scene.trigger_dialogue()
 
 	_runner.assert_eq(scene.get_dialogue_count(), 1, "dialogue count increments")
+	_runner.assert_eq(AudioManager.get_played_sfx(), [AudioManager.UI_BUTTON_PRESS], "school dialogue open plays a UI button SFX")
 	_runner.assert_eq(scene.get_objective_text(), "목표: 복도 끝 사물함에서 기억 무기를 챙기자", "objective advances after the first memory beat")
 	_runner.assert_true(scene.is_dialogue_ui_visible(), "dialogue trigger opens the hub dialogue UI")
 	_runner.assert_false(scene.is_touch_controls_visible(), "touch controls hide while the dialogue bar is open")
@@ -404,6 +413,15 @@ func test_day_corridor_post_reward_guides_player_to_gyeongbokgung_entry_with_bla
 		_runner.assert_true(arrow_label.anchor_left >= 0.85, "navigation arrow sits on the right side of the mobile landscape view")
 		var arrow_right_edge: float = arrow_label.anchor_right * scene.get_reference_viewport_size().x + arrow_label.offset_right
 		_runner.assert_true(arrow_right_edge <= scene.get_reference_viewport_size().x - 60.0, "navigation arrow respects the right phone safe-area inset")
+	var left_arrow_label := scene.get_node_or_null("%GyeongbokgungRunLeftArrowLabel") as Label
+	_runner.assert_not_null(left_arrow_label, "day corridor exposes the left Gyeongbokgung run navigation arrow")
+	if left_arrow_label != null:
+		_runner.assert_true(left_arrow_label.visible, "post-reward state also shows the left-edge run navigation arrow")
+		_runner.assert_eq(left_arrow_label.text, "<<<", "left navigation points toward the left edge")
+		_runner.assert_eq(left_arrow_label.get_theme_color("font_color"), Color.BLACK, "left navigation arrow is black")
+		_runner.assert_true(left_arrow_label.offset_left >= 60.0, "left navigation arrow respects the left phone safe-area inset")
+		var left_glow_color := left_arrow_label.get_theme_color("font_shadow_color")
+		_runner.assert_true(left_glow_color.r > 0.8 and left_glow_color.g > 0.55 and left_glow_color.b < 0.35, "left navigation arrow uses the warm glow color")
 
 
 func test_day_corridor_boss_resolved_prompts_report_to_captain_and_hides_run_arrow() -> void:
@@ -552,12 +570,14 @@ func test_day_corridor_onboarding_reward_dialogue_completes_baseball_lobby_quest
 	_runner.assert_true(UiTestHarness.press_by_uat_action(scene, "day_corridor.dialogue.next"), "reward dialogue advances to bat line")
 	_runner.assert_true(scene.perform_uat_action("day_corridor.dialogue.dismiss_unlock"), "bat pickup popup is dismissed before clue line")
 	_runner.assert_true(UiTestHarness.press_by_uat_action(scene, "day_corridor.dialogue.next"), "reward dialogue advances to clue line")
+	AudioManager.reset()
 	_runner.assert_true(UiTestHarness.press_by_test_id(scene, "day_corridor.dialogue.close_button"), "final reward line triggers quest completion")
 
 	var dialogue_ui: Node = scene.get_node("%HubDialogueUi")
 	_runner.assert_true(SaveManager.get_flag(SceneTransition.FLAG_BASEBALL_CAPTAIN_REWARD_CLAIMED), "reward flag is claimed before the unlock popup closes")
 	_runner.assert_true(ProgressionSystem.is_quest_completed(ProgressionSystem.QUEST_BASEBALL_CAPTAIN_LOBBY), "captain reward dialogue completes the lobby quest")
 	_runner.assert_true(ProgressionSystem.is_weapon_unlocked(&"awakened_bat"), "lobby quest completion unlocks awakened bat")
+	_runner.assert_eq(AudioManager.get_played_sfx(), [AudioManager.QUEST_REWARD_LEVEL_UP], "quest completion reward plays the level-up SFX")
 	_runner.assert_true(dialogue_ui.is_unlock_visible(), "awakened bat popup is shown after the dialogue closes")
 	_runner.assert_false(scene.is_dialogue_ui_visible(), "dialogue content is closed before the awakened bat popup appears")
 	_runner.assert_false(dialogue_ui.is_dialogue_content_visible(), "dialogue bar stays hidden behind the awakened bat popup")

@@ -6,10 +6,14 @@ const SCHOOL_HALLWAY_BGM := &"school_hallway_bgm"
 const NIGHT_RUN_SUSPENSE_BGM := &"night_run_suspense_bgm"
 const SCHOOL_BELL_TRANSITION_FRONT := &"school_bell_transition_front"
 const SCHOOL_BELL_TRANSITION_BACK := &"school_bell_transition_back"
+const SCHOOL_SCENE_PAGE_FLIP := &"school_scene_page_flip"
+const QUEST_REWARD_LEVEL_UP := &"quest_reward_level_up"
+const RUN_VICTORY := &"run_victory"
 const UI_BUTTON_PRESS := &"ui_button_press"
 const BAT_SWING := &"bat_swing"
 const BAT_HIT := &"bat_hit"
 const CORRIDOR_FOOTSTEP := &"corridor_footstep"
+const GYEONGBOKGUNG_FOOTSTEP := &"gyeongbokgung_footstep"
 const DASH_WIND := &"dash_wind"
 const NIGHT_INTRO_TRANSITION := &"night_intro_transition"
 const NIGHT_INTRO_TRANSITION_C := &"night_intro_transition_c"
@@ -34,10 +38,14 @@ const _FADE_LOOP_BGM_IDS: Array[StringName] = [
 const _SFX_STREAM_PATHS := {
 	SCHOOL_BELL_TRANSITION_FRONT: "res://assets/audio/sfx/school_bell_transition_front.wav",
 	SCHOOL_BELL_TRANSITION_BACK: "res://assets/audio/sfx/school_bell_transition_back.wav",
+	SCHOOL_SCENE_PAGE_FLIP: "res://assets/audio/sfx/school_scene_page_flip.mp3",
+	QUEST_REWARD_LEVEL_UP: "res://assets/audio/sfx/quest_reward_level_up.mp3",
+	RUN_VICTORY: "res://assets/audio/sfx/run_victory.mp3",
 	UI_BUTTON_PRESS: "res://assets/audio/sfx/ui_button_press.mp3",
 	BAT_SWING: "res://assets/audio/sfx/bat_swing.mp3",
 	BAT_HIT: "res://assets/audio/sfx/bat_hit.wav",
 	CORRIDOR_FOOTSTEP: "res://assets/audio/sfx/corridor_footstep.wav",
+	GYEONGBOKGUNG_FOOTSTEP: "res://assets/audio/sfx/gyeongbokgung_footstep.mp3",
 	DASH_WIND: "res://assets/audio/sfx/dash_wind.wav",
 	NIGHT_INTRO_TRANSITION: "res://assets/audio/sfx/night_intro_transition.mp3",
 	NIGHT_INTRO_TRANSITION_C: "res://assets/audio/sfx/night_intro_transition_c.mp3",

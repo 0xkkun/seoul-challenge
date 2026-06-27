@@ -45,6 +45,7 @@ func go_to_lobby() -> Error:
 func go_to_day_lobby() -> Error:
 	clear_pending_run_config()
 	last_requested_scene = DAY_LOBBY_SCENE
+	_play_school_scene_transition_sfx()
 	return _change_scene(DAY_LOBBY_SCENE)
 
 
@@ -54,6 +55,7 @@ func go_to_day() -> Error:
 
 func go_to_locker_maintenance() -> Error:
 	last_requested_scene = LOCKER_MAINTENANCE_SCENE
+	_play_school_scene_transition_sfx()
 	return _change_scene(LOCKER_MAINTENANCE_SCENE)
 
 
@@ -169,6 +171,11 @@ func _play_session_transition_sfx() -> void:
 	if has_node("/root/AudioManager"):
 		AudioManager.stop_bgm()
 		AudioManager.play_random_session_transition_sfx()
+
+
+func _play_school_scene_transition_sfx() -> void:
+	if has_node("/root/AudioManager"):
+		AudioManager.play_sfx(AudioManager.SCHOOL_SCENE_PAGE_FLIP)
 
 
 func _change_scene_after_fade(scene_path: String) -> Error:
