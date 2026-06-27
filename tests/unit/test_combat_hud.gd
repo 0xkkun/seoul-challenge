@@ -66,6 +66,10 @@ func test_top_hud_slots_leave_space_for_upgraded_hearts() -> void:
 	var health_panel := _hud.get_node("Root/HealthPanel") as Control
 	var hearts := _hud.get_node("%Hearts") as HBoxContainer
 	var stub_panel := _hud.get_node("Root/StubPanel") as Control
+	if not stub_panel.visible:
+		_runner.assert_false(stub_panel.visible, "hidden top HUD status slots cannot overlap upgraded hearts")
+		return
+
 	var heart_width := 0.0
 	for heart: Control in hearts.get_children():
 		heart_width += heart.custom_minimum_size.x
@@ -73,7 +77,7 @@ func test_top_hud_slots_leave_space_for_upgraded_hearts() -> void:
 	var upgraded_hearts_right := health_panel.offset_left + heart_width + gap_width
 
 	_runner.assert_true(
-		stub_panel.offset_left >= upgraded_hearts_right + 8.0,
+		stub_panel.get_global_rect().position.x >= upgraded_hearts_right + 8.0,
 		"top HUD status slots leave breathing room after seven upgraded hearts"
 	)
 

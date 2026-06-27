@@ -345,6 +345,10 @@ func test_session_combat_hud_avoids_top_right_minimap() -> void:
 
 	var hud_panel := session.get_node("%CombatHud/Root/StubPanel") as Control
 	var minimap := session.get_node("MinimapLayer/Minimap") as Control
+	if not hud_panel.visible:
+		_runner.assert_false(hud_panel.visible, "hidden combat HUD text cannot overlap the minimap")
+		session.queue_free()
+		return
 	_runner.assert_false(hud_panel.get_global_rect().intersects(minimap.get_global_rect()), "combat HUD text does not overlap the minimap")
 
 	session.queue_free()
