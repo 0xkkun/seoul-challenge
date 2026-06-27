@@ -39,13 +39,12 @@ func test_no_upgrades_leaves_base_stats() -> void:
 
 func test_meta_upgrades_apply_on_spawn() -> void:
 	SaveManager.set_meta_upgrade_level(&"max_health", 2)
-	SaveManager.set_meta_upgrade_level(&"melee_damage", 1)
-	SaveManager.set_meta_upgrade_level(&"bat_damage", 3)
+	SaveManager.set_meta_upgrade_level(&"attack_damage", 3)
 	SaveManager.set_meta_upgrade_level(&"dodge_charges", 2)
 	var p := _make_player()
 	_runner.assert_eq(p.max_health, 7, "체력 5+2")
-	_runner.assert_eq(p.melee_damage, 2, "근접 1+1")
-	_runner.assert_eq(p.bat_damage, 5, "배트 2+3")
+	_runner.assert_eq(p.melee_damage, 1, "근접은 메타 없음 → 기본 1")
+	_runner.assert_eq(p.bat_damage, 5, "공격력 레벨3 → 배트 2+3")
 	_runner.assert_eq(p.special_skill_max_uses, 5, "대시 3+2")
 	_runner.assert_eq(p.get_health(), 7, "스폰 시 체력 풀")
 	_runner.assert_eq(p.special_skill_uses_remaining, 5, "스폰 시 대시 풀충전")
@@ -63,10 +62,10 @@ func test_session_restart_reapplies_latest_meta() -> void:
 
 
 func test_meta_and_run_item_modifiers_stack() -> void:
-	SaveManager.set_meta_upgrade_level(&"melee_damage", 1)
+	SaveManager.set_meta_upgrade_level(&"attack_damage", 1)
 	var p := _make_player()
 	p.reset_run_modifiers(true) # 런 시작(메타 적용)
-	_runner.assert_eq(p.melee_damage, 2, "메타 근접 1+1")
-	# 런 중 궁 부적 아이템(근접 +1) 획득 → 메타와 합산
+	_runner.assert_eq(p.bat_damage, 3, "메타 공격력 → 배트 2+1")
+	# 런 중 강타 부적 아이템(배트 +1) 획득 → 메타와 합산
 	p.apply_run_modifier(&"gung_talisman")
-	_runner.assert_eq(p.melee_damage, 3, "메타+아이템 = 1+1+1")
+	_runner.assert_eq(p.bat_damage, 4, "메타+아이템 = 2+1+1")

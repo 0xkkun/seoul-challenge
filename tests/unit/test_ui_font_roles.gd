@@ -121,7 +121,7 @@ func test_locker_and_night_map_screens_use_font_roles() -> void:
 	_assert_font(locker.get_node("SubtitleLabel") as Control, &"font", UiFontRolesScript.BODY_FONT_PATH, "locker subtitle uses body font")
 	_assert_font(locker.get_node("WeaponSectionLabel") as Control, &"font", UiFontRolesScript.TITLE_FONT_PATH, "weapon section title uses title font")
 	_assert_font(locker.get_node("BatCard") as Control, &"font", UiFontRolesScript.PIXEL_FONT_PATH, "weapon card uses pixel font")
-	_assert_font(locker.get_node("UpgradePanel/UpgradeList/UpgradeHeader/UpgradeBalanceLabel") as Control, &"font", UiFontRolesScript.PIXEL_FONT_PATH, "upgrade balance uses pixel font")
+	_assert_font(locker.find_child("UpgradeBalanceLabel", true, false) as Control, &"font", UiFontRolesScript.PIXEL_FONT_PATH, "upgrade balance uses pixel font")
 
 	var map = _add_node(NightMapSelectScene.instantiate())
 	map.set("scene_transition_enabled", false)
