@@ -5,6 +5,7 @@ extends CharacterBody2D
 const HitReactionController = preload("res://scripts/combat/hit_reaction_controller.gd")
 const StatusEffectController = preload("res://scripts/combat/status_effect_controller.gd")
 const EnemyDeathFade = preload("res://scripts/combat/enemy_death_fade.gd")
+const EnemyHealthBar = preload("res://scripts/enemies/enemy_health_bar.gd")
 const FACING_DEADZONE := 0.01
 
 ## 처치됨 — RoomManager/전투방이 듣고 방 클리어 카운트에 사용한다(계약 #19).
@@ -19,12 +20,15 @@ signal defeated(enemy)
 @export var target_group: StringName = &"player"
 @export var move_animation: StringName = &"move"
 @export var attack_animation: StringName = &"attack"
+@export var health_bar_width: float = 36.0
+@export var health_bar_height: float = 4.0
 
 var _hp: int = 0
 var _contact_timer: float = 0.0
 var _dead: bool = false
 var _hit_reaction: Node = null
 var _status_effects: Node = null
+var _health_bar: RefCounted = null
 var _movement_bounds := Rect2()
 var _movement_bounds_enabled := false
 @onready var _sprite: AnimatedSprite2D = get_node_or_null(^"Sprite")
@@ -35,6 +39,7 @@ func _ready() -> void:
 	add_to_group(&"enemy")
 	_ensure_hit_reaction()
 	_ensure_status_effects()
+	_reset_health_bar()
 
 
 func _physics_process(delta: float) -> void:
@@ -194,7 +199,8 @@ func take_damage(amount: int) -> void:
 	if _dead or is_hit_invulnerable():
 		return
 	HapticManager.on_enemy_hit()
-	_hp -= amount
+	_hp = maxi(0, _hp - amount)
+	_update_health_bar()
 	if is_dead(_hp):
 		_die()
 	else:
@@ -269,3 +275,33 @@ func _get_visual() -> CanvasItem:
 	if sprite != null:
 		return sprite
 	return get_node_or_null(^"Placeholder") as CanvasItem
+
+
+func _get_health_bar() -> RefCounted:
+	if _health_bar == null:
+		_health_bar = EnemyHealthBar.new()
+		var bg := get_node_or_null(^"HealthBarBg") as ColorRect
+		var fill := get_node_or_null(^"HealthBarFill") as ColorRect
+		_health_bar.call("bind", bg, fill)
+	return _health_bar
+
+
+func _layout_health_bar() -> void:
+	var bar := _get_health_bar()
+	bar.call("configure", health_bar_width, health_bar_height)
+	bar.call("reposition_above_visual", _get_visual())
+
+
+func _reset_health_bar() -> void:
+	_layout_health_bar()
+	_get_health_bar().call("hide_bar")
+
+
+func _update_health_bar() -> void:
+	_layout_health_bar()
+	_get_health_bar().call("update", float(_hp), float(max_hp))
+
+
+func get_health_bar_snapshot() -> Dictionary:
+	_layout_health_bar()
+	return _get_health_bar().call("get_snapshot") as Dictionary
