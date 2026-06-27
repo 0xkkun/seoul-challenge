@@ -49,7 +49,7 @@ const MobileSafeArea := preload("res://scripts/ui/mobile_safe_area.gd")
 @onready var _dialogue_top_rule: ColorRect = %DialogueTopRule
 @onready var _name_label: Label = %NameLabel
 @onready var _stage_row: HBoxContainer = %StageRow
-@onready var _dialogue_label: Label = %DialogueLabel
+@onready var _dialogue_label: RichTextLabel = %DialogueLabel
 @onready var _memory_label: Label = %MemoryLabel
 @onready var _choice_row: HBoxContainer = %ChoiceRow
 @onready var _unlock_overlay: Control = %UnlockOverlay
@@ -61,6 +61,7 @@ const MobileSafeArea := preload("res://scripts/ui/mobile_safe_area.gd")
 
 var _speaker_name := ""
 var _dialogue_text := ""
+var _dialogue_markup_text := ""
 var _memory_text := ""
 var _stage_labels := DEFAULT_STAGE_LABELS.duplicate()
 var _current_stage := 1
@@ -141,11 +142,13 @@ func set_dialogue(
 	portrait_animates := false
 ) -> void:
 	_speaker_name = next_speaker_name
-	_dialogue_text = next_dialogue_text
+	_dialogue_markup_text = next_dialogue_text
+	_dialogue_text = _strip_dialogue_markup(next_dialogue_text)
 	_memory_text = next_memory_text
 	_name_label.text = _speaker_name
-	_dialogue_label.text = _dialogue_text
+	_dialogue_label.text = _dialogue_markup_text
 	_memory_label.text = _memory_text
+	set_dialogue_content_visible(true)
 	_configure_portrait(portrait_color, portrait_texture, portrait_frame_index, portrait_animates)
 
 
@@ -157,8 +160,22 @@ func get_dialogue_text() -> String:
 	return _dialogue_text
 
 
+func get_dialogue_markup_text() -> String:
+	return _dialogue_markup_text
+
+
 func get_memory_text() -> String:
 	return _memory_text
+
+
+func set_dialogue_content_visible(should_show: bool) -> void:
+	_dialogue_dimmer.visible = should_show
+	_portrait_panel.visible = should_show
+	_dialogue_bar.visible = should_show
+
+
+func is_dialogue_content_visible() -> bool:
+	return _dialogue_bar.visible
 
 
 func is_portrait_sprite_visible() -> bool:
@@ -484,8 +501,8 @@ func _apply_static_styles() -> void:
 	_name_label.add_theme_color_override("font_color", NAMEPLATE_TEXT_COLOR)
 	_name_label.add_theme_font_size_override("font_size", 16)
 	_name_label.add_theme_stylebox_override("normal", _make_panel_style(NAMEPLATE_COLOR, Color(0.07, 0.08, 0.1), 2))
-	_dialogue_label.add_theme_color_override("font_color", Color.WHITE)
-	_dialogue_label.add_theme_font_size_override("font_size", 18)
+	_dialogue_label.add_theme_color_override("default_color", Color.WHITE)
+	_dialogue_label.add_theme_font_size_override("normal_font_size", 18)
 	_memory_label.add_theme_color_override("font_color", MEMORY_TEXT_COLOR)
 	_memory_label.add_theme_font_size_override("font_size", 13)
 	_choice_row.add_theme_constant_override("separation", 8)
@@ -538,6 +555,10 @@ func _make_panel_style(fill: Color, border: Color, border_width: int) -> StyleBo
 	# shared DungeonUiTheme builder so popup/panel stylebox construction lives in one
 	# place (output is identical to the previous inline StyleBoxFlat).
 	return DungeonUiTheme.panel_style(fill, border, border_width, 8.0, 4.0)
+
+
+func _strip_dialogue_markup(text: String) -> String:
+	return text.replace("[b]", "").replace("[/b]", "")
 
 
 func _clear_children(parent: Node) -> void:

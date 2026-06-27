@@ -321,7 +321,7 @@ func test_day_corridor_onboarding_reward_dialogue_grants_bat_and_clue() -> void:
 
 	scene.trigger_dialogue()
 	_runner.assert_true(scene.is_dialogue_ui_visible(), "reward dialogue opens")
-	_runner.assert_true(scene.get_active_dialogue_text().contains("고마워"), "captain thanks the player")
+	_runner.assert_eq(scene.get_active_dialogue_text(), "고마워. 아까는 내가 제정신이 아니었던 것 같아.", "captain thanks the player without awkward repetition")
 	_runner.assert_eq(scene.get_dialogue_choice_ids(), [&"next"], "reward dialogue starts with next")
 
 	_runner.assert_true(UiTestHarness.press_by_uat_action(scene, "day_corridor.dialogue.next"), "reward dialogue advances to bat line")
@@ -329,6 +329,7 @@ func test_day_corridor_onboarding_reward_dialogue_grants_bat_and_clue() -> void:
 	_runner.assert_true(scene.perform_uat_action("day_corridor.dialogue.dismiss_unlock"), "bat pickup popup can be dismissed before clue line")
 	_runner.assert_true(UiTestHarness.press_by_uat_action(scene, "day_corridor.dialogue.next"), "reward dialogue advances to clue line")
 	_runner.assert_true(scene.get_active_dialogue_text().contains("도깨비왕"), "captain gives the goblin king clue")
+	_runner.assert_true(scene.get_node("%HubDialogueUi").get_dialogue_markup_text().contains("[b]도깨비왕[/b]"), "goblin king clue bolds 도깨비왕")
 	_runner.assert_true(scene.get_active_dialogue_text().contains("더 큰"), "captain leaves room for a stronger culprit")
 	_runner.assert_eq(scene.get_dialogue_choice_ids(), [&"close"], "final reward line closes")
 
@@ -446,8 +447,9 @@ func test_day_corridor_onboarding_reward_dialogue_completes_baseball_lobby_quest
 	_runner.assert_true(SaveManager.get_flag(SceneTransition.FLAG_BASEBALL_CAPTAIN_REWARD_CLAIMED), "reward flag is claimed before the unlock popup closes")
 	_runner.assert_true(ProgressionSystem.is_quest_completed(ProgressionSystem.QUEST_BASEBALL_CAPTAIN_LOBBY), "captain reward dialogue completes the lobby quest")
 	_runner.assert_true(ProgressionSystem.is_weapon_unlocked(&"awakened_bat"), "lobby quest completion unlocks awakened bat")
-	_runner.assert_true(dialogue_ui.is_unlock_visible(), "awakened bat popup is shown before dialogue closes")
-	_runner.assert_true(scene.is_dialogue_ui_visible(), "dialogue remains open while the unlock popup is visible")
+	_runner.assert_true(dialogue_ui.is_unlock_visible(), "awakened bat popup is shown after the dialogue closes")
+	_runner.assert_false(scene.is_dialogue_ui_visible(), "dialogue content is closed before the awakened bat popup appears")
+	_runner.assert_false(dialogue_ui.is_dialogue_content_visible(), "dialogue bar stays hidden behind the awakened bat popup")
 
 	_runner.assert_true(scene.perform_uat_action("day_corridor.dialogue.dismiss_unlock"), "UAT can dismiss the unlock popup without coordinates")
 	_runner.assert_false(scene.is_dialogue_ui_visible(), "unlock dismiss closes the completed reward dialogue")
@@ -471,11 +473,14 @@ func test_day_corridor_onboarding_reward_back_close_completes_baseball_lobby_que
 	_runner.assert_true(SaveManager.get_flag(SceneTransition.FLAG_BASEBALL_CAPTAIN_REWARD_CLAIMED), "back close claims the reward")
 	_runner.assert_true(ProgressionSystem.is_quest_completed(ProgressionSystem.QUEST_BASEBALL_CAPTAIN_LOBBY), "back close completes the lobby quest")
 	_runner.assert_true(ProgressionSystem.is_weapon_unlocked(&"awakened_bat"), "back close unlocks awakened bat")
-	_runner.assert_true(dialogue_ui.is_unlock_visible(), "back close still shows the unlock popup")
-	_runner.assert_true(scene.is_dialogue_ui_visible(), "dialogue remains open while unlock popup is visible")
+	_runner.assert_true(dialogue_ui.is_unlock_visible(), "back close shows the unlock popup after closing the dialogue")
+	_runner.assert_false(scene.is_dialogue_ui_visible(), "back close hides dialogue content before the unlock popup")
+	_runner.assert_false(dialogue_ui.is_dialogue_content_visible(), "back close keeps the dialogue bar hidden behind the unlock popup")
 
-	_runner.assert_true(scene.perform_uat_action("day_corridor.dialogue.dismiss_unlock"), "unlock dismiss is coordinate-free")
-	_runner.assert_false(scene.is_dialogue_ui_visible(), "unlock dismiss closes the completed reward dialogue")
+	scene.call("_handle_back_request")
+	_runner.assert_false(dialogue_ui.is_unlock_visible(), "back while unlock is visible dismisses the unlock popup")
+	_runner.assert_false(scene.is_return_confirm_visible(), "back while unlock is visible does not open the lobby return confirm")
+	_runner.assert_false(scene.is_dialogue_ui_visible(), "unlock back dismiss closes the completed reward dialogue")
 	_runner.assert_eq(scene.get_objective_text(), "목표: 복도 끝 사물함에서 배트를 챙기고 경복궁으로 다시 가자", "back close keeps the post-reward objective")
 
 
