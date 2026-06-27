@@ -12,7 +12,7 @@ func _set_runner(runner: Node) -> void:
 	_runner = runner
 
 
-func test_kumiho_scene_uses_5_move_and_5_attack_frames() -> void:
+func test_kumiho_scene_uses_5_move_and_6_attack_frames() -> void:
 	_runner.assert_true(ResourceLoader.exists(KUMIHO_SCENE_PATH), "kumiho ranged enemy scene exists")
 	if not ResourceLoader.exists(KUMIHO_SCENE_PATH):
 		return
@@ -29,9 +29,18 @@ func test_kumiho_scene_uses_5_move_and_5_attack_frames() -> void:
 	if frames == null:
 		return
 	_runner.assert_eq(frames.get_frame_count(&"move"), 5, "kumiho move sheet is split into five 128px frames")
-	_runner.assert_eq(frames.get_frame_count(&"attack"), 5, "kumiho attack sheet is split into five 128px frames")
+	_runner.assert_eq(frames.get_frame_count(&"attack"), 6, "kumiho attack sheet is split into six 128px frames")
 	_runner.assert_true(frames.get_animation_loop(&"move"), "kumiho movement loops")
 	_runner.assert_false(frames.get_animation_loop(&"attack"), "kumiho attack does not loop")
+	var move_frame := frames.get_frame_texture(&"move", 0) as AtlasTexture
+	var attack_frame := frames.get_frame_texture(&"attack", 5) as AtlasTexture
+	_runner.assert_not_null(move_frame, "kumiho move frame uses atlas texture")
+	_runner.assert_not_null(attack_frame, "kumiho final attack frame uses atlas texture")
+	if move_frame != null and move_frame.atlas != null:
+		_runner.assert_eq(move_frame.atlas.get_width(), 640, "latest kumiho move sheet remains 640px wide")
+	if attack_frame != null and attack_frame.atlas != null:
+		_runner.assert_eq(attack_frame.atlas.get_width(), 768, "latest kumiho attack sheet is 768px wide")
+		_runner.assert_eq(attack_frame.region, Rect2(640, 0, 128, 128), "sixth attack frame cuts the final 128px region")
 
 
 func test_kumiho_fireball_uses_4_fly_frames() -> void:
