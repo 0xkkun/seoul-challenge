@@ -92,6 +92,6 @@ func test_boss_patterns_play_asset_animations() -> void:
 
 	boss.call("_begin_telegraph")
 	boss.call("_begin_pattern", target)
-	_runner.assert_eq(sprite.animation, &"attack", "boss burst pattern plays the weak attack animation")
+	_runner.assert_eq(sprite.animation, &"attack", "boss weak attack pattern plays the weak attack animation")
 	boss.queue_free()
 	target.queue_free()
