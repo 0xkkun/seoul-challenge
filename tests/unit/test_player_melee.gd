@@ -292,15 +292,15 @@ func test_player_scene_includes_hidden_bat_swing_effect() -> void:
 	_runner.assert_not_null(impact, "player scene includes bat swing slash effect root")
 	if impact != null:
 		_runner.assert_false(impact.visible, "bat swing effect starts hidden")
-		var slash_back := impact.get_node_or_null("BatSlashBack") as Line2D
-		var slash_front := impact.get_node_or_null("BatSlashFront") as Line2D
-		var slash_echo := impact.get_node_or_null("BatSlashEcho") as Line2D
-		_runner.assert_not_null(slash_back, "bat swing has a broad blue trail")
-		_runner.assert_not_null(slash_front, "bat swing has a bright crescent edge")
-		_runner.assert_not_null(slash_echo, "bat swing has a trailing afterimage")
+		var slash_sprite := impact.get_node_or_null("SlashSprite") as Sprite2D
+		_runner.assert_not_null(slash_sprite, "bat swing uses the supplied pixel slash sprite")
+		if slash_sprite != null:
+			_runner.assert_false(slash_sprite.visible, "bat slash sprite starts hidden with the root")
+			_runner.assert_eq(slash_sprite.hframes, 9, "bat slash sheet has nine animation frames")
+			_runner.assert_eq(slash_sprite.texture.resource_path, "res://assets/effects/bat_slash.png", "bat slash uses the white pixel sheet")
 
 
-func test_bat_swing_show_builds_reference_style_crescent_arc() -> void:
+func test_bat_swing_show_plays_pixel_slash_sheet() -> void:
 	var player := (load("res://scenes/player/player.tscn") as PackedScene).instantiate()
 	add_child(player)
 	var impact := player.get_node_or_null("BatSwingImpact") as Node2D
@@ -310,18 +310,14 @@ func test_bat_swing_show_builds_reference_style_crescent_arc() -> void:
 
 	player._show_bat_swing_effect(Vector2.RIGHT, 100.0, 2.2)
 
-	var slash_front := impact.get_node_or_null("BatSlashFront") as Line2D
-	var slash_echo := impact.get_node_or_null("BatSlashEcho") as Line2D
+	var slash_sprite := impact.get_node_or_null("SlashSprite") as Sprite2D
 	_runner.assert_true(impact.visible, "showing bat swing reveals the effect root")
-	_runner.assert_not_null(slash_front, "bat swing uses a bright crescent stroke")
-	_runner.assert_not_null(slash_echo, "bat swing uses a fading afterimage")
-	if slash_front != null:
-		_runner.assert_true(slash_front.points.size() >= 12, "bat slash is a curved crescent")
-		_runner.assert_true(slash_front.width >= 7.0, "bat slash is thick enough to read on mobile")
-	if slash_echo != null:
-		_runner.assert_true(slash_echo.points.size() >= 8, "bat echo is also curved")
-	if slash_front != null and slash_echo != null:
-		_runner.assert_true(slash_echo.default_color.a < slash_front.default_color.a, "bat echo reads as a trailing afterimage")
+	_runner.assert_not_null(slash_sprite, "bat swing uses a sprite sheet child")
+	if slash_sprite != null:
+		_runner.assert_true(slash_sprite.visible, "showing bat swing reveals the slash sprite")
+		_runner.assert_eq(slash_sprite.frame, 0, "bat slash animation starts from the first frame")
+		_runner.assert_eq(slash_sprite.texture.resource_path, "res://assets/effects/bat_slash.png", "bat swing uses the white slash sheet")
+		_runner.assert_true(slash_sprite.scale.x > 1.0, "bat slash is scaled up for mobile readability")
 
 
 func test_bat_attack_hides_debug_like_melee_range_wedge() -> void:
@@ -354,12 +350,12 @@ func test_dash_power_attack_uses_only_power_effect_not_blue_bat_slash() -> void:
 	_runner.assert_not_null(bat_swing, "player keeps bat swing effect node")
 	_runner.assert_not_null(power_impact, "player keeps power impact effect node")
 	if bat_swing != null:
-		_runner.assert_false(bat_swing.visible, "dash power attack skips the blue bat slash")
+		_runner.assert_false(bat_swing.visible, "dash power attack skips the normal bat slash")
 	if power_impact != null:
-		_runner.assert_true(power_impact.visible, "dash power attack shows the yellow power effect")
+		_runner.assert_true(power_impact.visible, "dash power attack shows the fire slash effect")
 
 
-func test_player_scene_includes_layered_power_impact_effect() -> void:
+func test_player_scene_includes_fire_power_slash_effect() -> void:
 	var player := (load("res://scenes/player/player.tscn") as PackedScene).instantiate()
 	add_child(player)
 	var impact := player.get_node_or_null("PowerImpact") as Node2D
@@ -367,20 +363,16 @@ func test_player_scene_includes_layered_power_impact_effect() -> void:
 	_runner.assert_not_null(impact, "player scene includes dash power impact effect root")
 	if impact != null:
 		_runner.assert_false(impact.visible, "power impact starts hidden")
-		_runner.assert_false(impact is Polygon2D, "power impact is not a single recolored wedge")
-		var slash_back := impact.get_node_or_null("ImpactSlashBack") as Line2D
-		var slash_front := impact.get_node_or_null("ImpactSlashFront") as Line2D
-		var ring := impact.get_node_or_null("ImpactRing") as Line2D
-		var sparks := impact.get_node_or_null("ImpactSparks") as Node2D
-		_runner.assert_not_null(slash_back, "power impact has a broad slash trail")
-		_runner.assert_not_null(slash_front, "power impact has a bright slash edge")
-		_runner.assert_not_null(ring, "power impact has an expanding impact ring")
-		_runner.assert_not_null(sparks, "power impact has spark children")
-		if sparks != null:
-			_runner.assert_true(sparks.get_child_count() >= 5, "power impact has multiple spark strokes")
+		var slash_sprite := impact.get_node_or_null("SlashSprite") as Sprite2D
+		_runner.assert_not_null(slash_sprite, "power impact uses the supplied fire slash sprite")
+		_runner.assert_eq(impact.get_node_or_null("ImpactRing"), null, "power impact no longer uses the old line ring")
+		if slash_sprite != null:
+			_runner.assert_false(slash_sprite.visible, "power slash sprite starts hidden with the root")
+			_runner.assert_eq(slash_sprite.hframes, 9, "power slash sheet has nine animation frames")
+			_runner.assert_eq(slash_sprite.texture.resource_path, "res://assets/effects/bat_slash_fire.png", "power slash uses the fire pixel sheet")
 
 
-func test_power_impact_show_builds_slash_ring_and_spark_geometry() -> void:
+func test_power_impact_show_plays_fire_slash_sheet() -> void:
 	var player := (load("res://scenes/player/player.tscn") as PackedScene).instantiate()
 	add_child(player)
 	var impact := player.get_node_or_null("PowerImpact") as Node2D
@@ -390,61 +382,32 @@ func test_power_impact_show_builds_slash_ring_and_spark_geometry() -> void:
 
 	player._show_power_impact(Vector2.RIGHT, 80.0, 1.6)
 
-	var slash_front := impact.get_node_or_null("ImpactSlashFront") as Line2D
-	var ring := impact.get_node_or_null("ImpactRing") as Line2D
-	var sparks := impact.get_node_or_null("ImpactSparks") as Node2D
+	var slash_sprite := impact.get_node_or_null("SlashSprite") as Sprite2D
 	_runner.assert_true(impact.visible, "showing a power impact reveals the effect root")
-	_runner.assert_not_null(slash_front, "showing a power impact uses a slash stroke")
-	_runner.assert_not_null(ring, "showing a power impact uses an impact ring")
-	_runner.assert_not_null(sparks, "showing a power impact uses sparks")
-	if slash_front != null:
-		_runner.assert_true(slash_front.points.size() >= 10, "slash stroke is an arc, not a static triangle")
-	if ring != null:
-		_runner.assert_true(ring.points.size() >= 16, "impact ring is a multi-point expanding shape")
-	if sparks != null and sparks.get_child_count() > 0:
-		var spark := sparks.get_child(0) as Line2D
-		_runner.assert_not_null(spark, "spark child is a line stroke")
-		if spark != null:
-			_runner.assert_eq(spark.points.size(), 2, "spark stroke has start and end points")
-			_runner.assert_true(spark.points[1].length() > spark.points[0].length(), "spark shoots outward from impact center")
+	_runner.assert_not_null(slash_sprite, "showing power impact uses a fire sprite sheet child")
+	if slash_sprite != null:
+		_runner.assert_true(slash_sprite.visible, "showing power impact reveals the fire slash sprite")
+		_runner.assert_eq(slash_sprite.frame, 0, "power slash animation starts from the first frame")
+		_runner.assert_eq(slash_sprite.texture.resource_path, "res://assets/effects/bat_slash_fire.png", "power impact uses the fire slash sheet")
 
 
-func test_power_impact_palette_uses_warm_yellow_without_blue_accent() -> void:
-	var player := (load("res://scenes/player/player.tscn") as PackedScene).instantiate()
-	add_child(player)
-	var impact := player.get_node_or_null("PowerImpact") as Node2D
-	_runner.assert_not_null(impact, "player scene includes power impact root")
-	if impact == null:
-		return
-
-	player._show_power_impact(Vector2.RIGHT, 80.0, 1.6)
-
-	var ring := impact.get_node_or_null("ImpactRing") as Line2D
-	var sparks := impact.get_node_or_null("ImpactSparks") as Node2D
-	_runner.assert_not_null(ring, "power impact has an impact ring")
-	_runner.assert_not_null(sparks, "power impact has spark children")
-	if ring != null:
-		_runner.assert_true(ring.default_color.r >= ring.default_color.g, "power ring is warm, not cyan")
-		_runner.assert_true(ring.default_color.g > ring.default_color.b, "power ring keeps blue below yellow")
-	if sparks != null:
-		for child: Node in sparks.get_children():
-			var spark := child as Line2D
-			if spark == null or not spark.visible:
-				continue
-			_runner.assert_true(spark.default_color.r >= spark.default_color.g, "power spark is warm")
-			_runner.assert_true(spark.default_color.g > spark.default_color.b, "power spark avoids blue accent")
-
-
-func test_power_slash_points_follow_attack_arc() -> void:
+func test_slash_effect_state_places_sprite_in_attack_direction() -> void:
 	var player = PlayerScript.new()
-	_runner.assert_true(player.has_method("build_power_slash_points"), "player exposes pure slash geometry helper")
-	if not player.has_method("build_power_slash_points"):
+	_runner.assert_true(player.has_method("build_slash_effect_state"), "player exposes pure slash sprite placement helper")
+	if not player.has_method("build_slash_effect_state"):
 		player.free()
 		return
-	var points: PackedVector2Array = player.build_power_slash_points(Vector2.RIGHT, 80.0, 1.4, 0.86, 1.02, 8)
-	_runner.assert_eq(points.size(), 9, "segments create inclusive arc points")
-	_runner.assert_true(points[0].x > 0.0 and points[points.size() - 1].x > 0.0, "slash points stay in front of the player")
-	_runner.assert_true(absf(points[0].y) > absf(points[4].y), "slash starts at the upper arc edge and crosses the center")
+	var right_state: Dictionary = player.build_slash_effect_state(Vector2.RIGHT, 100.0, 64.0, 1.18)
+	var down_state: Dictionary = player.build_slash_effect_state(Vector2.DOWN, 80.0, 64.0, 1.35)
+	_runner.assert_true((right_state["position"] as Vector2).x > 0.0, "right-facing slash sits in front of the player")
+	_runner.assert_true(is_equal_approx(float(right_state["rotation"]), 0.0), "right-facing slash uses the sheet's default orientation")
+	_runner.assert_true((right_state["scale"] as Vector2).x > 1.0, "slash state scales the 64px sheet up")
+	_runner.assert_true((down_state["position"] as Vector2).y > 0.0, "down-facing slash follows attack direction")
+	_runner.assert_true(
+		is_equal_approx((down_state["position"] as Vector2).y, 80.0 * player.swing_vertical_factor * 0.52),
+		"down-facing slash uses the same vertical compression as melee hit checks"
+	)
+	_runner.assert_true(is_equal_approx(float(down_state["rotation"]), PI * 0.5), "down-facing slash rotates with attack direction")
 	player.free()
 
 
