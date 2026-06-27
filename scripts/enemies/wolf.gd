@@ -101,7 +101,7 @@ func tick_dash_ai(delta: float, origin: Vector2, target_position: Vector2) -> Ve
 			_dash_timer = maxf(0.0, _dash_timer - delta)
 			if _dash_timer > 0.0:
 				return Vector2.ZERO
-			_start_dash(origin, target_position)
+			_start_dash()
 			return _dash_direction * dash_speed
 		&"dash":
 			_dash_timer = maxf(0.0, _dash_timer - delta)
@@ -321,10 +321,9 @@ func _try_dash_hit(target: Node2D) -> void:
 		target.call("take_damage", contact_damage)
 
 
-func _start_dash(origin: Vector2, target_position: Vector2) -> void:
+func _start_dash() -> void:
 	_dash_state = &"dash"
 	_dash_timer = dash_duration
-	_dash_direction = aim_direction(origin, target_position)
 	_dash_hit_targets.clear()
 	_play_attack_animation(_dash_direction)
 
