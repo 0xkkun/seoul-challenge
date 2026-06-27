@@ -22,6 +22,7 @@ var _start_pos: Vector2 = Vector2.ZERO
 var _aim: Vector2 = Vector2.ZERO
 var _icon_mode := ICON_MODE_ATTACK
 var _attack_icon: Texture2D
+var _dialogue_bubble_style := StyleBoxFlat.new()
 
 
 func is_held() -> bool:
@@ -181,12 +182,11 @@ func build_dialogue_icon_geometry(center: Vector2, radius: float) -> Dictionary:
 
 
 func _make_dialogue_bubble_style(fill: Color, border: Color, pixel: float) -> StyleBoxFlat:
-	var style := StyleBoxFlat.new()
-	style.bg_color = fill
-	style.border_color = border
-	style.set_border_width_all(int(maxf(1.0, roundf(pixel))))
-	style.set_corner_radius_all(int(maxf(2.0, roundf(pixel * 2.2))))
-	return style
+	_dialogue_bubble_style.bg_color = fill
+	_dialogue_bubble_style.border_color = border
+	_dialogue_bubble_style.set_border_width_all(int(maxf(1.0, roundf(pixel))))
+	_dialogue_bubble_style.set_corner_radius_all(int(maxf(2.0, roundf(pixel * 2.2))))
+	return _dialogue_bubble_style
 
 
 func _current_icon_scale() -> float:

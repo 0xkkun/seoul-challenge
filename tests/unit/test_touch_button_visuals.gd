@@ -73,6 +73,20 @@ func test_attack_button_dialogue_icon_geometry_uses_short_bottom_corner_tail() -
 	button.free()
 
 
+func test_attack_button_dialogue_bubble_style_is_persistent_for_deferred_draw() -> void:
+	var button := AttackButtonScript.new()
+	_runner.assert_true(button.has_method("_make_dialogue_bubble_style"), "attack button builds the dialogue bubble style")
+	if not button.has_method("_make_dialogue_bubble_style"):
+		button.free()
+		return
+
+	var first_style := button.call("_make_dialogue_bubble_style", Color.WHITE, Color.BLACK, 2.0) as StyleBoxFlat
+	var second_style := button.call("_make_dialogue_bubble_style", Color.WHITE, Color.BLACK, 2.0) as StyleBoxFlat
+	_runner.assert_not_null(first_style, "dialogue bubble style is available")
+	_runner.assert_true(first_style == second_style, "dialogue bubble StyleBox persists on the control for deferred drawing")
+	button.free()
+
+
 func test_skill_button_uses_b9_transparent_center_icon_contract() -> void:
 	var button := SkillButtonScript.new()
 	_runner.assert_true(button.has_method("get_visual_contract"), "skill button exposes B-9 visual contract")
