@@ -21,6 +21,10 @@ const WOLF_SPAWN_FACTORS: Array[Vector2] = [
 	Vector2(0.05, -0.1),
 ]
 const ELITE_COLOR := Color(0.95, 0.72, 0.22, 1.0)
+const ENTRY_FORWARD_DISTANCE := 250.0
+const ENTRY_FORWARD_SPREAD := 240.0
+const ENTRY_LATERAL_SPREAD := 180.0
+const SPAWN_BOUNDS_INSET := 48.0
 
 signal combat_started(room_id: StringName, enemy_count: int)
 signal combat_resolved(room_id: StringName)
@@ -306,7 +310,20 @@ func _resolve_enemy_layer() -> Node2D:
 
 func _spawn_position_for_factor(spawn_factor: Vector2) -> Vector2:
 	var room_bounds := RoomPalette.get_room_bounds()
-	return room_bounds.position + room_bounds.size * 0.5 + room_bounds.size * 0.5 * spawn_factor
+	if _actor == null:
+		return room_bounds.position + room_bounds.size * 0.5 + room_bounds.size * 0.5 * spawn_factor
+	var actor_position := to_local(_actor.global_position)
+	var forward := (Vector2.ZERO - actor_position).normalized()
+	if forward.length() <= 0.001:
+		forward = Vector2.RIGHT
+	var lateral := Vector2(-forward.y, forward.x)
+	var distance := ENTRY_FORWARD_DISTANCE + spawn_factor.x * ENTRY_FORWARD_SPREAD
+	var target := actor_position + forward * distance + lateral * spawn_factor.y * ENTRY_LATERAL_SPREAD
+	var safe_bounds := room_bounds.grow(-SPAWN_BOUNDS_INSET)
+	return Vector2(
+		clampf(target.x, safe_bounds.position.x, safe_bounds.end.x),
+		clampf(target.y, safe_bounds.position.y, safe_bounds.end.y)
+	)
 
 
 func _enemy_movement_bounds() -> Rect2:
