@@ -240,7 +240,7 @@ func _offer_display_name(offer_id: StringName) -> String:
 		OFFER_BAT:
 			return "금 간 나무 배트"
 		OFFER_DODGE_REFILL:
-			return "회피부적"
+			return "회피 부적"
 	return ""
 
 

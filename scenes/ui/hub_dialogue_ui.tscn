@@ -114,7 +114,7 @@ offset_top = 50.0
 offset_right = -40.0
 offset_bottom = 96.0
 grow_horizontal = 2
-text = "\"스윙은 겁먹으면 늦어. 밤의 궁에선 더 그렇겠지.\""
+text = "\"겁먹으면 스윙이 늦어. 밤의 궁에서는 더 그렇겠지.\""
 autowrap_mode = 3
 
 [node name="MemoryLabel" type="Label" parent="Root/DialogueBar/DialogueContent"]
@@ -126,7 +126,7 @@ offset_top = 104.0
 offset_right = -290.0
 offset_bottom = 132.0
 grow_horizontal = 2
-text = "기억: 손바닥의 희미한 배트 자국"
+text = "기억: 손바닥에 남은 희미한 배트 자국"
 autowrap_mode = 3
 
 [node name="ChoiceRow" type="HBoxContainer" parent="Root/DialogueBar/DialogueContent"]
@@ -196,12 +196,12 @@ theme_override_constants/separation = 9
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
-text = "아이템을 얻었다"
+text = "새 기억"
 
 [node name="UnlockSubtitleLabel" type="Label" parent="Root/UnlockOverlay/UnlockPopup/PopupMargin/PopupStack/TitleRow"]
 unique_name_in_owner = true
 layout_mode = 2
-text = "STAGE 2 보상"
+text = "2단계 보상"
 horizontal_alignment = 2
 
 [node name="UnlockItemGrid" type="GridContainer" parent="Root/UnlockOverlay/UnlockPopup/PopupMargin/PopupStack"]

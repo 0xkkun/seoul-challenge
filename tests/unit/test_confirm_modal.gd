@@ -25,14 +25,14 @@ func after_each() -> void:
 func test_open_renders_message_and_yes_callback() -> void:
 	var counts := {"yes": 0, "no": 0}
 	_modal.open(
-		"로비로 돌아갈까요? 진행은 자동 저장됩니다",
+		"로비로 돌아갈까요? 진행 상황은 자동으로 저장됩니다.",
 		func() -> void: counts["yes"] += 1,
 		func() -> void: counts["no"] += 1
 	)
 
 	_runner.assert_true(_modal.is_open(), "modal opens")
 	_runner.assert_false(_modal.is_danger_mode(), "default modal is not danger")
-	_runner.assert_eq(_modal.get_message_text(), "로비로 돌아갈까요? 진행은 자동 저장됩니다", "message is rendered")
+	_runner.assert_eq(_modal.get_message_text(), "로비로 돌아갈까요? 진행 상황은 자동으로 저장됩니다.", "message is rendered")
 	var yes_button := UiTestHarness.find_by_test_id(_modal, ConfirmModal.TEST_ID_YES) as Button
 	var no_button := UiTestHarness.find_by_test_id(_modal, ConfirmModal.TEST_ID_NO) as Button
 	var panel := _modal.get_node("Root/Panel") as PanelContainer
@@ -51,7 +51,7 @@ func test_open_renders_message_and_yes_callback() -> void:
 func test_no_callback_closes_danger_modal() -> void:
 	var counts := {"yes": 0, "no": 0}
 	_modal.open(
-		"런을 포기할까요? 이번 밤 보상은 사라지고 영구 재화는 유지됩니다",
+		"오늘 밤을 포기할까요? 이번 밤에 얻은 보상은 사라지지만 기억 조각은 남습니다",
 		func() -> void: counts["yes"] += 1,
 		func() -> void: counts["no"] += 1,
 		true

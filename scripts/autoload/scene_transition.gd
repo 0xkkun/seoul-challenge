@@ -241,7 +241,7 @@ func _ensure_overlay() -> void:
 	_saved_label.offset_top = 12.0
 	_saved_label.offset_right = -16.0
 	_saved_label.offset_bottom = 44.0
-	_saved_label.text = "저장됨 ✓"
+	_saved_label.text = "저장 완료"
 	_saved_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	_saved_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	_saved_label.add_theme_font_size_override("font_size", 18)

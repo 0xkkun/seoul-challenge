@@ -18,7 +18,7 @@ const FRIEND_ROOM_SCENE_PATH := "res://scenes/interactables/friend_room.tscn"
 const FINAL_ROOM_SCENE_PATH := "res://scenes/interactables/boss_room.tscn"
 const DEFAULT_STAGE_NAME := "경복궁"
 const PAUSE_MENU_MESSAGE := "일시정지"
-const ABANDON_RUN_MESSAGE := "런을 포기할까요? 이번 밤 보상은 사라지고 영구 재화는 유지됩니다"
+const ABANDON_RUN_MESSAGE := "오늘 밤을 포기할까요? 이번 밤에 얻은 보상은 사라지지만 기억 조각은 남습니다"
 const QUIT_GAME_MESSAGE := "게임을 종료할까요?"
 const LEGACY_REMOVED_WEAPON_ID := &"baseball"
 const WEAPON_BAT := &"bat"
@@ -263,7 +263,7 @@ func get_exit_confirm_message() -> String:
 
 func _on_interaction_triggered(_source: Node, _target: Node) -> void:
 	completed_interactions += 1
-	session_ui_root.set_status("상호작용 완료")
+	session_ui_root.set_status("확인 완료")
 	session_ui_root.set_interaction_count(completed_interactions)
 	EventBus.emit_interaction_completed({"count": completed_interactions})
 	spawn_sample_marker()
@@ -503,7 +503,7 @@ func _on_resume_requested() -> void:
 func _resume_from_pause_modal() -> void:
 	_pause_modal_open = false
 	get_tree().paused = false
-	session_ui_root.set_status("밤런 준비")
+	session_ui_root.set_status("다시 시작")
 
 
 func _request_abandon_from_pause_modal() -> void:
@@ -723,7 +723,7 @@ func _request_abandon_run() -> void:
 		return
 	_paused_before_exit_modal = get_tree().paused
 	get_tree().paused = true
-	session_ui_root.set_status("포기 확인")
+	session_ui_root.set_status("나가기 확인")
 	_confirm_modal.open(
 		ABANDON_RUN_MESSAGE,
 		Callable(self, "_abandon_run_to_school"),
@@ -764,7 +764,7 @@ func _quit_game() -> void:
 
 func _restore_pause_after_exit_modal() -> void:
 	get_tree().paused = _paused_before_exit_modal
-	session_ui_root.set_status("Paused" if get_tree().paused else "Ready")
+	session_ui_root.set_status("일시정지" if get_tree().paused else "준비 완료")
 
 
 func _is_escape_key(event: InputEvent) -> bool:

@@ -31,10 +31,10 @@ const PLATES: Array[String] = [
 
 ## 각 비트: 어떤 플레이트 위에 어떤 자막 줄들을 순서대로 보여줄지.
 const BEATS: Array[Dictionary] = [
-	{"plate": 0, "lines": ["도시가 잠들면,", "깨어나는 것이 있다."]},
-	{"plate": 1, "lines": ["나는 매일 밤, 그 아래로 내려간다.", "지상의 아무도 모르는 곳으로."]},
-	{"plate": 2, "lines": ["오늘 밤은…", "돌아오지 못할지도 몰라."]},
-	{"plate": 3, "lines": ["그래도, 나는 멈추지 않는다.", "밤이 시작된다."]},
+	{"plate": 0, "lines": ["도시가 잠들면,", "어둠 속에서 무언가 깨어난다."]},
+	{"plate": 1, "lines": ["나는 매일 밤, 그 아래로 내려간다.", "아무도 모르는 길을 따라."]},
+	{"plate": 2, "lines": ["오늘 밤은…", "돌아오지 못할지도 모른다."]},
+	{"plate": 3, "lines": ["그래도 나는 멈추지 않는다.", "밤이 시작된다."]},
 ]
 
 var _plate: TextureRect
@@ -168,7 +168,7 @@ func _build_ui() -> void:
 	_hint.anchor_bottom = 0.975
 	_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	_hint.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_hint.text = "탭하여 계속 ▸"
+	_hint.text = "탭해서 계속"
 	_hint.add_theme_font_size_override("font_size", 15)
 	_hint.add_theme_color_override("font_color", Color(0.78, 0.80, 0.86, 0.55))
 	_hint.add_theme_color_override("font_outline_color", Color(0.0, 0.0, 0.0, 0.8))

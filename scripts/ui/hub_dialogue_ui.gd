@@ -10,16 +10,16 @@ const REFERENCE_SIZE := Vector2(844.0, 390.0)
 const DIALOGUE_BAR_HEIGHT := 152.0
 const UNLOCK_POPUP_SIZE := Vector2(338.0, 148.0)
 const UNLOCK_POPUP_CENTER_OFFSET := Vector2(0.0, -58.0)
-const CONTINUE_HINT_TOUCH := "▼ 탭하여 계속 ▼"
+const CONTINUE_HINT_TOUCH := "탭해서 계속"
 const CHOICE_ASK := &"ask"
 const CHOICE_ACCEPT := &"accept"
 const STAGE_STATE_COMPLETED := "completed"
 const STAGE_STATE_CURRENT := "current"
 const STAGE_STATE_LOCKED := "locked"
 const DEFAULT_STAGE_LABELS: Array[String] = [
-	"STAGE 1\n첫만남",
-	"STAGE 2\n훈련후",
-	"STAGE 3\n정화후",
+	"1단계\n첫 만남",
+	"2단계\n훈련 후",
+	"3단계\n정화 후",
 ]
 
 const PANEL_COLOR := Color(0.055, 0.063, 0.086, 0.96)
@@ -80,11 +80,11 @@ func _ready() -> void:
 	_choice_row.set_meta("test_id", "hub_dialogue.choice_row")
 	_apply_landscape_safe_area()
 	_apply_static_styles()
-	set_dialogue("야구부 주장", "\"스윙은 겁먹으면 늦어. 밤의 궁에선 더 그렇겠지.\"", "기억: 손바닥의 희미한 배트 자국")
+	set_dialogue("야구부 주장", "\"겁먹으면 스윙이 늦어. 밤의 궁에서는 더 그렇겠지.\"", "기억: 손바닥에 남은 희미한 배트 자국")
 	set_stage(2)
 	set_choices([
-		{"id": CHOICE_ASK, "text": "물어본다", "emphasized": false},
-		{"id": CHOICE_ACCEPT, "text": "받는다", "emphasized": true},
+		{"id": CHOICE_ASK, "text": "물어보기", "emphasized": false},
+		{"id": CHOICE_ACCEPT, "text": "받기", "emphasized": true},
 	])
 	_unlock_overlay.visible = false
 	_connect_progression_events()
@@ -441,7 +441,7 @@ func _on_unlock_changed(payload: Dictionary) -> void:
 
 
 func _show_awakened_bat_unlock() -> void:
-	show_unlock("마지막 시즌의 배트", "배트가 적탄을 되받아친다", [
+	show_unlock("마지막 시즌의 배트", "적의 탄을 배트로 되받아친다", [
 		{"id": AWAKENED_BAT, "name": "마지막 시즌의 배트", "color": DEFAULT_BAT_COLOR},
 	])
 

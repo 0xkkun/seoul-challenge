@@ -45,13 +45,13 @@ theme_override_constants/separation = 12
 unique_name_in_owner = true
 visible = false
 layout_mode = 2
-text = "기억 무기: 준비중"
+text = "기억 무기: 준비 중"
 
 [node name="SkillSlot" type="Label" parent="Root/StubPanel"]
 unique_name_in_owner = true
 visible = false
 layout_mode = 2
-text = "회피: 준비중"
+text = "회피: 준비 중"
 
 [node name="CurrencyPanel" type="HBoxContainer" parent="Root"]
 layout_mode = 1
