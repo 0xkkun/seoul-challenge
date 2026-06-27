@@ -5,6 +5,7 @@ const LockerMaintenanceScript := preload("res://scripts/ui/locker_maintenance.gd
 const UiTestHarness := preload("res://tests/support/ui_test_harness.gd")
 const MobileSafeArea := preload("res://scripts/ui/mobile_safe_area.gd")
 const DungeonTheme := preload("res://scripts/ui/dungeon_ui_theme.gd")
+const PixelButtonStyle := preload("res://scripts/ui/pixel_button_style.gd")
 
 var _runner: Node
 
@@ -13,9 +14,16 @@ func _set_runner(runner: Node) -> void:
 	_runner = runner
 
 
+func before_each() -> void:
+	SaveManager.reset_profile()
+	ProgressionSystem.reload_profile()
+
+
 func after_each() -> void:
 	SceneTransition.clear_pending_run_config()
 	AudioManager.reset()
+	SaveManager.reset_profile()
+	ProgressionSystem.reload_profile()
 	for child: Node in get_children():
 		remove_child(child)
 		child.free()
@@ -69,6 +77,22 @@ func test_locker_maintenance_uses_dungeon_ui_loadout_hierarchy() -> void:
 	var expected_bottom := 1.0 - (MobileSafeArea.cta_bottom_margin() / MobileSafeArea.DESIGN_VIEWPORT.y)
 	_runner.assert_true(return_button.anchor_bottom <= expected_bottom, "return CTA stays above landscape phone home indicator")
 	_runner.assert_true(departure_button.anchor_bottom <= expected_bottom, "departure CTA stays above landscape phone home indicator")
+
+
+func test_locker_maintenance_shows_awakened_bat_after_lobby_quest() -> void:
+	ProgressionSystem.record_quest_completed(ProgressionSystem.QUEST_BASEBALL_CAPTAIN_LOBBY)
+
+	var screen := LockerMaintenanceScene.instantiate()
+	screen.set("scene_transition_enabled", false)
+	add_child(screen)
+
+	var weapon_name := screen.get_node("BatCard/WeaponShowcase/WeaponName") as Label
+	var weapon_desc := screen.get_node("BatCard/WeaponShowcase/WeaponDesc") as Label
+	var weapon_status := screen.get_node("LoadoutSummaryPanel/WeaponStatusLabel") as Label
+
+	_runner.assert_eq(weapon_name.text, "마지막 시즌의 배트", "quest-completed loadout shows the awakened bat name")
+	_runner.assert_true(weapon_desc.text.contains("되받아친다"), "quest-completed loadout explains the awakened bat effect")
+	_runner.assert_true(weapon_status.text.contains("마지막 시즌의 배트"), "hidden UAT summary mirrors the awakened bat name")
 
 
 func test_locker_maintenance_title_and_subtitle_have_breathing_room() -> void:
