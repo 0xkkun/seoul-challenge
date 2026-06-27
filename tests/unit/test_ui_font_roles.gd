@@ -4,7 +4,6 @@ const UiFontRolesScript := preload("res://scripts/ui/ui_font_roles.gd")
 const SessionUiScene := preload("res://scenes/ui/session_ui_root.tscn")
 const HubDialogueScene := preload("res://scenes/ui/hub_dialogue_ui.tscn")
 const LockerMaintenanceScene := preload("res://scenes/ui/locker_maintenance.tscn")
-const NightMapSelectScene := preload("res://scenes/ui/night_map_select.tscn")
 const SettingsUiScene := preload("res://scenes/ui/settings_ui.tscn")
 const ConfirmModalScene := preload("res://scenes/ui/confirm_modal.tscn")
 const NightIntroCutsceneScript := preload("res://scripts/cutscene/night_intro_cutscene.gd")
@@ -114,7 +113,7 @@ func test_hub_dialogue_uses_title_body_and_pixel_roles() -> void:
 	_assert_font(item_label, &"font", UiFontRolesScript.PIXEL_FONT_PATH, "unlock item label uses pixel font")
 
 
-func test_locker_and_night_map_screens_use_font_roles() -> void:
+func test_locker_screen_uses_font_roles() -> void:
 	var locker = _add_node(LockerMaintenanceScene.instantiate())
 	locker.set("scene_transition_enabled", false)
 	_assert_font(locker.get_node("TitleLabel") as Control, &"font", UiFontRolesScript.TITLE_FONT_PATH, "locker title uses title font")
@@ -122,14 +121,7 @@ func test_locker_and_night_map_screens_use_font_roles() -> void:
 	_assert_font(locker.get_node("WeaponSectionLabel") as Control, &"font", UiFontRolesScript.TITLE_FONT_PATH, "weapon section title uses title font")
 	_assert_font(locker.get_node("BatCard") as Control, &"font", UiFontRolesScript.PIXEL_FONT_PATH, "weapon card uses pixel font")
 	_assert_font(locker.find_child("UpgradeBalanceLabel", true, false) as Control, &"font", UiFontRolesScript.PIXEL_FONT_PATH, "upgrade balance uses pixel font")
-
-	var map = _add_node(NightMapSelectScene.instantiate())
-	map.set("scene_transition_enabled", false)
-	_assert_font(map.get_node("TitleLabel") as Control, &"font", UiFontRolesScript.TITLE_FONT_PATH, "night map title uses title font")
-	_assert_font(map.get_node("SubtitleLabel") as Control, &"font", UiFontRolesScript.BODY_FONT_PATH, "night map subtitle uses body font")
-	_assert_font(map.get_node("RouteMapPanel/MapLabel") as Control, &"font", UiFontRolesScript.BODY_FONT_PATH, "route map copy uses body font")
-	_assert_font(map.get_node("DestinationPanel/DestinationLabel") as Control, &"font", UiFontRolesScript.BODY_FONT_PATH, "destination copy uses body font")
-	_assert_font(map.get_node("GyeongbokgungButton") as Control, &"font", UiFontRolesScript.PIXEL_FONT_PATH, "departure CTA uses pixel font")
+	_assert_font(locker.get_node("GyeongbokgungButton") as Control, &"font", UiFontRolesScript.PIXEL_FONT_PATH, "departure CTA uses pixel font")
 
 
 func test_modal_settings_and_intro_roles() -> void:

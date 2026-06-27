@@ -683,7 +683,7 @@ func test_session_combat_hud_shows_initial_player_health() -> void:
 
 func test_session_root_applies_locker_weapon_config() -> void:
 	GameManager.start_session({
-		"source": "night_map_select",
+		"source": "locker_maintenance",
 		SceneTransition.RUN_CONFIG_SELECTED_WEAPON_ID: &"bat",
 	})
 
@@ -740,7 +740,7 @@ func test_session_player_awakens_bat_on_lobby_quest_not_purify() -> void:
 
 func test_session_root_ignores_removed_baseball_weapon_config() -> void:
 	GameManager.start_session({
-		"source": "night_map_select",
+		"source": "locker_maintenance",
 		SceneTransition.RUN_CONFIG_SELECTED_WEAPON_ID: &"baseball",
 	})
 
