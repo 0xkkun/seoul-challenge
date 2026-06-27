@@ -1,6 +1,10 @@
 extends Node
 
 const WOLF_SCENE_PATH := "res://scenes/enemies/wolf.tscn"
+const WOLF_MOVE_SHEET_PATH := "res://assets/sprites/enemies/wolf/wolf_move.png"
+const WOLF_ATTACK_SHEET_PATH := "res://assets/sprites/enemies/wolf/wolf_attack.png"
+const WOLF_MOVE_SHEET_SHA256 := "c387dce1e93e24cd636ad7a608dbb8e380226c8d5d7cea637eaf1a5f44f6b586"
+const WOLF_ATTACK_SHEET_SHA256 := "bcb494db2673ab595a7b6559532eeac0986a2afbf221eeceb03f934d79734d23"
 const COMBAT_ROOM_SCENE_PATH := "res://scenes/interactables/combat_room.tscn"
 const PlayerScript := preload("res://scripts/player/player.gd")
 const PlayerScene := preload("res://scenes/player/player.tscn")
@@ -20,6 +24,19 @@ class DamageTarget:
 
 func _set_runner(runner: Node) -> void:
 	_runner = runner
+
+
+func test_wolf_png_sources_match_latest_download_assets() -> void:
+	_runner.assert_eq(
+		FileAccess.get_sha256(WOLF_MOVE_SHEET_PATH),
+		WOLF_MOVE_SHEET_SHA256,
+		"wolf move source sheet matches the latest downloaded asset"
+	)
+	_runner.assert_eq(
+		FileAccess.get_sha256(WOLF_ATTACK_SHEET_PATH),
+		WOLF_ATTACK_SHEET_SHA256,
+		"wolf attack source sheet matches the latest downloaded asset"
+	)
 
 
 func test_wolf_scene_uses_5_move_and_6_attack_frames() -> void:
