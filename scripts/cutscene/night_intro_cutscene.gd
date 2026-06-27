@@ -62,6 +62,7 @@ var _advance_requested := false
 var _skip := false
 var _finished := false
 var _started := false
+var _current_transition_sfx_id: StringName = &""
 
 
 func _init() -> void:
@@ -144,6 +145,7 @@ func skip() -> void:
 		return
 	_skip = true
 	_advance_requested = true
+	_stop_transition_sfx()
 	if not _started:
 		_finish()
 
@@ -281,11 +283,22 @@ func _show_plate(plate_index: int, target_alpha: float) -> void:
 	await tween.finished
 
 
-## 시네마틱 전환음. AudioManager(영속 재생)로 틀어 씬 전환 후 밤 세션까지
-## 자연스럽게 이어지게 한다. C·D 비트가 서로 다른 클립을 쓴다.
+## 시네마틱 전환음. 긴 트레일러 클립이라 다음 비트가 시작되면 직전 전환음을
+## 끊고 새 전환음으로 교체해 AB/BC/CD 베드가 겹치지 않게 한다.
 func _play_transition_sfx(sfx_id: StringName) -> void:
 	if has_node("/root/AudioManager"):
+		if _current_transition_sfx_id != &"" and _current_transition_sfx_id != sfx_id:
+			AudioManager.stop_sfx(_current_transition_sfx_id)
+		_current_transition_sfx_id = sfx_id
 		AudioManager.play_sfx(sfx_id)
+
+
+func _stop_transition_sfx() -> void:
+	if _current_transition_sfx_id == &"":
+		return
+	if has_node("/root/AudioManager"):
+		AudioManager.stop_sfx(_current_transition_sfx_id)
+	_current_transition_sfx_id = &""
 
 
 ## 마지막 비트: 자막이 사라지며 경복궁이 가득 드러나고, 잠시 머문 뒤 암전한다.

@@ -90,6 +90,46 @@ func test_intro_transition_sfx_sequence_can_be_played() -> void:
 	)
 
 
+func test_intro_transition_sfx_replaces_previous_bed() -> void:
+	var intro := NightIntroCutsceneScript.new()
+	add_child(intro)
+
+	intro.call("_play_transition_sfx", AudioManager.NIGHT_INTRO_TRANSITION_AB)
+	intro.call("_play_transition_sfx", AudioManager.NIGHT_INTRO_TRANSITION_BC)
+	intro.call("_play_transition_sfx", AudioManager.NIGHT_INTRO_TRANSITION_CD)
+
+	_runner.assert_eq(
+		AudioManager.get_played_sfx(),
+		[
+			AudioManager.NIGHT_INTRO_TRANSITION_AB,
+			AudioManager.NIGHT_INTRO_TRANSITION_BC,
+			AudioManager.NIGHT_INTRO_TRANSITION_CD,
+		],
+		"intro still plays trailer transition SFX in order"
+	)
+	_runner.assert_eq(
+		AudioManager.get_stopped_sfx(),
+		[
+			AudioManager.NIGHT_INTRO_TRANSITION_AB,
+			AudioManager.NIGHT_INTRO_TRANSITION_BC,
+		],
+		"intro stops the previous trailer transition before playing the next one"
+	)
+	intro.queue_free()
+
+
+func test_intro_skip_stops_active_transition_sfx() -> void:
+	var intro := NightIntroCutsceneScript.new()
+	add_child(intro)
+
+	intro.call("_play_transition_sfx", AudioManager.NIGHT_INTRO_TRANSITION_AB)
+	intro.skip()
+
+	_runner.assert_eq(AudioManager.get_stopped_sfx(), [AudioManager.NIGHT_INTRO_TRANSITION_AB], "skip cuts the active trailer transition SFX")
+	_runner.assert_true(intro.is_finished(), "skip still marks the cutscene finished")
+	intro.queue_free()
+
+
 func test_skip_finishes_immediately_before_playing() -> void:
 	var intro := NightIntroCutsceneScript.new()
 	var finished_count := [0]

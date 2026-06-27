@@ -72,6 +72,7 @@ const BGM_GAP_SEC := 3.0
 const BGM_DUCK_DB := -20.0
 
 var _played_sfx: Array[StringName] = []
+var _stopped_sfx: Array[StringName] = []
 var _current_bgm: StringName = &""
 var _current_bgm_path := ""
 var _bgm_player: AudioStreamPlayer
@@ -110,10 +111,23 @@ func play_sfx(id: StringName) -> void:
 	player.name = "SfxPlayer"
 	player.stream = stream
 	player.volume_db = -2.0
+	player.set_meta("sfx_id", id)
 	add_child(player)
 	_sfx_players.append(player)
 	player.finished.connect(_on_sfx_player_finished.bind(player), CONNECT_ONE_SHOT)
 	player.play()
+
+
+func stop_sfx(id: StringName) -> void:
+	if id == &"":
+		return
+	_stopped_sfx.append(id)
+	for player: AudioStreamPlayer in _sfx_players.duplicate():
+		if not is_instance_valid(player):
+			_sfx_players.erase(player)
+			continue
+		if StringName(player.get_meta("sfx_id", &"")) == id:
+			_stop_sfx_player(player)
 
 
 func play_random_session_transition_sfx() -> StringName:
@@ -267,8 +281,13 @@ func get_played_sfx() -> Array[StringName]:
 	return _played_sfx.duplicate()
 
 
+func get_stopped_sfx() -> Array[StringName]:
+	return _stopped_sfx.duplicate()
+
+
 func reset() -> void:
 	_played_sfx.clear()
+	_stopped_sfx.clear()
 	_clear_sfx_players()
 	stop_bgm()
 
@@ -300,10 +319,16 @@ func _on_sfx_player_finished(player: AudioStreamPlayer) -> void:
 
 func _clear_sfx_players() -> void:
 	for player: AudioStreamPlayer in _sfx_players.duplicate():
-		if is_instance_valid(player):
-			player.stop()
-			player.queue_free()
+		_stop_sfx_player(player)
 	_sfx_players.clear()
+
+
+func _stop_sfx_player(player: AudioStreamPlayer) -> void:
+	_sfx_players.erase(player)
+	if not is_instance_valid(player):
+		return
+	player.stop()
+	player.queue_free()
 
 
 func _on_settings_changed(settings: Dictionary) -> void:

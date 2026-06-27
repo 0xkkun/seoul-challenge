@@ -132,6 +132,14 @@ func test_night_intro_trailer_transition_sfx_are_registered() -> void:
 		_runner.assert_not_null(load(stream_path) as AudioStreamMP3, "%s trailer transition SFX loads as MP3" % sfx_id)
 
 
+func test_stop_sfx_records_target_for_headless_contract() -> void:
+	AudioManager.play_sfx(AudioManager.NIGHT_INTRO_TRANSITION_AB)
+	AudioManager.stop_sfx(AudioManager.NIGHT_INTRO_TRANSITION_AB)
+
+	_runner.assert_eq(AudioManager.get_played_sfx(), [AudioManager.NIGHT_INTRO_TRANSITION_AB], "SFX playback remains recorded")
+	_runner.assert_eq(AudioManager.get_stopped_sfx(), [AudioManager.NIGHT_INTRO_TRANSITION_AB], "targeted SFX stop is recorded")
+
+
 func test_dash_wind_sfx_has_immediate_audible_attack() -> void:
 	var dash_path := AudioManager.get_sfx_stream_path(AudioManager.DASH_WIND)
 
