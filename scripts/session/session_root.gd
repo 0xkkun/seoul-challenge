@@ -559,6 +559,8 @@ func _show_room_reward_choices(room_id: StringName) -> void:
 	_release_combat_touch_inputs()
 	_hide_touch_controls_for_reward_choice()
 	get_tree().paused = true
+	if session_ui_root.has_method("set_reward_choice_onboarding_hint"):
+		session_ui_root.call("set_reward_choice_onboarding_hint", _should_show_reward_choice_onboarding(room_id))
 	session_ui_root.call("show_reward_choices", room_id, choices)
 	session_ui_root.set_status("전투 보상")
 
@@ -574,6 +576,8 @@ func _on_reward_choice_selected(item_id: StringName) -> void:
 		applied = bool(actor.call("apply_run_modifier", item_id))
 	if session_ui_root.has_method("hide_reward_choices"):
 		session_ui_root.call("hide_reward_choices")
+	if session_ui_root.has_method("set_reward_choice_onboarding_hint"):
+		session_ui_root.call("set_reward_choice_onboarding_hint", false)
 	get_tree().paused = _paused_before_reward_choice
 	_restore_touch_controls_after_reward_choice()
 	_reset_current_room_door_transition_latches()
@@ -587,6 +591,10 @@ func _on_reward_choice_selected(item_id: StringName) -> void:
 			"item_display_name": MapItemCatalog.get_display_name(item_id),
 			"applied": applied,
 		})
+
+
+func _should_show_reward_choice_onboarding(room_id: StringName) -> bool:
+	return _is_baseball_onboarding_run() and room_id == &"combat_1"
 
 
 func _build_reward_choice_models(room_id: StringName) -> Array[Dictionary]:

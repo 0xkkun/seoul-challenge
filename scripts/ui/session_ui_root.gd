@@ -22,6 +22,10 @@ const REWARD_CHOICE_ROW_OFFSET_BOTTOM := 84.0
 const REWARD_CHOICE_TITLE_TEXT := "방 클리어 보상"
 const REWARD_CHOICE_TITLE_OFFSET_TOP := -170.0
 const REWARD_CHOICE_TITLE_OFFSET_BOTTOM := -124.0
+const REWARD_CHOICE_ONBOARDING_TITLE := "전투 보상"
+const REWARD_CHOICE_ONBOARDING_BODY := "카드 하나를 골라 이번 탐험을 강화"
+const REWARD_CHOICE_ONBOARDING_SIZE := Vector2(560.0, 56.0)
+const REWARD_CHOICE_ONBOARDING_OFFSET_TOP := 116.0
 const REWARD_CHOICE_CARD_SIZE := Vector2(244.0, 146.0)
 const REWARD_CHOICE_CARD_ORNAMENT_HEIGHT := 49.0
 const REWARD_CHOICE_CARD_ORNAMENT_INSET_X := 3.0
@@ -61,11 +65,15 @@ const UNLOCK_LABELS := {
 var _reward_choice_overlay: Control = null
 var _reward_choice_dim: ColorRect = null
 var _reward_choice_title_label: Label = null
+var _reward_choice_onboarding_panel: PanelContainer = null
+var _reward_choice_onboarding_title_label: Label = null
+var _reward_choice_onboarding_body_label: Label = null
 var _reward_choice_row: HBoxContainer = null
 var _reward_choice_cards: Array[Button] = []
 var _reward_choice_room_id: StringName = &""
 var _reward_choice_models: Array[Dictionary] = []
 var _reward_choice_open_tween: Tween = null
+var _reward_choice_onboarding_hint_enabled := false
 
 
 func _ready() -> void:
@@ -241,11 +249,18 @@ func show_reward_choices(room_id: StringName, choices: Array) -> void:
 	_show_reward_choice_overlay_animated()
 
 
+func set_reward_choice_onboarding_hint(enabled: bool) -> void:
+	_reward_choice_onboarding_hint_enabled = enabled
+	_update_reward_choice_onboarding_hint()
+
+
 func hide_reward_choices() -> void:
 	_kill_reward_choice_open_tween()
 	if _reward_choice_overlay != null:
 		_reward_choice_overlay.visible = false
 	_reset_reward_choice_animation_to_rest()
+	_reward_choice_onboarding_hint_enabled = false
+	_update_reward_choice_onboarding_hint()
 
 
 func is_reward_choice_visible() -> bool:
@@ -325,6 +340,10 @@ func get_reward_choice_snapshot() -> Dictionary:
 		"has_outer_panel": false,
 		"has_title": _reward_choice_title_label != null and is_instance_valid(_reward_choice_title_label) and _reward_choice_title_label.text != "",
 		"title": _reward_choice_title_label.text if _reward_choice_title_label != null and is_instance_valid(_reward_choice_title_label) else "",
+		"onboarding_hint_visible": _is_reward_choice_onboarding_hint_visible(),
+		"onboarding_hint_title": _reward_choice_onboarding_title_label.text if _reward_choice_onboarding_title_label != null and is_instance_valid(_reward_choice_onboarding_title_label) else "",
+		"onboarding_hint_body": _reward_choice_onboarding_body_label.text if _reward_choice_onboarding_body_label != null and is_instance_valid(_reward_choice_onboarding_body_label) else "",
+		"onboarding_hint_target_count": _reward_choice_cards.size() if _is_reward_choice_onboarding_hint_visible() else 0,
 	}
 
 
@@ -393,6 +412,59 @@ func _ensure_reward_choice_overlay() -> void:
 	_reward_choice_title_label.offset_bottom = REWARD_CHOICE_TITLE_OFFSET_BOTTOM
 	_reward_choice_overlay.add_child(_reward_choice_title_label)
 
+	_reward_choice_onboarding_panel = PanelContainer.new()
+	_reward_choice_onboarding_panel.name = "RewardChoiceOnboardingHint"
+	_reward_choice_onboarding_panel.visible = false
+	_reward_choice_onboarding_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_reward_choice_onboarding_panel.custom_minimum_size = REWARD_CHOICE_ONBOARDING_SIZE
+	_reward_choice_onboarding_panel.anchor_left = 0.5
+	_reward_choice_onboarding_panel.anchor_top = 0.5
+	_reward_choice_onboarding_panel.anchor_right = 0.5
+	_reward_choice_onboarding_panel.anchor_bottom = 0.5
+	_reward_choice_onboarding_panel.offset_left = -REWARD_CHOICE_ONBOARDING_SIZE.x * 0.5
+	_reward_choice_onboarding_panel.offset_top = REWARD_CHOICE_ONBOARDING_OFFSET_TOP
+	_reward_choice_onboarding_panel.offset_right = REWARD_CHOICE_ONBOARDING_SIZE.x * 0.5
+	_reward_choice_onboarding_panel.offset_bottom = REWARD_CHOICE_ONBOARDING_OFFSET_TOP + REWARD_CHOICE_ONBOARDING_SIZE.y
+	_reward_choice_onboarding_panel.add_theme_stylebox_override("panel", _reward_choice_onboarding_hint_style())
+	_reward_choice_overlay.add_child(_reward_choice_onboarding_panel)
+
+	var hint_margin := MarginContainer.new()
+	hint_margin.name = "RewardChoiceOnboardingMargin"
+	hint_margin.add_theme_constant_override("margin_left", 16)
+	hint_margin.add_theme_constant_override("margin_top", 8)
+	hint_margin.add_theme_constant_override("margin_right", 16)
+	hint_margin.add_theme_constant_override("margin_bottom", 8)
+	_reward_choice_onboarding_panel.add_child(hint_margin)
+
+	var hint_stack := VBoxContainer.new()
+	hint_stack.name = "RewardChoiceOnboardingText"
+	hint_stack.add_theme_constant_override("separation", 0)
+	hint_margin.add_child(hint_stack)
+
+	_reward_choice_onboarding_title_label = Label.new()
+	_reward_choice_onboarding_title_label.name = "RewardChoiceOnboardingTitle"
+	_reward_choice_onboarding_title_label.text = REWARD_CHOICE_ONBOARDING_TITLE
+	_reward_choice_onboarding_title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_reward_choice_onboarding_title_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_reward_choice_onboarding_title_label.add_theme_font_size_override("font_size", 17)
+	FontRoles.apply_title(_reward_choice_onboarding_title_label)
+	_reward_choice_onboarding_title_label.add_theme_color_override("font_color", Color(1.0, 0.88, 0.36, 1.0))
+	_reward_choice_onboarding_title_label.add_theme_color_override("font_outline_color", Color(0.0, 0.0, 0.0, 0.82))
+	_reward_choice_onboarding_title_label.add_theme_constant_override("outline_size", 2)
+	_reward_choice_onboarding_title_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hint_stack.add_child(_reward_choice_onboarding_title_label)
+
+	_reward_choice_onboarding_body_label = Label.new()
+	_reward_choice_onboarding_body_label.name = "RewardChoiceOnboardingBody"
+	_reward_choice_onboarding_body_label.text = REWARD_CHOICE_ONBOARDING_BODY
+	_reward_choice_onboarding_body_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_reward_choice_onboarding_body_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_reward_choice_onboarding_body_label.add_theme_font_size_override("font_size", 14)
+	FontRoles.apply_pixel(_reward_choice_onboarding_body_label)
+	_reward_choice_onboarding_body_label.add_theme_color_override("font_color", Color(0.92, 0.94, 0.98, 1.0))
+	_reward_choice_onboarding_body_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hint_stack.add_child(_reward_choice_onboarding_body_label)
+
 	_reward_choice_row = HBoxContainer.new()
 	_reward_choice_row.name = "RewardChoiceRow"
 	_reward_choice_row.add_theme_constant_override("separation", 12)
@@ -416,6 +488,7 @@ func _show_reward_choice_overlay_animated() -> void:
 	for card: Button in _reward_choice_cards:
 		card.modulate.a = 0.0
 		card.scale = REWARD_CHOICE_CARD_START_SCALE
+	_update_reward_choice_onboarding_hint()
 
 	_reward_choice_open_tween = create_tween()
 	_reward_choice_open_tween.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
@@ -447,6 +520,7 @@ func _reset_reward_choice_animation_to_rest() -> void:
 	if _reward_choice_title_label != null:
 		_reward_choice_title_label.text = REWARD_CHOICE_TITLE_TEXT
 		_reward_choice_title_label.modulate.a = 1.0
+	_update_reward_choice_onboarding_hint()
 
 
 func _render_reward_choices() -> void:
@@ -473,6 +547,25 @@ func _render_reward_choices() -> void:
 		_add_reward_choice_card_content(button, display_name, effect)
 		_reward_choice_row.add_child(button)
 		_reward_choice_cards.append(button)
+	_update_reward_choice_onboarding_hint()
+
+
+func _update_reward_choice_onboarding_hint() -> void:
+	if _reward_choice_onboarding_panel == null or not is_instance_valid(_reward_choice_onboarding_panel):
+		return
+	_reward_choice_onboarding_panel.visible = (
+		_reward_choice_onboarding_hint_enabled
+		and is_reward_choice_visible()
+		and not _reward_choice_cards.is_empty()
+	)
+
+
+func _is_reward_choice_onboarding_hint_visible() -> bool:
+	return (
+		_reward_choice_onboarding_panel != null
+		and is_instance_valid(_reward_choice_onboarding_panel)
+		and _reward_choice_onboarding_panel.visible
+	)
 
 
 func _add_reward_choice_card_content(button: Button, display_name: String, effect: String) -> void:
@@ -605,6 +698,17 @@ func _apply_reward_choice_card_style(button: Button) -> void:
 	button.add_theme_color_override("font_focus_color", Color(1.0, 0.984314, 0.878431, 1.0))
 	button.add_theme_color_override("font_pressed_color", Color(0.831373, 0.705882, 0.388235, 1.0))
 	button.add_theme_color_override("font_disabled_color", Color(0.72, 0.67, 0.52, 1.0))
+
+
+func _reward_choice_onboarding_hint_style() -> StyleBoxFlat:
+	return DungeonUiTheme.panel_style(
+		Color(0.045, 0.055, 0.075, 0.9),
+		DungeonUiTheme.COLOR_GOLD_DIM,
+		2,
+		10.0,
+		8.0,
+		6
+	)
 
 
 func _reward_choice_card_snapshot_text(card: Button) -> String:
