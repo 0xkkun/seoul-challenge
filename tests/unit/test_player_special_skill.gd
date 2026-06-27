@@ -121,7 +121,11 @@ func test_spent_dodge_charge_recharges_and_becomes_usable_again() -> void:
 
 	_runner.assert_true(player.try_start_special_skill(Vector2.RIGHT), "last available dodge starts")
 	_runner.assert_eq(player.special_skill_uses_remaining, 0, "dodge can spend the last charge")
-	_runner.assert_true(is_equal_approx(player.get_special_recharge_remaining(), 0.2), "spending a charge starts recharge")
+
+	player._process_special_skill(0.2, Vector2.ZERO)
+
+	_runner.assert_eq(player.special_skill_uses_remaining, 0, "lockout completion does not instantly recharge the spent dodge")
+	_runner.assert_true(is_equal_approx(player.get_special_recharge_remaining(), 0.2), "recharge starts after the use lockout")
 
 	player._process_special_skill(0.2, Vector2.ZERO)
 
@@ -136,6 +140,28 @@ func test_spent_dodge_charge_recharges_and_becomes_usable_again() -> void:
 
 	_runner.assert_eq(player.special_skill_uses_remaining, 2, "unused recharge continues back to full")
 	_runner.assert_true(is_equal_approx(player.get_special_recharge_remaining(), 0.0), "full dodge charges stop recharge")
+
+
+func test_dodge_recharge_waits_for_lockout_so_extra_charges_can_deplete() -> void:
+	var player = PlayerScript.new()
+	add_child(player)
+	player.special_skill_max_uses = 2
+	player.special_skill_uses_remaining = 2
+	player.special_skill_cooldown = 0.2
+	player.dodge_duration = 0.0
+	player.dodge_invuln_time = 0.0
+
+	_runner.assert_true(player.try_start_special_skill(Vector2.RIGHT), "first dodge starts from full")
+	_runner.assert_eq(player.special_skill_uses_remaining, 1, "first dodge spends one charge")
+
+	player._process_special_skill(0.2, Vector2.ZERO)
+
+	_runner.assert_eq(player.special_skill_uses_remaining, 1, "spent charge does not refill as soon as next dodge is available")
+	_runner.assert_true(player.can_use_special_skill(
+		player.special_skill_uses_remaining,
+		player.get_special_cooldown_remaining(),
+		player.is_dodging()
+	), "remaining charge can still be spent after lockout")
 
 
 func test_start_dodge_opens_dash_power_attack_window() -> void:
