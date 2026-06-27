@@ -10,14 +10,17 @@ signal retry_requested
 signal reward_choice_selected(item_id: StringName)
 
 const DEFAULT_MEMORY_REWARD_PER_ROOM := 1
+const DEFAULT_MAP_NAME := "경복궁"
+const MAP_TAB_TEST_ID := "session.map_tab"
+const MAP_TAB_ACTION := "session.map_tab"
 const UNLOCK_LABELS := {
 	&"baseball_stage_3": "야구부 STAGE 3",
 	&"awakened_bat": "마지막 시즌의 배트",
 }
 
+@onready var map_tab_button: Button = %MapTabButton
 @onready var status_label: Label = %StatusLabel
 @onready var interaction_label: Label = %InteractionLabel
-@onready var action_panel: Control = %ActionPanel
 @onready var summary_overlay: Control = %SummaryOverlay
 @onready var result_title_label: Label = %ResultTitleLabel
 @onready var narrative_label: Label = %NarrativeLabel
@@ -28,9 +31,6 @@ const UNLOCK_LABELS := {
 @onready var rooms_record_label: Label = %RoomsRecordLabel
 @onready var unlocks_record_panel: PanelContainer = %UnlocksRecordPanel
 @onready var unlocks_record_label: Label = %UnlocksRecordLabel
-@onready var pause_button: Button = %PauseButton
-@onready var resume_button: Button = %ResumeButton
-@onready var finish_button: Button = %FinishButton
 @onready var return_button: Button = %ReturnButton
 @onready var retry_button: Button = %RetryButton
 
@@ -44,23 +44,18 @@ func _ready() -> void:
 	layer = RenderLayers.UI_SESSION_LAYER
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	_ensure_reward_choice_overlay()
-	pause_button.set_meta("test_id", "session.pause_button")
-	pause_button.set_meta("uat_action", "session.pause")
-	resume_button.set_meta("test_id", "session.resume_button")
-	resume_button.set_meta("uat_action", "session.resume")
-	finish_button.set_meta("test_id", "session.finish_button")
-	finish_button.set_meta("uat_action", "session.finish")
+	map_tab_button.set_meta("test_id", MAP_TAB_TEST_ID)
+	map_tab_button.set_meta("uat_action", MAP_TAB_ACTION)
 	return_button.set_meta("test_id", "session.return_button")
 	return_button.set_meta("uat_action", "session.return_to_school")
 	retry_button.set_meta("test_id", "session.retry_button")
 	retry_button.set_meta("uat_action", "session.retry")
 	_apply_button_styles()
 	_apply_result_panel_styles()
-	pause_button.pressed.connect(_on_pause_button_pressed)
-	resume_button.pressed.connect(_on_resume_button_pressed)
-	finish_button.pressed.connect(_on_finish_button_pressed)
+	map_tab_button.pressed.connect(_on_map_tab_button_pressed)
 	return_button.pressed.connect(_on_return_button_pressed)
 	retry_button.pressed.connect(_on_retry_button_pressed)
+	set_map_name(DEFAULT_MAP_NAME)
 	set_status("밤런 준비")
 	set_interaction_count(0)
 	show_summary({})
@@ -94,6 +89,15 @@ func set_status(text: String) -> void:
 	status_label.text = text
 
 
+func set_map_name(text: String) -> void:
+	var map_name := text.strip_edges()
+	map_tab_button.text = map_name if map_name != "" else DEFAULT_MAP_NAME
+
+
+func get_map_name() -> String:
+	return map_tab_button.text
+
+
 func set_interaction_count(count: int) -> void:
 	interaction_label.text = "진행 %d" % count
 
@@ -101,7 +105,6 @@ func set_interaction_count(count: int) -> void:
 func show_summary(result: Dictionary) -> void:
 	if result.is_empty():
 		summary_overlay.visible = false
-		action_panel.visible = not is_reward_choice_visible()
 		return
 
 	var summary := _build_summary(result)
@@ -116,7 +119,6 @@ func show_summary(result: Dictionary) -> void:
 	unlocks_record_panel.visible = not unlock_labels.is_empty()
 	unlocks_record_label.text = "해금 %s" % " / ".join(unlock_labels) if not unlock_labels.is_empty() else ""
 	summary_overlay.visible = true
-	action_panel.visible = false
 	hide_reward_choices()
 
 
@@ -146,18 +148,19 @@ func show_reward_choices(room_id: StringName, choices: Array) -> void:
 		_reward_choice_models.append(choice.duplicate(true))
 	_render_reward_choices()
 	_reward_choice_overlay.visible = not _reward_choice_models.is_empty()
-	action_panel.visible = not _reward_choice_overlay.visible and not summary_overlay.visible
 
 
 func hide_reward_choices() -> void:
 	if _reward_choice_overlay != null:
 		_reward_choice_overlay.visible = false
-	if not summary_overlay.visible:
-		action_panel.visible = true
 
 
 func is_reward_choice_visible() -> bool:
 	return _reward_choice_overlay != null and _reward_choice_overlay.visible
+
+
+func is_action_panel_visible() -> bool:
+	return false
 
 
 func select_reward_choice(item_id: StringName) -> bool:
@@ -193,9 +196,7 @@ func get_reward_choice_snapshot() -> Dictionary:
 
 
 func _apply_button_styles() -> void:
-	PixelButtonStyle.apply(pause_button, PixelButtonStyle.VARIANT_SECONDARY, Vector2(0.0, 58.0))
-	PixelButtonStyle.apply(resume_button, PixelButtonStyle.VARIANT_PRIMARY, Vector2(0.0, 58.0))
-	PixelButtonStyle.apply(finish_button, PixelButtonStyle.VARIANT_DANGER, Vector2(0.0, 58.0))
+	PixelButtonStyle.apply(map_tab_button, PixelButtonStyle.VARIANT_PRIMARY, Vector2(144.0, 50.0))
 	PixelButtonStyle.apply(return_button, PixelButtonStyle.VARIANT_PRIMARY, Vector2(0.0, 58.0))
 	PixelButtonStyle.apply(retry_button, PixelButtonStyle.VARIANT_SECONDARY, Vector2(0.0, 58.0))
 
@@ -445,16 +446,11 @@ func _non_negative_int(value: Variant) -> int:
 	return maxi(0, parsed)
 
 
-func _on_pause_button_pressed() -> void:
-	pause_requested.emit()
-
-
-func _on_resume_button_pressed() -> void:
-	resume_requested.emit()
-
-
-func _on_finish_button_pressed() -> void:
-	finish_requested.emit()
+func _on_map_tab_button_pressed() -> void:
+	if get_tree().paused:
+		resume_requested.emit()
+	else:
+		pause_requested.emit()
 
 
 func _on_return_button_pressed() -> void:
