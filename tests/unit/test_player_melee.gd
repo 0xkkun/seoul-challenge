@@ -546,7 +546,7 @@ func test_attack_dust_state_places_effect_behind_facing_at_feet() -> void:
 	var right_state: Dictionary = player.call(
 		"build_attack_dust_effect_state",
 		Vector2.RIGHT,
-		Vector2(48.0, 72.0),
+		Vector2(960.0, 1440.0),
 		72.0,
 		26.0,
 		16.0
@@ -554,7 +554,7 @@ func test_attack_dust_state_places_effect_behind_facing_at_feet() -> void:
 	var up_state: Dictionary = player.call(
 		"build_attack_dust_effect_state",
 		Vector2.UP,
-		Vector2(48.0, 72.0),
+		Vector2(960.0, 1440.0),
 		72.0,
 		26.0,
 		16.0
@@ -563,8 +563,31 @@ func test_attack_dust_state_places_effect_behind_facing_at_feet() -> void:
 	_runner.assert_true((right_state["position"] as Vector2).x < 0.0, "right-facing attack places dust behind the player")
 	_runner.assert_true(is_equal_approx((right_state["position"] as Vector2).y, 16.0), "dust keeps a foot-level downward offset")
 	_runner.assert_true(is_equal_approx(float(right_state["rotation"]), Vector2.LEFT.angle()), "dust points toward the opposite direction")
-	_runner.assert_true(is_equal_approx((right_state["scale"] as Vector2).x, 1.0), "dust uses pre-scaled runtime frames without texture minification")
+	_runner.assert_true(is_equal_approx((right_state["scale"] as Vector2).x, 72.0 / 1440.0), "dust scales the high-resolution source frame to gameplay size")
 	_runner.assert_true((up_state["position"] as Vector2).y > 16.0, "up-facing attack places dust below the player")
+	player.free()
+
+
+func test_attack_dust_diagonal_rotation_snaps_to_cardinal_angles() -> void:
+	var player = PlayerScript.new()
+	_runner.assert_true(player.has_method("build_attack_dust_effect_state"), "player exposes pure attack dust placement helper")
+	if not player.has_method("build_attack_dust_effect_state"):
+		player.free()
+		return
+
+	var diagonal_state: Dictionary = player.call(
+		"build_attack_dust_effect_state",
+		Vector2(1.0, 1.0),
+		Vector2(960.0, 1440.0),
+		72.0,
+		26.0,
+		16.0
+	)
+	var position := diagonal_state["position"] as Vector2
+	var rotation := float(diagonal_state["rotation"])
+
+	_runner.assert_true(position.x < 0.0 and position.y < 16.0, "diagonal attack still places dust behind the facing direction")
+	_runner.assert_true(_is_cardinal_rotation(rotation), "diagonal attack dust snaps rotation to 90-degree angles to avoid nearest-filter mosaic")
 	player.free()
 
 
@@ -595,13 +618,12 @@ func test_player_scene_includes_hidden_attack_dust_effect() -> void:
 			_runner.assert_not_null(dust_sprite.sprite_frames, "attack dust has SpriteFrames")
 			if dust_sprite.sprite_frames != null:
 				_runner.assert_eq(dust_sprite.sprite_frames.get_frame_count(&"burst"), 17, "attack dust sheet uses the 17 non-empty frames")
-				var first_frame := dust_sprite.sprite_frames.get_frame_texture(&"burst", 0) as AtlasTexture
-				_runner.assert_not_null(first_frame, "attack dust frames use atlas regions")
+				var first_frame := dust_sprite.sprite_frames.get_frame_texture(&"burst", 0)
+				_runner.assert_not_null(first_frame, "attack dust has a first texture frame")
 				if first_frame != null:
-					_runner.assert_eq(first_frame.atlas.resource_path, "res://assets/effects/attack_reverse_dust.png", "attack dust uses the supplied asset")
-					_runner.assert_eq(first_frame.atlas.get_width(), 816, "attack dust atlas is pre-scaled to runtime size")
-					_runner.assert_eq(first_frame.atlas.get_height(), 72, "attack dust atlas avoids runtime minification")
-					_runner.assert_eq(first_frame.region.size, Vector2(48.0, 72.0), "attack dust frame size matches the runtime sheet")
+					_runner.assert_eq(first_frame.resource_path, "res://assets/effects/attack_reverse_dust/frame_00.png", "attack dust uses individual high-resolution frames")
+					_runner.assert_eq(first_frame.get_width(), 960, "attack dust frame keeps the original source width")
+					_runner.assert_eq(first_frame.get_height(), 1440, "attack dust frame keeps the original source height")
 
 
 func test_moving_attack_shows_dust_behind_facing() -> void:
@@ -687,3 +709,9 @@ func _has_property(node: Object, property_name: String) -> bool:
 		if String(property.get("name", "")) == property_name:
 			return true
 	return false
+
+
+func _is_cardinal_rotation(rotation: float) -> bool:
+	var quarter_turn := PI * 0.5
+	var snapped := roundf(rotation / quarter_turn) * quarter_turn
+	return is_equal_approx(rotation, snapped)

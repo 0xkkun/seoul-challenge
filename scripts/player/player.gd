@@ -10,7 +10,7 @@ const HitReactionController = preload("res://scripts/combat/hit_reaction_control
 const StatusEffectController = preload("res://scripts/combat/status_effect_controller.gd")
 const MetaUpgradeCatalog = preload("res://scripts/items/meta_upgrade_catalog.gd")
 const SLASH_FRAME_WIDTH := 64.0
-const ATTACK_DUST_FRAME_SIZE := Vector2(48.0, 72.0)
+const ATTACK_DUST_FRAME_SIZE := Vector2(960.0, 1440.0)
 const BAT_SLASH_VISUAL_SCALE := 1.18
 const POWER_SLASH_VISUAL_SCALE := 1.35
 const WEAPON_NAME_BARE_HANDS := "맨손"
@@ -50,7 +50,7 @@ signal run_modifiers_changed(payload: Dictionary)
 @export var swing_visual_time: float = 0.12  ## 휘두르기 시각 표시 시간 (s)
 @export var bat_swing_visual_time: float = 0.16  ## 배트 초승달 슬래시 표시 시간(s)
 @export var power_impact_visual_time: float = 0.18  ## 강공격 이펙트 재생 시간(s)
-@export var attack_dust_visual_height: float = 72.0  ## 사전 축소된 먼지 프레임의 발밑 표시 높이(px)
+@export var attack_dust_visual_height: float = 72.0  ## 큰 원본 먼지 프레임을 발밑 크기로 축소
 @export var attack_dust_back_offset: float = 26.0  ## 바라보는 방향의 반대쪽 발밑 거리(px)
 @export var attack_dust_foot_offset: float = 16.0  ## 캐릭터 중심에서 발밑으로 내리는 오프셋(px)
 @export var attack_dust_move_threshold: float = 0.1
@@ -1041,14 +1041,20 @@ func build_attack_dust_effect_state(
 	var opposite_dir := -safe_dir
 	var safe_frame_height := maxf(1.0, frame_size.y)
 	var scale_value := maxf(0.001, visual_height / safe_frame_height)
-	var rotation := opposite_dir.angle()
-	if is_equal_approx(rotation, -PI):
-		rotation = PI
+	var rotation := snap_attack_dust_rotation(opposite_dir.angle())
 	return {
 		"position": opposite_dir * maxf(0.0, back_offset) + Vector2(0.0, foot_offset),
 		"rotation": rotation,
 		"scale": Vector2(scale_value, scale_value),
 	}
+
+
+func snap_attack_dust_rotation(rotation: float) -> float:
+	var quarter_turn := PI * 0.5
+	var snapped := roundf(rotation / quarter_turn) * quarter_turn
+	if is_equal_approx(snapped, -PI):
+		return PI
+	return snapped
 
 
 func _show_attack_dust(dir: Vector2, move_input: Vector2) -> void:
