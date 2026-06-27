@@ -114,6 +114,32 @@ func test_day_corridor_character_animates_and_flips_with_side_movement() -> void
 	_runner.assert_true(sprite.position.y != idle_start_y, "idle applies a small vertical motion")
 
 
+func test_day_corridor_swaps_to_idle_sheet_when_standing() -> void:
+	var scene := DayCorridorScene.instantiate()
+	add_child(scene)
+
+	var player: CharacterBody2D = scene.get_node("%Player")
+	var sprite: Sprite2D = scene.get_node("%CharacterSprite")
+	var idle_texture: Texture2D = scene.get("character_idle_texture")
+	_runner.assert_not_null(idle_texture, "scene wires a dedicated idle sheet")
+
+	# 이동 중에는 걷기 시트(8프레임).
+	player.velocity.x = 80.0
+	scene.call("_update_character_sprite", 0.2)
+	_runner.assert_eq(sprite.hframes, 8, "moving uses the 8-frame walking sheet")
+
+	# 멈추면 idle 전용 시트(7프레임)로 스왑.
+	player.velocity.x = 0.0
+	scene.call("_update_character_sprite", 0.1)
+	_runner.assert_eq(sprite.texture, idle_texture, "standing swaps to the idle sheet")
+	_runner.assert_eq(sprite.hframes, 7, "idle sheet exposes its 7 frames")
+
+	# 다시 이동하면 걷기 시트로 복귀.
+	player.velocity.x = 80.0
+	scene.call("_update_character_sprite", 0.1)
+	_runner.assert_eq(sprite.hframes, 8, "moving again restores the walking sheet")
+
+
 func test_day_corridor_internal_edges_fade_between_corridor_rooms() -> void:
 	var scene := DayCorridorScene.instantiate()
 	scene.room_transition_fade_time = 0.0
