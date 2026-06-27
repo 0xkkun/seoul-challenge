@@ -56,7 +56,7 @@ PROJECT_NEEDLES = {
 
 ANDROID_EXPORT_NEEDLES = {
     "android preset": 'name="Android"',
-    "debug package": 'package/unique_name="com.oxkkun.seoulchallenge.debug"',
+    "debug package": 'package/unique_name="com.oxkkun.afterschool.debug"',
     "vibrate permission": '"android.permission.VIBRATE"',
 }
 
