@@ -41,6 +41,7 @@ const REWARD_CHOICE_DELAY_SECONDS := 1.0
 @onready var touch_controls: Node = %TouchControls
 @onready var combat_hud: CanvasLayer = %CombatHud
 @onready var session_ui_root: CanvasLayer = %SessionUIRoot
+@onready var ingame_control_onboarding: CanvasLayer = %IngameControlOnboarding
 @onready var player_camera: Camera2D = %PlayerCamera
 @onready var _fade_rect: ColorRect = $FadeLayer/FadeRect
 @onready var _minimap: Control = $MinimapLayer/Minimap
@@ -78,6 +79,7 @@ func _ready() -> void:
 	PoolManager.register_scene(&"sample_marker", POOLED_MARKER_SCENE, 1, pooled_object_layer)
 	interaction_system.configure(actor, self)
 	_configure_player_camera()
+	_configure_ingame_control_onboarding()
 	death_return_controller.death_result_builder_callable = Callable(self, "_build_death_result")
 	death_return_controller.game_over_callable = Callable(self, "_show_death_summary")
 	_connect_progression_events()
@@ -123,6 +125,17 @@ func _keep_combat_health_below_map_tab() -> void:
 		return
 	health_panel.offset_top = target_top
 	health_panel.offset_bottom = target_top + health_height
+
+
+func _configure_ingame_control_onboarding() -> void:
+	if ingame_control_onboarding == null:
+		return
+	if ingame_control_onboarding.has_method("configure"):
+		ingame_control_onboarding.call("configure", touch_controls, player_camera, actor)
+	if _is_baseball_onboarding_run() and ingame_control_onboarding.has_method("start"):
+		ingame_control_onboarding.call("start")
+	else:
+		ingame_control_onboarding.visible = false
 
 
 func _exit_tree() -> void:

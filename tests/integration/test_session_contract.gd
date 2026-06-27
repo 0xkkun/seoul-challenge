@@ -152,6 +152,54 @@ func test_session_root_uses_three_room_baseball_onboarding_layout() -> void:
 	session.queue_free()
 
 
+func test_session_starts_control_onboarding_only_for_first_baseball_run() -> void:
+	GameManager.start_session({
+		"source": "intro",
+		"stage_id": &"gyeongbokgung",
+		"stage_name": "경복궁",
+		SceneTransition.RUN_CONFIG_ONBOARDING_KIND: SceneTransition.ONBOARDING_KIND_BASEBALL_CAPTAIN,
+	})
+	var packed := load("res://scenes/session/session_root.tscn") as PackedScene
+	var onboarding_session := packed.instantiate()
+	add_child(onboarding_session)
+
+	var onboarding := onboarding_session.get_node_or_null("%IngameControlOnboarding") as CanvasLayer
+	var player_camera := onboarding_session.get_node("%PlayerCamera") as Camera2D
+	var touch_controls := onboarding_session.get_node("%TouchControls") as CanvasLayer
+	_runner.assert_not_null(onboarding, "session mounts the in-game control onboarding layer")
+	if onboarding != null:
+		_runner.assert_true(onboarding.has_method("is_active"), "control onboarding exposes active state")
+		_runner.assert_true(onboarding.has_method("get_current_step_snapshot"), "control onboarding exposes current step state")
+		if onboarding.has_method("is_active"):
+			_runner.assert_true(bool(onboarding.call("is_active")), "first baseball onboarding run starts control onboarding")
+		if onboarding.has_method("get_current_step_snapshot"):
+			var snapshot: Dictionary = onboarding.call("get_current_step_snapshot")
+			_runner.assert_eq(snapshot.get("step_id"), &"move", "control onboarding starts by teaching movement")
+			_runner.assert_eq(snapshot.get("target_names", []), ["Joystick"], "movement step highlights the left joystick")
+			_runner.assert_true(float(snapshot.get("dim_alpha", 0.0)) > 0.0, "movement step dims non-target gameplay")
+	_runner.assert_false(get_tree().paused, "control onboarding does not pause first-room input")
+	_runner.assert_true(touch_controls.visible, "control onboarding leaves touch controls usable")
+	_runner.assert_true(player_camera.zoom.x > 1.0, "control onboarding applies a subtle camera zoom-in")
+
+	onboarding_session.queue_free()
+	GameManager.reset_session()
+
+	GameManager.start_session({
+		"source": "regular_run",
+		SceneTransition.RUN_CONFIG_LAYOUT_SEED: 40,
+	})
+	var regular_session := packed.instantiate()
+	add_child(regular_session)
+	var regular_onboarding := regular_session.get_node_or_null("%IngameControlOnboarding") as CanvasLayer
+	var regular_camera := regular_session.get_node("%PlayerCamera") as Camera2D
+	_runner.assert_not_null(regular_onboarding, "regular session still mounts the reusable onboarding layer")
+	if regular_onboarding != null and regular_onboarding.has_method("is_active"):
+		_runner.assert_false(bool(regular_onboarding.call("is_active")), "regular runs do not auto-show first control onboarding")
+	_runner.assert_true(regular_camera.zoom.is_equal_approx(Vector2.ONE), "regular runs keep the native camera zoom")
+
+	regular_session.queue_free()
+
+
 func test_generated_session_rooms_never_enter_empty_uncleared_state() -> void:
 	var packed := load("res://scenes/session/session_root.tscn") as PackedScene
 

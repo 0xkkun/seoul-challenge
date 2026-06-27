@@ -5,6 +5,7 @@ const JoystickScript := preload("res://scripts/ui/virtual_joystick.gd")
 const PlayerScript := preload("res://scripts/player/player.gd")
 const TouchControlsScene := preload("res://scenes/ui/touch_controls.tscn")
 const MobileSafeArea := preload("res://scripts/ui/mobile_safe_area.gd")
+const INGAME_CONTROL_ONBOARDING_SCRIPT_PATH := "res://scripts/ui/ingame_control_onboarding.gd"
 
 var _runner: Node
 
@@ -32,6 +33,67 @@ func test_joystick_deadzone_returns_zero() -> void:
 	var v: Vector2 = j.compute_value(Vector2(5.0, 0.0), 90.0, 0.18)
 	_runner.assert_true(v == Vector2.ZERO, "데드존 이하 → ZERO")
 	j.free()
+
+
+func test_ingame_control_onboarding_contract_teaches_mobile_combat_inputs() -> void:
+	_runner.assert_true(ResourceLoader.exists(INGAME_CONTROL_ONBOARDING_SCRIPT_PATH), "인게임 조작 온보딩 스크립트가 존재한다")
+	if not ResourceLoader.exists(INGAME_CONTROL_ONBOARDING_SCRIPT_PATH):
+		return
+	var script := load(INGAME_CONTROL_ONBOARDING_SCRIPT_PATH) as Script
+	var onboarding := script.new() as CanvasLayer
+	add_child(onboarding)
+
+	_runner.assert_true(onboarding.has_method("get_visual_contract"), "조작 온보딩은 테스트 가능한 시각 계약을 노출한다")
+	if onboarding.has_method("get_visual_contract"):
+		var contract: Dictionary = onboarding.call("get_visual_contract")
+		_runner.assert_eq(contract.get("flow"), &"first_ingame_controls", "온보딩 flow id는 안정적이다")
+		_runner.assert_eq(bool(contract.get("blocks_gameplay", true)), false, "조작 온보딩은 실제 입력을 막지 않는다")
+		_runner.assert_eq(bool(contract.get("uses_dim_cutout", false)), true, "대상 외 화면은 dim 처리하고 대상은 cutout으로 남긴다")
+		_runner.assert_true(float(contract.get("dim_alpha", 0.0)) >= 0.45, "dim alpha는 주변을 충분히 낮춘다")
+		_runner.assert_true(float(contract.get("camera_zoom_target", 1.0)) > 1.0, "첫 조작 안내 중 카메라는 살짝 줌인한다")
+		_runner.assert_eq(contract.get("step_ids", []), [&"move", &"attack", &"dash", &"power_attack"], "이동, 기본공격, 대쉬, 강공격 순서로 안내한다")
+		_runner.assert_eq(contract.get("step_target_names", []), [
+			["Joystick"],
+			["AttackButton"],
+			["SkillButton"],
+			["SkillButton", "AttackButton"],
+		], "각 단계는 실제 터치 컨트롤 노드를 타겟으로 삼는다")
+	onboarding.queue_free()
+
+
+func test_ingame_control_onboarding_advances_with_actual_touch_input_state() -> void:
+	_runner.assert_true(ResourceLoader.exists(INGAME_CONTROL_ONBOARDING_SCRIPT_PATH), "인게임 조작 온보딩 스크립트가 존재한다")
+	if not ResourceLoader.exists(INGAME_CONTROL_ONBOARDING_SCRIPT_PATH):
+		return
+	var script := load(INGAME_CONTROL_ONBOARDING_SCRIPT_PATH) as Script
+	var touch := TouchControlsScene.instantiate()
+	var onboarding := script.new() as CanvasLayer
+	add_child(touch)
+	add_child(onboarding)
+
+	_runner.assert_true(onboarding.has_method("configure"), "조작 온보딩은 터치 컨트롤을 주입받는다")
+	_runner.assert_true(onboarding.has_method("start"), "조작 온보딩은 명시적으로 시작할 수 있다")
+	_runner.assert_true(onboarding.has_method("advance_from_input"), "조작 온보딩은 실제 입력 상태로 진행된다")
+	_runner.assert_true(onboarding.has_method("get_current_step_snapshot"), "조작 온보딩은 현재 단계 snapshot을 노출한다")
+	if not onboarding.has_method("configure") or not onboarding.has_method("start") or not onboarding.has_method("advance_from_input") or not onboarding.has_method("get_current_step_snapshot"):
+		touch.queue_free()
+		onboarding.queue_free()
+		return
+
+	onboarding.call("configure", touch, null, null)
+	onboarding.call("start")
+	_assert_onboarding_step(onboarding, &"move", ["Joystick"])
+	onboarding.call("advance_from_input", {"move": Vector2.RIGHT})
+	_assert_onboarding_step(onboarding, &"attack", ["AttackButton"])
+	onboarding.call("advance_from_input", {"attack_pressed": true})
+	_assert_onboarding_step(onboarding, &"dash", ["SkillButton"])
+	onboarding.call("advance_from_input", {"dash_pressed": true})
+	_assert_onboarding_step(onboarding, &"power_attack", ["SkillButton", "AttackButton"])
+	onboarding.call("advance_from_input", {"attack_pressed": true, "power_window_active": true})
+	_runner.assert_false(bool(onboarding.call("is_active")), "강공격 입력까지 확인하면 온보딩은 종료된다")
+
+	touch.queue_free()
+	onboarding.queue_free()
 
 
 func test_facing_updates_with_move() -> void:
@@ -256,6 +318,14 @@ func test_touch_controls_respect_landscape_phone_safe_area() -> void:
 	_runner.assert_eq(attack_button.offset_right, -float(touch_insets["right"]), "공격 버튼은 우측 노치/라운드 코너를 피한다")
 	_runner.assert_eq(attack_button.offset_bottom, -float(touch_insets["bottom"]), "공격 버튼은 홈 인디케이터 위로 올라온다")
 	_runner.assert_eq(skill_button.offset_bottom, -float(touch_insets["bottom"]), "스킬 버튼도 하단 gesture bar를 피한다")
+
+
+func _assert_onboarding_step(onboarding: CanvasLayer, expected_id: StringName, expected_targets: Array) -> void:
+	var snapshot: Dictionary = onboarding.call("get_current_step_snapshot")
+	_runner.assert_eq(snapshot.get("step_id"), expected_id, "현재 온보딩 단계 id가 맞다")
+	_runner.assert_eq(snapshot.get("target_names", []), expected_targets, "현재 온보딩 타겟이 맞다")
+	_runner.assert_true(String(snapshot.get("title", "")) != "", "현재 온보딩 단계는 제목을 가진다")
+	_runner.assert_true(String(snapshot.get("body", "")) != "", "현재 온보딩 단계는 짧은 설명을 가진다")
 
 
 func _screen_touch(index: int, position: Vector2, pressed: bool) -> InputEventScreenTouch:
