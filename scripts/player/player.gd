@@ -35,6 +35,10 @@ signal run_modifiers_changed(payload: Dictionary)
 @export var bat_knockback: float = 64.0    ## 배트 넉백 거리 (px)
 @export var swing_vertical_factor: float = 0.6  ## 스윙 세로(깊이) 압축 — 위/아래 사거리를 좌우보다 짧게(벨트 원근감)
 @export var swing_visual_time: float = 0.12  ## 휘두르기 시각 표시 시간 (s)
+@export var dash_power_attack_grace_time: float = 0.15  ## 대시 직후 강화 근접 공격 입력 허용 시간(s)
+@export_range(0, 9, 1) var dash_power_attack_damage_bonus := 1
+@export var dash_power_attack_range_multiplier: float = 1.15
+@export var dash_power_attack_knockback_multiplier: float = 1.5
 @export var max_health: int = 5            ## 최대 체력(하트)
 @export var invuln_time: float = 0.5       ## 피격 후 무적 시간 (s) — 보스 탄막 원샷 방지
 @export var special_skill_id: StringName = &"emergency_dodge"
@@ -52,6 +56,7 @@ var _is_attacking: bool = false   ## 공격 모션 재생 중(애니 끝날 때�
 var _special_cooldown_timer: float = 0.0
 var _dodge_timer: float = 0.0
 var _dodge_direction: Vector2 = Vector2.ZERO
+var _dash_power_attack_timer: float = 0.0
 var _was_special_pressed := false
 var _has_bat: bool = false   ## 야구배트 장착 여부(맵 클리어 보상). 기본 맨손.
 var _facing: Vector2 = Vector2.DOWN
@@ -62,6 +67,7 @@ var _base_run_stats := {}
 var _run_modifier_ids: Array[StringName] = []
 
 @onready var _swing_visual: Node2D = get_node_or_null(^"MeleeSwing")
+@onready var _power_impact_visual: Node2D = get_node_or_null(^"PowerImpact")
 @onready var _sprite: AnimatedSprite2D = get_node_or_null(^"Sprite")
 
 
@@ -81,6 +87,7 @@ func _ready() -> void:
 
 func _physics_process(delta: float) -> void:
 	_invuln_timer = maxf(0.0, _invuln_timer - delta)
+	_dash_power_attack_timer = step_dash_power_attack_window(_dash_power_attack_timer, delta)
 	var move := read_input_vector()
 	_facing = update_facing(_facing, move)
 	_process_special_skill(delta, move)
@@ -156,6 +163,14 @@ func dodge_velocity(direction: Vector2, speed: float) -> Vector2:
 	if direction.length() < 0.001:
 		return Vector2.ZERO
 	return direction.normalized() * speed
+
+
+func step_dash_power_attack_window(timer: float, delta: float) -> float:
+	return maxf(0.0, timer - delta)
+
+
+func is_dash_power_attack_window_active(dodge_timer: float, grace_timer: float) -> bool:
+	return dodge_timer > 0.0 or grace_timer > 0.0
 
 
 ## 발사 반동 속도(조준 반대 방향).
@@ -245,6 +260,10 @@ func is_dodging() -> bool:
 	return _dodge_timer > 0.0
 
 
+func get_dash_power_attack_remaining() -> float:
+	return _dash_power_attack_timer
+
+
 # --- 입력 I/O (단위 테스트 제외) ---
 
 ## 이동 입력: 터치 조이스틱 우선, 없거나 0이면 키보드.
@@ -308,6 +327,7 @@ func try_start_special_skill(input_vector: Vector2 = Vector2.ZERO) -> bool:
 		return false
 	_dodge_direction = choose_dodge_direction(input_vector, _facing)
 	_dodge_timer = dodge_duration
+	_dash_power_attack_timer = dodge_duration + dash_power_attack_grace_time
 	_invuln_timer = maxf(_invuln_timer, dodge_invuln_time)
 	special_skill_uses_remaining = consume_special_use(special_skill_uses_remaining)
 	_special_cooldown_timer = special_skill_cooldown
@@ -419,6 +439,8 @@ func _process_attack(delta: float) -> void:
 	_swing_timer = maxf(0.0, _swing_timer - delta)
 	if _swing_timer <= 0.0 and _swing_visual != null:
 		_swing_visual.visible = false
+	if _swing_timer <= 0.0 and _power_impact_visual != null:
+		_power_impact_visual.visible = false
 	if _attack_timer > 0.0 or not is_firing():
 		return
 	var dir := aim_direction()
@@ -468,6 +490,12 @@ func _attack_melee(dir: Vector2) -> void:
 	var dmg := bat_damage if _has_bat else melee_damage
 	var rng := bat_range if _has_bat else melee_range
 	var arc := bat_arc if _has_bat else melee_arc
+	var power_attack := is_dash_power_attack_window_active(_dodge_timer, _dash_power_attack_timer)
+	var knockback_distance := bat_knockback
+	if power_attack:
+		dmg += dash_power_attack_damage_bonus
+		rng *= dash_power_attack_range_multiplier
+		knockback_distance *= dash_power_attack_knockback_multiplier
 	for enemy: Node in get_tree().get_nodes_in_group(&"enemy"):
 		var e := enemy as Node2D
 		if e == null or not is_instance_valid(e):
@@ -478,10 +506,13 @@ func _attack_melee(dir: Vector2) -> void:
 			if enemy.has_method("take_damage"):
 				enemy.call("take_damage", dmg)
 			if _has_bat:
-				e.global_position += knockback_vector(global_position, e.global_position, bat_knockback)
+				e.global_position += knockback_vector(global_position, e.global_position, knockback_distance)
 	if _has_bat:
 		_deflect_bullets_in_arc(dir, rng, arc)
 	_show_swing(dir, rng, arc)
+	if power_attack:
+		_dash_power_attack_timer = 0.0
+		_show_power_impact(dir, rng, arc)
 
 
 ## 원거리 발사(야구공) — 보존된 무기. ranged_enabled 일 때만 사용. fired → ProjectileLauncher 가 스폰.
@@ -500,6 +531,15 @@ func _show_swing(dir: Vector2, rng: float, arc: float) -> void:
 	_swing_visual.rotation = 0.0
 	_swing_visual.visible = true
 	_swing_timer = swing_visual_time
+
+
+func _show_power_impact(dir: Vector2, rng: float, arc: float) -> void:
+	if _power_impact_visual == null:
+		return
+	if _power_impact_visual is Polygon2D:
+		(_power_impact_visual as Polygon2D).polygon = _build_swing_polygon(dir, rng * 1.06, arc)
+	_power_impact_visual.rotation = 0.0
+	_power_impact_visual.visible = true
 
 
 ## 타격 부채꼴 폴리곤 — dir 기준 ±arc/2, 반지름 rng 의 팬을 월드 정렬로 만들고
