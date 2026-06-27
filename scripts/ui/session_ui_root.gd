@@ -19,6 +19,7 @@ const UNLOCK_LABELS := {
 }
 
 @onready var map_tab_button: Button = %MapTabButton
+@onready var top_panel: Control = $Root/TopPanel
 @onready var status_label: Label = %StatusLabel
 @onready var interaction_label: Label = %InteractionLabel
 @onready var summary_overlay: Control = %SummaryOverlay
@@ -56,8 +57,9 @@ func _ready() -> void:
 	return_button.pressed.connect(_on_return_button_pressed)
 	retry_button.pressed.connect(_on_retry_button_pressed)
 	set_map_name(DEFAULT_MAP_NAME)
-	set_status("밤런 준비")
-	set_interaction_count(0)
+	top_panel.visible = false
+	status_label.text = ""
+	interaction_label.text = ""
 	show_summary({})
 
 

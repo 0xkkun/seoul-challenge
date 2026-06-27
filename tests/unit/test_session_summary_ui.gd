@@ -126,6 +126,18 @@ func test_map_tab_replaces_bottom_action_panel() -> void:
 	_runner.assert_false(_ui.is_action_panel_visible(), "closing overlays keeps bottom action buttons removed")
 
 
+func test_session_hides_legacy_status_copy_during_gameplay() -> void:
+	var top_panel := _ui.get_node("Root/TopPanel") as Control
+	var status_label := _ui.get_node("%StatusLabel") as Label
+	var interaction_label := _ui.get_node("%InteractionLabel") as Label
+
+	_runner.assert_false(top_panel.is_visible_in_tree(), "legacy status row is hidden during gameplay")
+	_runner.assert_false(status_label.is_visible_in_tree(), "session status copy is not rendered over gameplay")
+	_runner.assert_false(interaction_label.is_visible_in_tree(), "legacy interaction count is not rendered over gameplay")
+	_runner.assert_eq(status_label.text, "", "legacy session status starts empty")
+	_runner.assert_eq(interaction_label.text, "", "legacy interaction count starts empty")
+
+
 func test_map_tab_uses_configured_map_name_and_toggles_pause_resume_signals() -> void:
 	var counts := {
 		"pause": 0,
