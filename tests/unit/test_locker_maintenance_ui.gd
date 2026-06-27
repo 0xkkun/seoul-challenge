@@ -32,9 +32,10 @@ func test_locker_maintenance_focuses_on_memory_weapons_and_single_map_entry() ->
 	var map_button := UiTestHarness.find_by_uat_action(screen, LockerMaintenanceScript.ACTION_OPEN_MAP) as Button
 	_runner.assert_not_null(map_button, "map action is available only as the bottom button")
 	if map_button != null:
-		_runner.assert_eq(map_button.text, "지도\n경복궁 선택", "map button is the single explicit map affordance")
+		_runner.assert_eq(map_button.text, "지도\n열기", "map button opens the separate map screen")
 	_runner.assert_false(screen.has_node("TodayPrepPanel"), "today prep checklist panel is intentionally absent")
 	_runner.assert_false(screen.has_node("MapPreviewPanel"), "map preview panel is intentionally absent")
+	_runner.assert_false(screen.has_node("StudentIdCard"), "student id slot is intentionally removed from the maintenance layout")
 
 
 func test_locker_maintenance_uses_dungeon_ui_loadout_hierarchy() -> void:
@@ -44,18 +45,19 @@ func test_locker_maintenance_uses_dungeon_ui_loadout_hierarchy() -> void:
 
 	var baseball_card := screen.get_node("BaseballCard") as Button
 	var bat_card := screen.get_node("BatCard") as Button
-	var student_id_card := screen.get_node("StudentIdCard") as Button
 	var loadout_panel := screen.get_node("LoadoutSummaryPanel") as PanelContainer
 	var weapon_status := loadout_panel.get_node("WeaponStatusLabel") as Label
+	var return_button := UiTestHarness.find_by_uat_action(screen, LockerMaintenanceScript.ACTION_RETURN) as Button
+	var weapon_button := UiTestHarness.find_by_uat_action(screen, LockerMaintenanceScript.ACTION_CYCLE_WEAPON) as Button
 	var map_button := UiTestHarness.find_by_uat_action(screen, LockerMaintenanceScript.ACTION_OPEN_MAP) as Button
 
 	_runner.assert_eq(baseball_card.focus_mode, Control.FOCUS_NONE, "weapon slots do not show desktop focus chrome")
-	_runner.assert_eq(student_id_card.disabled, true, "student id reads as a locked future slot")
-	_runner.assert_true(student_id_card.text.contains("준비 중"), "locked slot is labeled as future content")
 	_runner.assert_eq(weapon_status.text, "선택된 기억\n\n낡은 야구공\n\n지도에서\n경복궁 선택", "selected loadout is summarized beside the slots")
 	_assert_flat_style_border(baseball_card.get_theme_stylebox("normal"), 4, "selected weapon slot uses a thick border")
 	_assert_flat_style_border(bat_card.get_theme_stylebox("normal"), 2, "unselected weapon slot uses a quieter border")
-	_assert_flat_style_border(map_button.get_theme_stylebox("normal"), 3, "map entry is the primary bottom action")
+	_assert_pixel_button_style(return_button, PixelButtonStyle.VARIANT_SECONDARY, "return")
+	_assert_pixel_button_style(weapon_button, PixelButtonStyle.VARIANT_SECONDARY, "weapon")
+	_assert_pixel_button_style(map_button, PixelButtonStyle.VARIANT_PRIMARY, "map entry")
 
 
 func test_locker_maintenance_buttons_emit_flow_signals() -> void:
@@ -130,6 +132,9 @@ func test_night_map_select_is_separate_from_locker_maintenance() -> void:
 	if departure_button != null:
 		_runner.assert_eq(departure_button.text, "경복궁\n진입", "departure CTA is short and explicit")
 		_runner.assert_true(departure_button.disabled, "departure button disables after the first request")
+		_assert_pixel_button_style(departure_button, PixelButtonStyle.VARIANT_PRIMARY, "departure")
+	var map_return_button := UiTestHarness.find_by_uat_action(screen, NightMapSelectScript.ACTION_RETURN) as Button
+	_assert_pixel_button_style(map_return_button, PixelButtonStyle.VARIANT_SECONDARY, "map return")
 	_runner.assert_true(UiTestHarness.press_by_uat_action(screen, NightMapSelectScript.ACTION_SELECT_GYEONGBOKGUNG), "test harness can still reach the disabled button")
 	_runner.assert_eq(selected_stages, [NightMapSelectScript.STAGE_GYEONGBOKGUNG], "double departure does not emit another stage")
 
@@ -141,3 +146,21 @@ func _assert_flat_style_border(style: StyleBox, expected_width: int, message: St
 		return
 	_runner.assert_eq(flat_style.get_border_width(SIDE_LEFT), expected_width, message)
 	_runner.assert_eq(flat_style.corner_radius_top_left, 0, "%s keeps square pixel corners" % message)
+
+
+func _assert_pixel_button_style(button: Button, variant: StringName, label: String) -> void:
+	_runner.assert_not_null(button, "%s button exists" % label)
+	if button == null:
+		return
+	_assert_pixel_button_texture(button.get_theme_stylebox("normal"), PixelButtonStyle.normal_texture_path(variant), "%s normal" % label)
+	_assert_pixel_button_texture(button.get_theme_stylebox("hover"), PixelButtonStyle.normal_texture_path(variant), "%s hover" % label)
+	_assert_pixel_button_texture(button.get_theme_stylebox("pressed"), PixelButtonStyle.pressed_texture_path(variant), "%s pressed" % label)
+	_assert_pixel_button_texture(button.get_theme_stylebox("disabled"), PixelButtonStyle.normal_texture_path(variant), "%s disabled" % label)
+
+
+func _assert_pixel_button_texture(style: StyleBox, texture_path: String, message: String) -> void:
+	var texture_style := style as StyleBoxTexture
+	_runner.assert_not_null(texture_style, "%s uses pixel button texture style" % message)
+	if texture_style == null:
+		return
+	_runner.assert_eq(texture_style.texture.resource_path, texture_path, message)

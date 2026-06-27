@@ -488,6 +488,7 @@ func _attack_melee(dir: Vector2) -> void:
 func _attack_ranged(dir: Vector2) -> void:
 	fired.emit(global_position + dir * muzzle_offset, dir)
 	velocity += recoil_velocity(dir, recoil_strength)
+	HapticManager.on_fire()
 
 
 ## 휘두르기 시각 표시 — 실제 사거리(rng)·각(arc)으로 부채꼴을 그려 타격 범위와 일치시킨다.
@@ -534,6 +535,7 @@ func current_weapon_name() -> String:
 ## 앞쪽 부채꼴 안의 적 투사체(enemy_projectile)를 swing 방향으로 되받아친다(deflect). (배트 전용)
 ## 투사체가 deflect()를 지원하면 반사(적 타격으로 전환), 아니면 기존처럼 제거.
 func _deflect_bullets_in_arc(dir: Vector2, rng: float, arc: float) -> void:
+	var deflected := false
 	for b: Node in get_tree().get_nodes_in_group(&"enemy_projectile"):
 		var node := b as Node2D
 		if node == null or not is_instance_valid(node):
@@ -541,7 +543,10 @@ func _deflect_bullets_in_arc(dir: Vector2, rng: float, arc: float) -> void:
 		var to := node.global_position - global_position
 		var to_us := Vector2(to.x, to.y / swing_vertical_factor)
 		if to_us.length() <= rng and in_melee_arc(dir, to_us, arc):
+			deflected = true
 			if node.has_method("deflect"):
 				node.call("deflect", dir)
 			else:
 				node.queue_free()
+	if deflected:
+		HapticManager.on_deflect()

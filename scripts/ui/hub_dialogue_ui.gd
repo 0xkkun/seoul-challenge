@@ -189,6 +189,7 @@ func is_choice_emphasized(choice_id: StringName) -> bool:
 func select_choice(choice_id: StringName) -> void:
 	if not get_choice_ids().has(choice_id):
 		return
+	HapticManager.on_ui_confirm()
 	choice_selected.emit(choice_id)
 
 

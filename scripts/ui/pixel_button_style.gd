@@ -28,10 +28,12 @@ static func apply(button: Button, variant: StringName = VARIANT_PRIMARY, minimum
 	button.add_theme_stylebox_override("hover", _style(_normal_texture(variant), _hover_modulate(variant)))
 	button.add_theme_stylebox_override("pressed", _style(_pressed_texture(variant), _pressed_modulate(variant)))
 	button.add_theme_stylebox_override("focus", _style(_normal_texture(variant), _hover_modulate(variant)))
+	button.add_theme_stylebox_override("disabled", _style(_normal_texture(variant), _disabled_modulate(variant)))
 	button.add_theme_color_override("font_color", _font_color(variant))
 	button.add_theme_color_override("font_hover_color", _font_hover_color(variant))
 	button.add_theme_color_override("font_focus_color", _font_hover_color(variant))
 	button.add_theme_color_override("font_pressed_color", _font_pressed_color(variant))
+	button.add_theme_color_override("font_disabled_color", _font_disabled_color(variant))
 
 
 static func normal_texture_path(variant: StringName) -> String:
@@ -103,6 +105,16 @@ static func _pressed_modulate(variant: StringName) -> Color:
 			return Color.WHITE
 
 
+static func _disabled_modulate(variant: StringName) -> Color:
+	match variant:
+		VARIANT_DANGER:
+			return Color(0.55, 0.45, 0.43, 0.86)
+		VARIANT_SECONDARY:
+			return Color(0.43, 0.48, 0.56, 0.82)
+		_:
+			return Color(0.58, 0.55, 0.45, 0.86)
+
+
 static func _font_color(variant: StringName) -> Color:
 	match variant:
 		VARIANT_DANGER:
@@ -131,3 +143,13 @@ static func _font_pressed_color(variant: StringName) -> Color:
 			return Color(0.78, 0.82, 0.9, 1.0)
 		_:
 			return Color(0.831373, 0.705882, 0.388235, 1.0)
+
+
+static func _font_disabled_color(variant: StringName) -> Color:
+	match variant:
+		VARIANT_DANGER:
+			return Color(0.82, 0.7, 0.68, 1.0)
+		VARIANT_SECONDARY:
+			return Color(0.68, 0.72, 0.78, 1.0)
+		_:
+			return Color(0.72, 0.67, 0.52, 1.0)
