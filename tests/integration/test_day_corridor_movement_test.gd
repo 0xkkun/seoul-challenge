@@ -40,6 +40,7 @@ func test_day_corridor_scene_uses_mobile_landscape_plate() -> void:
 	_runner.assert_true(bounds.size.x > viewport_size.x * 2.0, "active room is wider than one landscape screen")
 	_runner.assert_eq(scene.get_floor_y(), 628.0, "player is pinned lower to reduce bottom padding")
 	_runner.assert_true(is_equal_approx(scene.get_reference_visible_world_size().y, bounds.size.y), "camera shows the full corridor plate height")
+	_runner.assert_false((scene.get_node("%Camera2D") as Camera2D).position_smoothing_enabled, "day corridor camera disables smoothing to avoid movement ghosting")
 	_runner.assert_true(is_equal_approx(scene.get_background_asset_scale(), 1.0), "final background is authored at runtime scale")
 	_runner.assert_true(is_equal_approx(scene.get_character_asset_scale(), 2.0), "student sprite is scaled up for corridor readability")
 	_runner.assert_true(scene.are_runtime_sprites_nearest_filtered(), "runtime sprites use nearest filtering")

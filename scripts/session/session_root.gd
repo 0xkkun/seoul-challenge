@@ -20,10 +20,11 @@ const DEFAULT_STAGE_NAME := "경복궁"
 const PAUSE_MENU_MESSAGE := "일시정지"
 const ABANDON_RUN_MESSAGE := "런을 포기할까요? 이번 밤 보상은 사라지고 영구 재화는 유지됩니다"
 const QUIT_GAME_MESSAGE := "게임을 종료할까요?"
-const WEAPON_BASEBALL := &"baseball"
+const LEGACY_REMOVED_WEAPON_ID := &"baseball"
 const WEAPON_BAT := &"bat"
 const COMBAT_FEEDBACK_RECOVER_TIME := 0.10
 const COMBAT_FEEDBACK_MAX_OFFSET := 7.0
+const ROOM_ENTRY_SPAWN_INSET := Vector2(140.0, 96.0)
 
 @onready var world_layer: Node2D = $WorldLayer
 @onready var room_layer: Node2D = %RoomLayer
@@ -168,12 +169,14 @@ func _apply_session_loadout() -> void:
 		return
 	var weapon_id := StringName(config.get(SceneTransition.RUN_CONFIG_SELECTED_WEAPON_ID, &""))
 	match weapon_id:
-		WEAPON_BASEBALL:
-			actor.set("ranged_enabled", true)
-		WEAPON_BAT:
-			actor.set("ranged_enabled", false)
-			if actor.has_method("equip_bat"):
-				actor.call("equip_bat")
+		WEAPON_BAT, LEGACY_REMOVED_WEAPON_ID:
+			_equip_story_bat()
+
+
+func _equip_story_bat() -> void:
+	actor.set("ranged_enabled", false)
+	if actor.has_method("equip_bat"):
+		actor.call("equip_bat")
 
 
 func _connect_player_weapon_events() -> void:
@@ -548,7 +551,7 @@ func _configure_actor_for_room(room: Node2D) -> void:
 	var room_bounds := RoomPalette.get_room_bounds()
 	if actor.has_method("set_movement_bounds"):
 		actor.call("set_movement_bounds", _room_movement_bounds(room))
-	actor.global_position = room.global_position + Vector2(room_bounds.position.x + 140.0, 0.0)
+	actor.global_position = room.global_position + _actor_spawn_offset_for_entry(room_bounds, room_manager.last_entry_door_dir)
 	if actor.has_method("clamp_to_movement_bounds"):
 		actor.call("clamp_to_movement_bounds")
 	if actor.has_method("reset_motion"):
@@ -560,6 +563,19 @@ func _configure_actor_for_room(room: Node2D) -> void:
 func _room_movement_bounds(room: Node2D) -> Rect2:
 	var room_bounds := RoomPalette.get_room_bounds()
 	return Rect2(room.global_position + room_bounds.position, room_bounds.size)
+
+
+func _actor_spawn_offset_for_entry(room_bounds: Rect2, entry_door_dir: StringName) -> Vector2:
+	match entry_door_dir:
+		&"E":
+			return Vector2(room_bounds.end.x - ROOM_ENTRY_SPAWN_INSET.x, 0.0)
+		&"N":
+			return Vector2(0.0, room_bounds.position.y + ROOM_ENTRY_SPAWN_INSET.y)
+		&"S":
+			return Vector2(0.0, room_bounds.end.y - ROOM_ENTRY_SPAWN_INSET.y)
+		&"W":
+			return Vector2(room_bounds.position.x + ROOM_ENTRY_SPAWN_INSET.x, 0.0)
+	return Vector2(room_bounds.position.x + ROOM_ENTRY_SPAWN_INSET.x, 0.0)
 
 
 func _connect_boss_room(room: Node) -> void:

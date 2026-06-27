@@ -5,9 +5,9 @@ extends Node
 const BULLET_SCENE := preload("res://scenes/projectiles/purify_bullet.tscn")
 const POOL_ID := &"purify_bullet"
 
-## 무기 정체성 — "무기는 학교의 기억"(#15). UI/도감이 weapon_info()로 읽는다.
-const WEAPON_NAME := "야구방망이"
-const WEAPON_FLAVOR := "손때 묻은 그립, 마지막 타석의 기억."
+## 발사체 정체성 — UI/도감이 weapon_info()로 읽는다.
+const WEAPON_NAME := "정화탄"
+const WEAPON_FLAVOR := "밤의 어둠을 밀어내는 작은 빛."
 
 @export var prewarm: int = 8
 

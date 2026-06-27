@@ -4,6 +4,7 @@ extends Node
 const COMBAT_HUD_SCENE := preload("res://scenes/ui/combat_hud.tscn")
 const APPROVED_YEOPJEON_ICON_SHA256 := "1ecd8b6b97d37077dde5533ecceac7dc7a82efe2624cb857b91b2ed3f7cd88f2"
 const MobileSafeArea := preload("res://scripts/ui/mobile_safe_area.gd")
+const REMOVED_BASEBALL_NAME := "낡은" + "야구공"
 
 var _runner: Node
 # CombatHud 글로벌 클래스 등록(에디터 import) 순서에 의존하지 않도록 타입 주석 없이 둔다.
@@ -107,11 +108,12 @@ func test_weapon_state_renders_player_facing_memory_weapon() -> void:
 	if not _hud.has_method("set_weapon_state") or not _hud.has_method("get_weapon_text"):
 		return
 
-	_hud.set_weapon_state(&"baseball")
-	_runner.assert_eq(_hud.get_weapon_text(), "기억 무기: 야구방망이", "HUD names the selected memory weapon")
-
 	_hud.set_weapon_state(&"bat")
 	_runner.assert_eq(_hud.get_weapon_text(), "기억 무기: 금 간 나무 배트", "HUD updates weapon display")
+
+	_hud.set_weapon_state(&"baseball")
+	_runner.assert_eq(_hud.get_weapon_text(), "기억 무기: 미정", "HUD does not render removed baseball memory weapon")
+	_runner.assert_false(_hud.get_weapon_text().contains(REMOVED_BASEBALL_NAME), "removed baseball memory weapon is not player-facing")
 
 
 func test_weapon_name_renders_awakened_bat_display_name() -> void:

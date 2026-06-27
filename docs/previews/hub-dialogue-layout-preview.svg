@@ -91,8 +91,8 @@
     <text x="506" y="137" class="small" fill="#7a4d19">STAGE 2 보상</text>
     <rect x="280" y="160" width="140" height="56" fill="#fff6d9" stroke="#11141d" stroke-width="2"/>
     <circle cx="307" cy="188" r="12" fill="#e6e0ce" stroke="#15171d" stroke-width="3"/>
-    <text x="332" y="184" class="label ink">야구방망이</text>
-    <text x="332" y="200" class="small ink">투척 무기</text>
+    <text x="332" y="184" class="label ink">기억 조각</text>
+    <text x="332" y="200" class="small ink">해금 재료</text>
     <rect x="434" y="160" width="140" height="56" fill="#fff6d9" stroke="#11141d" stroke-width="2"/>
     <rect x="458" y="176" width="24" height="24" fill="#8a8c96" stroke="#15171d" stroke-width="3"/>
     <text x="491" y="184" class="label ink">금 간 나무 배트</text>

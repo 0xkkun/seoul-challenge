@@ -410,7 +410,7 @@ func test_session_player_refreshes_awakened_bat_after_baseball_friend_purified()
 	session.queue_free()
 
 
-func test_session_root_applies_baseball_weapon_config() -> void:
+func test_session_root_ignores_removed_baseball_weapon_config() -> void:
 	GameManager.start_session({
 		"source": "night_map_select",
 		SceneTransition.RUN_CONFIG_SELECTED_WEAPON_ID: &"baseball",
@@ -421,7 +421,9 @@ func test_session_root_applies_baseball_weapon_config() -> void:
 	add_child(session)
 	var actor: Node = session.get_node("%Player")
 
-	_runner.assert_true(bool(actor.get("ranged_enabled")), "baseball locker selection enables ranged baseball")
+	_runner.assert_false(bool(actor.get("ranged_enabled")), "removed baseball config does not enable ranged play")
+	_runner.assert_true(bool(actor.call("has_bat")), "removed baseball config falls back to the story-backed bat")
+	_runner.assert_eq(actor.call("current_weapon_name"), "금 간 나무 배트", "fallback weapon is the regular bat")
 
 	session.queue_free()
 
@@ -613,6 +615,37 @@ func test_room_change_configures_player_bounds_and_clears_motion() -> void:
 	session.queue_free()
 
 
+func test_room_transition_spawns_player_at_entry_matching_source_door() -> void:
+	var packed := load("res://scenes/session/session_root.tscn") as PackedScene
+	var session := packed.instantiate()
+	add_child(session)
+
+	var manager := session.get_node("%RoomManager") as RoomManager
+	var actor := session.get_node("%Player") as CharacterBody2D
+	manager.start_layout(_directional_spawn_layout())
+	var cases: Array[Dictionary] = [
+		{"door_dir": &"E", "target_room_id": &"east_shop", "entry_dir": &"W"},
+		{"door_dir": &"W", "target_room_id": &"west_treasure", "entry_dir": &"E"},
+		{"door_dir": &"N", "target_room_id": &"north_friend", "entry_dir": &"S"},
+		{"door_dir": &"S", "target_room_id": &"south_event", "entry_dir": &"N"},
+	]
+
+	for test_case: Dictionary in cases:
+		get_tree().paused = false
+		_runner.assert_true(manager.enter_room(&"start"), "테스트가 시작 방으로 복귀한다")
+		var door: RoomDoor = manager.current_room.get_door(test_case["door_dir"])
+		_runner.assert_not_null(door, "시작 방은 %s 문을 노출한다" % test_case["door_dir"])
+		if door == null:
+			continue
+
+		_runner.assert_true(door.request_transition(), "%s 문 전환 요청이 성공한다" % test_case["door_dir"])
+		_runner.assert_eq(manager.current_room_id, test_case["target_room_id"], "문 방향에 맞는 연결 방으로 이동한다")
+		_runner.assert_eq(manager.get("last_entry_door_dir"), test_case["entry_dir"], "매니저는 다음 방에 들어온 입구 방향을 보관한다")
+		_assert_actor_spawned_near_entry(actor, manager.current_room, test_case["entry_dir"])
+
+	session.queue_free()
+
+
 func test_session_finish_request_confirms_abandon_to_school() -> void:
 	var packed := load("res://scenes/session/session_root.tscn") as PackedScene
 	var session := packed.instantiate()
@@ -751,6 +784,64 @@ func _first_connected_room_id(layout: RoomLayout, room_id: StringName) -> String
 	for connected_room_id: StringName in layout.get_connected_room_ids(room_id):
 		return connected_room_id
 	return &""
+
+
+func _assert_actor_spawned_near_entry(actor: Node2D, room: Node2D, entry_dir: StringName) -> void:
+	var play_bounds := RoomPalette.get_room_bounds()
+	var local_spawn := actor.global_position - room.global_position
+	var edge_inset := 170.0
+	var center_tolerance := 90.0
+
+	_runner.assert_true(play_bounds.has_point(local_spawn), "입장 스폰은 플레이 가능 영역 안에 있어야 한다")
+	match entry_dir:
+		&"W":
+			_runner.assert_true(local_spawn.x <= play_bounds.position.x + edge_inset, "서쪽 입구로 들어오면 왼쪽 입구 근처에 등장한다")
+			_runner.assert_true(absf(local_spawn.y) <= center_tolerance, "서쪽 입구 스폰은 문 중앙축 근처에 있다")
+		&"E":
+			_runner.assert_true(local_spawn.x >= play_bounds.end.x - edge_inset, "동쪽 입구로 들어오면 오른쪽 입구 근처에 등장한다")
+			_runner.assert_true(absf(local_spawn.y) <= center_tolerance, "동쪽 입구 스폰은 문 중앙축 근처에 있다")
+		&"N":
+			_runner.assert_true(local_spawn.y <= play_bounds.position.y + edge_inset, "북쪽 입구로 들어오면 위쪽 입구 근처에 등장한다")
+			_runner.assert_true(absf(local_spawn.x) <= center_tolerance, "북쪽 입구 스폰은 문 중앙축 근처에 있다")
+		&"S":
+			_runner.assert_true(local_spawn.y >= play_bounds.end.y - edge_inset, "남쪽 입구로 들어오면 아래쪽 입구 근처에 등장한다")
+			_runner.assert_true(absf(local_spawn.x) <= center_tolerance, "남쪽 입구 스폰은 문 중앙축 근처에 있다")
+		_:
+			_runner.assert_true(false, "지원하지 않는 입장 방향: %s" % entry_dir)
+
+
+func _directional_spawn_layout() -> RoomLayout:
+	var layout := RoomLayout.new()
+	layout.layout_id = &"directional_spawn_test"
+	layout.start_room_id = &"start"
+	layout.room_defs = [
+		_room_def(&"start", RoomLayout.TYPE_START, Vector2i(0, 0), [&"east_shop", &"west_treasure", &"north_friend", &"south_event"]),
+		_room_def(&"east_shop", RoomLayout.TYPE_SHOP, Vector2i(1, 0), [&"start", &"east_combat"]),
+		_room_def(&"west_treasure", RoomLayout.TYPE_TREASURE, Vector2i(-1, 0), [&"start"]),
+		_room_def(&"north_friend", RoomLayout.TYPE_FRIEND, Vector2i(0, -1), [&"start"]),
+		_room_def(&"south_event", RoomLayout.TYPE_EVENT, Vector2i(0, 1), [&"start"]),
+		_room_def(&"east_combat", RoomLayout.TYPE_COMBAT, Vector2i(2, 0), [&"east_shop", &"south_combat"]),
+		_room_def(&"south_combat", RoomLayout.TYPE_COMBAT, Vector2i(2, 1), [&"east_combat", &"final"]),
+		_room_def(&"final", RoomLayout.TYPE_FINAL, Vector2i(3, 1), [&"south_combat"], true),
+	]
+	return layout
+
+
+func _room_def(
+	room_id: StringName,
+	room_type: StringName,
+	grid_pos: Vector2i,
+	connections: Array[StringName],
+	hidden := false
+) -> RoomDef:
+	var room_def := RoomDef.new()
+	room_def.room_id = room_id
+	room_def.room_type = room_type
+	room_def.grid_pos = grid_pos
+	room_def.connections = connections
+	room_def.hidden = hidden
+	room_def.scene_path = "res://scenes/session/room_base.tscn"
+	return room_def
 
 
 func _layout_signature(layout: RoomLayout) -> String:

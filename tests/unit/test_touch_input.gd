@@ -212,6 +212,31 @@ func test_touch_controls_day_dialogue_category_hides_dodge_button() -> void:
 	_runner.assert_false(touch.is_skill_pressed(), "hidden dodge button does not report held input")
 
 
+func test_touch_controls_day_dialogue_category_uses_speech_bubble_action_icon() -> void:
+	var touch := TouchControlsScene.instantiate()
+	add_child(touch)
+
+	var attack_button := touch.get_node_or_null("AttackButton") as Control
+	_runner.assert_not_null(attack_button, "touch controls keep a right-side primary action button")
+	_runner.assert_true(touch.has_method("set_control_category"), "touch controls can switch input control categories")
+	if attack_button == null or not touch.has_method("set_control_category"):
+		return
+	_runner.assert_true(attack_button.has_method("get_visual_contract"), "primary action button exposes its icon contract")
+	if not attack_button.has_method("get_visual_contract"):
+		return
+
+	touch.set_control_category("day_dialogue")
+
+	var dialogue_contract: Dictionary = attack_button.call("get_visual_contract")
+	_runner.assert_eq(dialogue_contract.get("icon_mode"), "dialogue", "day dialogue uses a talk/message icon on the primary action")
+	_runner.assert_eq(dialogue_contract.get("icon_shape"), "speech_bubble", "day dialogue icon is a speech bubble")
+
+	touch.set_control_category("combat")
+	var combat_contract: Dictionary = attack_button.call("get_visual_contract")
+	_runner.assert_eq(combat_contract.get("icon_mode"), "attack", "combat restores the attack icon")
+	_runner.assert_eq(combat_contract.get("icon_path"), "res://assets/ui/icons/combat/damage_1.png", "combat still uses the damage icon")
+
+
 func test_touch_controls_respect_landscape_phone_safe_area() -> void:
 	var touch := TouchControlsScene.instantiate()
 	add_child(touch)

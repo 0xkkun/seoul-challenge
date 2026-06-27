@@ -58,6 +58,29 @@ func test_barehand_reach_is_forgiving_for_mobile_combat() -> void:
 	p.free()
 
 
+func test_bat_reach_is_comfortable_for_mobile_combat() -> void:
+	var p = PlayerScript.new()
+	_runner.assert_true(p.bat_range >= 132.0, "배트 기본 사거리는 모바일에서 짧게 느껴지지 않게 충분히 길어야 한다")
+	p.free()
+
+
+func test_bat_hits_enemy_at_extended_mobile_reach() -> void:
+	var p = PlayerScript.new()
+	add_child(p)
+	p.position = Vector2.ZERO
+	p.equip_bat()
+	var e := StubEnemy.new()
+	e.position = Vector2(124.0, 0.0)
+	e.add_to_group(&"enemy")
+	add_child(e)
+
+	p._attack_melee(Vector2.RIGHT)
+
+	_runner.assert_eq(e.taken, p.bat_damage, "배트는 120px대 정면 적까지 닿아야 한다")
+	e.free()
+	p.free()
+
+
 func test_barehand_hit_applies_small_knockback() -> void:
 	var p = PlayerScript.new()
 	add_child(p)
