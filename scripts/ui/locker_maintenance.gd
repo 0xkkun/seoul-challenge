@@ -410,6 +410,7 @@ func _make_weapon_card(node_name: String, text: String, relative_rect: Rect2, ac
 	card.add_theme_stylebox_override("hover", DungeonTheme.panel_style(DungeonTheme.COLOR_PANEL_RAISED, DungeonTheme.COLOR_CYAN, 3, 12.0, 10.0))
 	card.add_theme_stylebox_override("pressed", DungeonTheme.panel_style(DungeonTheme.COLOR_SLOT, DungeonTheme.COLOR_GOLD, 3, 12.0, 10.0))
 	card.add_theme_stylebox_override("disabled", DungeonTheme.slot_style(false, true))
+	PixelButton.attach_press_sfx(card)
 	if action != "":
 		_set_button_meta(card, action.replace(".", "_"), action)
 		card.pressed.connect(select_weapon.bind(WEAPON_BASEBALL if action == ACTION_SELECT_BASEBALL else WEAPON_BAT))
