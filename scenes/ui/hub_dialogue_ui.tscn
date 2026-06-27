@@ -27,6 +27,7 @@ color = Color(0.03, 0.04, 0.06, 0.46)
 
 [node name="PortraitPanel" type="ColorRect" parent="Root"]
 unique_name_in_owner = true
+clip_contents = true
 layout_mode = 1
 anchors_preset = 2
 anchor_top = 1.0
@@ -48,12 +49,12 @@ offset_top = -76.0
 grow_horizontal = 2
 grow_vertical = 0
 
-[node name="PortraitSprite" type="Sprite2D" parent="Root"]
+[node name="PortraitSprite" type="Sprite2D" parent="Root/PortraitPanel"]
 unique_name_in_owner = true
 visible = false
 z_index = 1
 self_modulate = Color(0.94, 0.92, 0.88, 1)
-position = Vector2(128, 398)
+position = Vector2(73, 173)
 scale = Vector2(2.55, 2.55)
 texture_filter = 1
 hframes = 8

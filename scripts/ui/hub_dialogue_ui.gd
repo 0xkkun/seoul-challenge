@@ -108,7 +108,8 @@ func _apply_landscape_safe_area() -> void:
 	MobileSafeArea.apply_edge_offsets(_dialogue_bar, float(insets["left"]), -1.0, float(insets["right"]), bottom)
 	_dialogue_bar.offset_top = -DIALOGUE_BAR_HEIGHT - bottom
 	MobileSafeArea.apply_edge_offsets(_portrait_panel, float(insets["left"]), -1.0, -1.0, -1.0)
-	_portrait_sprite.position.x = _portrait_panel.offset_left + ((_portrait_panel.offset_right - _portrait_panel.offset_left) * 0.5)
+	# 초상화 스프라이트는 PortraitPanel(clip_contents)의 자식 — 위치는 패널 로컬 기준 중앙.
+	_portrait_sprite.position.x = (_portrait_panel.offset_right - _portrait_panel.offset_left) * 0.5
 	MobileSafeArea.apply_edge_offsets(_choice_row, -1.0, -1.0, float(insets["right"]), -1.0)
 
 
