@@ -8,6 +8,7 @@ signal defeated(enemy)
 ## 발사 — origin 에서 direction 으로 발사. 자기 자신이 받아 enemy_bullet 을 스폰한다.
 signal fired(origin: Vector2, direction: Vector2)
 
+const StatusEffectController = preload("res://scripts/combat/status_effect_controller.gd")
 const ENEMY_BULLET := preload("res://scenes/enemies/enemy_bullet.tscn")
 
 @export var max_hp: int = 2
@@ -19,20 +20,36 @@ const ENEMY_BULLET := preload("res://scenes/enemies/enemy_bullet.tscn")
 
 var _hp: int = 0
 var _fire_timer: float = 0.0
+var _status_effects: Node = null
 
 
 func _ready() -> void:
 	_hp = max_hp
 	_fire_timer = fire_interval
 	add_to_group(&"enemy")
+	_ensure_status_effects()
 	fired.connect(_spawn_bullet)
 
 
 func _physics_process(delta: float) -> void:
+	tick_status_effects(delta)
 	var target := _find_target()
 	if target == null:
 		return
-	velocity = kite_velocity(global_position, target.global_position, preferred_range, range_deadzone, move_speed)
+	if is_status_action_blocked():
+		velocity = Vector2.ZERO
+		move_and_slide()
+		return
+	if is_status_movement_blocked():
+		velocity = Vector2.ZERO
+	else:
+		velocity = kite_velocity(
+			global_position,
+			target.global_position,
+			preferred_range,
+			range_deadzone,
+			move_speed * get_status_speed_multiplier()
+		)
 	move_and_slide()
 	tick_fire(delta, global_position, target.global_position)
 
@@ -70,6 +87,49 @@ func is_ready_to_fire(timer: float) -> bool:
 
 func is_dead(hp: int) -> bool:
 	return hp <= 0
+
+
+# --- 상태이상 (계약 #51) ---
+
+func apply_status_effect(effect_id: StringName, duration: float, params: Dictionary = {}) -> void:
+	_ensure_status_effects().call("apply_effect", effect_id, duration, params)
+
+
+func tick_status_effects(delta: float) -> void:
+	_ensure_status_effects().call("tick", delta, self)
+
+
+func has_status_effect(effect_id: StringName) -> bool:
+	return bool(_ensure_status_effects().call("has_effect", effect_id))
+
+
+func clear_status_effect(effect_id: StringName) -> void:
+	_ensure_status_effects().call("clear_effect", effect_id)
+
+
+func clear_negative_status_effects() -> void:
+	_ensure_status_effects().call("clear_negative_effects")
+
+
+func get_status_speed_multiplier() -> float:
+	return float(_ensure_status_effects().call("get_speed_multiplier"))
+
+
+func is_status_movement_blocked() -> bool:
+	return bool(_ensure_status_effects().call("blocks_movement"))
+
+
+func is_status_action_blocked() -> bool:
+	return bool(_ensure_status_effects().call("blocks_actions"))
+
+
+func _ensure_status_effects() -> Node:
+	if _status_effects != null and is_instance_valid(_status_effects):
+		return _status_effects
+	_status_effects = StatusEffectController.new()
+	_status_effects.name = "StatusEffects"
+	add_child(_status_effects)
+	return _status_effects
 
 
 ## 발사 쿨다운을 진행하고, 준비되면 fired 를 방출하고 타이머를 리셋한다. 발사했으면 true.
