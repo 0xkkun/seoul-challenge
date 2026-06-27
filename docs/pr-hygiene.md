@@ -68,6 +68,14 @@ Also confirm:
 - README, `docs/customizing.md`, `docs/pr-hygiene.md`, and `AGENTS.md` still agree
   with the commands and workflow in the repo
 
+## Codex Review Signal
+
+After requesting a Codex review, a `👍` reaction from Codex
+(`chatgpt-codex-connector[bot]`) on the PR body means there are no requested
+changes. If CI is green and there are no outstanding review comments, merge
+immediately with `gh pr merge <n> --merge --delete-branch` instead of waiting
+for a formal review object.
+
 ## Commit Messages (커밋 메시지)
 
 - 제목·본문은 **한글로 작성**한다. 제목은 PR과 같은 `[Area]` 태그로 시작한다.
