@@ -191,6 +191,21 @@ func test_start_dodge_shows_dash_dust_at_feet() -> void:
 	player.queue_free()
 
 
+func test_start_dodge_plays_dash_wind_sfx_once() -> void:
+	AudioManager.reset()
+	var player = PlayerScript.new()
+	add_child(player)
+	player.special_skill_max_uses = 1
+	player.special_skill_uses_remaining = 1
+	player.special_skill_cooldown = 3.0
+
+	_runner.assert_true(player.try_start_special_skill(Vector2.RIGHT), "ready dodge starts")
+	_runner.assert_eq(AudioManager.get_played_sfx(), [&"dash_wind"], "dodge start plays the dash wind SFX once")
+
+	_runner.assert_false(player.try_start_special_skill(Vector2.RIGHT), "active dodge blocks duplicate starts")
+	_runner.assert_eq(AudioManager.get_played_sfx(), [&"dash_wind"], "blocked duplicate dodge does not replay SFX")
+
+
 func test_stored_dodge_charge_can_chain_before_recharge_cooldown_finishes() -> void:
 	var player = PlayerScript.new()
 	add_child(player)

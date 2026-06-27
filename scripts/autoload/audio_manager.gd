@@ -9,6 +9,8 @@ const SCHOOL_BELL_TRANSITION_BACK := &"school_bell_transition_back"
 const UI_BUTTON_PRESS := &"ui_button_press"
 const BAT_SWING := &"bat_swing"
 const BAT_HIT := &"bat_hit"
+const CORRIDOR_FOOTSTEP := &"corridor_footstep"
+const DASH_WIND := &"dash_wind"
 const NIGHT_INTRO_TRANSITION := &"night_intro_transition"
 const NIGHT_INTRO_TRANSITION_C := &"night_intro_transition_c"
 const SESSION_TRANSITION_SFX_IDS: Array[StringName] = [
@@ -35,6 +37,8 @@ const _SFX_STREAM_PATHS := {
 	UI_BUTTON_PRESS: "res://assets/audio/sfx/ui_button_press.mp3",
 	BAT_SWING: "res://assets/audio/sfx/bat_swing.mp3",
 	BAT_HIT: "res://assets/audio/sfx/bat_hit.wav",
+	CORRIDOR_FOOTSTEP: "res://assets/audio/sfx/corridor_footstep.wav",
+	DASH_WIND: "res://assets/audio/sfx/dash_wind.wav",
 	NIGHT_INTRO_TRANSITION: "res://assets/audio/sfx/night_intro_transition.mp3",
 	NIGHT_INTRO_TRANSITION_C: "res://assets/audio/sfx/night_intro_transition_c.mp3",
 }
