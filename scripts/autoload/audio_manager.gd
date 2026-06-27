@@ -7,6 +7,8 @@ const SCHOOL_BELL_TRANSITION_FRONT := &"school_bell_transition_front"
 const SCHOOL_BELL_TRANSITION_BACK := &"school_bell_transition_back"
 const UI_BUTTON_PRESS := &"ui_button_press"
 const BAT_SWING := &"bat_swing"
+const NIGHT_INTRO_TRANSITION := &"night_intro_transition"
+const NIGHT_INTRO_TRANSITION_C := &"night_intro_transition_c"
 const SESSION_TRANSITION_SFX_IDS: Array[StringName] = [
 	SCHOOL_BELL_TRANSITION_FRONT,
 	SCHOOL_BELL_TRANSITION_BACK,
@@ -28,6 +30,8 @@ const _SFX_STREAM_PATHS := {
 	SCHOOL_BELL_TRANSITION_BACK: "res://assets/audio/sfx/school_bell_transition_back.wav",
 	UI_BUTTON_PRESS: "res://assets/audio/sfx/ui_button_press.mp3",
 	BAT_SWING: "res://assets/audio/sfx/bat_swing.mp3",
+	NIGHT_INTRO_TRANSITION: "res://assets/audio/sfx/night_intro_transition.mp3",
+	NIGHT_INTRO_TRANSITION_C: "res://assets/audio/sfx/night_intro_transition_c.mp3",
 }
 
 const BGM_VOLUME_DB := 0.0
@@ -35,6 +39,8 @@ const BGM_SILENT_DB := -40.0
 const BGM_FADE_IN_SEC := 1.5
 const BGM_FADE_OUT_SEC := 2.0
 const BGM_GAP_SEC := 3.0
+## 나레이션/연출 위에서 배경음을 확 낮출 때 적용하는 오프셋(덕킹).
+const BGM_DUCK_DB := -20.0
 
 var _played_sfx: Array[StringName] = []
 var _current_bgm: StringName = &""
@@ -45,6 +51,7 @@ var _bgm_loop_token := 0
 var _bgm_cycle_active := false
 var _sfx_players: Array[AudioStreamPlayer] = []
 var _sfx_rng := RandomNumberGenerator.new()
+var _bgm_ducked := false
 
 
 func _ready() -> void:
@@ -124,7 +131,7 @@ func play_bgm(id: StringName) -> void:
 	else:
 		# Seamless engine loop (stream loop enabled in _prepare_bgm_stream).
 		_bgm_cycle_active = true
-		player.volume_db = BGM_VOLUME_DB
+		player.volume_db = _bgm_active_db()
 		player.play()
 
 
@@ -136,7 +143,7 @@ func _run_bgm_cycle(player: AudioStreamPlayer, token: int) -> void:
 	while token == _bgm_loop_token:
 		player.volume_db = BGM_SILENT_DB
 		player.play()
-		_fade_bgm(player, BGM_VOLUME_DB, BGM_FADE_IN_SEC)
+		_fade_bgm(player, _bgm_active_db(), BGM_FADE_IN_SEC)
 		await get_tree().create_timer(maxf(0.0, length - BGM_FADE_OUT_SEC)).timeout
 		if token != _bgm_loop_token:
 			return
@@ -157,9 +164,25 @@ func _fade_bgm(player: AudioStreamPlayer, target_db: float, duration: float) -> 
 	_bgm_fade_tween.tween_property(player, "volume_db", target_db, duration)
 
 
+## 덕킹 여부에 따른 현재 BGM 목표 볼륨(루프 페이드 타깃에 사용).
+func _bgm_active_db() -> float:
+	return BGM_VOLUME_DB + (BGM_DUCK_DB if _bgm_ducked else 0.0)
+
+
+## 배경음을 확 낮춘다/되돌린다(나레이션·연출용). 루프 페이드 타깃에도 반영되며,
+## stop_bgm() 시 자동 해제된다.
+func set_bgm_ducked(ducked: bool, duration: float = 0.25) -> void:
+	if _bgm_ducked == ducked:
+		return
+	_bgm_ducked = ducked
+	if _bgm_player != null and _bgm_cycle_active and DisplayServer.get_name() != "headless":
+		_fade_bgm(_bgm_player, _bgm_active_db(), duration)
+
+
 func stop_bgm() -> void:
 	_current_bgm = &""
 	_current_bgm_path = ""
+	_bgm_ducked = false
 	_halt_bgm_playback()
 	if _bgm_player != null:
 		_bgm_player.stream = null

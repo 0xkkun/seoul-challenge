@@ -29,17 +29,32 @@ const PLATES: Array[String] = [
 	"res://assets/backgrounds/night_intro/night_intro_4.png",
 ]
 
-## 각 비트: 어떤 플레이트 위에 어떤 자막 줄들을 순서대로 보여줄지.
+## 각 비트: 플레이트 + 자막 줄들. 각 줄은 {text, audio?(나레이션 음성)} 형태.
+## 음성이 있는 줄은 자막이 뜰 때 해당 클립을 재생하고, 다음 줄로 넘어가면
+## 새 클립으로 교체된다.
 const BEATS: Array[Dictionary] = [
-	{"plate": 0, "lines": ["도시가 잠들면,", "어둠 속에서 무언가 깨어난다."]},
-	{"plate": 1, "lines": ["나는 매일 밤, 그 아래로 내려간다.", "아무도 모르는 길을 따라."]},
-	{"plate": 2, "lines": ["오늘 밤은…", "돌아오지 못할지도 모른다."]},
-	{"plate": 3, "lines": ["그래도 나는 멈추지 않는다.", "밤이 시작된다."]},
+	{"plate": 0, "lines": [
+		{"text": "도시가 잠들면,", "audio": "res://assets/audio/night_intro/vo_beat1_1.wav"},
+		{"text": "어둠 속에서 무언가 깨어난다.", "audio": "res://assets/audio/night_intro/vo_beat1_2.wav"},
+	]},
+	{"plate": 1, "lines": [
+		{"text": "나는 매일 밤, 그 아래로 내려간다.", "audio": "res://assets/audio/night_intro/vo_beat2_1.wav"},
+		{"text": "아무도 모르는 길을 따라.", "audio": "res://assets/audio/night_intro/vo_beat2_2.wav", "pre": 0.5},
+	]},
+	{"plate": 2, "sfx": &"night_intro_transition_c", "lines": [
+		{"text": "오늘 밤은…", "audio": "res://assets/audio/night_intro/vo_beat3_1.wav", "pre": 0.6},
+		{"text": "돌아오지 못할지도 모른다.", "audio": "res://assets/audio/night_intro/vo_beat3_2.wav"},
+	]},
+	{"plate": 3, "sfx": &"night_intro_transition", "lines": [
+		{"text": "그래도 나는 멈추지 않는다.", "audio": "res://assets/audio/night_intro/vo_beat4_1.wav", "pre": 0.8},
+		{"text": "밤이 시작된다.", "audio": "res://assets/audio/night_intro/vo_beat4_2.wav"},
+	]},
 ]
 
 var _plate: TextureRect
 var _subtitle: Label
 var _hint: Label
+var _narration: AudioStreamPlayer
 var _advance_ready := false
 var _advance_requested := false
 var _skip := false
@@ -80,16 +95,31 @@ func play() -> void:
 		return
 	_ensure_built()
 	_started = true
+	# 나레이션 동안 로비 배경음을 확 낮춘다(세션 진입 시 stop_bgm 에서 자동 해제).
+	if has_node("/root/AudioManager"):
+		AudioManager.set_bgm_ducked(true)
 	var last_index := BEATS.size() - 1
 	for i: int in BEATS.size():
 		if _skip:
 			break
 		var beat: Dictionary = BEATS[i]
+		# 전환음 id(C·D)가 있으면 등장 직전에 깐다. 효과음이 먼저 깔리고,
+		# 플레이트가 떠오른 뒤(첫 줄 pre 만큼 더 기다린 뒤) 나레이션이 이어진다.
+		var sfx_id := StringName(beat.get("sfx", &""))
+		if sfx_id != &"":
+			_play_transition_sfx(sfx_id)
 		await _show_plate(int(beat["plate"]), BACKDROP_ALPHA)
-		for line: String in beat["lines"]:
+		for line: Dictionary in beat["lines"]:
 			if _skip:
 				break
-			_set_subtitle(line)
+			var pre := float(line.get("pre", 0.0))
+			if pre > 0.0:
+				_set_subtitle("")
+				await _hold(pre)
+				if _skip:
+					break
+			_set_subtitle(String(line["text"]))
+			_play_line_narration(line)
 			await _fade_subtitle_in()
 			await _wait_for_advance()
 		if _skip:
@@ -177,6 +207,21 @@ func _build_ui() -> void:
 	_hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_hint)
 
+	_narration = AudioStreamPlayer.new()
+	_narration.name = "Narration"
+	add_child(_narration)
+
+
+## 줄에 음성이 있으면 재생한다(다음 줄에서 새 음성이 play() 로 교체됨).
+func _play_line_narration(line: Dictionary) -> void:
+	if _narration == null or not line.has("audio"):
+		return
+	var stream := load(String(line["audio"])) as AudioStream
+	if stream == null:
+		return
+	_narration.stream = stream
+	_narration.play()
+
 
 func _show_plate(plate_index: int, target_alpha: float) -> void:
 	var path := PLATES[plate_index]
@@ -187,6 +232,13 @@ func _show_plate(plate_index: int, target_alpha: float) -> void:
 	var tween := create_tween()
 	tween.tween_property(_plate, ^"modulate:a", target_alpha, PLATE_FADE_SECONDS)
 	await tween.finished
+
+
+## 시네마틱 전환음. AudioManager(영속 재생)로 틀어 씬 전환 후 밤 세션까지
+## 자연스럽게 이어지게 한다. C·D 비트가 서로 다른 클립을 쓴다.
+func _play_transition_sfx(sfx_id: StringName) -> void:
+	if has_node("/root/AudioManager"):
+		AudioManager.play_sfx(sfx_id)
 
 
 ## 마지막 비트: 자막이 사라지며 경복궁이 가득 드러나고, 잠시 머문 뒤 암전한다.
@@ -233,14 +285,23 @@ func _fade_plate_out() -> void:
 	await tween.finished
 
 
+## 다음 줄로 넘어가는 조건: 탭이 들어왔고 + 현재 줄의 나레이션이 끝났을 때.
+## 빨리 누른 탭은 버퍼링되어 음성이 끝나는 즉시 넘어가므로, 탭으로 음성을
+## 끊어 호흡이 빨라지는 일이 없다(한 줄=한 단위로 차분히 진행).
 func _wait_for_advance() -> void:
 	if _skip:
 		return
 	_advance_ready = true
 	_advance_requested = false
-	while not _advance_requested and not _skip:
+	while not _skip:
+		if _advance_requested and not _is_narration_playing():
+			break
 		await get_tree().process_frame
 	_advance_ready = false
+
+
+func _is_narration_playing() -> bool:
+	return _narration != null and _narration.playing
 
 
 func _input(event: InputEvent) -> void:
