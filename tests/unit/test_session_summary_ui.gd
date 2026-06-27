@@ -201,7 +201,7 @@ func test_reward_choices_render_three_actions_and_emit_selected_id() -> void:
 			"item_id": &"dokkaebi_fire",
 			"display_name": "도깨비불",
 			"flavor": "푸른 불씨가 공격 타이밍을 앞당긴다.",
-			"effect": "근접 공격 속도 +19% / 투척 속도 +19%",
+			"effect": "근접 공격 속도 +19%",
 		},
 		{
 			"item_id": &"wind_step",
@@ -231,7 +231,7 @@ func test_reward_choices_render_three_actions_and_emit_selected_id() -> void:
 	_runner.assert_true(snapshot.has("choice_effects"), "reward snapshot exposes concrete stat effects")
 	if not snapshot.has("choice_effects"):
 		return
-	_runner.assert_eq(snapshot["choice_effects"][0], "근접 공격 속도 +19% / 투척 속도 +19%", "tempo reward exposes readable attack speed effect")
+	_runner.assert_eq(snapshot["choice_effects"][0], "근접 공격 속도 +19%", "tempo reward exposes readable attack speed effect")
 	_runner.assert_true(snapshot["choice_effects"][1].contains("이동 속도"), "speed reward exposes concrete movement effect")
 	_runner.assert_true(snapshot.has("visible_card_count"), "reward snapshot exposes rendered card count")
 	_runner.assert_true(snapshot.has("has_backdrop"), "reward snapshot exposes backdrop contract")
@@ -275,7 +275,7 @@ func test_reward_choice_open_starts_slide_fade_animation() -> void:
 			"item_id": &"dokkaebi_fire",
 			"display_name": "도깨비불",
 			"flavor": "푸른 불씨가 공격 타이밍을 앞당긴다.",
-			"effect": "근접 공격 속도 +19% / 투척 속도 +19%",
+			"effect": "근접 공격 속도 +19%",
 		},
 	])
 
@@ -307,7 +307,7 @@ func test_reward_choice_cards_keep_ornament_height_fixed() -> void:
 		{
 			"item_id": &"dokkaebi_fire",
 			"display_name": "도깨비불",
-			"effect": "근접 공격 속도 +19% / 투척 속도 +19%",
+			"effect": "근접 공격 속도 +19%",
 		},
 		{
 			"item_id": &"shadow_knot",
