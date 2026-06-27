@@ -46,7 +46,7 @@ signal run_modifiers_changed(payload: Dictionary)
 @export var bat_range: float = 132.0       ## 배트 사거리 (px) — 모바일 헛손질을 줄이도록 길게
 @export var bat_arc: float = 2.4            ## 배트 타격 각 (rad) — 넓게 휘두름
 @export var bat_knockback: float = 64.0    ## 배트 넉백 거리 (px)
-@export var swing_vertical_factor: float = 0.6  ## 스윙 세로(깊이) 압축 — 위/아래 사거리를 좌우보다 짧게(벨트 원근감)
+@export var swing_vertical_factor: float = 0.75  ## 스윙 세로(깊이) 압축 — 위/아래 사거리를 좌우보다 살짝 짧게(벨트 원근감)
 @export var swing_visual_time: float = 0.12  ## 휘두르기 시각 표시 시간 (s)
 @export var bat_swing_visual_time: float = 0.16  ## 배트 초승달 슬래시 표시 시간(s)
 @export var power_impact_visual_time: float = 0.18  ## 강공격 이펙트 재생 시간(s)

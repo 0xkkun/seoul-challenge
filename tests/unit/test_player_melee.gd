@@ -111,6 +111,23 @@ func test_bat_hits_enemy_at_extended_mobile_reach() -> void:
 	p.free()
 
 
+func test_bat_hits_enemy_above_at_mobile_reach() -> void:
+	var p = PlayerScript.new()
+	add_child(p)
+	p.position = Vector2.ZERO
+	p.equip_bat()
+	var e := StubEnemy.new()
+	e.position = Vector2(0.0, -96.0)
+	e.add_to_group(&"enemy")
+	add_child(e)
+
+	p._attack_melee(Vector2.UP)
+
+	_runner.assert_eq(e.taken, p.bat_damage, "배트는 상단 96px 적까지 닿아야 한다")
+	e.free()
+	p.free()
+
+
 func test_barehand_hit_applies_small_knockback() -> void:
 	var p = PlayerScript.new()
 	add_child(p)
