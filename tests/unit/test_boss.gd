@@ -133,6 +133,34 @@ func test_weak_attack_plays_boss_attack_sfx_once() -> void:
 	target.queue_free()
 
 
+func test_weak_attack_plays_ground_effect_without_wound_effect() -> void:
+	var b = BossScene.instantiate()
+	var target := DamageTarget.new()
+	add_child(b)
+	add_child(target)
+	b.global_position = Vector2.ZERO
+	target.global_position = Vector2.RIGHT * 80.0
+	var ground := b.get_node_or_null("GroundImpactEffect") as AnimatedSprite2D
+	var wound := b.get_node_or_null("WoundSlashEffect") as AnimatedSprite2D
+	_runner.assert_not_null(ground, "보스 약공격은 대지 이펙트 노드를 가진다")
+	_runner.assert_not_null(wound, "보스 강공격은 상처 이펙트 노드를 가진다")
+	if ground == null or wound == null:
+		b.queue_free()
+		target.queue_free()
+		return
+
+	b.set("_pattern_index", 1)
+	b.call("_begin_pattern", target)
+
+	_runner.assert_true(ground.visible, "보스 약공격은 땅을 내려칠 때 대지 이펙트를 재생한다")
+	_runner.assert_eq(ground.animation, &"impact", "대지 이펙트는 임팩트 애니메이션을 사용한다")
+	_runner.assert_true(ground.is_playing(), "대지 이펙트 애니메이션이 재생 중이다")
+	_runner.assert_eq(ground.frame, 0, "대지 이펙트는 첫 프레임부터 재생한다")
+	_runner.assert_false(wound.visible, "보스 약공격은 강공격 상처 이펙트를 섞지 않는다")
+	b.queue_free()
+	target.queue_free()
+
+
 func test_strong_attack_hits_before_body_overlap() -> void:
 	var b = BossScene.instantiate()
 	var target := DamageTarget.new()
@@ -153,6 +181,42 @@ func test_strong_attack_hits_before_body_overlap() -> void:
 	b.call("_tick_strong_attack_hit", target, 0.02)
 	_runner.assert_true(target.damage_taken >= b.contact_damage, "보스 강공격은 몸통 접촉 전 스윙 범위에서 피해를 준다")
 	_runner.assert_true(target.global_position.distance_to(b.global_position) > b.contact_range, "테스트 대상은 기존 접촉 판정보다 멀리 있다")
+	b.queue_free()
+	target.queue_free()
+
+
+func test_strong_attack_plays_wound_effect_on_contact_frame_only() -> void:
+	var b = BossScene.instantiate()
+	var target := DamageTarget.new()
+	add_child(b)
+	add_child(target)
+	b.target_group = &"boss_timing_test_player"
+	target.add_to_group(&"boss_timing_test_player")
+	b.charge_speed = 0.0
+	b.global_position = Vector2.ZERO
+	target.global_position = Vector2.RIGHT * 120.0
+	var ground := b.get_node_or_null("GroundImpactEffect") as AnimatedSprite2D
+	var wound := b.get_node_or_null("WoundSlashEffect") as AnimatedSprite2D
+	_runner.assert_not_null(ground, "보스 약공격은 대지 이펙트 노드를 가진다")
+	_runner.assert_not_null(wound, "보스 강공격은 상처 이펙트 노드를 가진다")
+	if ground == null or wound == null:
+		b.queue_free()
+		target.queue_free()
+		return
+
+	b.set("_pattern_index", 0)
+	b.call("_begin_pattern", target)
+	_runner.assert_false(wound.visible, "보스 강공격 시작 프레임에는 상처 이펙트를 아직 재생하지 않는다")
+	_runner.assert_false(ground.visible, "보스 강공격은 약공격 대지 이펙트를 섞지 않는다")
+
+	b.call("_tick_strong_attack_hit", target, (float(b.strong_attack_hit_frame) / b.strong_attack_animation_fps) - 0.01)
+	_runner.assert_false(wound.visible, "보스 강공격은 방망이가 닿기 전 상처 이펙트를 재생하지 않는다")
+
+	b.call("_tick_strong_attack_hit", target, 0.02)
+	_runner.assert_true(wound.visible, "보스 강공격 임팩트 프레임에 상처 이펙트를 재생한다")
+	_runner.assert_eq(wound.animation, &"impact", "상처 이펙트는 임팩트 애니메이션을 사용한다")
+	_runner.assert_true(wound.is_playing(), "상처 이펙트 애니메이션이 재생 중이다")
+	_runner.assert_eq(wound.frame, 0, "상처 이펙트는 첫 프레임부터 재생한다")
 	b.queue_free()
 	target.queue_free()
 

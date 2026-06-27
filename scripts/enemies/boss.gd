@@ -14,6 +14,11 @@ const EnemyDeathFade = preload("res://scripts/combat/enemy_death_fade.gd")
 const EnemyHealthBar = preload("res://scripts/enemies/enemy_health_bar.gd")
 const FACING_DEADZONE := 0.05
 const HIT_TIMING_EPSILON := 0.0001
+const GROUND_EFFECT_FORWARD_OFFSET := 72.0
+const GROUND_EFFECT_BASE_OFFSET := Vector2(0.0, 36.0)
+const WOUND_EFFECT_FORWARD_OFFSET := 88.0
+const WOUND_EFFECT_BASE_OFFSET := Vector2(0.0, -6.0)
+const ATTACK_EFFECT_ANIMATION := &"impact"
 
 enum Phase { RECOVER, TELEGRAPH, CHARGE, SWING }
 
@@ -54,6 +59,8 @@ var _hit_reaction: Node = null
 var _health_bar: RefCounted = null
 
 @onready var _sprite: AnimatedSprite2D = get_node_or_null(^"Sprite")
+@onready var _ground_impact_effect: AnimatedSprite2D = get_node_or_null(^"GroundImpactEffect") as AnimatedSprite2D
+@onready var _wound_slash_effect: AnimatedSprite2D = get_node_or_null(^"WoundSlashEffect") as AnimatedSprite2D
 
 
 func _ready() -> void:
@@ -61,6 +68,8 @@ func _ready() -> void:
 	add_to_group(&"enemy")
 	add_to_group(&"boss")
 	_phase_timer = recover_time
+	_bind_attack_effect(_ground_impact_effect)
+	_bind_attack_effect(_wound_slash_effect)
 	_ensure_hit_reaction()
 	_reset_health_bar()
 	_play_move_animation()
@@ -207,6 +216,7 @@ func _begin_pattern(target: Node2D) -> void:
 		var aim := _aim_to(target)
 		AudioManager.play_sfx(AudioManager.BOSS_ATTACK)
 		_play_attack_animation(attack_animation, aim)
+		_play_ground_impact_effect(aim)
 		_try_swing_attack(target, aim, weak_attack_range, weak_attack_arc)
 		_phase = Phase.SWING
 		_phase_timer = 0.45
@@ -253,6 +263,7 @@ func _tick_strong_attack_hit(target: Node2D, delta: float) -> void:
 	if not _strong_attack_hit_ready_now():
 		return
 	_strong_attack_hit_resolved = true
+	_play_wound_slash_effect(_charge_dir)
 	_try_swing_attack(target, _charge_dir, strong_attack_range, strong_attack_arc)
 	_try_contact(target)
 
@@ -299,6 +310,45 @@ func _set_sprite_facing_from_direction(direction: Vector2) -> void:
 		_sprite.flip_h = true
 	elif direction.x > FACING_DEADZONE:
 		_sprite.flip_h = false
+
+
+func _bind_attack_effect(effect: AnimatedSprite2D) -> void:
+	if effect == null:
+		return
+	effect.visible = false
+	var callback := _on_attack_effect_finished.bind(effect)
+	if not effect.animation_finished.is_connected(callback):
+		effect.animation_finished.connect(callback)
+
+
+func _play_ground_impact_effect(facing_direction: Vector2) -> void:
+	_play_attack_effect(_ground_impact_effect, facing_direction, GROUND_EFFECT_FORWARD_OFFSET, GROUND_EFFECT_BASE_OFFSET)
+
+
+func _play_wound_slash_effect(facing_direction: Vector2) -> void:
+	_play_attack_effect(_wound_slash_effect, facing_direction, WOUND_EFFECT_FORWARD_OFFSET, WOUND_EFFECT_BASE_OFFSET)
+
+
+func _play_attack_effect(effect: AnimatedSprite2D, facing_direction: Vector2, forward_offset: float, base_offset: Vector2) -> void:
+	if effect == null or effect.sprite_frames == null:
+		return
+	if not effect.sprite_frames.has_animation(ATTACK_EFFECT_ANIMATION):
+		return
+	var dir := facing_direction.normalized() if facing_direction.length() > 0.001 else Vector2.RIGHT
+	effect.position = (dir * forward_offset) + base_offset
+	effect.flip_h = dir.x < -FACING_DEADZONE
+	effect.visible = true
+	effect.stop()
+	effect.animation = ATTACK_EFFECT_ANIMATION
+	effect.frame = 0
+	effect.play()
+	effect.frame = 0
+
+
+func _on_attack_effect_finished(effect: AnimatedSprite2D) -> void:
+	if effect == null or not is_instance_valid(effect):
+		return
+	effect.visible = false
 
 
 func _get_visual() -> CanvasItem:

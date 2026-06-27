@@ -1,0 +1,102 @@
+[gd_resource type="SpriteFrames" load_steps=15 format=3]
+
+[ext_resource type="Texture2D" path="res://assets/effects/boss_wound_slash.png" id="1_wound"]
+
+[sub_resource type="AtlasTexture" id="wound0"]
+atlas = ExtResource("1_wound")
+region = Rect2(0, 0, 192, 192)
+
+[sub_resource type="AtlasTexture" id="wound1"]
+atlas = ExtResource("1_wound")
+region = Rect2(192, 0, 192, 192)
+
+[sub_resource type="AtlasTexture" id="wound2"]
+atlas = ExtResource("1_wound")
+region = Rect2(384, 0, 192, 192)
+
+[sub_resource type="AtlasTexture" id="wound3"]
+atlas = ExtResource("1_wound")
+region = Rect2(576, 0, 192, 192)
+
+[sub_resource type="AtlasTexture" id="wound4"]
+atlas = ExtResource("1_wound")
+region = Rect2(768, 0, 192, 192)
+
+[sub_resource type="AtlasTexture" id="wound5"]
+atlas = ExtResource("1_wound")
+region = Rect2(960, 0, 192, 192)
+
+[sub_resource type="AtlasTexture" id="wound6"]
+atlas = ExtResource("1_wound")
+region = Rect2(1152, 0, 192, 192)
+
+[sub_resource type="AtlasTexture" id="wound7"]
+atlas = ExtResource("1_wound")
+region = Rect2(1344, 0, 192, 192)
+
+[sub_resource type="AtlasTexture" id="wound8"]
+atlas = ExtResource("1_wound")
+region = Rect2(1536, 0, 192, 192)
+
+[sub_resource type="AtlasTexture" id="wound9"]
+atlas = ExtResource("1_wound")
+region = Rect2(1728, 0, 192, 192)
+
+[sub_resource type="AtlasTexture" id="wound10"]
+atlas = ExtResource("1_wound")
+region = Rect2(1920, 0, 192, 192)
+
+[sub_resource type="AtlasTexture" id="wound11"]
+atlas = ExtResource("1_wound")
+region = Rect2(2112, 0, 192, 192)
+
+[sub_resource type="AtlasTexture" id="wound12"]
+atlas = ExtResource("1_wound")
+region = Rect2(2304, 0, 192, 192)
+
+[resource]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("wound0")
+}, {
+"duration": 1.0,
+"texture": SubResource("wound1")
+}, {
+"duration": 1.0,
+"texture": SubResource("wound2")
+}, {
+"duration": 1.0,
+"texture": SubResource("wound3")
+}, {
+"duration": 1.0,
+"texture": SubResource("wound4")
+}, {
+"duration": 1.0,
+"texture": SubResource("wound5")
+}, {
+"duration": 1.0,
+"texture": SubResource("wound6")
+}, {
+"duration": 1.0,
+"texture": SubResource("wound7")
+}, {
+"duration": 1.0,
+"texture": SubResource("wound8")
+}, {
+"duration": 1.0,
+"texture": SubResource("wound9")
+}, {
+"duration": 1.0,
+"texture": SubResource("wound10")
+}, {
+"duration": 1.0,
+"texture": SubResource("wound11")
+}, {
+"duration": 1.0,
+"texture": SubResource("wound12")
+}],
+"loop": false,
+"name": &"impact",
+"speed": 24.0
+}]
