@@ -290,7 +290,7 @@ func test_barehand_attack_does_not_play_bat_swing_sfx() -> void:
 
 func test_default_melee_attack_cooldown_is_slightly_slower() -> void:
 	var p = PlayerScript.new()
-	_runner.assert_true(is_equal_approx(p.attack_cooldown, 0.40), "기본 근접 공격 간격은 살짝 느린 0.40초다")
+	_runner.assert_true(is_equal_approx(p.attack_cooldown, 0.48), "기본 근접 공격 간격은 애니메이션과 맞는 0.48초다")
 	p.free()
 
 
@@ -311,6 +311,7 @@ func test_attack_animation_finishes_within_attack_cooldown() -> void:
 
 	_runner.assert_true(base_duration > player.attack_cooldown, "baseline attack sheet is longer than the gameplay cooldown")
 	_runner.assert_true(speed_scale > 1.0, "attack animation speeds up to match gameplay cooldown")
+	_runner.assert_true(speed_scale <= 1.20, "attack animation no longer rushes far ahead of the swing cooldown")
 	_runner.assert_true(speed_scale < previous_speed_scale, "slower attack cooldown lowers the attack animation speed")
 	_runner.assert_true(base_duration / speed_scale <= player.attack_cooldown + 0.001, "scaled attack animation ends before the next attack is ready")
 	player.queue_free()
