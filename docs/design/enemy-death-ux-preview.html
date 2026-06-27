@@ -120,17 +120,6 @@
       filter: drop-shadow(0 6px 0 rgba(0,0,0,0.18));
     }
 
-    .monster::after {
-      content: "";
-      position: absolute;
-      inset: 0;
-      background: white;
-      mix-blend-mode: screen;
-      opacity: 0;
-      animation: hitFlash 1800ms linear infinite;
-      pointer-events: none;
-    }
-
     .death-fx {
       position: absolute;
       left: calc(50% - 64px);
@@ -302,7 +291,6 @@
     }
 
     .play .monster,
-    .play .monster::after,
     .play .death-fx,
     .play .impact,
     .play .motif,
@@ -321,12 +309,6 @@
       34% { opacity: 0.86; transform: translateY(-18px) scale(1); }
       58% { opacity: 0; transform: translateY(-34px) scale(1); }
       100% { opacity: 0; transform: translateY(-34px) scale(1); }
-    }
-
-    @keyframes hitFlash {
-      0%, 13% { opacity: 0; }
-      15% { opacity: 0.78; }
-      22%, 100% { opacity: 0; }
     }
 
     @keyframes deathSheet {
@@ -408,7 +390,7 @@
       <section class="card">
         <h2>타임라인</h2>
         <ol>
-          <li>피격 순간: 1프레임 흰색 플래시</li>
+          <li>피격 순간: 사망 이펙트와 몬스터 밝기 변화로 타이밍 표시</li>
           <li>0.15초: 사망 PNG가 발 위치에서 재생</li>
           <li>0.25초: 몬스터는 원본 비율로 살짝 떠오름</li>
           <li>0.55초: 몬스터 잔상만 사라지고 이펙트 종료</li>
