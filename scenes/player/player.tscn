@@ -1,4 +1,4 @@
-[gd_scene load_steps=8 format=3]
+[gd_scene load_steps=9 format=3]
 
 [ext_resource type="Script" path="res://scripts/player/player.gd" id="1_player"]
 [ext_resource type="Script" path="res://scripts/player/projectile_launcher.gd" id="2_launcher"]
@@ -6,6 +6,7 @@
 [ext_resource type="Texture2D" path="res://assets/effects/bat_slash.png" id="4_bat_slash"]
 [ext_resource type="Texture2D" path="res://assets/effects/bat_slash_fire.png" id="5_bat_slash_fire"]
 [ext_resource type="SpriteFrames" path="res://assets/effects/attack_reverse_dust_frames.tres" id="6_attack_dust"]
+[ext_resource type="Texture2D" path="res://assets/effects/player_dash_dust.png" id="7_dash_dust"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_player"]
 radius = 14.0
@@ -59,6 +60,16 @@ visible = false
 texture_filter = 1
 sprite_frames = ExtResource("6_attack_dust")
 animation = &"burst"
+
+[node name="DashDust" type="Node2D" parent="."]
+visible = false
+z_index = 1
+
+[node name="DustSprite" type="Sprite2D" parent="DashDust"]
+visible = false
+texture_filter = 1
+texture = ExtResource("7_dash_dust")
+hframes = 6
 
 [node name="ProjectileLauncher" type="Node" parent="."]
 script = ExtResource("2_launcher")

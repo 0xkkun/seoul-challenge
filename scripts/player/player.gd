@@ -11,6 +11,8 @@ const StatusEffectController = preload("res://scripts/combat/status_effect_contr
 const MetaUpgradeCatalog = preload("res://scripts/items/meta_upgrade_catalog.gd")
 const SLASH_FRAME_WIDTH := 64.0
 const ATTACK_DUST_FRAME_SIZE := Vector2(48.0, 72.0)
+const DASH_DUST_FRAME_SIZE := Vector2(108.0, 42.0)
+const DASH_DUST_FRAME_COUNT := 6
 const BAT_SLASH_VISUAL_SCALE := 1.18
 const POWER_SLASH_VISUAL_SCALE := 1.35
 const WEAPON_NAME_BARE_HANDS := "맨손"
@@ -54,6 +56,10 @@ signal run_modifiers_changed(payload: Dictionary)
 @export var attack_dust_back_offset: float = 36.0  ## 바라보는 방향의 반대쪽 발밑 거리(px)
 @export var attack_dust_foot_offset: float = 52.0  ## 캐릭터 중심에서 발밑으로 내리는 오프셋(px)
 @export var attack_dust_move_threshold: float = 0.1
+@export var dash_dust_visual_time: float = 0.16
+@export var dash_dust_visual_height: float = 42.0
+@export var dash_dust_back_offset: float = 30.0
+@export var dash_dust_foot_offset: float = 52.0
 @export var dash_power_attack_grace_time: float = 0.15  ## 대시 직후 강화 근접 공격 입력 허용 시간(s)
 @export_range(0, 9, 1) var dash_power_attack_damage_bonus := 1
 @export var dash_power_attack_range_multiplier: float = 1.15
@@ -95,11 +101,13 @@ var _movement_bounds_enabled := false
 var _status_effects: Node = null
 var _bat_swing_tween: Tween = null
 var _power_impact_tween: Tween = null
+var _dash_dust_tween: Tween = null
 
 @onready var _swing_visual: Node2D = get_node_or_null(^"MeleeSwing")
 @onready var _bat_swing_visual: Node2D = get_node_or_null(^"BatSwingImpact")
 @onready var _power_impact_visual: Node2D = get_node_or_null(^"PowerImpact")
 @onready var _attack_dust_visual: Node2D = get_node_or_null(^"AttackDust")
+@onready var _dash_dust_visual: Node2D = get_node_or_null(^"DashDust")
 @onready var _sprite: AnimatedSprite2D = get_node_or_null(^"Sprite")
 
 
@@ -578,6 +586,7 @@ func try_start_special_skill(input_vector: Vector2 = Vector2.ZERO) -> bool:
 	_dash_power_attack_consumed = false
 	_invuln_timer = maxf(_invuln_timer, dodge_invuln_time)
 	special_skill_uses_remaining = consume_special_use(special_skill_uses_remaining)
+	_show_dash_dust(_dodge_direction)
 	_start_special_recharge_if_needed()
 	_broadcast_special_skill_state()
 	return true
@@ -1074,6 +1083,26 @@ func build_attack_dust_effect_state(
 	}
 
 
+func build_dash_dust_effect_state(
+	dodge_dir: Vector2,
+	frame_size: Vector2,
+	visual_height: float,
+	back_offset: float,
+	foot_offset: float
+) -> Dictionary:
+	var safe_dir := dodge_dir.normalized() if dodge_dir.length() > 0.001 else Vector2.RIGHT
+	var trailing_dir := -safe_dir
+	var safe_frame_height := maxf(1.0, frame_size.y)
+	var scale_value := maxf(0.001, visual_height / safe_frame_height)
+	var foot_position := Vector2(0.0, foot_offset)
+	var trailing_position := trailing_dir * maxf(0.0, back_offset)
+	return {
+		"position": foot_position + trailing_position,
+		"rotation": trailing_dir.angle(),
+		"scale": Vector2(scale_value, scale_value),
+	}
+
+
 func _show_attack_dust(dir: Vector2, move_input: Vector2) -> void:
 	if not should_show_attack_dust(move_input):
 		return
@@ -1100,10 +1129,61 @@ func _show_attack_dust(dir: Vector2, move_input: Vector2) -> void:
 	dust_sprite.play(&"burst")
 
 
+func _show_dash_dust(dodge_dir: Vector2) -> void:
+	if _dash_dust_visual == null:
+		return
+	var dust_sprite := _get_dash_dust_sprite()
+	if dust_sprite == null:
+		return
+	if _dash_dust_tween != null and _dash_dust_tween.is_valid():
+		_dash_dust_tween.kill()
+	var state := build_dash_dust_effect_state(
+		dodge_dir,
+		DASH_DUST_FRAME_SIZE,
+		dash_dust_visual_height,
+		dash_dust_back_offset,
+		dash_dust_foot_offset
+	)
+	_dash_dust_visual.position = state["position"] as Vector2
+	_dash_dust_visual.rotation = float(state["rotation"])
+	_dash_dust_visual.scale = state["scale"] as Vector2
+	_dash_dust_visual.modulate = Color.WHITE
+	_dash_dust_visual.visible = true
+	dust_sprite.visible = true
+	dust_sprite.frame = 0
+	dust_sprite.hframes = DASH_DUST_FRAME_COUNT
+	dust_sprite.vframes = 1
+	dust_sprite.modulate = Color.WHITE
+	if not is_inside_tree():
+		return
+	_dash_dust_tween = create_tween()
+	_dash_dust_tween.set_parallel(true)
+	_dash_dust_tween.tween_property(
+		dust_sprite,
+		"frame",
+		DASH_DUST_FRAME_COUNT - 1,
+		dash_dust_visual_time
+	).set_trans(Tween.TRANS_LINEAR).set_ease(Tween.EASE_IN_OUT)
+	_dash_dust_tween.tween_property(
+		_dash_dust_visual,
+		"modulate:a",
+		0.0,
+		dash_dust_visual_time * 0.35
+	).set_delay(dash_dust_visual_time * 0.65).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
+	_dash_dust_tween.set_parallel(false)
+	_dash_dust_tween.finished.connect(_hide_dash_dust)
+
+
 func _get_attack_dust_sprite() -> AnimatedSprite2D:
 	if _attack_dust_visual == null:
 		return null
 	return _attack_dust_visual.get_node_or_null(^"DustSprite") as AnimatedSprite2D
+
+
+func _get_dash_dust_sprite() -> Sprite2D:
+	if _dash_dust_visual == null:
+		return null
+	return _dash_dust_visual.get_node_or_null(^"DustSprite") as Sprite2D
 
 
 func _hide_attack_dust() -> void:
@@ -1120,6 +1200,21 @@ func _hide_attack_dust() -> void:
 		dust_sprite.stop()
 		dust_sprite.frame = 0
 		dust_sprite.speed_scale = 1.0
+
+
+func _hide_dash_dust() -> void:
+	if _dash_dust_visual == null:
+		return
+	_dash_dust_visual.visible = false
+	_dash_dust_visual.modulate = Color.WHITE
+	_dash_dust_visual.scale = Vector2.ONE
+	_dash_dust_visual.rotation = 0.0
+	_dash_dust_visual.position = Vector2.ZERO
+	var dust_sprite := _get_dash_dust_sprite()
+	if dust_sprite != null:
+		dust_sprite.visible = false
+		dust_sprite.frame = 0
+		dust_sprite.modulate = Color.WHITE
 
 
 func _start_power_impact_tween(slash_sprite: Sprite2D) -> void:
