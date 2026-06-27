@@ -8,6 +8,11 @@ const NightMapSelectScene := preload("res://scenes/ui/night_map_select.tscn")
 const SettingsUiScene := preload("res://scenes/ui/settings_ui.tscn")
 const ConfirmModalScene := preload("res://scenes/ui/confirm_modal.tscn")
 const NightIntroCutsceneScript := preload("res://scripts/cutscene/night_intro_cutscene.gd")
+const FONT_LICENSE_NOTICE_PATHS: Array[String] = [
+	"res://assets/fonts/licenses/NeoDunggeunmoPro-NOTICE.txt",
+	"res://assets/fonts/licenses/ChosunCentennial-LICENSE.txt",
+	"res://assets/fonts/licenses/RIDIBatang-NOTICE.txt",
+]
 
 var _runner: Node
 var _nodes: Array[Node] = []
@@ -31,6 +36,8 @@ func test_font_assets_and_project_theme_are_importable() -> void:
 	_runner.assert_true(FileAccess.file_exists("%s.import" % UiFontRolesScript.PIXEL_FONT_PATH), "pixel font import metadata is committed")
 	_runner.assert_true(FileAccess.file_exists("%s.import" % UiFontRolesScript.TITLE_FONT_PATH), "title font import metadata is committed")
 	_runner.assert_true(FileAccess.file_exists("%s.import" % UiFontRolesScript.BODY_FONT_PATH), "body font import metadata is committed")
+	for notice_path: String in FONT_LICENSE_NOTICE_PATHS:
+		_runner.assert_true(FileAccess.file_exists(notice_path), "%s is committed" % notice_path)
 	_runner.assert_eq(
 		ProjectSettings.get_setting("gui/theme/custom", ""),
 		"res://assets/themes/seoul_theme.tres",

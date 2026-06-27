@@ -1,0 +1,25 @@
+Chosun Centennial
+=================
+
+Bundled file:
+- ../ChosunCentennial.ttf
+
+Project source:
+- Copied from ../../../../tailbound-godot/assets/fonts/ChosunCentennial.ttf
+
+Upstream source:
+- https://event.chosun.com/100/100font.html
+
+Copyright notice:
+- Copyright (c) 2020 Bang Il Young Foundation. All rights reserved.
+- Chosun Centennial is a trademark of Bang Il Young Foundation.
+
+License terms:
+- The intellectual property rights for Chosun Centennial belong to the Bang Il Young Cultural Foundation.
+- Chosun Centennial is provided free of charge to individual and corporate users.
+- Users may distribute the font to others.
+- Users may not demand payment for copying or distributing the font.
+- Users may not modify and sell the font.
+- Use the font in its distributed form.
+
+Keep this license notice with any redistribution of the bundled font file.

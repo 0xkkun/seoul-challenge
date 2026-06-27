@@ -1,0 +1,26 @@
+RIDI Batang
+===========
+
+Bundled file:
+- ../RIDIBatang.otf
+
+Project source:
+- Copied from ../../../../tailbound-godot/assets/fonts/RIDIBatang.otf
+
+Upstream source:
+- https://ridicorp.com/ridibatang/
+
+Copyright notice:
+- Copyright (C) 2019 RIDI & Sandoll. All rights reserved.
+- Font designed by Sandoll Inc.
+- RIDI Batang copyright is owned by RIDI Corporation.
+
+License:
+- SIL Open Font License, Version 1.1
+- SPDX-License-Identifier: OFL-1.1
+- Full license text: https://openfontlicense.org/open-font-license-official-text/
+
+Attribution:
+- This project uses the RIDI Batang font provided by RIDI Corporation.
+
+Keep this notice with any redistribution of the bundled font file.
