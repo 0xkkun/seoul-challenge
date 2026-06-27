@@ -47,7 +47,10 @@ func test_hit_reaction_blocks_repeat_damage_and_restores_visual() -> void:
 	var b = BossScene.instantiate()
 	b.max_hp = 2
 	add_child(b)
-	var visual := b.get_node("Placeholder") as CanvasItem
+	var visual := b.get_node_or_null("Sprite") as CanvasItem
+	_runner.assert_not_null(visual, "보스 피격 플래시는 실제 보스 스프라이트에 적용된다")
+	if visual == null:
+		return
 	var base_modulate := visual.modulate
 	var defeated := {"count": 0}
 	b.defeated.connect(func(_boss): defeated["count"] += 1)

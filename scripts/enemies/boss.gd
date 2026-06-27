@@ -13,6 +13,7 @@ const HitReactionController = preload("res://scripts/combat/hit_reaction_control
 const EnemyDeathFade = preload("res://scripts/combat/enemy_death_fade.gd")
 const EnemyHealthBar = preload("res://scripts/enemies/enemy_health_bar.gd")
 const ENEMY_BULLET := preload("res://scenes/enemies/enemy_bullet.tscn")
+const FACING_DEADZONE := 0.05
 
 enum Phase { RECOVER, TELEGRAPH, CHARGE, BURST }
 
@@ -31,6 +32,9 @@ enum Phase { RECOVER, TELEGRAPH, CHARGE, BURST }
 @export var target_group: StringName = &"player"
 @export var health_bar_width: float = 64.0
 @export var health_bar_height: float = 5.0
+@export var move_animation: StringName = &"move"
+@export var attack_animation: StringName = &"attack"
+@export var strong_attack_animation: StringName = &"strong_attack"
 
 var _hp: int = 0
 var _dead := false
@@ -42,6 +46,8 @@ var _contact_timer: float = 0.0
 var _hit_reaction: Node = null
 var _health_bar: RefCounted = null
 
+@onready var _sprite: AnimatedSprite2D = get_node_or_null(^"Sprite")
+
 
 func _ready() -> void:
 	_hp = max_hp
@@ -50,6 +56,7 @@ func _ready() -> void:
 	_phase_timer = recover_time
 	_ensure_hit_reaction()
 	_reset_health_bar()
+	_play_move_animation()
 
 
 func _physics_process(delta: float) -> void:
@@ -126,7 +133,7 @@ func _ensure_hit_reaction() -> Node:
 	_hit_reaction = HitReactionController.new()
 	_hit_reaction.name = "HitReaction"
 	add_child(_hit_reaction)
-	var visual := get_node_or_null(^"Placeholder") as CanvasItem
+	var visual := _get_visual()
 	if visual != null:
 		_hit_reaction.call("bind_visual", visual)
 	return _hit_reaction
@@ -179,10 +186,12 @@ func _begin_pattern(target: Node2D) -> void:
 		_charge_dir = _aim_to(target)
 		_phase = Phase.CHARGE
 		_phase_timer = charge_time
+		_play_attack_animation(strong_attack_animation, _charge_dir)
 	else:
+		_play_attack_animation(attack_animation, _aim_to(target))
 		_fire_burst(target)
 		_phase = Phase.BURST
-		_phase_timer = 0.4
+		_phase_timer = 0.45
 
 
 func _fire_burst(target: Node2D) -> void:
@@ -199,6 +208,7 @@ func _fire_burst(target: Node2D) -> void:
 func _begin_recover() -> void:
 	_phase = Phase.RECOVER
 	_phase_timer = recover_time
+	_play_move_animation()
 
 
 func _slow_follow(target: Node2D) -> void:
@@ -206,6 +216,7 @@ func _slow_follow(target: Node2D) -> void:
 		velocity = Vector2.ZERO
 		return
 	velocity = charge_velocity(global_position, target.global_position, move_speed)
+	_update_move_animation()
 	move_and_slide()
 	_try_contact(target)
 
@@ -219,6 +230,44 @@ func _aim_to(target: Node2D) -> Vector2:
 
 func _find_target() -> Node2D:
 	return get_tree().get_first_node_in_group(target_group) as Node2D
+
+
+func _update_move_animation() -> void:
+	if _sprite == null or _sprite.sprite_frames == null:
+		return
+	_update_sprite_facing()
+	_play_move_animation()
+
+
+func _play_move_animation() -> void:
+	if _sprite == null or _sprite.sprite_frames == null:
+		return
+	if not _sprite.sprite_frames.has_animation(move_animation):
+		return
+	if _sprite.animation != move_animation:
+		_sprite.play(move_animation)
+	elif not _sprite.is_playing():
+		_sprite.play()
+
+
+func _play_attack_animation(animation_name: StringName, facing_direction: Vector2 = Vector2.ZERO) -> void:
+	if _sprite == null or _sprite.sprite_frames == null:
+		return
+	_set_sprite_facing_from_direction(facing_direction)
+	if _sprite.sprite_frames.has_animation(animation_name):
+		_sprite.play(animation_name)
+		_sprite.frame = 0
+
+
+func _update_sprite_facing() -> void:
+	_set_sprite_facing_from_direction(velocity)
+
+
+func _set_sprite_facing_from_direction(direction: Vector2) -> void:
+	if direction.x < -FACING_DEADZONE:
+		_sprite.flip_h = true
+	elif direction.x > FACING_DEADZONE:
+		_sprite.flip_h = false
 
 
 func _get_visual() -> CanvasItem:
