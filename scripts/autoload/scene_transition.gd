@@ -11,6 +11,7 @@ const RUN_CONFIG_ONBOARDING_KIND := "onboarding_kind"
 const ONBOARDING_KIND_BASEBALL_CAPTAIN := &"baseball_captain"
 const FLAG_ONBOARDING_BASEBALL_COMPLETE := &"onboarding_baseball_complete"
 const FLAG_BASEBALL_CAPTAIN_REWARD_CLAIMED := &"baseball_captain_reward_claimed"
+const FLAG_GYEONGBOKGUNG_BOSS_RESULT_ACKNOWLEDGED := &"gyeongbokgung_boss_result_acknowledged"
 const DAY_CORRIDOR_CONTEXT_ROOM_ID := "room_id"
 const DAY_CORRIDOR_CONTEXT_EDGE_ID := "edge"
 const FADE_SECONDS := 0.22
