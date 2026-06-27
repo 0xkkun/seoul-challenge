@@ -3,6 +3,7 @@ extends CharacterBody2D
 
 const HitReactionController = preload("res://scripts/combat/hit_reaction_controller.gd")
 const StatusEffectController = preload("res://scripts/combat/status_effect_controller.gd")
+const EnemyDeathFade = preload("res://scripts/combat/enemy_death_fade.gd")
 const FACING_DEADZONE := 0.01
 
 signal defeated(enemy)
@@ -242,8 +243,19 @@ func _die() -> void:
 	if _dead:
 		return
 	_dead = true
+	_spawn_death_fade()
 	defeated.emit(self)
 	queue_free()
+
+
+func _spawn_death_fade() -> void:
+	var parent := get_parent()
+	if parent == null:
+		return
+	var fade := EnemyDeathFade.new()
+	parent.add_child(fade)
+	fade.global_position = global_position
+	fade.capture_visual(_get_visual())
 
 
 func _find_target() -> Node2D:
