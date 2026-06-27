@@ -9,6 +9,9 @@ const SCHOOL_BELL_TRANSITION_BACK := &"school_bell_transition_back"
 const UI_BUTTON_PRESS := &"ui_button_press"
 const BAT_SWING := &"bat_swing"
 const BAT_HIT := &"bat_hit"
+const BOSS_ATTACK := &"boss_attack"
+const WOLF_ATTACK := &"wolf_attack"
+const KUMIHO_FIREBALL := &"kumiho_fireball"
 const CORRIDOR_FOOTSTEP := &"corridor_footstep"
 const DASH_WIND := &"dash_wind"
 const NIGHT_INTRO_TRANSITION := &"night_intro_transition"
@@ -37,6 +40,9 @@ const _SFX_STREAM_PATHS := {
 	UI_BUTTON_PRESS: "res://assets/audio/sfx/ui_button_press.mp3",
 	BAT_SWING: "res://assets/audio/sfx/bat_swing.mp3",
 	BAT_HIT: "res://assets/audio/sfx/bat_hit.wav",
+	BOSS_ATTACK: "res://assets/audio/sfx/boss_attack.mp3",
+	WOLF_ATTACK: "res://assets/audio/sfx/wolf_attack.wav",
+	KUMIHO_FIREBALL: "res://assets/audio/sfx/kumiho_fireball.mp3",
 	CORRIDOR_FOOTSTEP: "res://assets/audio/sfx/corridor_footstep.wav",
 	DASH_WIND: "res://assets/audio/sfx/dash_wind.wav",
 	NIGHT_INTRO_TRANSITION: "res://assets/audio/sfx/night_intro_transition.mp3",

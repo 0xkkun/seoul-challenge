@@ -16,6 +16,7 @@ move_speed = 82.0
 preferred_range = 240.0
 fire_interval = 1.35
 projectile_scene = ExtResource("3_fireball")
+attack_sfx_id = &"kumiho_fireball"
 
 [node name="Collision" type="CollisionShape2D" parent="."]
 shape = SubResource("CircleShape2D_kumiho")
