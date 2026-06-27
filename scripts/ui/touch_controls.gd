@@ -97,6 +97,8 @@ func _apply_control_category() -> void:
 	_joystick.visible = true
 	_attack.visible = true
 	_skill.visible = is_combat
+	if _attack.has_method("set_icon_mode"):
+		_attack.call("set_icon_mode", "attack" if is_combat else "dialogue")
 	_sync_input_processing()
 	if not is_combat and _skill.has_method("release"):
 		_skill.call("release")

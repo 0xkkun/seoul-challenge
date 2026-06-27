@@ -27,6 +27,24 @@ func test_attack_button_uses_b9_transparent_icon_contract() -> void:
 	button.free()
 
 
+func test_attack_button_dialogue_mode_uses_same_size_speech_icon_contract() -> void:
+	var button := AttackButtonScript.new()
+	_runner.assert_true(button.has_method("set_icon_mode"), "attack button can switch icon mode for non-combat contexts")
+	_runner.assert_true(button.has_method("get_visual_contract"), "attack button exposes icon contract")
+	if not button.has_method("set_icon_mode") or not button.has_method("get_visual_contract"):
+		button.free()
+		return
+
+	button.call("set_icon_mode", "dialogue")
+
+	var contract: Dictionary = button.get_visual_contract()
+	_runner.assert_eq(contract.get("icon_mode"), "dialogue", "dialogue mode replaces the combat damage icon")
+	_runner.assert_eq(contract.get("icon_shape"), "speech_bubble", "dialogue mode uses a speech bubble/message icon")
+	_runner.assert_eq(contract.get("icon_path"), "", "dialogue mode uses the built-in pixel speech icon instead of the combat asset")
+	_runner.assert_true(is_equal_approx(float(contract.get("icon_scale", 0.0)), 0.44), "dialogue icon keeps the same size as the combat icon")
+	button.free()
+
+
 func test_skill_button_uses_b9_transparent_center_icon_contract() -> void:
 	var button := SkillButtonScript.new()
 	_runner.assert_true(button.has_method("get_visual_contract"), "skill button exposes B-9 visual contract")
