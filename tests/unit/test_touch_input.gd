@@ -63,9 +63,9 @@ func test_touch_controls_exposes_skill_button() -> void:
 	skill_button.set("_active_index", 7)
 	_runner.assert_true(touch.is_skill_pressed(), "held skill button is reported")
 	_runner.assert_true(skill_button.has_method("set_skill_state"), "skill button accepts skill state")
-	_runner.assert_true(skill_button.has_method("get_uses_label"), "skill button exposes uses label")
 	_runner.assert_true(skill_button.has_method("get_cooldown_ratio"), "skill button exposes cooldown ratio")
-	if not skill_button.has_method("set_skill_state") or not skill_button.has_method("get_uses_label") or not skill_button.has_method("get_cooldown_ratio"):
+	_runner.assert_true(skill_button.has_method("get_charge_slot_snapshot"), "skill button exposes non-text charge slots")
+	if not skill_button.has_method("set_skill_state") or not skill_button.has_method("get_cooldown_ratio") or not skill_button.has_method("get_charge_slot_snapshot"):
 		return
 	skill_button.set_skill_state({
 		"uses_remaining": 2,
@@ -73,8 +73,13 @@ func test_touch_controls_exposes_skill_button() -> void:
 		"cooldown_remaining": 0.5,
 		"cooldown": 1.0,
 	})
-	_runner.assert_eq(skill_button.get_uses_label(), "2", "skill button renders remaining uses")
 	_runner.assert_true(is_equal_approx(skill_button.get_cooldown_ratio(), 0.5), "skill button exposes cooldown progress")
+	var slots: Array = skill_button.get_charge_slot_snapshot()
+	_runner.assert_eq(slots.size(), 3, "skill button renders one slot per base dodge charge")
+	if slots.size() == 3:
+		_runner.assert_eq(slots[0]["state"], &"filled", "first stored dash is filled")
+		_runner.assert_eq(slots[1]["state"], &"filled", "second stored dash is filled")
+		_runner.assert_eq(slots[2]["state"], &"charging", "spent dash slot shows recharge progress")
 
 
 func test_touch_controls_can_release_combat_inputs_for_modal_open() -> void:
