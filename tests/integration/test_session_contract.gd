@@ -169,9 +169,7 @@ func test_combat_clear_requires_reward_choice_before_room_transition() -> void:
 		attack_button.set("_active_index", 8)
 		_runner.assert_true(touch_controls.call("is_attack_pressed"), "test starts with held attack input")
 
-	for enemy: Node in manager.current_room.call("get_active_enemies"):
-		if enemy.has_method("take_damage"):
-			enemy.call("take_damage", 99)
+	_defeat_all_combat_waves(manager.current_room)
 
 	_runner.assert_true(manager.is_current_room_cleared(), "combat room is cleared")
 	_runner.assert_true(session_ui.call("is_reward_choice_visible"), "combat clear opens reward choice overlay")
@@ -628,6 +626,20 @@ func _first_room_of_type(layout: RoomLayout, room_type: StringName) -> RoomDef:
 		if room_def.room_type == room_type:
 			return room_def
 	return null
+
+
+func _defeat_all_combat_waves(room: Node) -> void:
+	var guard := 0
+	while room.has_method("get_active_enemies") and room.has_method("is_cleared") and not room.call("is_cleared"):
+		var enemies: Array = room.call("get_active_enemies")
+		if enemies.is_empty():
+			return
+		for enemy: Node in enemies:
+			if enemy.has_method("take_damage"):
+				enemy.call("take_damage", 99)
+		guard += 1
+		if guard > 8:
+			return
 
 
 func _first_connected_room_id(layout: RoomLayout, room_id: StringName) -> StringName:
