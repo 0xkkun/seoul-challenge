@@ -1,7 +1,7 @@
 class_name CombatRoom
 extends Room
 
-const CHASER_SCENE = preload("res://scenes/enemies/chaser.tscn")
+const CHASER_SCENE = preload("res://scenes/enemies/akgwi.tscn")
 const RANGED_SHOOTER_SCENE = preload("res://scenes/enemies/kumiho.tscn")
 const CHASER_SPAWN_FACTORS: Array[Vector2] = [
 	Vector2(0.15, -0.35),
@@ -182,7 +182,7 @@ func _spawn_enemy_entry(entry: Dictionary) -> void:
 	_spawn_enemy_instance(
 		chaser_scene,
 		CHASER_SPAWN_FACTORS,
-		"EliteChaser" if elite_variant else "Chaser",
+		"EliteAkgwi" if elite_variant else "Akgwi",
 		sequence,
 		elite_variant
 	)
