@@ -23,6 +23,12 @@ const REWARD_CHOICE_TITLE_OFFSET_TOP := -170.0
 const REWARD_CHOICE_TITLE_OFFSET_BOTTOM := -124.0
 const REWARD_CHOICE_CARD_SIZE := Vector2(244.0, 146.0)
 const REWARD_CHOICE_DIM_ALPHA := 0.28
+const REWARD_CHOICE_CARD_TITLE_FONT_SIZE := 25
+const REWARD_CHOICE_CARD_EFFECT_FONT_SIZE := 15
+const REWARD_CHOICE_CARD_TITLE_OUTLINE := 4
+const REWARD_CHOICE_CARD_EFFECT_OUTLINE := 1
+const REWARD_CHOICE_CARD_TITLE_COLOR := Color(1.0, 0.835294, 0.258824, 1.0)
+const REWARD_CHOICE_CARD_EFFECT_COLOR := Color(0.88, 0.86, 0.66, 0.94)
 const REWARD_CHOICE_OPEN_DURATION := 0.18
 const REWARD_CHOICE_CARD_STAGGER := 0.045
 const REWARD_CHOICE_CARD_START_SCALE := Vector2(0.94, 0.94)
@@ -216,13 +222,22 @@ func get_reward_choice_snapshot() -> Dictionary:
 	var texts: Array[String] = []
 	var effects: Array[String] = []
 	var button_texts: Array[String] = []
+	var title_font_sizes: Array[int] = []
+	var effect_font_sizes: Array[int] = []
+	var title_outline_sizes: Array[int] = []
+	var effect_outline_sizes: Array[int] = []
 	for choice: Dictionary in _reward_choice_models:
 		texts.append(String(choice.get("display_name", "")))
 		effects.append(String(choice.get("effect", "")))
 	if _reward_choice_row != null:
 		for child: Node in _reward_choice_row.get_children():
 			if child is Button:
-				button_texts.append((child as Button).text)
+				var card := child as Button
+				button_texts.append(_reward_choice_card_snapshot_text(card))
+				title_font_sizes.append(_reward_choice_label_font_size(card, "RewardTitleLabel"))
+				effect_font_sizes.append(_reward_choice_label_font_size(card, "RewardEffectLabel"))
+				title_outline_sizes.append(_reward_choice_label_outline_size(card, "RewardTitleLabel"))
+				effect_outline_sizes.append(_reward_choice_label_outline_size(card, "RewardEffectLabel"))
 	return {
 		"visible": is_reward_choice_visible(),
 		"room_id": _reward_choice_room_id,
@@ -230,6 +245,10 @@ func get_reward_choice_snapshot() -> Dictionary:
 		"choice_texts": texts,
 		"choice_effects": effects,
 		"choice_button_texts": button_texts,
+		"choice_title_font_sizes": title_font_sizes,
+		"choice_effect_font_sizes": effect_font_sizes,
+		"choice_title_outline_sizes": title_outline_sizes,
+		"choice_effect_outline_sizes": effect_outline_sizes,
 		"visible_card_count": _reward_choice_cards.size(),
 		"has_backdrop": _reward_choice_dim != null and is_instance_valid(_reward_choice_dim),
 		"dim_alpha": _reward_choice_dim.color.a if _reward_choice_dim != null and is_instance_valid(_reward_choice_dim) else 0.0,
@@ -371,25 +390,87 @@ func _render_reward_choices() -> void:
 		var effect := String(choice.get("effect", ""))
 		var button := Button.new()
 		button.name = "RewardChoice%sButton" % _node_suffix_for_reward_id(item_id)
-		button.text = _reward_choice_button_text(display_name, effect)
-		button.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		button.text = ""
 		button.custom_minimum_size = REWARD_CHOICE_CARD_SIZE
 		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		button.add_theme_font_size_override("font_size", 19)
 		button.set_meta("test_id", "session.reward_choice.%s" % String(item_id))
 		button.set_meta("uat_action", "session.reward_choice.%s" % String(item_id))
 		button.pressed.connect(_on_reward_choice_pressed.bind(item_id))
 		PixelButtonStyle.apply(button, PixelButtonStyle.VARIANT_PRIMARY, REWARD_CHOICE_CARD_SIZE)
 		button.pivot_offset = REWARD_CHOICE_CARD_SIZE * 0.5
+		_add_reward_choice_card_content(button, display_name, effect)
 		_reward_choice_row.add_child(button)
 		_reward_choice_cards.append(button)
 
 
-func _reward_choice_button_text(display_name: String, effect: String) -> String:
-	var parts: Array[String] = [display_name]
-	if effect != "":
-		parts.append("효과: %s" % effect)
+func _add_reward_choice_card_content(button: Button, display_name: String, effect: String) -> void:
+	var margin := MarginContainer.new()
+	margin.name = "RewardCardMargin"
+	margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	margin.set_anchors_preset(Control.PRESET_FULL_RECT)
+	margin.add_theme_constant_override("margin_left", 14)
+	margin.add_theme_constant_override("margin_top", 14)
+	margin.add_theme_constant_override("margin_right", 14)
+	margin.add_theme_constant_override("margin_bottom", 12)
+	button.add_child(margin)
+
+	var stack := VBoxContainer.new()
+	stack.name = "RewardCardTextStack"
+	stack.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	stack.alignment = BoxContainer.ALIGNMENT_CENTER
+	stack.add_theme_constant_override("separation", 9)
+	margin.add_child(stack)
+
+	var title := Label.new()
+	title.name = "RewardTitleLabel"
+	title.text = display_name
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	title.add_theme_font_size_override("font_size", REWARD_CHOICE_CARD_TITLE_FONT_SIZE)
+	title.add_theme_color_override("font_color", REWARD_CHOICE_CARD_TITLE_COLOR)
+	title.add_theme_color_override("font_outline_color", Color(0.0, 0.0, 0.0, 0.88))
+	title.add_theme_constant_override("outline_size", REWARD_CHOICE_CARD_TITLE_OUTLINE)
+	title.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	stack.add_child(title)
+
+	var effect_label := Label.new()
+	effect_label.name = "RewardEffectLabel"
+	effect_label.text = "효과: %s" % effect if effect != "" else ""
+	effect_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	effect_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	effect_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	effect_label.add_theme_font_size_override("font_size", REWARD_CHOICE_CARD_EFFECT_FONT_SIZE)
+	effect_label.add_theme_color_override("font_color", REWARD_CHOICE_CARD_EFFECT_COLOR)
+	effect_label.add_theme_color_override("font_outline_color", Color(0.0, 0.0, 0.0, 0.65))
+	effect_label.add_theme_constant_override("outline_size", REWARD_CHOICE_CARD_EFFECT_OUTLINE)
+	effect_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	stack.add_child(effect_label)
+
+
+func _reward_choice_card_snapshot_text(card: Button) -> String:
+	var title := _reward_choice_card_label(card, "RewardTitleLabel")
+	var effect := _reward_choice_card_label(card, "RewardEffectLabel")
+	var parts: Array[String] = []
+	if title != null:
+		parts.append(title.text)
+	if effect != null and effect.text != "":
+		parts.append(effect.text)
 	return "\n".join(parts)
+
+
+func _reward_choice_label_font_size(card: Button, label_name: String) -> int:
+	var label := _reward_choice_card_label(card, label_name)
+	return label.get_theme_font_size("font_size") if label != null else 0
+
+
+func _reward_choice_label_outline_size(card: Button, label_name: String) -> int:
+	var label := _reward_choice_card_label(card, label_name)
+	return label.get_theme_constant("outline_size") if label != null else 0
+
+
+func _reward_choice_card_label(card: Button, label_name: String) -> Label:
+	return card.find_child(label_name, true, false) as Label
 
 
 func _node_suffix_for_reward_id(item_id: StringName) -> String:
