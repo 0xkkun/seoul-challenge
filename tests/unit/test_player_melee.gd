@@ -508,6 +508,7 @@ func test_player_scene_includes_hidden_attack_dust_effect() -> void:
 				_runner.assert_not_null(first_frame, "attack dust frames use atlas regions")
 				if first_frame != null:
 					_runner.assert_eq(first_frame.atlas.resource_path, "res://assets/effects/attack_reverse_dust.png", "attack dust uses the supplied asset")
+					_runner.assert_eq(first_frame.atlas.get_width(), 16320, "attack dust atlas is cropped below common mobile texture limits")
 					_runner.assert_eq(first_frame.region.size, Vector2(960.0, 1440.0), "attack dust frame size matches the inspected sheet")
 
 
