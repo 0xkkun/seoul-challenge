@@ -12,6 +12,8 @@ func _set_runner(runner: Node) -> void:
 
 
 func before_each() -> void:
+	Settings.reset_defaults()
+	AudioManager.reset()
 	PoolManager.clear_all()
 	GameManager.reset_session()
 	SaveManager.reset_profile()
@@ -21,6 +23,8 @@ func before_each() -> void:
 
 func after_each() -> void:
 	get_tree().paused = false
+	AudioManager.reset()
+	Settings.reset_defaults()
 	PoolManager.clear_all()
 	GameManager.reset_session()
 	SaveManager.reset_profile()
@@ -317,6 +321,18 @@ func test_session_root_preserves_existing_config() -> void:
 	add_child(session)
 
 	_runner.assert_eq(GameManager.get_active_config()["source"], "preconfigured")
+
+	session.queue_free()
+
+
+func test_session_root_starts_night_run_suspense_bgm() -> void:
+	var packed := load("res://scenes/session/session_root.tscn") as PackedScene
+	var session := packed.instantiate()
+	add_child(session)
+
+	_runner.assert_eq(AudioManager.get_current_bgm(), AudioManager.NIGHT_RUN_SUSPENSE_BGM, "session root starts the night run suspense BGM")
+	_runner.assert_eq(AudioManager.get_current_bgm_path(), "res://assets/audio/bgm/night_run_suspense_bgm.ogg", "session root uses the night run suspense BGM stream")
+	_runner.assert_true(AudioManager.is_bgm_playing(), "session root leaves the night run BGM active")
 
 	session.queue_free()
 

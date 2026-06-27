@@ -8,11 +8,13 @@ func _set_runner(runner: Node) -> void:
 
 
 func before_each() -> void:
+	Settings.reset_defaults()
 	AudioManager.reset()
 
 
 func after_each() -> void:
 	AudioManager.reset()
+	Settings.reset_defaults()
 
 
 func test_session_transition_school_bell_variants_are_registered() -> void:
@@ -45,6 +47,28 @@ func test_school_hallway_bgm_is_registered() -> void:
 	var stream := load(stream_path) as AudioStreamOggVorbis
 	_runner.assert_not_null(stream, "school hallway BGM loads as OGG Vorbis")
 	_runner.assert_true(stream.loop, "school hallway BGM loops as background music")
+
+
+func test_night_run_suspense_bgm_is_registered_for_gap_loop() -> void:
+	var stream_path := AudioManager.get_bgm_stream_path(AudioManager.NIGHT_RUN_SUSPENSE_BGM)
+
+	_runner.assert_true(AudioManager.has_bgm(AudioManager.NIGHT_RUN_SUSPENSE_BGM), "night run suspense BGM is registered")
+	_runner.assert_eq(stream_path, "res://assets/audio/bgm/night_run_suspense_bgm.ogg", "night run suspense BGM path is stable")
+	_runner.assert_true(ResourceLoader.exists(stream_path), "night run suspense BGM resource exists")
+	var source_stream := load(stream_path) as AudioStreamOggVorbis
+	_runner.assert_not_null(source_stream, "night run suspense BGM loads as OGG Vorbis")
+
+	AudioManager.play_bgm(AudioManager.NIGHT_RUN_SUSPENSE_BGM)
+
+	var player := AudioManager.get_node_or_null("BgmPlayer") as AudioStreamPlayer
+	_runner.assert_not_null(player, "night run suspense BGM prepares a playback stream")
+	if player == null:
+		return
+	var prepared_stream := player.stream as AudioStreamOggVorbis
+	_runner.assert_not_null(prepared_stream, "night run suspense BGM keeps the OGG stream type")
+	if prepared_stream == null:
+		return
+	_runner.assert_false(prepared_stream.loop, "night run suspense BGM uses the fade-out/gap/fade-in loop")
 
 
 func test_random_session_transition_school_bell_records_one_variant() -> void:
