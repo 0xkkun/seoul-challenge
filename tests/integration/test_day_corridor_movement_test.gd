@@ -109,10 +109,10 @@ func test_day_corridor_character_animates_and_flips_with_side_movement() -> void
 	player.velocity.x = 0.0
 	scene.call("_update_character_sprite", 0.0)
 	var idle_start_frame := sprite.frame
-	var idle_start_y := sprite.position.y
 	scene.call("_update_character_sprite", 0.7)
-	_runner.assert_true(sprite.frame != idle_start_frame, "idle advances beyond the first frame")
-	_runner.assert_true(sprite.position.y != idle_start_y, "idle applies a small vertical motion")
+	# idle 생존 신호는 전용 idle 시트의 프레임 애니메이션으로 본다.
+	# (position bob/둥둥은 idle 시트 도입으로 제거됨 — 튜닝값이라 단언하지 않는다.)
+	_runner.assert_true(sprite.frame != idle_start_frame, "idle animates frames via the idle sheet")
 
 
 func test_day_corridor_swaps_to_idle_sheet_when_standing() -> void:
