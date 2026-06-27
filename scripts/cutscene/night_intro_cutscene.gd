@@ -54,6 +54,7 @@ const BEATS: Array[Dictionary] = [
 var _plate: TextureRect
 var _subtitle: Label
 var _hint: Label
+var _skip_button: Button
 var _narration: AudioStreamPlayer
 var _advance_ready := false
 var _advance_requested := false
@@ -120,6 +121,11 @@ func play() -> void:
 					break
 			_set_subtitle(String(line["text"]))
 			_play_line_narration(line)
+			# 자막/힌트가 떠오르는 "그 순간"부터 탭을 받기 시작한다(버퍼링).
+			# 페이드가 끝난 뒤에야 무장하던 기존 흐름엔 힌트는 보이는데 탭이
+			# 먹지 않는 사각지대가 있었다. 무장만 앞당기고, 실제 진행은 여전히
+			# 나레이션이 끝난 뒤로 게이트한다(아래 _wait_for_advance).
+			_arm_advance()
 			await _fade_subtitle_in()
 			await _wait_for_advance()
 		if _skip:
@@ -211,6 +217,43 @@ func _build_ui() -> void:
 	_narration.name = "Narration"
 	add_child(_narration)
 
+	# 트레일러 넘기기(스킵) 버튼: 우측 상단 구석. 인트로 내내 떠 있으며 누르면
+	# 즉시 finished 로 잇는다. 자식 순서상 맨 위에 두어 입력을 먼저 받는다.
+	_skip_button = Button.new()
+	_skip_button.name = "SkipButton"
+	_skip_button.anchor_left = 0.80
+	_skip_button.anchor_right = 0.975
+	_skip_button.anchor_top = 0.03
+	_skip_button.anchor_bottom = 0.10
+	_skip_button.text = "건너뛰기  ⏭"
+	_skip_button.focus_mode = Control.FOCUS_NONE
+	_skip_button.mouse_filter = Control.MOUSE_FILTER_STOP
+	_skip_button.add_theme_font_size_override("font_size", 16)
+	_skip_button.add_theme_color_override("font_color", Color(0.82, 0.84, 0.90, 0.85))
+	_skip_button.add_theme_color_override("font_hover_color", Color(1.0, 1.0, 1.0, 1.0))
+	_skip_button.add_theme_color_override("font_pressed_color", Color(0.70, 0.72, 0.78, 1.0))
+	_skip_button.add_theme_color_override("font_outline_color", Color(0.0, 0.0, 0.0, 0.8))
+	_skip_button.add_theme_constant_override("outline_size", 3)
+	_skip_button.add_theme_stylebox_override("normal", _skip_button_style(0.22))
+	_skip_button.add_theme_stylebox_override("hover", _skip_button_style(0.36))
+	_skip_button.add_theme_stylebox_override("pressed", _skip_button_style(0.46))
+	_skip_button.pressed.connect(skip)
+	add_child(_skip_button)
+
+
+## 스킵 버튼용 반투명 라운드 배경. 알파만 바꿔 normal/hover/pressed 를 구성한다.
+func _skip_button_style(bg_alpha: float) -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.0, 0.0, 0.0, bg_alpha)
+	style.set_corner_radius_all(8)
+	style.set_content_margin_all(6)
+	style.border_width_bottom = 1
+	style.border_width_top = 1
+	style.border_width_left = 1
+	style.border_width_right = 1
+	style.border_color = Color(1.0, 1.0, 1.0, 0.18)
+	return style
+
 
 ## 줄에 음성이 있으면 재생한다(다음 줄에서 새 음성이 play() 로 교체됨).
 func _play_line_narration(line: Dictionary) -> void:
@@ -243,6 +286,9 @@ func _play_transition_sfx(sfx_id: StringName) -> void:
 
 ## 마지막 비트: 자막이 사라지며 경복궁이 가득 드러나고, 잠시 머문 뒤 암전한다.
 func _reveal_finale() -> void:
+	# 마지막 리빌에서는 스킵 버튼을 거둬 풀 화면 연출을 가리지 않는다.
+	if _skip_button != null:
+		_skip_button.visible = false
 	var rise := create_tween()
 	rise.set_parallel(true)
 	rise.tween_property(_plate, ^"modulate:a", 1.0, REVEAL_RISE_SECONDS)
@@ -285,14 +331,20 @@ func _fade_plate_out() -> void:
 	await tween.finished
 
 
+## 탭 입력을 받기 시작한다(무장). 자막이 떠오르기 직전에 호출해, 페이드 도중
+## 누른 탭도 잃지 않고 버퍼링되게 한다. _advance_requested 를 비워 이전 줄의
+## 입력이 새 줄로 새지 않게 한다.
+func _arm_advance() -> void:
+	_advance_requested = false
+	_advance_ready = true
+
+
 ## 다음 줄로 넘어가는 조건: 탭이 들어왔고 + 현재 줄의 나레이션이 끝났을 때.
 ## 빨리 누른 탭은 버퍼링되어 음성이 끝나는 즉시 넘어가므로, 탭으로 음성을
 ## 끊어 호흡이 빨라지는 일이 없다(한 줄=한 단위로 차분히 진행).
 func _wait_for_advance() -> void:
 	if _skip:
 		return
-	_advance_ready = true
-	_advance_requested = false
 	while not _skip:
 		if _advance_requested and not _is_narration_playing():
 			break
@@ -313,8 +365,22 @@ func _input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 		return
 	if _advance_ready and _is_tap(event):
+		# 스킵 버튼 위 탭은 삼키지 않는다. _input 은 GUI 보다 먼저 도는데, 여기서
+		# 소비해 버리면 버튼의 pressed 가 영영 안 나가 스킵이 막힌다.
+		if _is_over_skip_button(event):
+			return
 		_advance_requested = true
 		get_viewport().set_input_as_handled()
+
+
+## 탭 좌표가 스킵 버튼 영역 안인지. 진행 탭과 스킵 버튼 클릭의 충돌을 막는다.
+func _is_over_skip_button(event: InputEvent) -> bool:
+	if _skip_button == null or not _skip_button.visible:
+		return false
+	var mouse := event as InputEventMouseButton
+	if mouse == null:
+		return false
+	return _skip_button.get_global_rect().has_point(mouse.position)
 
 
 ## 마우스/터치 모두 마우스 버튼으로 들어오도록 프로젝트가 에뮬레이트하므로
