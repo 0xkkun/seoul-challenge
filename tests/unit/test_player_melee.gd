@@ -22,6 +22,27 @@ class StubParryEnemy extends StubEnemy:
 		return true
 
 
+class StubBoundedEnemy extends StubEnemy:
+	var bounds := Rect2()
+	var bounds_enabled := false
+	var clamp_count := 0
+
+	func set_movement_bounds(next_bounds: Rect2) -> void:
+		bounds = next_bounds
+		bounds_enabled = bounds.size.x > 0.0 and bounds.size.y > 0.0
+
+	func clamp_to_movement_bounds() -> bool:
+		clamp_count += 1
+		if not bounds_enabled:
+			return false
+		var before := global_position
+		global_position = Vector2(
+			clampf(global_position.x, bounds.position.x, bounds.end.x),
+			clampf(global_position.y, bounds.position.y, bounds.end.y)
+		)
+		return not before.is_equal_approx(global_position)
+
+
 class StubBullet extends Node2D:
 	var deflect_count: int = 0
 	var deflected_dir: Vector2 = Vector2.ZERO
@@ -102,6 +123,25 @@ func test_barehand_hit_applies_small_knockback() -> void:
 	p._attack_melee(Vector2.RIGHT)
 
 	_runner.assert_true(e.position.x > 30.0, "맨손도 적을 살짝 밀어내 타격 반응을 만든다")
+	e.free()
+	p.free()
+
+
+func test_melee_knockback_clamps_enemy_to_room_bounds() -> void:
+	var p = PlayerScript.new()
+	add_child(p)
+	p.position = Vector2.ZERO
+	p.equip_bat()
+	var e := StubBoundedEnemy.new()
+	e.position = Vector2(90.0, 0.0)
+	e.set_movement_bounds(Rect2(Vector2(0.0, -10.0), Vector2(100.0, 20.0)))
+	e.add_to_group(&"enemy")
+	add_child(e)
+
+	p._attack_melee(Vector2.RIGHT)
+
+	_runner.assert_eq(e.position.x, 100.0, "넉백 직후 적 위치는 방 경계 안으로 제한된다")
+	_runner.assert_eq(e.clamp_count, 1, "넉백은 적의 이동 경계 clamp 계약을 즉시 호출한다")
 	e.free()
 	p.free()
 
