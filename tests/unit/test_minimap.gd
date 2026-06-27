@@ -85,14 +85,37 @@ func test_minimap_uses_minimap_data_types_for_special_rooms() -> void:
 	var entries := _entries_by_room_id(minimap.get_room_draw_entries())
 	_runner.assert_true(entries[&"treasure_1"]["visible"], "cleared treasure room is visible on minimap")
 	_runner.assert_eq(entries[&"treasure_1"]["minimap_type"], &"treasure", "treasure minimap type is preserved")
-	_runner.assert_eq(entries[&"treasure_1"]["label"], "T", "treasure room uses treasure label")
+	_runner.assert_eq(entries[&"treasure_1"]["label"], "", "treasure room replaces text with a node icon")
+	_runner.assert_eq(entries[&"treasure_1"]["icon_path"], Minimap.TREASURE_ROOM_ICON_PATH, "treasure room uses the key node icon")
+	_runner.assert_not_null(entries[&"treasure_1"]["icon_texture"], "treasure room icon texture is loaded")
 	_runner.assert_true(entries[&"shop_1"]["visible"], "current shop room is visible on minimap")
 	_runner.assert_eq(entries[&"shop_1"]["minimap_type"], &"shop", "shop minimap type is preserved")
-	_runner.assert_eq(entries[&"shop_1"]["label"], "$", "shop room uses shop label")
+	_runner.assert_eq(entries[&"shop_1"]["label"], "", "shop room replaces text with a node icon")
+	_runner.assert_eq(entries[&"shop_1"]["icon_path"], Minimap.SHOP_ROOM_ICON_PATH, "shop room uses the trophy node icon")
+	_runner.assert_not_null(entries[&"shop_1"]["icon_texture"], "shop room icon texture is loaded")
 	_runner.assert_eq(entries[&"final_1"]["minimap_type"], &"unknown", "unvisited final room hides boss type")
 	_runner.assert_false(entries[&"final_1"]["visible"], "hidden boss stays hidden")
 	_runner.assert_eq(entries[&"final_1"]["label"], "?", "hidden boss remains unknown")
 	_runner.assert_eq(entries[&"final_1"]["icon_path"], "", "hidden boss does not expose its boss icon")
+
+
+func test_minimap_uses_node_icons_for_known_core_room_types() -> void:
+	var minimap := Minimap.new()
+	var layout := _create_layout()
+	add_child(minimap)
+
+	minimap.set_layout(layout, &"combat_1", {
+		&"start": true,
+		&"combat_1": true,
+	})
+
+	var entries := _entries_by_room_id(minimap.get_room_draw_entries())
+	_runner.assert_eq(entries[&"start"]["label"], "", "known start room replaces text with a node icon")
+	_runner.assert_eq(entries[&"start"]["icon_path"], Minimap.START_ROOM_ICON_PATH, "start room uses the home node icon")
+	_runner.assert_not_null(entries[&"start"]["icon_texture"], "start room icon texture is loaded")
+	_runner.assert_eq(entries[&"combat_1"]["label"], "", "known combat room replaces text with a node icon")
+	_runner.assert_eq(entries[&"combat_1"]["icon_path"], Minimap.COMBAT_ROOM_ICON_PATH, "combat room uses the target node icon")
+	_runner.assert_not_null(entries[&"combat_1"]["icon_texture"], "combat room icon texture is loaded")
 
 
 func test_minimap_frontier_ping_waits_for_current_room_clear() -> void:
