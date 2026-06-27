@@ -48,6 +48,21 @@ func test_bat_hit_sfx_is_registered() -> void:
 	_runner.assert_not_null(stream, "bat hit SFX loads as WAV")
 
 
+func test_movement_sfx_are_registered() -> void:
+	var footstep_path := AudioManager.get_sfx_stream_path(&"corridor_footstep")
+	var dash_path := AudioManager.get_sfx_stream_path(&"dash_wind")
+
+	_runner.assert_true(AudioManager.has_sfx(&"corridor_footstep"), "corridor footstep SFX is registered")
+	_runner.assert_eq(footstep_path, "res://assets/audio/sfx/corridor_footstep.wav", "corridor footstep SFX path is stable")
+	_runner.assert_true(ResourceLoader.exists(footstep_path), "corridor footstep SFX resource exists")
+	_runner.assert_not_null(load(footstep_path) as AudioStreamWAV, "corridor footstep SFX loads as WAV")
+
+	_runner.assert_true(AudioManager.has_sfx(&"dash_wind"), "dash wind SFX is registered")
+	_runner.assert_eq(dash_path, "res://assets/audio/sfx/dash_wind.wav", "dash wind SFX path is stable")
+	_runner.assert_true(ResourceLoader.exists(dash_path), "dash wind SFX resource exists")
+	_runner.assert_not_null(load(dash_path) as AudioStreamWAV, "dash wind SFX loads as WAV")
+
+
 func test_school_hallway_bgm_is_registered() -> void:
 	var stream_path := AudioManager.get_bgm_stream_path(AudioManager.SCHOOL_HALLWAY_BGM)
 

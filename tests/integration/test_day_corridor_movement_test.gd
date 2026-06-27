@@ -178,6 +178,33 @@ func test_day_corridor_swaps_to_idle_sheet_when_standing() -> void:
 	_runner.assert_eq(sprite.hframes, 8, "moving again restores the walking sheet")
 
 
+func test_day_corridor_plays_footstep_pair_on_walk_loop() -> void:
+	var scene := DayCorridorScene.instantiate()
+	add_child(scene)
+	AudioManager.reset()
+
+	var player: CharacterBody2D = scene.get_node("%Player")
+	player.velocity.x = 80.0
+
+	scene.call("_update_character_sprite", 0.1)
+	_runner.assert_eq(AudioManager.get_played_sfx(), [&"corridor_footstep"], "walking starts one footstep pair")
+
+	scene.call("_update_character_sprite", 0.2)
+	_runner.assert_eq(AudioManager.get_played_sfx(), [&"corridor_footstep"], "same walk loop does not retrigger footsteps")
+
+	scene.call("_update_character_sprite", 0.8)
+	_runner.assert_eq(
+		AudioManager.get_played_sfx(),
+		[&"corridor_footstep", &"corridor_footstep"],
+		"next walk loop plays the next footstep pair"
+	)
+
+	AudioManager.reset()
+	player.velocity.x = 0.0
+	scene.call("_update_character_sprite", 0.2)
+	_runner.assert_eq(AudioManager.get_played_sfx(), [], "standing does not play footsteps")
+
+
 func test_day_corridor_internal_edges_fade_between_corridor_rooms() -> void:
 	var scene := DayCorridorScene.instantiate()
 	scene.room_transition_fade_time = 0.0

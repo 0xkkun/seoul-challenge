@@ -588,6 +588,7 @@ func try_start_special_skill(input_vector: Vector2 = Vector2.ZERO) -> bool:
 	special_skill_uses_remaining = consume_special_use(special_skill_uses_remaining)
 	_show_dash_dust(_dodge_direction)
 	_start_special_recharge_if_needed()
+	_play_dash_wind_sfx()
 	_broadcast_special_skill_state()
 	return true
 
@@ -951,6 +952,11 @@ func _play_bat_swing_sfx() -> void:
 func _play_bat_hit_sfx() -> void:
 	if has_node("/root/AudioManager"):
 		AudioManager.play_sfx(AudioManager.BAT_HIT)
+
+
+func _play_dash_wind_sfx() -> void:
+	if has_node("/root/AudioManager"):
+		AudioManager.play_sfx(AudioManager.DASH_WIND)
 
 
 ## 휘두르기 시각 표시 — 실제 사거리(rng)·각(arc)으로 부채꼴을 그려 타격 범위와 일치시킨다.

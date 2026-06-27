@@ -127,6 +127,7 @@ var _dialogue_claims_boss_result_report := false
 var _baseball_reward_pickup_popup_shown := false
 var _was_dialogue_pressed := false
 var _walk_elapsed := 0.0
+var _footstep_walk_loop_index := -1
 var _idle_elapsed := 0.0
 var _talk_target_elapsed := 0.0
 var _ambient_student_elapsed := 0.0
@@ -803,6 +804,7 @@ func _update_character_sprite(delta: float) -> void:
 
 	if absf(velocity_x) <= 1.0:
 		_walk_elapsed = 0.0
+		_footstep_walk_loop_index = -1
 		_idle_elapsed += delta
 		_use_idle_sheet()
 		_character_sprite.frame = _get_character_idle_frame()
@@ -813,7 +815,20 @@ func _update_character_sprite(delta: float) -> void:
 	_use_walk_sheet()
 	_character_sprite.position = _character_base_position
 	_walk_elapsed += delta
-	_character_sprite.frame = int(_walk_elapsed * character_walk_fps) % _get_character_frame_count()
+	var frame_count := _get_character_frame_count()
+	_character_sprite.frame = int(_walk_elapsed * character_walk_fps) % frame_count
+	_play_corridor_footstep_if_needed(frame_count)
+
+
+func _play_corridor_footstep_if_needed(frame_count: int) -> void:
+	if frame_count <= 0 or character_walk_fps <= 0.0:
+		return
+	var loop_index := int(floorf((_walk_elapsed * character_walk_fps) / float(frame_count)))
+	if loop_index == _footstep_walk_loop_index:
+		return
+	_footstep_walk_loop_index = loop_index
+	if has_node("/root/AudioManager"):
+		AudioManager.play_sfx(AudioManager.CORRIDOR_FOOTSTEP)
 
 
 func _update_talk_target_sprite(delta: float) -> void:
