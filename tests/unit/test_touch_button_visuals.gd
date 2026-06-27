@@ -59,4 +59,55 @@ func test_skill_button_uses_b9_transparent_center_icon_contract() -> void:
 	_runner.assert_eq(contract.get("shadow_alpha"), 0.0, "B-9 removes skill button shadow")
 	_runner.assert_eq(contract.get("center_icon"), "chevron", "skill button uses a single center icon")
 	_runner.assert_false(bool(contract.get("uses_label_visible", true)), "skill button does not draw the old numeric label")
+	_runner.assert_true(bool(contract.get("charge_slots_visible", false)), "skill button renders remaining dodges as charge slots")
+	_runner.assert_true(float(contract.get("outer_ring_alpha", 0.0)) >= 0.30, "skill button keeps a readable white outline at rest")
+	_runner.assert_true(float(contract.get("slot_filled_alpha", 0.0)) > float(contract.get("slot_empty_alpha", 0.0)), "filled dodge slots read brighter than empty slots")
+	button.free()
+
+
+func test_skill_button_charge_slots_replace_numeric_count() -> void:
+	var button := SkillButtonScript.new()
+	_runner.assert_true(button.has_method("get_charge_slot_snapshot"), "skill button exposes a non-text charge slot snapshot")
+	if not button.has_method("get_charge_slot_snapshot"):
+		button.free()
+		return
+
+	button.set_skill_state({
+		"uses_remaining": 2,
+		"max_uses": 3,
+		"cooldown_remaining": 1.5,
+		"cooldown": 3.0,
+	})
+
+	_runner.assert_eq(button.get_uses_label(), "", "skill button does not expose a numeric uses label")
+	var slots: Array = button.get_charge_slot_snapshot()
+	_runner.assert_eq(slots.size(), 3, "base dodge displays three charge slots")
+	if slots.size() == 3:
+		_runner.assert_eq(slots[0]["state"], &"filled", "first stored dodge slot is filled")
+		_runner.assert_eq(slots[1]["state"], &"filled", "second stored dodge slot is filled")
+		_runner.assert_eq(slots[2]["state"], &"charging", "next missing dodge slot shows recharge progress")
+		_runner.assert_true(is_equal_approx(float(slots[2]["progress"]), 0.5), "charging slot fills as cooldown completes")
+	button.free()
+
+
+func test_skill_button_charge_slots_show_empty_when_no_recharge_progress() -> void:
+	var button := SkillButtonScript.new()
+	_runner.assert_true(button.has_method("get_charge_slot_snapshot"), "skill button exposes charge slot state")
+	if not button.has_method("get_charge_slot_snapshot"):
+		button.free()
+		return
+
+	button.set_skill_state({
+		"uses_remaining": 1,
+		"max_uses": 3,
+		"cooldown_remaining": 0.0,
+		"cooldown": 3.0,
+	})
+
+	var slots: Array = button.get_charge_slot_snapshot()
+	_runner.assert_eq(slots.size(), 3, "base dodge still reserves all three slot positions")
+	if slots.size() == 3:
+		_runner.assert_eq(slots[0]["state"], &"filled", "available dodge is filled")
+		_runner.assert_eq(slots[1]["state"], &"empty", "missing dodge without recharge is empty")
+		_runner.assert_eq(slots[2]["state"], &"empty", "remaining missing dodge is empty")
 	button.free()

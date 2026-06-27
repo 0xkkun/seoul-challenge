@@ -1,14 +1,18 @@
 extends Control
 
-const OUTER_RING_ALPHA := 0.26
-const OUTER_RING_PRESSED_ALPHA := 0.40
-const OUTER_RING_DISABLED_ALPHA := 0.14
+const OUTER_RING_ALPHA := 0.34
+const OUTER_RING_PRESSED_ALPHA := 0.46
+const OUTER_RING_DISABLED_ALPHA := 0.20
 const INNER_RING_ALPHA := 0.10
 const INNER_RING_PRESSED_ALPHA := 0.16
 const INNER_RING_DISABLED_ALPHA := 0.06
 const ICON_ALPHA := 0.56
 const ICON_DISABLED_ALPHA := 0.28
-const COOLDOWN_RING_ALPHA := 0.54
+const SLOT_EMPTY_ALPHA := 0.16
+const SLOT_CHARGING_ALPHA := 0.46
+const SLOT_FILLED_ALPHA := 0.68
+const SLOT_GAP_RADIANS := 0.16
+const SLOT_MIN_POINTS := 5
 
 var _active_index: int = -1
 var _uses_remaining := 0
@@ -35,9 +39,32 @@ func get_cooldown_ratio() -> float:
 
 
 func get_uses_label() -> String:
-	if _max_uses <= 0:
-		return "-"
-	return str(clampi(_uses_remaining, 0, _max_uses))
+	return ""
+
+
+func get_charge_slot_snapshot() -> Array[Dictionary]:
+	var slots: Array[Dictionary] = []
+	var slot_count := maxi(0, _max_uses)
+	if slot_count == 0:
+		return slots
+	var filled_count := clampi(_uses_remaining, 0, slot_count)
+	var charging_index := filled_count
+	var charging_progress := _charge_recover_progress()
+	for index in range(slot_count):
+		var state := &"empty"
+		var progress := 0.0
+		if index < filled_count:
+			state = &"filled"
+			progress = 1.0
+		elif index == charging_index and charging_progress > 0.0:
+			state = &"charging"
+			progress = charging_progress
+		slots.append({
+			"index": index,
+			"state": state,
+			"progress": progress,
+		})
+	return slots
 
 
 func get_visual_contract() -> Dictionary:
@@ -51,6 +78,10 @@ func get_visual_contract() -> Dictionary:
 		"uses_label_visible": false,
 		"outer_ring_alpha": OUTER_RING_ALPHA,
 		"inner_ring_alpha": INNER_RING_ALPHA,
+		"charge_slots_visible": true,
+		"slot_empty_alpha": SLOT_EMPTY_ALPHA,
+		"slot_charging_alpha": SLOT_CHARGING_ALPHA,
+		"slot_filled_alpha": SLOT_FILLED_ALPHA,
 	}
 
 
@@ -97,9 +128,7 @@ func _draw() -> void:
 	var inner_alpha := _ring_alpha(enabled, INNER_RING_ALPHA, INNER_RING_PRESSED_ALPHA, INNER_RING_DISABLED_ALPHA)
 	draw_arc(center, radius - 2.0, 0.0, TAU, 48, Color(1, 1, 1, outer_alpha), 2.0, true)
 	draw_arc(center, radius * 0.74, 0.0, TAU, 48, Color(1, 1, 1, inner_alpha), 2.0, true)
-	if _cooldown > 0.0 and _cooldown_remaining > 0.0:
-		var ratio := get_cooldown_ratio()
-		draw_arc(center, radius * 0.88, -PI * 0.5, -PI * 0.5 + TAU * ratio, 36, Color(1, 1, 1, COOLDOWN_RING_ALPHA), 4.0, true)
+	_draw_charge_slots(center, radius)
 	_draw_center_icon(center, radius, ICON_ALPHA if enabled else ICON_DISABLED_ALPHA)
 
 
@@ -117,3 +146,33 @@ func _draw_center_icon(center: Vector2, radius: float, alpha: float) -> void:
 	var tip := center + Vector2(half_width, 0.0)
 	draw_line(center + Vector2(-half_width, -half_height), tip, color, width, true)
 	draw_line(tip, center + Vector2(-half_width, half_height), color, width, true)
+
+
+func _charge_recover_progress() -> float:
+	if _cooldown <= 0.0 or _cooldown_remaining <= 0.0:
+		return 0.0
+	return clampf(1.0 - get_cooldown_ratio(), 0.0, 1.0)
+
+
+func _draw_charge_slots(center: Vector2, radius: float) -> void:
+	var slots := get_charge_slot_snapshot()
+	var slot_count := slots.size()
+	if slot_count == 0:
+		return
+	var slot_radius := radius * 0.90
+	var slot_width := maxf(3.0, radius * 0.070)
+	var arc_span := TAU / float(slot_count)
+	var gap := minf(SLOT_GAP_RADIANS, arc_span * 0.35)
+	for slot in slots:
+		var index := int(slot["index"])
+		var state: StringName = slot["state"]
+		var progress := float(slot["progress"])
+		var start_angle := -PI * 0.5 + float(index) * arc_span + gap * 0.5
+		var end_angle := -PI * 0.5 + float(index + 1) * arc_span - gap * 0.5
+		var point_count := maxi(SLOT_MIN_POINTS, int(ceil((end_angle - start_angle) / TAU * 48.0)))
+		draw_arc(center, slot_radius, start_angle, end_angle, point_count, Color(1, 1, 1, SLOT_EMPTY_ALPHA), slot_width, true)
+		if state == &"filled":
+			draw_arc(center, slot_radius, start_angle, end_angle, point_count, Color(1, 1, 1, SLOT_FILLED_ALPHA), slot_width, true)
+		elif state == &"charging" and progress > 0.0:
+			var charge_end := lerpf(start_angle, end_angle, progress)
+			draw_arc(center, slot_radius, start_angle, charge_end, point_count, Color(1, 1, 1, SLOT_CHARGING_ALPHA), slot_width, true)
