@@ -1,0 +1,24 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/enemies/chaser.gd" id="1_chaser"]
+[ext_resource type="SpriteFrames" path="res://assets/sprites/enemies/akgwi/akgwi_frames.tres" id="2_frames"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_akgwi"]
+radius = 15.0
+
+[node name="Akgwi" type="CharacterBody2D"]
+collision_layer = 1
+collision_mask = 3
+script = ExtResource("1_chaser")
+move_speed = 92.0
+contact_range = 30.0
+
+[node name="Collision" type="CollisionShape2D" parent="."]
+shape = SubResource("CircleShape2D_akgwi")
+
+[node name="Sprite" type="AnimatedSprite2D" parent="."]
+texture_filter = 1
+sprite_frames = ExtResource("2_frames")
+animation = &"move"
+autoplay = "move"
+scale = Vector2(0.84, 0.84)
