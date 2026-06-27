@@ -41,8 +41,25 @@ func test_attack_animation_keeps_movement_control() -> void:
 		return
 
 	var multiplier: float = p.call("movement_speed_multiplier", true, 1.0)
-	_runner.assert_true(multiplier >= 0.7, "공격 애니메이션 중에도 이동 제어가 유지된다")
-	_runner.assert_true(multiplier < 1.0, "공격 중에는 약한 무게감만 남긴다")
+	_runner.assert_true(multiplier >= 0.3, "공격 후딜 중에도 약한 위치 조정은 가능하다")
+	_runner.assert_true(multiplier <= 0.4, "공격 후딜 이동은 무빙샷처럼 보이지 않을 만큼 제한한다")
+	p.free()
+
+
+func test_attack_start_has_short_movement_commit() -> void:
+	var p = PlayerScript.new()
+	_runner.assert_true(_has_property(p, "attack_movement_commit_time"), "공격 시작 이동 커밋 시간을 노출한다")
+	_runner.assert_true(p.has_method("movement_speed_multiplier"), "공격 중 이동 배율 계산은 순수 함수로 제공한다")
+	if not _has_property(p, "attack_movement_commit_time") or not p.has_method("movement_speed_multiplier"):
+		p.free()
+		return
+
+	var commit_time := float(p.get("attack_movement_commit_time"))
+	_runner.assert_true(commit_time >= 0.10, "공격 시작에는 최소 0.10초의 무게감 있는 커밋이 있다")
+	_runner.assert_true(commit_time <= 0.12, "커밋은 모바일 조작이 답답하지 않도록 짧게 유지한다")
+
+	var multiplier: float = p.call("movement_speed_multiplier", true, 1.0, commit_time)
+	_runner.assert_eq(multiplier, 0.0, "공격 시작 커밋 중에는 이동하지 않는다")
 	p.free()
 
 
