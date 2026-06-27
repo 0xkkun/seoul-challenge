@@ -18,7 +18,11 @@ const REWARD_CHOICE_ROW_OFFSET_LEFT := -390.0
 const REWARD_CHOICE_ROW_OFFSET_TOP := -84.0
 const REWARD_CHOICE_ROW_OFFSET_RIGHT := 390.0
 const REWARD_CHOICE_ROW_OFFSET_BOTTOM := 84.0
+const REWARD_CHOICE_TITLE_TEXT := "방 클리어 보상"
+const REWARD_CHOICE_TITLE_OFFSET_TOP := -170.0
+const REWARD_CHOICE_TITLE_OFFSET_BOTTOM := -124.0
 const REWARD_CHOICE_CARD_SIZE := Vector2(244.0, 146.0)
+const REWARD_CHOICE_DIM_ALPHA := 0.28
 const REWARD_CHOICE_OPEN_DURATION := 0.18
 const REWARD_CHOICE_CARD_STAGGER := 0.045
 const REWARD_CHOICE_CARD_START_SCALE := Vector2(0.94, 0.94)
@@ -45,6 +49,8 @@ const UNLOCK_LABELS := {
 @onready var retry_button: Button = %RetryButton
 
 var _reward_choice_overlay: Control = null
+var _reward_choice_dim: ColorRect = null
+var _reward_choice_title_label: Label = null
 var _reward_choice_row: HBoxContainer = null
 var _reward_choice_cards: Array[Button] = []
 var _reward_choice_room_id: StringName = &""
@@ -225,9 +231,11 @@ func get_reward_choice_snapshot() -> Dictionary:
 		"choice_effects": effects,
 		"choice_button_texts": button_texts,
 		"visible_card_count": _reward_choice_cards.size(),
-		"has_backdrop": false,
+		"has_backdrop": _reward_choice_dim != null and is_instance_valid(_reward_choice_dim),
+		"dim_alpha": _reward_choice_dim.color.a if _reward_choice_dim != null and is_instance_valid(_reward_choice_dim) else 0.0,
 		"has_outer_panel": false,
-		"has_title": false,
+		"has_title": _reward_choice_title_label != null and is_instance_valid(_reward_choice_title_label) and _reward_choice_title_label.text != "",
+		"title": _reward_choice_title_label.text if _reward_choice_title_label != null and is_instance_valid(_reward_choice_title_label) else "",
 	}
 
 
@@ -241,8 +249,10 @@ func get_reward_choice_animation_snapshot() -> Dictionary:
 	return {
 		"visible": is_reward_choice_visible(),
 		"overlay_process_mode": _reward_choice_overlay.process_mode,
-		"has_backdrop": false,
+		"has_backdrop": _reward_choice_dim != null and is_instance_valid(_reward_choice_dim),
+		"dim_alpha": _reward_choice_dim.color.a if _reward_choice_dim != null and is_instance_valid(_reward_choice_dim) else 0.0,
 		"has_outer_panel": false,
+		"title": _reward_choice_title_label.text if _reward_choice_title_label != null and is_instance_valid(_reward_choice_title_label) else "",
 		"card_alphas": card_alphas,
 		"card_scales": card_scales,
 	}
@@ -265,6 +275,33 @@ func _ensure_reward_choice_overlay() -> void:
 	_reward_choice_overlay.mouse_filter = Control.MOUSE_FILTER_STOP
 	_reward_choice_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
 	root.add_child(_reward_choice_overlay)
+
+	_reward_choice_dim = ColorRect.new()
+	_reward_choice_dim.name = "RewardChoiceDim"
+	_reward_choice_dim.color = Color(0.0, 0.0, 0.0, REWARD_CHOICE_DIM_ALPHA)
+	_reward_choice_dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_reward_choice_dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_reward_choice_overlay.add_child(_reward_choice_dim)
+
+	_reward_choice_title_label = Label.new()
+	_reward_choice_title_label.name = "RewardChoiceTitle"
+	_reward_choice_title_label.text = REWARD_CHOICE_TITLE_TEXT
+	_reward_choice_title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_reward_choice_title_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_reward_choice_title_label.add_theme_font_size_override("font_size", 30)
+	_reward_choice_title_label.add_theme_color_override("font_color", Color(0.937255, 0.811765, 0.298039, 1.0))
+	_reward_choice_title_label.add_theme_color_override("font_outline_color", Color(0.0, 0.0, 0.0, 0.85))
+	_reward_choice_title_label.add_theme_constant_override("outline_size", 4)
+	_reward_choice_title_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_reward_choice_title_label.anchor_left = 0.5
+	_reward_choice_title_label.anchor_top = 0.5
+	_reward_choice_title_label.anchor_right = 0.5
+	_reward_choice_title_label.anchor_bottom = 0.5
+	_reward_choice_title_label.offset_left = -260.0
+	_reward_choice_title_label.offset_top = REWARD_CHOICE_TITLE_OFFSET_TOP
+	_reward_choice_title_label.offset_right = 260.0
+	_reward_choice_title_label.offset_bottom = REWARD_CHOICE_TITLE_OFFSET_BOTTOM
+	_reward_choice_overlay.add_child(_reward_choice_title_label)
 
 	_reward_choice_row = HBoxContainer.new()
 	_reward_choice_row.name = "RewardChoiceRow"
@@ -315,6 +352,11 @@ func _reset_reward_choice_animation_to_rest() -> void:
 	for card: Button in _reward_choice_cards:
 		card.modulate.a = 1.0
 		card.scale = Vector2.ONE
+	if _reward_choice_dim != null:
+		_reward_choice_dim.color.a = REWARD_CHOICE_DIM_ALPHA
+	if _reward_choice_title_label != null:
+		_reward_choice_title_label.text = REWARD_CHOICE_TITLE_TEXT
+		_reward_choice_title_label.modulate.a = 1.0
 
 
 func _render_reward_choices() -> void:
