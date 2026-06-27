@@ -245,6 +245,21 @@ func test_reward_choices_render_three_actions_and_emit_selected_id() -> void:
 	_runner.assert_eq(snapshot.get("title", ""), "방 클리어 보상", "reward title names the modal purpose")
 	_runner.assert_true(float(snapshot.get("dim_alpha", 0.0)) > 0.0, "reward backdrop is visible")
 	_runner.assert_true(float(snapshot.get("dim_alpha", 0.0)) <= 0.35, "reward backdrop stays lightly dimmed")
+	_runner.assert_true(snapshot.has("choice_title_font_sizes"), "reward snapshot exposes card title font sizes")
+	_runner.assert_true(snapshot.has("choice_effect_font_sizes"), "reward snapshot exposes card effect font sizes")
+	_runner.assert_true(snapshot.has("choice_title_outline_sizes"), "reward snapshot exposes card title outline sizes")
+	_runner.assert_true(snapshot.has("choice_effect_outline_sizes"), "reward snapshot exposes card effect outline sizes")
+	var title_font_sizes := snapshot.get("choice_title_font_sizes", []) as Array
+	var effect_font_sizes := snapshot.get("choice_effect_font_sizes", []) as Array
+	var title_outline_sizes := snapshot.get("choice_title_outline_sizes", []) as Array
+	var effect_outline_sizes := snapshot.get("choice_effect_outline_sizes", []) as Array
+	_runner.assert_eq(title_font_sizes.size(), 3, "reward snapshot tracks title font size for each card")
+	_runner.assert_eq(effect_font_sizes.size(), 3, "reward snapshot tracks effect font size for each card")
+	_runner.assert_eq(title_outline_sizes.size(), 3, "reward snapshot tracks title outline for each card")
+	_runner.assert_eq(effect_outline_sizes.size(), 3, "reward snapshot tracks effect outline for each card")
+	if title_font_sizes.size() == 3 and effect_font_sizes.size() == 3 and title_outline_sizes.size() == 3 and effect_outline_sizes.size() == 3:
+		_runner.assert_true(int(title_font_sizes[0]) >= int(effect_font_sizes[0]) + 6, "reward card title reads larger than effect copy")
+		_runner.assert_true(int(title_outline_sizes[0]) > int(effect_outline_sizes[0]), "reward card title uses stronger outline than effect copy")
 
 	_runner.assert_true(_ui.select_reward_choice(&"dokkaebi_fire"), "reward choice can be selected by id")
 	_runner.assert_eq(selected_ids, [&"dokkaebi_fire"], "selection emits item id once")
