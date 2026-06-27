@@ -232,6 +232,46 @@ func test_bat_dash_power_attack_knocks_back_farther_than_normal_bat() -> void:
 	power_player.free()
 
 
+func test_player_scene_includes_hidden_bat_swing_effect() -> void:
+	var player := (load("res://scenes/player/player.tscn") as PackedScene).instantiate()
+	add_child(player)
+	var impact := player.get_node_or_null("BatSwingImpact") as Node2D
+
+	_runner.assert_not_null(impact, "player scene includes bat swing slash effect root")
+	if impact != null:
+		_runner.assert_false(impact.visible, "bat swing effect starts hidden")
+		var slash_back := impact.get_node_or_null("BatSlashBack") as Line2D
+		var slash_front := impact.get_node_or_null("BatSlashFront") as Line2D
+		var slash_echo := impact.get_node_or_null("BatSlashEcho") as Line2D
+		_runner.assert_not_null(slash_back, "bat swing has a broad blue trail")
+		_runner.assert_not_null(slash_front, "bat swing has a bright crescent edge")
+		_runner.assert_not_null(slash_echo, "bat swing has a trailing afterimage")
+
+
+func test_bat_swing_show_builds_reference_style_crescent_arc() -> void:
+	var player := (load("res://scenes/player/player.tscn") as PackedScene).instantiate()
+	add_child(player)
+	var impact := player.get_node_or_null("BatSwingImpact") as Node2D
+	_runner.assert_not_null(impact, "player scene includes bat swing effect root")
+	if impact == null:
+		return
+
+	player._show_bat_swing_effect(Vector2.RIGHT, 100.0, 2.2)
+
+	var slash_front := impact.get_node_or_null("BatSlashFront") as Line2D
+	var slash_echo := impact.get_node_or_null("BatSlashEcho") as Line2D
+	_runner.assert_true(impact.visible, "showing bat swing reveals the effect root")
+	_runner.assert_not_null(slash_front, "bat swing uses a bright crescent stroke")
+	_runner.assert_not_null(slash_echo, "bat swing uses a fading afterimage")
+	if slash_front != null:
+		_runner.assert_true(slash_front.points.size() >= 12, "bat slash is a curved crescent")
+		_runner.assert_true(slash_front.width >= 7.0, "bat slash is thick enough to read on mobile")
+	if slash_echo != null:
+		_runner.assert_true(slash_echo.points.size() >= 8, "bat echo is also curved")
+	if slash_front != null and slash_echo != null:
+		_runner.assert_true(slash_echo.default_color.a < slash_front.default_color.a, "bat echo reads as a trailing afterimage")
+
+
 func test_player_scene_includes_layered_power_impact_effect() -> void:
 	var player := (load("res://scenes/player/player.tscn") as PackedScene).instantiate()
 	add_child(player)

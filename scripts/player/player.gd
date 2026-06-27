@@ -37,6 +37,7 @@ signal run_modifiers_changed(payload: Dictionary)
 @export var bat_knockback: float = 64.0    ## 배트 넉백 거리 (px)
 @export var swing_vertical_factor: float = 0.6  ## 스윙 세로(깊이) 압축 — 위/아래 사거리를 좌우보다 짧게(벨트 원근감)
 @export var swing_visual_time: float = 0.12  ## 휘두르기 시각 표시 시간 (s)
+@export var bat_swing_visual_time: float = 0.16  ## 배트 초승달 슬래시 표시 시간(s)
 @export var power_impact_visual_time: float = 0.18  ## 강공격 이펙트 재생 시간(s)
 @export_range(4, 8, 1) var power_impact_spark_count := 6
 @export var dash_power_attack_grace_time: float = 0.15  ## 대시 직후 강화 근접 공격 입력 허용 시간(s)
@@ -75,9 +76,11 @@ var _hit_reaction: Node = null
 var _movement_bounds := Rect2()
 var _movement_bounds_enabled := false
 var _status_effects: Node = null
+var _bat_swing_tween: Tween = null
 var _power_impact_tween: Tween = null
 
 @onready var _swing_visual: Node2D = get_node_or_null(^"MeleeSwing")
+@onready var _bat_swing_visual: Node2D = get_node_or_null(^"BatSwingImpact")
 @onready var _power_impact_visual: Node2D = get_node_or_null(^"PowerImpact")
 @onready var _sprite: AnimatedSprite2D = get_node_or_null(^"Sprite")
 
@@ -683,6 +686,8 @@ func _attack_melee(dir: Vector2) -> void:
 		else:
 			_clear_bullets_in_arc(dir, rng, arc)
 	_show_swing(dir, rng, arc)
+	if _has_bat:
+		_show_bat_swing_effect(dir, rng, arc)
 	if power_attack:
 		_dash_power_attack_consumed = true
 		_dash_power_attack_timer = 0.0
@@ -705,6 +710,62 @@ func _show_swing(dir: Vector2, rng: float, arc: float) -> void:
 	_swing_visual.rotation = 0.0
 	_swing_visual.visible = true
 	_swing_timer = swing_visual_time
+
+
+func _show_bat_swing_effect(dir: Vector2, rng: float, arc: float) -> void:
+	if _bat_swing_visual == null:
+		return
+	var slash_back := _bat_swing_visual.get_node_or_null(^"BatSlashBack") as Line2D
+	var slash_front := _bat_swing_visual.get_node_or_null(^"BatSlashFront") as Line2D
+	var slash_echo := _bat_swing_visual.get_node_or_null(^"BatSlashEcho") as Line2D
+	if slash_back != null:
+		slash_back.points = build_power_slash_points(dir, rng, arc * 0.9, 0.56, 1.02, 16)
+		slash_back.width = maxf(13.0, rng * 0.16)
+		slash_back.default_color = Color(0.24, 0.62, 1.0, 0.46)
+	if slash_echo != null:
+		slash_echo.points = build_power_slash_points(dir, rng, arc * 0.78, 0.48, 0.86, 12)
+		slash_echo.width = maxf(8.0, rng * 0.09)
+		slash_echo.default_color = Color(0.38, 0.76, 1.0, 0.34)
+	if slash_front != null:
+		slash_front.points = build_power_slash_points(dir, rng, arc * 0.84, 0.62, 1.1, 18)
+		slash_front.width = maxf(7.0, rng * 0.07)
+		slash_front.default_color = Color(0.9, 0.98, 1.0, 0.96)
+	_bat_swing_visual.rotation = 0.0
+	_bat_swing_visual.scale = Vector2(0.94, 0.94)
+	_bat_swing_visual.modulate = Color.WHITE
+	_bat_swing_visual.visible = true
+	if is_inside_tree():
+		_start_bat_swing_tween()
+
+
+func _start_bat_swing_tween() -> void:
+	if _bat_swing_visual == null:
+		return
+	if _bat_swing_tween != null and _bat_swing_tween.is_valid():
+		_bat_swing_tween.kill()
+	_bat_swing_tween = create_tween()
+	_bat_swing_tween.set_parallel(true)
+	_bat_swing_tween.tween_property(
+		_bat_swing_visual,
+		"scale",
+		Vector2(1.08, 1.08),
+		bat_swing_visual_time
+	).set_trans(Tween.TRANS_QUART).set_ease(Tween.EASE_OUT)
+	_bat_swing_tween.tween_property(
+		_bat_swing_visual,
+		"modulate:a",
+		0.0,
+		bat_swing_visual_time
+	).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
+	_bat_swing_tween.finished.connect(_hide_bat_swing)
+
+
+func _hide_bat_swing() -> void:
+	if _bat_swing_visual == null:
+		return
+	_bat_swing_visual.visible = false
+	_bat_swing_visual.modulate = Color.WHITE
+	_bat_swing_visual.scale = Vector2.ONE
 
 
 func _show_power_impact(dir: Vector2, rng: float, arc: float) -> void:

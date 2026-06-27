@@ -26,6 +26,37 @@ visible = false
 color = Color(1, 1, 1, 0.45)
 polygon = PackedVector2Array(8, -22, 44, -10, 48, 0, 44, 10, 8, 22)
 
+[node name="BatSwingImpact" type="Node2D" parent="."]
+visible = false
+z_index = 18
+
+[node name="BatSlashBack" type="Line2D" parent="BatSwingImpact"]
+width = 15.0
+default_color = Color(0.25, 0.64, 1, 0.42)
+joint_mode = 2
+begin_cap_mode = 2
+end_cap_mode = 2
+antialiased = true
+points = PackedVector2Array(10, -28, 42, -18, 62, 0, 42, 18, 10, 28)
+
+[node name="BatSlashEcho" type="Line2D" parent="BatSwingImpact"]
+width = 9.0
+default_color = Color(0.38, 0.76, 1, 0.32)
+joint_mode = 2
+begin_cap_mode = 2
+end_cap_mode = 2
+antialiased = true
+points = PackedVector2Array(8, -22, 34, -14, 50, 0, 34, 14, 8, 22)
+
+[node name="BatSlashFront" type="Line2D" parent="BatSwingImpact"]
+width = 7.0
+default_color = Color(0.9, 0.98, 1, 0.94)
+joint_mode = 2
+begin_cap_mode = 2
+end_cap_mode = 2
+antialiased = true
+points = PackedVector2Array(14, -24, 48, -14, 70, 0, 48, 14, 14, 24)
+
 [node name="PowerImpact" type="Node2D" parent="."]
 visible = false
 z_index = 20
