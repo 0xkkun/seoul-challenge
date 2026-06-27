@@ -1,7 +1,8 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene load_steps=4 format=3]
 
 [ext_resource type="Script" path="res://scripts/ui/session_ui_root.gd" id="1_ui"]
 [ext_resource type="Texture2D" path="res://assets/ui/icons/gear.svg" id="2_gear"]
+[ext_resource type="Texture2D" path="res://assets/ui/icons/memory_shard.png" id="3_shard"]
 
 [node name="SessionUIRoot" type="CanvasLayer"]
 unique_name_in_owner = true
@@ -86,10 +87,10 @@ grow_horizontal = 2
 grow_vertical = 2
 [node name="SummaryMargin" type="MarginContainer" parent="Root/SummaryOverlay/SummaryPanel"]
 layout_mode = 2
-theme_override_constants/margin_left = 24
-theme_override_constants/margin_top = 18
-theme_override_constants/margin_right = 24
-theme_override_constants/margin_bottom = 18
+theme_override_constants/margin_left = 42
+theme_override_constants/margin_top = 34
+theme_override_constants/margin_right = 42
+theme_override_constants/margin_bottom = 30
 
 [node name="SummaryStack" type="VBoxContainer" parent="Root/SummaryOverlay/SummaryPanel/SummaryMargin"]
 layout_mode = 2
@@ -107,7 +108,7 @@ horizontal_alignment = 1
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_font_sizes/font_size = 20
-theme_override_colors/font_color = Color(0.941176, 0.901961, 0.627451, 0.94)
+theme_override_colors/font_color = Color(0.972549, 0.945098, 0.74902, 1)
 text = "친구의 기억이 조금 돌아왔다. 학교로 돌아가 말을 걸어보자."
 horizontal_alignment = 1
 vertical_alignment = 1
@@ -133,30 +134,37 @@ layout_mode = 2
 theme_override_constants/separation = 18
 alignment = 1
 
-[node name="MemoryChip" type="ColorRect" parent="Root/SummaryOverlay/SummaryPanel/SummaryMargin/SummaryStack/SummaryContent/RewardPanel/RewardMargin/RewardRow"]
-custom_minimum_size = Vector2(92, 92)
+[node name="MemoryChip" type="TextureRect" parent="Root/SummaryOverlay/SummaryPanel/SummaryMargin/SummaryStack/SummaryContent/RewardPanel/RewardMargin/RewardRow"]
+custom_minimum_size = Vector2(128, 128)
 layout_mode = 2
-color = Color(0.352941, 0.490196, 0.352941, 1)
+size_flags_vertical = 4
+texture = ExtResource("3_shard")
+expand_mode = 1
+stretch_mode = 5
 
 [node name="RewardTextStack" type="VBoxContainer" parent="Root/SummaryOverlay/SummaryPanel/SummaryMargin/SummaryStack/SummaryContent/RewardPanel/RewardMargin/RewardRow"]
 layout_mode = 2
 size_flags_horizontal = 3
-theme_override_constants/separation = 2
+size_flags_vertical = 4
+theme_override_constants/separation = -4
 alignment = 1
 
 [node name="MemoryLabel" type="Label" parent="Root/SummaryOverlay/SummaryPanel/SummaryMargin/SummaryStack/SummaryContent/RewardPanel/RewardMargin/RewardRow/RewardTextStack"]
 unique_name_in_owner = true
+visible = false
 layout_mode = 2
-theme_override_font_sizes/font_size = 28
+theme_override_font_sizes/font_size = 27
 theme_override_colors/font_color = Color(0.941176, 0.901961, 0.627451, 1)
-text = "기억 조각"
+text = "혼 조각"
+horizontal_alignment = 1
 
 [node name="MemoryAmountLabel" type="Label" parent="Root/SummaryOverlay/SummaryPanel/SummaryMargin/SummaryStack/SummaryContent/RewardPanel/RewardMargin/RewardRow/RewardTextStack"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_font_sizes/font_size = 66
+theme_override_font_sizes/font_size = 60
 theme_override_colors/font_color = Color(1, 0.831373, 0.258824, 1)
 text = "+42"
+horizontal_alignment = 1
 
 [node name="RecordsStack" type="VBoxContainer" parent="Root/SummaryOverlay/SummaryPanel/SummaryMargin/SummaryStack/SummaryContent"]
 layout_mode = 2
@@ -166,16 +174,32 @@ theme_override_constants/separation = 9
 [node name="StudentsRecordPanel" type="PanelContainer" parent="Root/SummaryOverlay/SummaryPanel/SummaryMargin/SummaryStack/SummaryContent/RecordsStack"]
 custom_minimum_size = Vector2(0, 54)
 layout_mode = 2
-[node name="StudentsRecordLabel" type="Label" parent="Root/SummaryOverlay/SummaryPanel/SummaryMargin/SummaryStack/SummaryContent/RecordsStack/StudentsRecordPanel"]
+size_flags_vertical = 3
+
+[node name="StudentsRow" type="HBoxContainer" parent="Root/SummaryOverlay/SummaryPanel/SummaryMargin/SummaryStack/SummaryContent/RecordsStack/StudentsRecordPanel"]
+layout_mode = 2
+theme_override_constants/separation = 12
+alignment = 1
+
+[node name="StudentsTitle" type="Label" parent="Root/SummaryOverlay/SummaryPanel/SummaryMargin/SummaryStack/SummaryContent/RecordsStack/StudentsRecordPanel/StudentsRow"]
+layout_mode = 2
+size_flags_vertical = 4
+theme_override_font_sizes/font_size = 24
+theme_override_colors/font_color = Color(0.85, 0.88, 0.92, 1)
+text = "구출"
+vertical_alignment = 1
+
+[node name="StudentsRecordLabel" type="Label" parent="Root/SummaryOverlay/SummaryPanel/SummaryMargin/SummaryStack/SummaryContent/RecordsStack/StudentsRecordPanel/StudentsRow"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_font_sizes/font_size = 30
+size_flags_vertical = 4
+theme_override_font_sizes/font_size = 42
 theme_override_colors/font_color = Color(0.596078, 0.811765, 0.490196, 1)
-text = "구출 3"
-horizontal_alignment = 1
+text = "3"
 vertical_alignment = 1
 
 [node name="FriendsRecordPanel" type="PanelContainer" parent="Root/SummaryOverlay/SummaryPanel/SummaryMargin/SummaryStack/SummaryContent/RecordsStack"]
+visible = false
 custom_minimum_size = Vector2(0, 54)
 layout_mode = 2
 [node name="FriendsRecordLabel" type="Label" parent="Root/SummaryOverlay/SummaryPanel/SummaryMargin/SummaryStack/SummaryContent/RecordsStack/FriendsRecordPanel"]
@@ -190,13 +214,28 @@ vertical_alignment = 1
 [node name="RoomsRecordPanel" type="PanelContainer" parent="Root/SummaryOverlay/SummaryPanel/SummaryMargin/SummaryStack/SummaryContent/RecordsStack"]
 custom_minimum_size = Vector2(0, 54)
 layout_mode = 2
-[node name="RoomsRecordLabel" type="Label" parent="Root/SummaryOverlay/SummaryPanel/SummaryMargin/SummaryStack/SummaryContent/RecordsStack/RoomsRecordPanel"]
+size_flags_vertical = 3
+
+[node name="RoomsRow" type="HBoxContainer" parent="Root/SummaryOverlay/SummaryPanel/SummaryMargin/SummaryStack/SummaryContent/RecordsStack/RoomsRecordPanel"]
+layout_mode = 2
+theme_override_constants/separation = 12
+alignment = 1
+
+[node name="RoomsTitle" type="Label" parent="Root/SummaryOverlay/SummaryPanel/SummaryMargin/SummaryStack/SummaryContent/RecordsStack/RoomsRecordPanel/RoomsRow"]
+layout_mode = 2
+size_flags_vertical = 4
+theme_override_font_sizes/font_size = 24
+theme_override_colors/font_color = Color(0.85, 0.88, 0.92, 1)
+text = "방"
+vertical_alignment = 1
+
+[node name="RoomsRecordLabel" type="Label" parent="Root/SummaryOverlay/SummaryPanel/SummaryMargin/SummaryStack/SummaryContent/RecordsStack/RoomsRecordPanel/RoomsRow"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_font_sizes/font_size = 30
+size_flags_vertical = 4
+theme_override_font_sizes/font_size = 42
 theme_override_colors/font_color = Color(0.760784, 0.462745, 0.956863, 1)
-text = "방 18"
-horizontal_alignment = 1
+text = "18"
 vertical_alignment = 1
 
 [node name="UnlocksRecordPanel" type="PanelContainer" parent="Root/SummaryOverlay/SummaryPanel/SummaryMargin/SummaryStack/SummaryContent/RecordsStack"]

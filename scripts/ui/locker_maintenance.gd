@@ -195,7 +195,7 @@ func _build_weapon_cards() -> void:
 	_loadout_panel.anchor_bottom = 0.40
 	_loadout_panel.add_theme_stylebox_override(
 		"panel",
-		DungeonTheme.panel_style(DungeonTheme.COLOR_PANEL, DungeonTheme.COLOR_GOLD_DIM, 2, 14.0, 12.0)
+		DungeonTheme.framed_panel_style(14.0, 12.0)
 	)
 	add_child(_loadout_panel)
 
@@ -220,7 +220,7 @@ func _build_upgrade_panel() -> void:
 	panel.anchor_bottom = 0.80
 	panel.add_theme_stylebox_override(
 		"panel",
-		DungeonTheme.panel_style(DungeonTheme.COLOR_PANEL, DungeonTheme.COLOR_GOLD_DIM, 2, 12.0, 10.0)
+		DungeonTheme.framed_panel_style(12.0, 10.0)
 	)
 	add_child(panel)
 
@@ -234,7 +234,7 @@ func _build_upgrade_panel() -> void:
 	vbox.add_child(header)
 
 	var title := Label.new()
-	title.text = "기억 조각 강화"
+	title.text = "혼 조각 강화"
 	title.add_theme_font_size_override("font_size", 24)
 	title.add_theme_color_override("font_color", Color(0.86, 0.80, 0.62, 1.0))
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -307,7 +307,7 @@ func _refresh_upgrades() -> void:
 	if _upgrade_balance_label == null:
 		return
 	var balance := _permanent_balance()
-	_upgrade_balance_label.text = "기억 조각 ◆%d" % balance
+	_upgrade_balance_label.text = "혼 조각 ◆%d" % balance
 	for id: StringName in MetaUpgradeCatalog.upgrade_ids():
 		var level := _saved_upgrade_level(id)
 		var max_level := MetaUpgradeCatalog.max_level(id)
@@ -407,8 +407,8 @@ func _make_weapon_card(node_name: String, text: String, relative_rect: Rect2, ac
 	card.add_theme_color_override("font_pressed_color", DungeonTheme.COLOR_GOLD)
 	card.add_theme_color_override("font_disabled_color", DungeonTheme.COLOR_MUTED_TEXT)
 	card.add_theme_stylebox_override("normal", DungeonTheme.slot_style(false))
-	card.add_theme_stylebox_override("hover", DungeonTheme.panel_style(DungeonTheme.COLOR_PANEL_RAISED, DungeonTheme.COLOR_CYAN, 3, 12.0, 10.0))
-	card.add_theme_stylebox_override("pressed", DungeonTheme.panel_style(DungeonTheme.COLOR_SLOT, DungeonTheme.COLOR_GOLD, 3, 12.0, 10.0))
+	card.add_theme_stylebox_override("hover", DungeonTheme.card_style(12.0, 10.0, Color(0.78, 0.95, 1.0)))
+	card.add_theme_stylebox_override("pressed", DungeonTheme.card_style(12.0, 10.0, Color(1.0, 0.92, 0.6)))
 	card.add_theme_stylebox_override("disabled", DungeonTheme.slot_style(false, true))
 	PixelButton.attach_press_sfx(card)
 	if action != "":
@@ -451,7 +451,7 @@ func _apply_weapon_card_state() -> void:
 	_weapon_status_label.text = "선택한 기억\n\n금 간 나무 배트\n\n지도에서\n경복궁으로 이동"
 
 
-func _make_weapon_state_style(selected: bool) -> StyleBoxFlat:
+func _make_weapon_state_style(selected: bool) -> StyleBox:
 	return DungeonTheme.slot_style(selected)
 
 
