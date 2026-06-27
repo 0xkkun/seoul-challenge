@@ -33,14 +33,15 @@ func test_minimap_marks_current_cleared_adjacent_unknown_and_hidden_rooms() -> v
 	_runner.assert_false(entries[&"treasure_1"]["visible"], "non-adjacent treasure starts unknown")
 	_runner.assert_eq(entries[&"treasure_1"]["minimap_type"], &"unknown", "non-adjacent treasure hides its type")
 	_runner.assert_eq(entries[&"treasure_1"]["label"], "?", "unknown room uses question label")
-	_runner.assert_false(entries[&"final_1"]["visible"], "hidden boss starts hidden")
-	_runner.assert_eq(entries[&"final_1"]["minimap_type"], &"unknown", "hidden boss hides its type")
+	_runner.assert_false(entries[&"final_1"]["hidden"], "boss room is not layout-hidden")
+	_runner.assert_false(entries[&"final_1"]["visible"], "unvisited boss starts fogged")
+	_runner.assert_eq(entries[&"final_1"]["minimap_type"], &"unknown", "unvisited boss hides its type")
 	_runner.assert_eq(entries[&"final_1"]["actual_minimap_type"], &"boss", "source boss type remains available for diagnostics")
-	_runner.assert_eq(entries[&"final_1"]["label"], "?", "hidden boss uses unknown label")
-	_runner.assert_eq(entries[&"final_1"]["icon_path"], "", "hidden boss does not expose its boss icon")
+	_runner.assert_eq(entries[&"final_1"]["label"], "?", "unvisited boss uses unknown label")
+	_runner.assert_eq(entries[&"final_1"]["icon_path"], "", "unvisited boss does not expose its boss icon")
 
 
-func test_minimap_keeps_boss_unknown_until_explicit_reveal() -> void:
+func test_minimap_keeps_boss_unknown_until_visit_or_explicit_reveal() -> void:
 	var minimap := Minimap.new()
 	var layout := _create_layout()
 	add_child(minimap)
@@ -55,10 +56,10 @@ func test_minimap_keeps_boss_unknown_until_explicit_reveal() -> void:
 	var entries := _entries_by_room_id(minimap.get_room_draw_entries())
 	_runner.assert_false(entries[&"final_1"]["visible"], "boss stays unknown even when reachable")
 	_runner.assert_eq(entries[&"final_1"]["label"], "?", "reachable boss still uses unknown label")
-	_runner.assert_eq(entries[&"final_1"]["icon_path"], "", "reachable hidden boss still hides its icon")
+	_runner.assert_eq(entries[&"final_1"]["icon_path"], "", "reachable boss still hides its icon before visit")
 
 	var frontier := _frontier_by_room_id(minimap.get_frontier_draw_entries())
-	_runner.assert_true(frontier.has(&"final_1"), "reachable hidden boss is still pinged")
+	_runner.assert_true(frontier.has(&"final_1"), "reachable boss is still pinged")
 	_runner.assert_eq(frontier[&"final_1"]["from_room_id"], &"event_1", "boss ping points from the open exit")
 	_runner.assert_false(frontier[&"final_1"].has("arrow"), "boss ping does not expose arrow text")
 
@@ -94,9 +95,9 @@ func test_minimap_uses_minimap_data_types_for_special_rooms() -> void:
 	_runner.assert_eq(entries[&"shop_1"]["icon_path"], Minimap.SHOP_ROOM_ICON_PATH, "shop room uses the trophy node icon")
 	_runner.assert_not_null(entries[&"shop_1"]["icon_texture"], "shop room icon texture is loaded")
 	_runner.assert_eq(entries[&"final_1"]["minimap_type"], &"unknown", "unvisited final room hides boss type")
-	_runner.assert_false(entries[&"final_1"]["visible"], "hidden boss stays hidden")
-	_runner.assert_eq(entries[&"final_1"]["label"], "?", "hidden boss remains unknown")
-	_runner.assert_eq(entries[&"final_1"]["icon_path"], "", "hidden boss does not expose its boss icon")
+	_runner.assert_false(entries[&"final_1"]["visible"], "unvisited boss stays fogged")
+	_runner.assert_eq(entries[&"final_1"]["label"], "?", "unvisited boss remains unknown")
+	_runner.assert_eq(entries[&"final_1"]["icon_path"], "", "unvisited boss does not expose its boss icon")
 
 
 func test_minimap_uses_node_icons_for_known_core_room_types() -> void:
@@ -169,9 +170,9 @@ func test_minimap_frontier_ping_ignores_stale_cleared_room_connections() -> void
 	})
 
 	var frontier := _frontier_by_room_id(minimap.get_frontier_draw_entries())
-	_runner.assert_eq(frontier.size(), 0, "only exits reachable from the current room can ping")
+	_runner.assert_eq(frontier.size(), 1, "current cleared boss exit can ping")
 	_runner.assert_false(frontier.has(&"treasure_1"), "stale cleared room branches are not pinged")
-	_runner.assert_false(frontier.has(&"final_1"), "hidden boss does not ping before its reveal condition")
+	_runner.assert_true(frontier.has(&"final_1"), "unvisited boss pings from the current cleared room")
 
 
 func test_minimap_updates_from_event_bus_room_events() -> void:
@@ -308,7 +309,7 @@ func _create_layout() -> RoomLayout:
 		_create_room_def(&"combat_1", RoomLayout.TYPE_COMBAT, [&"start", &"treasure_1", &"event_1"], Vector2i(1, 0)),
 		_create_room_def(&"treasure_1", RoomLayout.TYPE_TREASURE, [&"combat_1"], Vector2i(2, 0)),
 		_create_room_def(&"event_1", RoomLayout.TYPE_EVENT, [&"combat_1", &"final_1"], Vector2i(1, 1)),
-		_create_room_def(&"final_1", RoomLayout.TYPE_FINAL, [&"event_1"], Vector2i(1, 2), true),
+		_create_room_def(&"final_1", RoomLayout.TYPE_FINAL, [&"event_1"], Vector2i(1, 2)),
 	]
 	return layout
 
@@ -319,7 +320,7 @@ func _create_linear_layout(layout_id: StringName, start_room_id: StringName, fin
 	layout.start_room_id = start_room_id
 	layout.room_defs = [
 		_create_room_def(start_room_id, RoomLayout.TYPE_START, [final_room_id], Vector2i(0, 0)),
-		_create_room_def(final_room_id, RoomLayout.TYPE_FINAL, [start_room_id], Vector2i(1, 0), true),
+		_create_room_def(final_room_id, RoomLayout.TYPE_FINAL, [start_room_id], Vector2i(1, 0)),
 	]
 	return layout
 
@@ -332,7 +333,7 @@ func _create_shop_layout() -> RoomLayout:
 		_create_room_def(&"start", RoomLayout.TYPE_START, [&"treasure_1"], Vector2i(0, 0)),
 		_create_room_def(&"treasure_1", RoomLayout.TYPE_TREASURE, [&"start", &"shop_1"], Vector2i(1, 0)),
 		_create_room_def(&"shop_1", RoomLayout.TYPE_SHOP, [&"treasure_1", &"final_1"], Vector2i(2, 0)),
-		_create_room_def(&"final_1", RoomLayout.TYPE_FINAL, [&"shop_1"], Vector2i(3, 0), true),
+		_create_room_def(&"final_1", RoomLayout.TYPE_FINAL, [&"shop_1"], Vector2i(3, 0)),
 	]
 	return layout
 

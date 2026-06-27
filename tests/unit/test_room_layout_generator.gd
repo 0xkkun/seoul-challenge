@@ -41,7 +41,7 @@ func test_generated_layout_consumes_room_manager_to_final_room() -> void:
 		_runner.assert_true(manager.request_next_room(next_room_id), "manager enters %s" % next_room_id)
 
 	_runner.assert_eq(manager.current_room_def.room_type, RoomLayout.TYPE_FINAL, "runtime route reaches final room")
-	_runner.assert_true(manager.current_room_def.hidden, "final room stays hidden in data")
+	_runner.assert_false(manager.current_room_def.hidden, "final room is a normal discoverable node")
 
 
 func test_room_count_param_expands_connected_layout() -> void:
@@ -77,24 +77,26 @@ func test_fifteen_room_layout_has_branching_boss_route() -> void:
 	)
 
 
-func test_generated_layout_reveals_boss_before_full_clear() -> void:
+func test_generated_layout_allows_boss_entry_when_discovered() -> void:
 	var generator := RoomLayoutGenerator.new()
 	var layout := generator.generate(40, {"room_count": 15})
 	var final_room := _final_room(layout)
 	_runner.assert_not_null(final_room, "generated layout has a final room")
 	if final_room == null:
 		return
-	var non_final_count := layout.room_defs.size() - 1
-	var reveal_value: Variant = layout.get("required_clears_for_hidden_reveal")
-	var required_clears := 0
-	if reveal_value is int:
-		required_clears = reveal_value
-	var cleared := _cleared_non_final_rooms(layout, required_clears)
+	_runner.assert_false(final_room.hidden, "generated boss room is not hidden behind a clear count")
+	_runner.assert_eq(layout.required_clears_for_hidden_reveal, 0, "generated layout has no boss reveal threshold")
+	_runner.assert_true(layout.is_room_visible(final_room.room_id), "boss room is layout-visible from run start")
+	_runner.assert_false(final_room.connections.is_empty(), "boss room has at least one discoverable entrance")
 
-	_runner.assert_true(required_clears > 0, "generated layout sets an explicit boss reveal threshold")
-	_runner.assert_true(required_clears < non_final_count, "boss reveal does not require every non-final room")
-	_runner.assert_false(layout.is_room_visible(final_room.room_id), "boss stays hidden at run start")
-	_runner.assert_true(layout.is_room_visible(final_room.room_id, cleared), "boss reveals after threshold clears")
+	var entrance_room_id := final_room.connections[0]
+	var cleared_before_boss := _cleared_rooms_along_path(layout, layout.start_room_id, entrance_room_id)
+	_runner.assert_true(cleared_before_boss.size() < layout.room_defs.size() - 1, "test reaches boss entrance before full clear")
+	_runner.assert_eq(
+		layout.get_next_room_id(entrance_room_id, cleared_before_boss, final_room.room_id),
+		final_room.room_id,
+		"discovered boss entrance can be taken without clearing unrelated rooms"
+	)
 
 
 func test_generated_combat_room_configs_scale_by_route_distance() -> void:
@@ -202,7 +204,7 @@ func _assert_layout_invariants(layout: RoomLayout, expected_count: int) -> void:
 	_runner.assert_eq(type_counts[RoomLayout.TYPE_FINAL], 1, "one final room")
 	_runner.assert_eq(final_rooms.size(), 1, "final room exists")
 	if final_rooms.size() == 1:
-		_runner.assert_true(final_rooms[0].hidden, "final room is hidden")
+		_runner.assert_false(final_rooms[0].hidden, "final room is not hidden")
 	_runner.assert_eq(friend_rooms.size(), 1, "friend room exists")
 	if final_rooms.size() == 1 and friend_rooms.size() == 1:
 		_runner.assert_true(final_rooms[0].connections.has(friend_rooms[0].room_id), "final room is reached through friend room")
@@ -220,8 +222,8 @@ func _assert_layout_invariants(layout: RoomLayout, expected_count: int) -> void:
 			cleared[room_def.room_id] = true
 
 	if final_rooms.size() == 1:
-		_runner.assert_false(layout.is_room_visible(final_rooms[0].room_id), "final hidden before clears")
-		_runner.assert_true(layout.is_room_visible(final_rooms[0].room_id, cleared), "final visible after clears")
+		_runner.assert_true(layout.is_room_visible(final_rooms[0].room_id), "final visible without clear gate")
+		_runner.assert_true(layout.is_room_visible(final_rooms[0].room_id, cleared), "final stays visible after clears")
 
 
 func _assert_reachable_and_bidirectional(layout: RoomLayout) -> void:
@@ -435,12 +437,12 @@ func _undirected_edge_count(layout: RoomLayout) -> int:
 	return count
 
 
-func _cleared_non_final_rooms(layout: RoomLayout, clear_count: int) -> Dictionary:
+func _cleared_rooms_along_path(layout: RoomLayout, start_room_id: StringName, target_room_id: StringName) -> Dictionary:
 	var cleared := {}
-	for room_def: RoomDef in layout.room_defs:
-		if cleared.size() >= clear_count:
+	var path := _path_between(layout, start_room_id, target_room_id)
+	for room_id: StringName in path:
+		if room_id == target_room_id:
 			break
-		if room_def.room_type == RoomLayout.TYPE_FINAL:
-			continue
-		cleared[room_def.room_id] = true
+		cleared[room_id] = true
+	cleared[target_room_id] = true
 	return cleared
