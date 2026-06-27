@@ -1,5 +1,15 @@
 extends Control
 
+const OUTER_RING_ALPHA := 0.26
+const OUTER_RING_PRESSED_ALPHA := 0.40
+const OUTER_RING_DISABLED_ALPHA := 0.14
+const INNER_RING_ALPHA := 0.10
+const INNER_RING_PRESSED_ALPHA := 0.16
+const INNER_RING_DISABLED_ALPHA := 0.06
+const ICON_ALPHA := 0.56
+const ICON_DISABLED_ALPHA := 0.28
+const COOLDOWN_RING_ALPHA := 0.54
+
 var _active_index: int = -1
 var _uses_remaining := 0
 var _max_uses := 0
@@ -28,6 +38,20 @@ func get_uses_label() -> String:
 	if _max_uses <= 0:
 		return "-"
 	return str(clampi(_uses_remaining, 0, _max_uses))
+
+
+func get_visual_contract() -> Dictionary:
+	return {
+		"background_fill_alpha": 0.0,
+		"pressed_fill_alpha": 0.0,
+		"disabled_fill_alpha": 0.0,
+		"shadow_alpha": 0.0,
+		"center_icon": "chevron",
+		"icon_alpha": ICON_ALPHA,
+		"uses_label_visible": false,
+		"outer_ring_alpha": OUTER_RING_ALPHA,
+		"inner_ring_alpha": INNER_RING_ALPHA,
+	}
 
 
 func set_skill_state(payload: Dictionary) -> void:
@@ -60,17 +84,28 @@ func _on_touch(index: int, pos: Vector2, pressed: bool) -> void:
 func _draw() -> void:
 	var center := size * 0.5
 	var radius := minf(size.x, size.y) * 0.5
-	var base_color := Color(0.25, 0.55, 1.0, 0.68) if is_held() else Color(0.25, 0.55, 1.0, 0.36)
-	if _uses_remaining <= 0:
-		base_color = Color(0.16, 0.16, 0.18, 0.36)
-	draw_circle(center, radius, base_color)
-	draw_arc(center, radius, 0.0, TAU, 40, Color(1, 1, 1, 0.35), 2.0)
+	var enabled := _max_uses <= 0 or _uses_remaining > 0
+	var outer_alpha := _ring_alpha(enabled, OUTER_RING_ALPHA, OUTER_RING_PRESSED_ALPHA, OUTER_RING_DISABLED_ALPHA)
+	var inner_alpha := _ring_alpha(enabled, INNER_RING_ALPHA, INNER_RING_PRESSED_ALPHA, INNER_RING_DISABLED_ALPHA)
+	draw_arc(center, radius - 2.0, 0.0, TAU, 48, Color(1, 1, 1, outer_alpha), 2.0, true)
+	draw_arc(center, radius * 0.74, 0.0, TAU, 48, Color(1, 1, 1, inner_alpha), 2.0, true)
 	if _cooldown > 0.0 and _cooldown_remaining > 0.0:
 		var ratio := get_cooldown_ratio()
-		draw_arc(center, radius * 0.74, -PI * 0.5, -PI * 0.5 + TAU * ratio, 36, Color(1, 1, 1, 0.72), 5.0)
-	var font := get_theme_default_font()
-	var font_size := 28
-	var label := get_uses_label()
-	var text_size := font.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1.0, font_size)
-	var text_pos := center - Vector2(text_size.x * 0.5, -text_size.y * 0.35)
-	draw_string(font, text_pos, label, HORIZONTAL_ALIGNMENT_LEFT, -1.0, font_size, Color(1, 1, 1, 0.88))
+		draw_arc(center, radius * 0.88, -PI * 0.5, -PI * 0.5 + TAU * ratio, 36, Color(1, 1, 1, COOLDOWN_RING_ALPHA), 4.0, true)
+	_draw_center_icon(center, radius, ICON_ALPHA if enabled else ICON_DISABLED_ALPHA)
+
+
+func _ring_alpha(enabled: bool, normal_alpha: float, pressed_alpha: float, disabled_alpha: float) -> float:
+	if not enabled:
+		return disabled_alpha
+	return pressed_alpha if is_held() else normal_alpha
+
+
+func _draw_center_icon(center: Vector2, radius: float, alpha: float) -> void:
+	var color := Color(1, 1, 1, alpha)
+	var width := maxf(3.0, radius * 0.085)
+	var half_width := radius * 0.18
+	var half_height := radius * 0.30
+	var tip := center + Vector2(half_width, 0.0)
+	draw_line(center + Vector2(-half_width, -half_height), tip, color, width, true)
+	draw_line(tip, center + Vector2(-half_width, half_height), color, width, true)
