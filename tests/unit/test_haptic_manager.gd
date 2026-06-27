@@ -73,6 +73,12 @@ func test_health_vibrates_only_on_decrease() -> void:
 	_runner.assert_eq(HapticManager.test_log, [L_MEDIUM], "회복(증가)은 무진동")
 
 
+func test_first_damaged_health_event_vibrates() -> void:
+	_at(1000)
+	EventBus.emit_player_health_changed({"current": 2, "max": 3})
+	_runner.assert_eq(HapticManager.test_log, [L_MEDIUM], "첫 체력 이벤트가 이미 감소 상태면 피격 진동")
+
+
 func test_currency_change_does_not_vibrate() -> void:
 	# currency_changed 는 디자인 리뷰에서 컷(고빈도 + 진행 이벤트와 충돌). 무진동이어야 한다.
 	_at(1000)
