@@ -68,6 +68,7 @@ func _ready() -> void:
 		GameManager.start_session({"source": "session_root"})
 	_apply_session_loadout()
 	_connect_player_weapon_events()
+	_sync_combat_hud_health()
 	PoolManager.register_scene(&"sample_marker", POOLED_MARKER_SCENE, 1, pooled_object_layer)
 	interaction_system.configure(actor, self)
 	_configure_player_camera()
@@ -200,6 +201,14 @@ func _disconnect_player_weapon_events() -> void:
 func _on_actor_weapon_changed(weapon_name: String) -> void:
 	if combat_hud.has_method("set_weapon_name"):
 		combat_hud.call("set_weapon_name", weapon_name)
+
+
+func _sync_combat_hud_health() -> void:
+	if actor == null or combat_hud == null or not combat_hud.has_method("set_health"):
+		return
+	if not actor.has_method("get_health"):
+		return
+	combat_hud.call("set_health", int(actor.call("get_health")), int(actor.get("max_health")))
 
 
 func finish_session(overrides: Dictionary = {}) -> Dictionary:
