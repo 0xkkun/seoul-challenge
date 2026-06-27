@@ -39,35 +39,34 @@ func test_room_and_reward_events_increase_permanent_and_persist() -> void:
 	_runner.assert_eq(_system_payloads[2]["permanent"], 8, "last payload includes latest permanent balance")
 
 
-func test_currency_changed_applies_ingame_and_permanent_deltas() -> void:
+func test_currency_changed_applies_permanent_only_and_ignores_ingame_deltas() -> void:
 	EventBus.emit_currency_changed({"kind": "ingame", "amount": 7})
 	EventBus.emit_currency_changed({"kind": "ingame", "amount": -2})
 	EventBus.emit_currency_changed({"kind": "permanent", "amount": 5})
 
 	var profile := SaveManager.load_profile()
 
-	_runner.assert_eq(CurrencySystem.get_ingame(), 5, "ingame currency applies add and spend deltas")
+	_runner.assert_false(CurrencySystem.has_method("get_ingame"), "ingame yeopjeon balance API is removed")
 	_runner.assert_eq(CurrencySystem.get_permanent(), 5, "permanent currency applies direct deltas")
 	_runner.assert_eq(profile[CurrencySystem.PROFILE_PERMANENT_CURRENCY_KEY], 5, "permanent delta is saved")
-	_runner.assert_eq(_system_payloads.size(), 3, "processed deltas are re-emitted once")
-	_runner.assert_eq(_system_payloads[1]["amount"], -2, "spend delta is preserved in emitted payload")
+	_runner.assert_eq(_system_payloads.size(), 1, "ingame deltas are ignored instead of re-emitted")
+	if _system_payloads.size() == 1:
+		_runner.assert_eq(_system_payloads[0]["kind"], "permanent", "only permanent updates are emitted")
 
 
-func test_session_finish_resets_ingame_only() -> void:
+func test_session_finish_does_not_emit_ingame_reset() -> void:
 	EventBus.emit_currency_changed({"kind": "ingame", "amount": 6})
 	EventBus.emit_currency_changed({"kind": "permanent", "amount": 2})
 	EventBus.emit_session_finished({"result": "test"})
 
 	var profile := SaveManager.load_profile()
 
-	_runner.assert_eq(CurrencySystem.get_ingame(), 0, "run end clears ingame currency")
 	_runner.assert_eq(CurrencySystem.get_permanent(), 2, "run end keeps permanent currency")
 	_runner.assert_eq(profile[CurrencySystem.PROFILE_PERMANENT_CURRENCY_KEY], 2, "run end keeps saved permanent currency")
-	_runner.assert_eq(_system_payloads[2]["kind"], "ingame")
-	_runner.assert_eq(_system_payloads[2]["amount"], -6, "reset emits the removed ingame amount")
+	_runner.assert_eq(_system_payloads.size(), 1, "run end does not emit removed yeopjeon reset updates")
 
 
-func test_reload_profile_restores_permanent_without_ingame() -> void:
+func test_reload_profile_restores_permanent_without_ingame_state() -> void:
 	var profile := SaveManager.load_profile()
 	profile[CurrencySystem.PROFILE_PERMANENT_CURRENCY_KEY] = 11
 	SaveManager.save_profile(profile)
@@ -75,7 +74,7 @@ func test_reload_profile_restores_permanent_without_ingame() -> void:
 
 	CurrencySystem.reset_for_tests()
 
-	_runner.assert_eq(CurrencySystem.get_ingame(), 0, "ingame currency remains memory-only")
+	_runner.assert_false(CurrencySystem.has_method("get_ingame"), "ingame currency state is not restored because it no longer exists")
 	_runner.assert_eq(CurrencySystem.get_permanent(), 11, "permanent currency reloads from profile")
 
 

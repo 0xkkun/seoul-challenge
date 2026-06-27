@@ -7,17 +7,12 @@ const STUDENT_RESCUED_PERMANENT_REWARD := 0
 const FRIEND_PURIFIED_PERMANENT_REWARD := 0
 const BOSS_DEFEATED_PERMANENT_REWARD := 0
 
-var _ingame := 0
 var _permanent := 0
 
 
 func _ready() -> void:
 	reload_profile()
 	_connect_event_signals()
-
-
-func get_ingame() -> int:
-	return _ingame
 
 
 func get_permanent() -> int:
@@ -34,7 +29,6 @@ func reload_profile() -> void:
 
 
 func reset_for_tests() -> void:
-	_ingame = 0
 	reload_profile()
 
 
@@ -47,9 +41,6 @@ func _connect_event_signals() -> void:
 	_connect_event(&"friend_purified", Callable(self, "_on_friend_purified"))
 	_connect_event(&"boss_defeated", Callable(self, "_on_boss_defeated"))
 	_connect_event(&"currency_changed", Callable(self, "_on_currency_changed"))
-	_connect_event(&"run_ended", Callable(self, "_on_run_ended"))
-	_connect_event(&"returned_to_school", Callable(self, "_on_returned_to_school"))
-	_connect_event(&"session_finished", Callable(self, "_on_session_finished"))
 
 
 func _connect_event(signal_name: StringName, target: Callable) -> void:
@@ -82,34 +73,8 @@ func _on_currency_changed(payload: Dictionary) -> void:
 
 	var amount := _int_value(payload.get("amount", 0))
 	match String(payload.get("kind", "")).to_lower():
-		"ingame":
-			_change_ingame(amount, "currency_changed")
 		"permanent":
 			_change_permanent(amount, "currency_changed")
-
-
-func _on_run_ended(_payload: Dictionary = {}) -> void:
-	_reset_ingame("run_ended")
-
-
-func _on_returned_to_school(_payload: Dictionary = {}) -> void:
-	_reset_ingame("returned_to_school")
-
-
-func _on_session_finished(_payload: Dictionary = {}) -> void:
-	_reset_ingame("session_finished")
-
-
-func _change_ingame(amount: int, reason: String) -> void:
-	var next := _ingame + amount
-	if next < 0:
-		next = 0
-	var delta := next - _ingame
-	if delta == 0:
-		return
-
-	_ingame = next
-	_emit_currency_changed("ingame", delta, reason)
 
 
 ## 영구 재화 소비 공개 API. 잔액이 충분하면 차감 후 true, 아니면 변화 없이 false.
@@ -135,15 +100,6 @@ func _change_permanent(amount: int, reason: String) -> void:
 	_emit_currency_changed("permanent", delta, reason)
 
 
-func _reset_ingame(reason: String) -> void:
-	if _ingame == 0:
-		return
-
-	var delta := -_ingame
-	_ingame = 0
-	_emit_currency_changed("ingame", delta, reason)
-
-
 func _save_permanent() -> void:
 	if not has_node("/root/SaveManager"):
 		return
@@ -160,7 +116,6 @@ func _emit_currency_changed(kind: String, amount: int, reason: String) -> void:
 	EventBus.emit_currency_changed({
 		"kind": kind,
 		"amount": amount,
-		"ingame": _ingame,
 		"permanent": _permanent,
 		"source": SYSTEM_EVENT_SOURCE,
 		"reason": reason,

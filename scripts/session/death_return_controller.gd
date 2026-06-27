@@ -2,7 +2,7 @@ extends Node
 ## 피격·사망 → 게임오버 플로우 트리거.
 ## 플레이어 체력이 0 이 되면 런을 종료하고(GameManager.finish_session)
 ## 세션 결과 UI가 연결되어 있으면 게임오버 요약을 표시한다.
-## 영구 재화는 CurrencySystem 이 session_finished 에서 ingame 만 리셋하므로 자동 유지된다.
+## 기억 조각은 CurrencySystem 이 SaveManager 프로필에 저장하므로 사망 후에도 유지된다.
 class_name DeathReturnController
 
 ## 사망 결과에 현재 방/보상 같은 세션별 값을 합치기 위한 선택 콜백.

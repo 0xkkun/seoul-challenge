@@ -131,17 +131,23 @@ func test_combat_room_applies_room_config_and_elite_variants() -> void:
 	_runner.assert_true(elite_chaser_hp > normal_chaser_hp, "elite chaser has more hp than normal chaser")
 
 
-func test_combat_room_emits_ingame_rewards_for_enemy_defeats_and_clear() -> void:
+func test_combat_room_does_not_emit_ingame_rewards_for_enemy_defeats_and_clear() -> void:
 	var room := _instantiate_combat_room()
 	if room == null:
 		return
+	var ingame_payloads: Array[Dictionary] = []
+	var on_currency_changed := func(payload: Dictionary) -> void:
+		if payload.get("kind", "") == "ingame":
+			ingame_payloads.append(payload)
+	EventBus.currency_changed.connect(on_currency_changed)
 	add_child(room)
 
 	room.enter()
 	_defeat_active_enemies(room)
 
 	_runner.assert_true(room.call("is_cleared"), "combat room clears after reward source defeats")
-	_runner.assert_eq(CurrencySystem.get_ingame(), 7, "four enemy defeats plus combat clear reward ingame currency")
+	_runner.assert_eq(ingame_payloads.size(), 0, "combat no longer emits unused yeopjeon rewards")
+	EventBus.currency_changed.disconnect(on_currency_changed)
 
 
 func test_combat_room_spawns_full_encounter_on_enter_even_when_wave_count_configured() -> void:
@@ -168,7 +174,7 @@ func test_combat_room_spawns_full_encounter_on_enter_even_when_wave_count_config
 
 	_runner.assert_true(room.call("is_cleared"), "combat clears after every initially spawned enemy is defeated")
 	_runner.assert_eq(room.call("get_remaining_enemy_count"), 0, "final wave leaves no active enemies")
-	_runner.assert_eq(CurrencySystem.get_ingame(), 9, "six enemy defeats plus combat clear reward ingame currency")
+	_runner.assert_false(CurrencySystem.has_method("get_ingame"), "combat cannot accrue removed ingame yeopjeon balance")
 
 
 func test_combat_room_ignores_duplicate_defeat_reward_for_same_enemy() -> void:
@@ -193,7 +199,7 @@ func test_combat_room_ignores_duplicate_defeat_reward_for_same_enemy() -> void:
 	enemy.emit_signal("defeated", enemy)
 
 	_runner.assert_true(room.call("is_cleared"), "first defeat clears the one-enemy combat")
-	_runner.assert_eq(CurrencySystem.get_ingame(), 4, "duplicate defeat signal does not pay a second enemy reward")
+	_runner.assert_false(CurrencySystem.has_method("get_ingame"), "duplicate defeat cannot pay removed ingame yeopjeon rewards")
 
 
 func _instantiate_combat_room() -> Node:
