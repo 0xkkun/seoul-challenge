@@ -341,6 +341,24 @@ func test_bat_attack_hides_debug_like_melee_range_wedge() -> void:
 		_runner.assert_true(bat_swing.visible, "bat attack still shows the authored slash effect")
 
 
+func test_dash_power_attack_uses_only_power_effect_not_blue_bat_slash() -> void:
+	var player := (load("res://scenes/player/player.tscn") as PackedScene).instantiate()
+	add_child(player)
+	player.equip_bat()
+
+	player.try_start_special_skill(Vector2.RIGHT)
+	player._attack_melee(Vector2.RIGHT)
+
+	var bat_swing := player.get_node_or_null("BatSwingImpact") as CanvasItem
+	var power_impact := player.get_node_or_null("PowerImpact") as CanvasItem
+	_runner.assert_not_null(bat_swing, "player keeps bat swing effect node")
+	_runner.assert_not_null(power_impact, "player keeps power impact effect node")
+	if bat_swing != null:
+		_runner.assert_false(bat_swing.visible, "dash power attack skips the blue bat slash")
+	if power_impact != null:
+		_runner.assert_true(power_impact.visible, "dash power attack shows the yellow power effect")
+
+
 func test_player_scene_includes_layered_power_impact_effect() -> void:
 	var player := (load("res://scenes/player/player.tscn") as PackedScene).instantiate()
 	add_child(player)
@@ -389,6 +407,32 @@ func test_power_impact_show_builds_slash_ring_and_spark_geometry() -> void:
 		if spark != null:
 			_runner.assert_eq(spark.points.size(), 2, "spark stroke has start and end points")
 			_runner.assert_true(spark.points[1].length() > spark.points[0].length(), "spark shoots outward from impact center")
+
+
+func test_power_impact_palette_uses_warm_yellow_without_blue_accent() -> void:
+	var player := (load("res://scenes/player/player.tscn") as PackedScene).instantiate()
+	add_child(player)
+	var impact := player.get_node_or_null("PowerImpact") as Node2D
+	_runner.assert_not_null(impact, "player scene includes power impact root")
+	if impact == null:
+		return
+
+	player._show_power_impact(Vector2.RIGHT, 80.0, 1.6)
+
+	var ring := impact.get_node_or_null("ImpactRing") as Line2D
+	var sparks := impact.get_node_or_null("ImpactSparks") as Node2D
+	_runner.assert_not_null(ring, "power impact has an impact ring")
+	_runner.assert_not_null(sparks, "power impact has spark children")
+	if ring != null:
+		_runner.assert_true(ring.default_color.r >= ring.default_color.g, "power ring is warm, not cyan")
+		_runner.assert_true(ring.default_color.g > ring.default_color.b, "power ring keeps blue below yellow")
+	if sparks != null:
+		for child: Node in sparks.get_children():
+			var spark := child as Line2D
+			if spark == null or not spark.visible:
+				continue
+			_runner.assert_true(spark.default_color.r >= spark.default_color.g, "power spark is warm")
+			_runner.assert_true(spark.default_color.g > spark.default_color.b, "power spark avoids blue accent")
 
 
 func test_power_slash_points_follow_attack_arc() -> void:

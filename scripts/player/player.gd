@@ -733,7 +733,10 @@ func _attack_melee(dir: Vector2) -> void:
 			_clear_bullets_in_arc(dir, rng, arc)
 	if _has_bat:
 		_hide_swing()
-		_show_bat_swing_effect(dir, rng, arc)
+		if power_attack:
+			_hide_bat_swing()
+		else:
+			_show_bat_swing_effect(dir, rng, arc)
 	else:
 		_show_swing(dir, rng, arc)
 	if power_attack:
@@ -860,7 +863,7 @@ func _show_power_impact(dir: Vector2, rng: float, arc: float) -> void:
 	if ring != null:
 		ring.points = _build_power_impact_ring_points(dir, rng)
 		ring.width = maxf(3.0, rng * 0.045)
-		ring.default_color = Color(0.62, 0.92, 1.0, 0.72)
+		ring.default_color = Color(1.0, 0.82, 0.22, 0.72)
 		ring.scale = Vector2(0.45, 0.45)
 		ring.modulate = Color.WHITE
 	if sparks != null:
@@ -922,7 +925,7 @@ func _configure_power_sparks(sparks: Node2D, dir: Vector2, rng: float, arc: floa
 		spark.points = _build_power_spark_points(dir, rng, arc, i, count)
 		spark.width = 3.0 if i < 4 else 2.0
 		spark.modulate = Color.WHITE
-		spark.default_color = Color(1.0, 0.9, 0.32, 0.95) if i < 4 else Color(0.72, 0.94, 1.0, 0.82)
+		spark.default_color = Color(1.0, 0.9, 0.32, 0.95) if i < 4 else Color(1.0, 0.68, 0.16, 0.82)
 
 
 func _build_power_spark_points(dir: Vector2, rng: float, arc: float, index: int, count: int) -> PackedVector2Array:
