@@ -717,7 +717,7 @@ func test_session_pause_modal_exit_opens_abandon_confirmation() -> void:
 
 	_runner.assert_true(UiTestHarness.press_by_test_id(modal, ConfirmModal.TEST_ID_NO), "exit button can be pressed by stable test id")
 	_runner.assert_true(modal.is_open(), "exit opens the abandon confirmation")
-	_runner.assert_eq(modal.get_message_text(), "오늘 밤을 포기할까요? 이번 밤에 얻은 보상은 사라지지만 기억 조각은 남습니다", "exit action reuses the abandon confirmation")
+	_runner.assert_eq(modal.get_message_text(), "오늘 밤을 포기할까요? 이번 밤에 얻은 보상은 사라지지만 혼 조각은 남습니다", "exit action reuses the abandon confirmation")
 	_runner.assert_true(get_tree().paused, "abandon confirmation keeps gameplay paused")
 
 	session.queue_free()
@@ -907,7 +907,7 @@ func test_session_finish_request_confirms_abandon_to_school() -> void:
 	_runner.assert_true(GameManager.is_session_active(), "session starts active")
 	session._on_finish_requested()
 	_runner.assert_true(session.is_exit_confirm_visible(), "abandon confirmation opens")
-	_runner.assert_eq(session.get_exit_confirm_message(), "오늘 밤을 포기할까요? 이번 밤에 얻은 보상은 사라지지만 기억 조각은 남습니다", "abandon copy matches issue")
+	_runner.assert_eq(session.get_exit_confirm_message(), "오늘 밤을 포기할까요? 이번 밤에 얻은 보상은 사라지지만 혼 조각은 남습니다", "abandon copy matches issue")
 	_runner.assert_true(get_tree().paused, "abandon confirmation pauses gameplay")
 
 	_runner.assert_true(UiTestHarness.press_by_test_id(session, ConfirmModal.TEST_ID_NO), "no cancels abandon")

@@ -76,6 +76,12 @@ func _assert_pixel_button_style(button: Button, variant: StringName, label: Stri
 
 
 func _assert_popup_panel_style(style: StyleBox, message: String) -> void:
+	var texture_style := style as StyleBoxTexture
+	if texture_style != null:
+		_runner.assert_eq(texture_style.texture.resource_path, "res://assets/ui/panels/popup_panel.png", "%s uses the shared popup panel texture" % message)
+		_runner.assert_eq(texture_style.texture_margin_left, DungeonUiTheme.PANEL_FRAME_TEXTURE_MARGIN, "%s uses popup 9-slice margin" % message)
+		_runner.assert_eq(texture_style.content_margin_left, PopupBase.DEFAULT_PANEL_MARGIN.x, "%s uses popup content margin" % message)
+		return
 	var flat_style := style as StyleBoxFlat
 	_runner.assert_not_null(flat_style, "%s uses the shared popup panel frame" % message)
 	if flat_style == null:

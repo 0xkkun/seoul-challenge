@@ -324,7 +324,7 @@ func _spawn_death_fade() -> void:
 		return
 	var fade := EnemyDeathFade.new()
 	parent.add_child(fade)
-	fade.global_position = global_position
+	fade.global_position = EnemyDeathFade.foot_position_for(self, _get_visual())
 	fade.capture_visual(_get_visual())
 
 

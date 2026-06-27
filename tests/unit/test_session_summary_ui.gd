@@ -35,11 +35,11 @@ func test_success_result_renders_player_facing_summary() -> void:
 	_runner.assert_true(snapshot["visible"], "result panel is shown")
 	_runner.assert_eq(snapshot["title"], "탈출 성공", "success header uses player-facing copy")
 	_runner.assert_true(snapshot["narrative"].contains("친구의 기억"), "success summary explains the next narrative beat")
-	_runner.assert_eq(snapshot["memory_label"], "기억 조각", "permanent reward label is concise")
+	_runner.assert_eq(snapshot["memory_label"], "혼 조각", "permanent reward label is concise")
 	_runner.assert_eq(snapshot["memory_amount"], "+42", "permanent reward is the largest result number")
-	_runner.assert_eq(snapshot["students"], "구출 3", "rescued students render as a record chip")
+	_runner.assert_eq(snapshot["students"], "3", "rescued students render as a record chip number")
 	_runner.assert_eq(snapshot["friends"], "정화 1", "purified friends render as a record chip")
-	_runner.assert_eq(snapshot["rooms"], "방 18", "room count renders as a record chip")
+	_runner.assert_eq(snapshot["rooms"], "18", "room count renders as a record chip number")
 	_runner.assert_eq(snapshot["unlocks"], "", "no unlock row is rendered without unlocks")
 	_assert_no_explainer_copy(snapshot)
 
@@ -55,11 +55,11 @@ func test_death_result_keeps_same_layout_without_loss_copy() -> void:
 
 	var snapshot: Dictionary = _ui.get_summary_snapshot()
 	_runner.assert_eq(snapshot["title"], "쓰러짐", "death state uses its own header")
-	_runner.assert_true(snapshot["narrative"].contains("기억 조각은 손에 남아 있다"), "death summary reassures retained progress")
+	_runner.assert_true(snapshot["narrative"].contains("혼 조각은 손에 남아 있다"), "death summary reassures retained progress")
 	_runner.assert_eq(snapshot["memory_amount"], "+5", "death still foregrounds earned memory")
-	_runner.assert_eq(snapshot["students"], "구출 1", "death keeps the record stack")
+	_runner.assert_eq(snapshot["students"], "1", "death keeps the record stack")
 	_runner.assert_eq(snapshot["friends"], "정화 0", "zero values stay aligned in the same chip")
-	_runner.assert_eq(snapshot["rooms"], "방 7", "room count remains visible")
+	_runner.assert_eq(snapshot["rooms"], "7", "room count remains visible")
 	_assert_no_explainer_copy(snapshot)
 
 
@@ -75,7 +75,7 @@ func test_run_result_contract_derives_records_from_existing_payload() -> void:
 	_runner.assert_eq(snapshot["title"], "탈출 성공", "completed run maps to success")
 	_runner.assert_eq(snapshot["memory_amount"], "+3", "existing cleared rooms derive memory reward")
 	_runner.assert_eq(snapshot["friends"], "정화 0", "boss result does not count as a purified friend")
-	_runner.assert_eq(snapshot["rooms"], "방 3", "cleared rooms drive room record")
+	_runner.assert_eq(snapshot["rooms"], "3", "cleared rooms drive room record")
 
 
 func test_onboarding_completion_summary_points_back_to_baseball_captain() -> void:
@@ -120,7 +120,7 @@ func test_explicit_zero_reward_is_not_derived_from_rooms() -> void:
 	var snapshot: Dictionary = _ui.get_summary_snapshot()
 	_runner.assert_eq(snapshot["memory_amount"], "+0", "explicit zero reward is honored")
 	_runner.assert_eq(snapshot["friends"], "정화 0", "explicit zero friend count is honored")
-	_runner.assert_eq(snapshot["rooms"], "방 2", "room records still derive when not explicit")
+	_runner.assert_eq(snapshot["rooms"], "2", "room records still derive when not explicit")
 
 
 func test_summary_actions_emit_distinct_flow_signals() -> void:
@@ -313,8 +313,7 @@ func test_summary_renders_baseball_unlocks_when_present() -> void:
 	})
 
 	var snapshot: Dictionary = _ui.get_summary_snapshot()
-	_runner.assert_true(snapshot["unlocks"].contains("야구부 3단계"), "stage unlock is shown")
-	_runner.assert_true(snapshot["unlocks"].contains("마지막 시즌의 배트"), "awakened bat unlock is shown")
+	_runner.assert_eq(snapshot["unlocks"], "", "result summary hides unlock rows during gameplay")
 
 
 func test_visible_session_actions_use_pixel_button_skin() -> void:

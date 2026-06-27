@@ -176,6 +176,12 @@ func test_night_map_departure_uses_bell_without_generic_press_sfx() -> void:
 
 
 func _assert_flat_style_border(style: StyleBox, expected_width: int, message: String) -> void:
+	var texture_style := style as StyleBoxTexture
+	if texture_style != null:
+		_runner.assert_eq(texture_style.texture.resource_path, "res://assets/ui/panels/card_frame.png", "%s uses the shared card frame texture" % message)
+		_runner.assert_eq(texture_style.texture_margin_left, DungeonUiTheme.CARD_FRAME_TEXTURE_MARGIN, "%s uses card 9-slice margin" % message)
+		_runner.assert_true(texture_style.modulate_color.r >= 0.9, "%s uses selected warm trim" % message)
+		return
 	var flat_style := style as StyleBoxFlat
 	_runner.assert_not_null(flat_style, "%s is a flat dungeon UI style" % message)
 	if flat_style == null:
