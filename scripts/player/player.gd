@@ -42,7 +42,7 @@ signal run_modifiers_changed(payload: Dictionary)
 @export var melee_arc: float = 1.4         ## 맨손 타격 각 (rad)
 @export var barehand_knockback: float = 18.0  ## 맨손 히트 리액션용 약한 넉백(px)
 @export var bat_damage: int = 2            ## 배트 피해(보상 무기)
-@export var bat_range: float = 100.0       ## 배트 사거리 (px) — 방망이 끝까지 길게
+@export var bat_range: float = 132.0       ## 배트 사거리 (px) — 모바일 헛손질을 줄이도록 길게
 @export var bat_arc: float = 2.4            ## 배트 타격 각 (rad) — 넓게 휘두름
 @export var bat_knockback: float = 64.0    ## 배트 넉백 거리 (px)
 @export var swing_vertical_factor: float = 0.6  ## 스윙 세로(깊이) 압축 — 위/아래 사거리를 좌우보다 짧게(벨트 원근감)
