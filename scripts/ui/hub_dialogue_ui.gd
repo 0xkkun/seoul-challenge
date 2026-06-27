@@ -41,6 +41,18 @@ const BASEBALL_STAGE_3 := &"baseball_stage_3"
 const AWAKENED_BAT := &"awakened_bat"
 const MobileSafeArea := preload("res://scripts/ui/mobile_safe_area.gd")
 const FontRoles := preload("res://scripts/ui/ui_font_roles.gd")
+const AWAKENED_BAT_ICON: Texture2D = preload("res://assets/ui/icons/seoul_challenge/baseball_bat.png")
+
+# 해금 팝업 등장("따란!") 연출 파라미터.
+const UNLOCK_REVEAL_DURATION := 0.36
+const UNLOCK_START_SCALE := Vector2(0.82, 0.82)
+const UNLOCK_DIM_BASE := 0.28
+const UNLOCK_DIM_HERO := 0.58
+const UNLOCK_ICON_SIZE := Vector2(32.0, 32.0)
+const UNLOCK_HERO_ICON_SIZE := Vector2(52.0, 52.0)
+const UNLOCK_GLOW_SIZE := Vector2(300.0, 300.0)
+const UNLOCK_GLOW_COLOR := Color(1.0, 0.84, 0.42, 0.9)
+const UNLOCK_SPARKLE_COLOR := Color(1.0, 0.88, 0.5, 1.0)
 
 @onready var _dialogue_dimmer: ColorRect = %DialogueDimmer
 @onready var _portrait_panel: ColorRect = %PortraitPanel
@@ -74,6 +86,11 @@ var _portrait_frame_count := 1
 var _portrait_elapsed := 0.0
 var _portrait_fps := 1.6
 var _portrait_animates := false
+var _unlock_dimmer: ColorRect
+var _unlock_reveal_tween: Tween
+var _unlock_glow: TextureRect
+var _unlock_sparkles: CPUParticles2D
+var _unlock_hero_icon: TextureRect
 
 
 func _ready() -> void:
@@ -89,6 +106,7 @@ func _ready() -> void:
 		{"id": CHOICE_ASK, "text": "물어보기", "emphasized": false},
 		{"id": CHOICE_ACCEPT, "text": "받기", "emphasized": true},
 	])
+	_unlock_dimmer = _unlock_overlay.get_node("Dimmer") as ColorRect
 	_unlock_overlay.visible = false
 	_connect_progression_events()
 	apply_baseball_progress(false)
@@ -273,15 +291,16 @@ func select_choice(choice_id: StringName) -> void:
 	choice_selected.emit(choice_id)
 
 
-func show_unlock(title: String, subtitle: String, items: Array[Dictionary]) -> void:
+func show_unlock(title: String, subtitle: String, items: Array[Dictionary], hero := false) -> void:
 	_unlock_title_label.text = title
 	_unlock_subtitle_label.text = subtitle
 	_unlock_items.clear()
+	_unlock_hero_icon = null
 	for item: Dictionary in items:
 		_unlock_items.append(item.duplicate(true))
 	_render_unlock_items()
 	_unlock_continue_hint.text = CONTINUE_HINT_TOUCH
-	_unlock_overlay.visible = true
+	_play_unlock_reveal(hero)
 
 
 func apply_baseball_progress(show_unlock_popup := false) -> void:
@@ -298,7 +317,12 @@ func apply_baseball_progress(show_unlock_popup := false) -> void:
 
 func hide_unlock() -> void:
 	var was_visible := _unlock_overlay.visible
+	if _unlock_reveal_tween != null and _unlock_reveal_tween.is_valid():
+		_unlock_reveal_tween.kill()
 	_unlock_overlay.visible = false
+	_unlock_popup.scale = Vector2.ONE
+	_unlock_popup.modulate.a = 1.0
+	_hide_hero_effects()
 	if was_visible:
 		unlock_hidden.emit()
 
@@ -434,10 +458,22 @@ func _render_unlock_items() -> void:
 		row.add_theme_constant_override("separation", 8)
 		item_panel.add_child(row)
 
-		var icon := ColorRect.new()
-		icon.custom_minimum_size = Vector2(28.0, 28.0)
-		icon.color = item.get("color", DEFAULT_BALL_COLOR)
-		row.add_child(icon)
+		var is_hero_item := bool(item.get("hero", false))
+		var item_texture := item.get("texture", null) as Texture2D
+		if item_texture != null:
+			var icon_rect := TextureRect.new()
+			icon_rect.texture = item_texture
+			icon_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+			icon_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+			icon_rect.custom_minimum_size = UNLOCK_HERO_ICON_SIZE if is_hero_item else UNLOCK_ICON_SIZE
+			row.add_child(icon_rect)
+			if is_hero_item:
+				_unlock_hero_icon = icon_rect
+		else:
+			var icon := ColorRect.new()
+			icon.custom_minimum_size = Vector2(28.0, 28.0)
+			icon.color = item.get("color", DEFAULT_BALL_COLOR)
+			row.add_child(icon)
 
 		var label := Label.new()
 		label.text = String(item.get("name", ""))
@@ -477,8 +513,160 @@ func _on_unlock_changed(payload: Dictionary) -> void:
 
 func _show_awakened_bat_unlock() -> void:
 	show_unlock("마지막 시즌의 배트", "적의 탄을 배트로 되받아친다", [
-		{"id": AWAKENED_BAT, "name": "마지막 시즌의 배트", "color": DEFAULT_BAT_COLOR},
-	])
+		{
+			"id": AWAKENED_BAT,
+			"name": "마지막 시즌의 배트",
+			"color": DEFAULT_BAT_COLOR,
+			"texture": AWAKENED_BAT_ICON,
+			"hero": true,
+		},
+	], true)
+
+
+func _play_unlock_reveal(hero: bool) -> void:
+	if _unlock_reveal_tween != null and _unlock_reveal_tween.is_valid():
+		_unlock_reveal_tween.kill()
+	_unlock_overlay.visible = true
+
+	# 디머는 0에서 시작해 시선을 모으며 페이드인 — 각성(hero) 보상은 더 깊게 어둡힌다.
+	var dim_target := UNLOCK_DIM_HERO if hero else UNLOCK_DIM_BASE
+	if _unlock_dimmer != null:
+		_unlock_dimmer.color.a = 0.0
+
+	# 팝업은 살짝 작게 시작해 오버슈트하며 튀어나온다("따란!").
+	_unlock_popup.pivot_offset = UNLOCK_POPUP_SIZE * 0.5
+	_unlock_popup.scale = UNLOCK_START_SCALE
+	_unlock_popup.modulate.a = 0.0
+
+	if hero:
+		_layout_hero_effects()
+	else:
+		_hide_hero_effects()
+
+	var tween := create_tween()
+	tween.set_parallel(true)
+	if _unlock_dimmer != null:
+		tween.tween_property(_unlock_dimmer, "color:a", dim_target, UNLOCK_REVEAL_DURATION * 0.6)
+	tween.tween_property(_unlock_popup, "modulate:a", 1.0, UNLOCK_REVEAL_DURATION * 0.7)
+	tween.tween_property(_unlock_popup, "scale", Vector2.ONE, UNLOCK_REVEAL_DURATION) \
+		.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	if hero and _unlock_glow != null:
+		tween.tween_property(_unlock_glow, "modulate:a", 1.0, UNLOCK_REVEAL_DURATION * 0.5)
+	_unlock_reveal_tween = tween
+
+	if hero:
+		_play_hero_punch()
+		_play_reveal_feedback()
+
+
+func _layout_hero_effects() -> void:
+	var popup_center := _unlock_overlay.size * 0.5 + UNLOCK_POPUP_CENTER_OFFSET
+	var glow := _ensure_unlock_glow()
+	glow.size = UNLOCK_GLOW_SIZE
+	glow.position = popup_center - UNLOCK_GLOW_SIZE * 0.5
+	glow.visible = true
+	glow.modulate.a = 0.0
+	var sparkles := _ensure_unlock_sparkles()
+	sparkles.position = popup_center
+	sparkles.visible = true
+
+
+func _hide_hero_effects() -> void:
+	if _unlock_glow != null:
+		_unlock_glow.visible = false
+	if _unlock_sparkles != null:
+		_unlock_sparkles.emitting = false
+		_unlock_sparkles.visible = false
+
+
+func _play_hero_punch() -> void:
+	if _unlock_hero_icon == null:
+		return
+	_unlock_hero_icon.pivot_offset = UNLOCK_HERO_ICON_SIZE * 0.5
+	_unlock_hero_icon.scale = Vector2(0.4, 0.4)
+	_unlock_hero_icon.rotation = -0.12
+	var punch := create_tween()
+	punch.set_parallel(true)
+	punch.tween_property(_unlock_hero_icon, "scale", Vector2.ONE, 0.46) \
+		.set_trans(Tween.TRANS_ELASTIC).set_ease(Tween.EASE_OUT).set_delay(0.08)
+	punch.tween_property(_unlock_hero_icon, "rotation", 0.0, 0.42) \
+		.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT).set_delay(0.08)
+
+
+func _play_reveal_feedback() -> void:
+	HapticManager.on_ui_confirm()
+	_play_reveal_sfx()
+	if _unlock_sparkles != null:
+		_unlock_sparkles.restart()
+		_unlock_sparkles.emitting = true
+
+
+func _play_reveal_sfx() -> void:
+	# 사용자 제공 예정 '따란!' 효과음. 파일이 추가되면 자동 재생, 없으면 조용히 스킵한다.
+	if not has_node("/root/AudioManager"):
+		return
+	var path := AudioManager.get_sfx_stream_path(AudioManager.AWAKENED_BAT_REVEAL)
+	if path == "" or not ResourceLoader.exists(path):
+		return
+	AudioManager.play_sfx(AudioManager.AWAKENED_BAT_REVEAL)
+
+
+func _ensure_unlock_glow() -> TextureRect:
+	if _unlock_glow != null:
+		return _unlock_glow
+	var glow := TextureRect.new()
+	glow.name = "UnlockGlow"
+	glow.texture = _make_radial_texture(UNLOCK_GLOW_COLOR)
+	glow.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	glow.stretch_mode = TextureRect.STRETCH_SCALE
+	glow.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var mat := CanvasItemMaterial.new()
+	mat.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
+	glow.material = mat
+	_unlock_overlay.add_child(glow)
+	# 디머(0) 바로 위, 팝업 아래로 배치해 글로우가 팝업 뒤에서 번지게 한다.
+	_unlock_overlay.move_child(glow, 1)
+	_unlock_glow = glow
+	return glow
+
+
+func _ensure_unlock_sparkles() -> CPUParticles2D:
+	if _unlock_sparkles != null:
+		return _unlock_sparkles
+	var particles := CPUParticles2D.new()
+	particles.name = "UnlockSparkles"
+	particles.emitting = false
+	particles.one_shot = true
+	particles.explosiveness = 0.9
+	particles.amount = 22
+	particles.lifetime = 0.9
+	particles.texture = _make_radial_texture(Color(1.0, 1.0, 1.0, 1.0), 16)
+	particles.spread = 180.0
+	particles.direction = Vector2(0.0, -1.0)
+	particles.gravity = Vector2(0.0, 140.0)
+	particles.initial_velocity_min = 60.0
+	particles.initial_velocity_max = 175.0
+	particles.scale_amount_min = 0.35
+	particles.scale_amount_max = 1.0
+	particles.color = UNLOCK_SPARKLE_COLOR
+	# 팝업(z 기본 0) 위에서 튀도록 마지막 자식으로 둔다.
+	_unlock_overlay.add_child(particles)
+	_unlock_sparkles = particles
+	return particles
+
+
+func _make_radial_texture(center_color: Color, dimension := 192) -> GradientTexture2D:
+	var gradient := Gradient.new()
+	gradient.set_color(0, center_color)
+	gradient.set_color(1, Color(center_color.r, center_color.g, center_color.b, 0.0))
+	var tex := GradientTexture2D.new()
+	tex.gradient = gradient
+	tex.fill = GradientTexture2D.FILL_RADIAL
+	tex.fill_from = Vector2(0.5, 0.5)
+	tex.fill_to = Vector2(1.0, 0.5)
+	tex.width = dimension
+	tex.height = dimension
+	return tex
 
 
 func _tap_to_continue_choice_id() -> StringName:
