@@ -233,6 +233,48 @@ func test_bat_attack_plays_swing_sfx() -> void:
 	AudioManager.reset()
 
 
+func test_bat_attack_hit_plays_one_impact_sfx_per_swing() -> void:
+	AudioManager.reset()
+	var p = PlayerScript.new()
+	add_child(p)
+	p.position = Vector2.ZERO
+	p.equip_bat()
+	var first_enemy := StubEnemy.new()
+	first_enemy.position = Vector2(50.0, 0.0)
+	first_enemy.add_to_group(&"enemy")
+	add_child(first_enemy)
+	var second_enemy := StubEnemy.new()
+	second_enemy.position = Vector2(80.0, 0.0)
+	second_enemy.add_to_group(&"enemy")
+	add_child(second_enemy)
+
+	p._attack_melee(Vector2.RIGHT)
+
+	_runner.assert_eq(AudioManager.get_played_sfx(), [&"bat_swing", &"bat_hit"], "배트가 여러 적을 맞춰도 스윙음 뒤 타격음은 1회만 재생된다")
+	first_enemy.free()
+	second_enemy.free()
+	p.free()
+	AudioManager.reset()
+
+
+func test_barehand_hit_does_not_play_bat_impact_sfx() -> void:
+	AudioManager.reset()
+	var p = PlayerScript.new()
+	add_child(p)
+	p.position = Vector2.ZERO
+	var e := StubEnemy.new()
+	e.position = Vector2(25.0, 0.0)
+	e.add_to_group(&"enemy")
+	add_child(e)
+
+	p._attack_melee(Vector2.RIGHT)
+
+	_runner.assert_eq(AudioManager.get_played_sfx(), [], "맨손 타격은 배트 전용 타격음을 재생하지 않는다")
+	e.free()
+	p.free()
+	AudioManager.reset()
+
+
 func test_barehand_attack_does_not_play_bat_swing_sfx() -> void:
 	AudioManager.reset()
 	var p = PlayerScript.new()

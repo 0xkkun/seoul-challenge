@@ -38,6 +38,16 @@ func test_bat_swing_sfx_is_registered() -> void:
 	_runner.assert_not_null(stream, "bat swing SFX loads as MP3")
 
 
+func test_bat_hit_sfx_is_registered() -> void:
+	var stream_path := AudioManager.get_sfx_stream_path(&"bat_hit")
+
+	_runner.assert_true(AudioManager.has_sfx(&"bat_hit"), "bat hit SFX is registered")
+	_runner.assert_eq(stream_path, "res://assets/audio/sfx/bat_hit.wav", "bat hit SFX path is stable")
+	_runner.assert_true(ResourceLoader.exists(stream_path), "bat hit SFX resource exists")
+	var stream := load(stream_path) as AudioStreamWAV
+	_runner.assert_not_null(stream, "bat hit SFX loads as WAV")
+
+
 func test_school_hallway_bgm_is_registered() -> void:
 	var stream_path := AudioManager.get_bgm_stream_path(AudioManager.SCHOOL_HALLWAY_BGM)
 

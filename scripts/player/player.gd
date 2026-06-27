@@ -904,6 +904,8 @@ func _attack_melee(dir: Vector2) -> void:
 		_dash_power_attack_timer = 0.0
 		_show_power_impact(dir, rng, arc)
 	if hit_count > 0:
+		if _has_bat:
+			_play_bat_hit_sfx()
 		_emit_combat_feedback(&"melee_hit", dir, hit_count, _melee_feedback_intensity(power_attack))
 
 
@@ -935,6 +937,11 @@ func _emit_combat_feedback(kind: StringName, dir: Vector2, hit_count: int, inten
 func _play_bat_swing_sfx() -> void:
 	if has_node("/root/AudioManager"):
 		AudioManager.play_sfx(AudioManager.BAT_SWING)
+
+
+func _play_bat_hit_sfx() -> void:
+	if has_node("/root/AudioManager"):
+		AudioManager.play_sfx(AudioManager.BAT_HIT)
 
 
 ## 휘두르기 시각 표시 — 실제 사거리(rng)·각(arc)으로 부채꼴을 그려 타격 범위와 일치시킨다.

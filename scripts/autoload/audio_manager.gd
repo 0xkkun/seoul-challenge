@@ -8,6 +8,7 @@ const SCHOOL_BELL_TRANSITION_FRONT := &"school_bell_transition_front"
 const SCHOOL_BELL_TRANSITION_BACK := &"school_bell_transition_back"
 const UI_BUTTON_PRESS := &"ui_button_press"
 const BAT_SWING := &"bat_swing"
+const BAT_HIT := &"bat_hit"
 const NIGHT_INTRO_TRANSITION := &"night_intro_transition"
 const NIGHT_INTRO_TRANSITION_C := &"night_intro_transition_c"
 const SESSION_TRANSITION_SFX_IDS: Array[StringName] = [
@@ -33,6 +34,7 @@ const _SFX_STREAM_PATHS := {
 	SCHOOL_BELL_TRANSITION_BACK: "res://assets/audio/sfx/school_bell_transition_back.wav",
 	UI_BUTTON_PRESS: "res://assets/audio/sfx/ui_button_press.mp3",
 	BAT_SWING: "res://assets/audio/sfx/bat_swing.mp3",
+	BAT_HIT: "res://assets/audio/sfx/bat_hit.wav",
 	NIGHT_INTRO_TRANSITION: "res://assets/audio/sfx/night_intro_transition.mp3",
 	NIGHT_INTRO_TRANSITION_C: "res://assets/audio/sfx/night_intro_transition_c.mp3",
 }
