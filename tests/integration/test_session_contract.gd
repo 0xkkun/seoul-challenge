@@ -492,7 +492,7 @@ func test_session_result_actions_unpause_and_preserve_retry_config() -> void:
 	session.queue_free()
 
 
-func test_player_death_shows_game_over_summary_without_lobby_transition() -> void:
+func test_player_death_shows_game_over_summary_without_immediate_transition() -> void:
 	var packed := load("res://scenes/session/session_root.tscn") as PackedScene
 	var session := packed.instantiate()
 	var action_counts := {"returned": 0}
@@ -509,7 +509,7 @@ func test_player_death_shows_game_over_summary_without_lobby_transition() -> voi
 	_runner.assert_eq(snapshot["title"], "쓰러짐", "death summary uses game over title")
 	_runner.assert_false(GameManager.is_session_active(), "death finishes the active run")
 	_runner.assert_eq(GameManager.get_last_result().get("outcome", ""), "death", "death result is saved")
-	_runner.assert_eq(action_counts["returned"], 0, "death does not immediately transition to lobby")
+	_runner.assert_eq(action_counts["returned"], 0, "death does not immediately transition to school")
 	_runner.assert_true(get_tree().paused, "gameplay freezes under the game over summary")
 
 	get_tree().paused = false
@@ -552,7 +552,7 @@ func test_room_change_configures_player_bounds_and_clears_motion() -> void:
 	session.queue_free()
 
 
-func test_session_finish_request_confirms_abandon_to_lobby() -> void:
+func test_session_finish_request_confirms_abandon_to_school() -> void:
 	var packed := load("res://scenes/session/session_root.tscn") as PackedScene
 	var session := packed.instantiate()
 	var action_counts := {"returned": 0}
@@ -573,7 +573,7 @@ func test_session_finish_request_confirms_abandon_to_lobby() -> void:
 
 	session._on_finish_requested()
 	_runner.assert_true(UiTestHarness.press_by_test_id(session, ConfirmModal.TEST_ID_YES), "yes confirms abandon")
-	_runner.assert_eq(action_counts["returned"], 1, "abandon returns to lobby once")
+	_runner.assert_eq(action_counts["returned"], 1, "abandon returns to school once")
 	_runner.assert_false(GameManager.is_session_active(), "abandon resets the active run")
 
 	session.queue_free()

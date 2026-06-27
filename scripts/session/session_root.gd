@@ -482,7 +482,7 @@ func _on_return_requested() -> void:
 	if return_to_school_callable.is_valid():
 		return_to_school_callable.call()
 	else:
-		SceneTransition.go_to_lobby()
+		SceneTransition.go_to_day_lobby()
 
 
 func _on_retry_requested() -> void:
@@ -675,20 +675,20 @@ func _request_abandon_run() -> void:
 	session_ui_root.set_status("포기 확인")
 	_confirm_modal.open(
 		ABANDON_RUN_MESSAGE,
-		Callable(self, "_abandon_run_to_lobby"),
+		Callable(self, "_abandon_run_to_school"),
 		Callable(self, "_restore_pause_after_exit_modal"),
 		true
 	)
 
 
-func _abandon_run_to_lobby() -> void:
+func _abandon_run_to_school() -> void:
 	get_tree().paused = false
 	if has_node("/root/GameManager"):
 		GameManager.reset_session()
 	if return_to_school_callable.is_valid():
 		return_to_school_callable.call()
 	else:
-		SceneTransition.go_to_lobby()
+		SceneTransition.go_to_day_lobby()
 
 
 func _request_quit_game() -> void:
