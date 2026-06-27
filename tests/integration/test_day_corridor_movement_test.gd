@@ -353,6 +353,8 @@ func test_day_corridor_onboarding_reward_dialogue_grants_bat_and_clue() -> void:
 
 	_runner.assert_true(UiTestHarness.press_by_uat_action(scene, "day_corridor.dialogue.next"), "reward dialogue advances to bat line")
 	_runner.assert_true(scene.get_active_dialogue_text().contains("금 간 나무 배트"), "captain names the cracked wooden bat")
+	_runner.assert_true(scene.get_active_dialogue_text().contains("이 배트는 적의 공격을 튕겨내거나 돌진하는 적을 효과적으로 막을 수 있어!"), "captain explains the bat's defensive combat role")
+	_runner.assert_true(scene.get_node("%HubDialogueUi").get_dialogue_markup_text().contains("[b]이 배트는 적의 공격을 튕겨내거나 돌진하는 적을 효과적으로 막을 수 있어![/b]"), "bat defensive role line is bolded")
 	_runner.assert_true(scene.perform_uat_action("day_corridor.dialogue.dismiss_unlock"), "bat pickup popup can be dismissed before clue line")
 	_runner.assert_true(UiTestHarness.press_by_uat_action(scene, "day_corridor.dialogue.next"), "reward dialogue advances to clue line")
 	_runner.assert_true(scene.get_active_dialogue_text().contains("도깨비왕"), "captain gives the goblin king clue")
