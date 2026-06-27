@@ -1,4 +1,4 @@
-[gd_scene load_steps=11 format=3]
+[gd_scene load_steps=12 format=3]
 
 [ext_resource type="Script" path="res://scripts/lobby/lobby.gd" id="1_lobby"]
 [ext_resource type="Texture2D" uid="uid://c750vcawxg880" path="res://assets/backgrounds/lobby/title_lobby_bg.png" id="2_bg"]
@@ -6,6 +6,7 @@
 [ext_resource type="PackedScene" path="res://scenes/ui/confirm_modal.tscn" id="4_confirm"]
 [ext_resource type="Texture2D" uid="uid://8ep1pxba3rav" path="res://assets/ui/buttons/lobby/lobby_button_normal.png" id="5_button_normal"]
 [ext_resource type="Texture2D" uid="uid://d3xfhv2wxk44b" path="res://assets/ui/buttons/lobby/lobby_button_pressed.png" id="6_button_pressed"]
+[ext_resource type="PackedScene" path="res://scenes/ui/settings_ui.tscn" id="7_settings"]
 
 [sub_resource type="StyleBoxTexture" id="StyleBoxTexture_lobby_button_normal"]
 texture = ExtResource("5_button_normal")
@@ -171,4 +172,7 @@ disabled = true
 text = "설정"
 
 [node name="ConfirmModal" parent="." instance=ExtResource("4_confirm")]
+unique_name_in_owner = true
+
+[node name="SettingsUI" parent="." instance=ExtResource("7_settings")]
 unique_name_in_owner = true

@@ -97,6 +97,7 @@ func burst_directions(aim_dir: Vector2, count: int, spread: float) -> Array:
 # --- 피격/처치 ---
 
 func take_damage(amount: int) -> void:
+	HapticManager.on_boss_hit()
 	_hp -= amount
 	if _hp <= 0:
 		_die()

@@ -35,8 +35,10 @@ func test_open_renders_message_and_yes_callback() -> void:
 	_runner.assert_eq(_modal.get_message_text(), "로비로 돌아갈까요? 진행은 자동 저장됩니다", "message is rendered")
 	var yes_button := UiTestHarness.find_by_test_id(_modal, ConfirmModal.TEST_ID_YES) as Button
 	var no_button := UiTestHarness.find_by_test_id(_modal, ConfirmModal.TEST_ID_NO) as Button
+	var panel := _modal.get_node("Root/Panel") as PanelContainer
 	_runner.assert_not_null(yes_button, "yes exposes test id")
 	_runner.assert_not_null(no_button, "no exposes test id")
+	_assert_dungeon_panel_style(panel.get_theme_stylebox("panel"), "confirm modal")
 	_assert_pixel_button_style(yes_button, PixelButtonStyle.VARIANT_PRIMARY, "yes")
 	_assert_pixel_button_style(no_button, PixelButtonStyle.VARIANT_SECONDARY, "no")
 
@@ -70,6 +72,16 @@ func _assert_pixel_button_style(button: Button, variant: StringName, label: Stri
 	_assert_pixel_button_texture(button.get_theme_stylebox("normal"), PixelButtonStyle.normal_texture_path(variant), "%s normal" % label)
 	_assert_pixel_button_texture(button.get_theme_stylebox("hover"), PixelButtonStyle.normal_texture_path(variant), "%s hover" % label)
 	_assert_pixel_button_texture(button.get_theme_stylebox("pressed"), PixelButtonStyle.pressed_texture_path(variant), "%s pressed" % label)
+	_assert_pixel_button_texture(button.get_theme_stylebox("disabled"), PixelButtonStyle.normal_texture_path(variant), "%s disabled" % label)
+
+
+func _assert_dungeon_panel_style(style: StyleBox, message: String) -> void:
+	var flat_style := style as StyleBoxFlat
+	_runner.assert_not_null(flat_style, "%s uses dungeon panel style" % message)
+	if flat_style == null:
+		return
+	_runner.assert_eq(flat_style.corner_radius_top_left, 0, "%s keeps square pixel corners" % message)
+	_runner.assert_eq(flat_style.get_border_width(SIDE_LEFT), 2, "%s keeps a thin pixel border" % message)
 
 
 func _assert_pixel_button_texture(style: StyleBox, texture_path: String, message: String) -> void:

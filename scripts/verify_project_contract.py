@@ -16,6 +16,7 @@ EXPECTED_AUTOLOADS = {
     "AudioManager": "res://scripts/autoload/audio_manager.gd",
     "PoolManager": "res://scripts/autoload/pool_manager.gd",
     "PlatformManager": "res://scripts/autoload/platform_manager.gd",
+    "HapticManager": "res://scripts/autoload/haptic_manager.gd",
 }
 
 REQUIRED_FILES = [

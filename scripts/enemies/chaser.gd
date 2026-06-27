@@ -50,6 +50,7 @@ func is_dead(hp: int) -> bool:
 func take_damage(amount: int) -> void:
 	if _dead:
 		return
+	HapticManager.on_enemy_hit()
 	_hp -= amount
 	if is_dead(_hp):
 		_die()
