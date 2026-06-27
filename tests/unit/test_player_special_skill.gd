@@ -22,6 +22,20 @@ func test_default_dodge_cooldown_is_three_seconds() -> void:
 	player.free()
 
 
+func test_default_dash_visual_time_covers_four_frame_animation_without_extending_dodge_motion() -> void:
+	var player = PlayerScript.new()
+	_runner.assert_true(is_equal_approx(player.dodge_duration, 0.14), "기본 대시 이동 시간은 기존 돌진 거리를 유지한다")
+	_runner.assert_true(is_equal_approx(player.dash_animation_visual_time, 0.5), "기본 대시 애니메이션은 4프레임을 0.5초 동안 보여준다")
+	_runner.assert_true(
+		is_equal_approx(
+			player.dash_animation_duration(player.dodge_duration, player.dash_animation_visual_time),
+			0.5
+		),
+		"대시 시각 지속시간은 이동 시간보다 긴 값을 따른다"
+	)
+	player.free()
+
+
 func test_special_cooldown_decrements_and_clamps() -> void:
 	var player = PlayerScript.new()
 	_runner.assert_true(player.has_method("step_special_cooldown"), "player exposes special cooldown math")
@@ -88,6 +102,21 @@ func test_dash_power_attack_window_uses_active_dodge_or_grace_timer() -> void:
 	_runner.assert_true(is_equal_approx(player.step_dash_power_attack_window(0.15, 0.05), 0.1), "grace timer steps down")
 	_runner.assert_true(is_equal_approx(player.step_dash_power_attack_window(0.05, 0.1), 0.0), "grace timer clamps to zero")
 	player.free()
+
+
+func test_dash_power_attack_window_stays_active_for_visible_dash_time() -> void:
+	var player = PlayerScript.new()
+	add_child(player)
+	_runner.assert_true(player.has_method("get_dash_power_attack_remaining"), "player exposes dash power attack window state")
+	if not player.has_method("get_dash_power_attack_remaining"):
+		return
+
+	_runner.assert_true(player.try_start_special_skill(Vector2.RIGHT), "ready dodge starts")
+
+	_runner.assert_true(
+		is_equal_approx(player.get_dash_power_attack_remaining(), 0.5),
+		"dash power attack window stays aligned with the visible dash animation"
+	)
 
 
 func test_start_dodge_consumes_charge_sets_cooldown_and_invuln() -> void:
@@ -223,8 +252,11 @@ func test_start_dodge_slows_character_dash_sheet_to_readable_visual_time() -> vo
 	var sprite := player.get_node_or_null("Sprite") as AnimatedSprite2D
 	_runner.assert_not_null(sprite, "player scene includes animated character sprite")
 	if sprite != null:
-		_runner.assert_true(sprite.speed_scale < 1.0, "dash sheet plays slower than the authored 28fps burst")
-		_runner.assert_true(sprite.speed_scale > 0.5, "dash sheet remains snappy after the slowdown")
+		var base_duration: float = player.animation_duration_seconds(sprite.sprite_frames, &"dash")
+		var visual_duration: float = player.dash_animation_duration(player.dodge_duration, player.dash_animation_visual_time)
+		var expected_scale: float = player.dash_animation_speed_scale(base_duration, visual_duration)
+		_runner.assert_true(is_equal_approx(visual_duration, 0.5), "dash visual target lasts 0.5 seconds")
+		_runner.assert_true(is_equal_approx(sprite.speed_scale, expected_scale), "dash sheet slows to the configured visual time")
 	player.queue_free()
 
 
@@ -260,6 +292,26 @@ func test_dash_animation_outlasts_movement_dodge_timer() -> void:
 	if sprite != null:
 		_runner.assert_eq(sprite.animation, &"dash", "dash visual motion stays visible just after movement dash ends")
 		_runner.assert_false(player.is_dodging(), "gameplay dodge movement already ended")
+	player.queue_free()
+
+
+func test_attack_animation_suppresses_remaining_dash_visual_timer() -> void:
+	var player := (load("res://scenes/player/player.tscn") as PackedScene).instantiate()
+	add_child(player)
+	player.special_skill_max_uses = 1
+	player.special_skill_uses_remaining = 1
+	player.dodge_duration = 0.0
+	player.dash_animation_visual_time = 0.5
+
+	_runner.assert_true(player.try_start_special_skill(Vector2.RIGHT), "ready dodge starts with visual dash timer")
+	player._play_attack_anim(Vector2.RIGHT)
+	player._on_sprite_animation_finished()
+	player._update_animation(Vector2.ZERO)
+
+	var sprite := player.get_node_or_null("Sprite") as AnimatedSprite2D
+	_runner.assert_not_null(sprite, "player scene includes animated character sprite")
+	if sprite != null:
+		_runner.assert_eq(sprite.animation, &"idle", "dash visual does not restart after an early attack finishes")
 	player.queue_free()
 
 
