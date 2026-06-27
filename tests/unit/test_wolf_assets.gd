@@ -111,6 +111,31 @@ func test_wolf_dash_hit_applies_damage_once_per_dash() -> void:
 		_runner.assert_eq(sprite.animation, &"attack", "wolf plays attack animation during dash")
 
 
+func test_wolf_dash_hit_is_blocked_while_stunned() -> void:
+	_runner.assert_true(ResourceLoader.exists(WOLF_SCENE_PATH), "wolf dash enemy scene exists")
+	if not ResourceLoader.exists(WOLF_SCENE_PATH):
+		return
+
+	var enemy := (load(WOLF_SCENE_PATH) as PackedScene).instantiate()
+	var target := DamageTarget.new()
+	add_child(enemy)
+	add_child(target)
+	enemy.target_group = &"wolf_status_test_target"
+	target.add_to_group(&"wolf_status_test_target")
+	enemy.global_position = Vector2.ZERO
+	target.global_position = Vector2.RIGHT * 8.0
+
+	enemy.call("tick_dash_ai", 0.1, enemy.global_position, target.global_position)
+	enemy.call("tick_dash_ai", enemy.dash_windup_time, enemy.global_position, target.global_position)
+	_runner.assert_eq(enemy.call("get_dash_state"), &"dash", "test setup puts wolf in active dash")
+
+	enemy.call("apply_status_effect", &"stun", 1.0)
+	_runner.assert_true(enemy.call("is_status_action_blocked"), "test setup blocks wolf actions")
+	enemy.call("_try_dash_hit", target)
+
+	_runner.assert_eq(target.damage_taken, 0, "stunned wolf dash cannot damage the player")
+
+
 func test_combat_room_can_spawn_wolf_dash_enemy_from_config() -> void:
 	var room := (load(COMBAT_ROOM_SCENE_PATH) as PackedScene).instantiate()
 	add_child(room)

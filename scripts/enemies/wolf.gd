@@ -242,6 +242,8 @@ func _find_target() -> Node2D:
 func _try_dash_hit(target: Node2D) -> void:
 	if _dash_state != &"dash" or target == null:
 		return
+	if is_status_action_blocked():
+		return
 	if global_position.distance_to(target.global_position) > contact_range:
 		return
 	var target_id := target.get_instance_id()
