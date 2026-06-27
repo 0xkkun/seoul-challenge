@@ -2,6 +2,8 @@ extends CharacterBody2D
 ## #11 잡몹(체이서) — 플레이어 추적, 정화탄 피격(take_damage), 처치 시 defeated 방출, 접촉 데미지.
 ## 추적 수학은 순수 함수로 분리해 단위 테스트한다.
 
+const StatusEffectController = preload("res://scripts/combat/status_effect_controller.gd")
+
 ## 처치됨 — RoomManager/전투방이 듣고 방 클리어 카운트에 사용한다(계약 #19).
 signal defeated(enemy)
 
@@ -15,19 +17,31 @@ signal defeated(enemy)
 var _hp: int = 0
 var _contact_timer: float = 0.0
 var _dead: bool = false
+var _status_effects: Node = null
 
 
 func _ready() -> void:
 	_hp = max_hp
 	add_to_group(&"enemy")
+	_ensure_status_effects()
 
 
 func _physics_process(delta: float) -> void:
+	tick_status_effects(delta)
 	_contact_timer = maxf(0.0, _contact_timer - delta)
 	var target := _find_target()
 	if target == null:
 		return
-	velocity = chase_velocity(global_position, target.global_position, move_speed)
+	if is_status_action_blocked():
+		velocity = Vector2.ZERO
+		move_and_slide()
+		return
+	if is_status_movement_blocked():
+		velocity = Vector2.ZERO
+		move_and_slide()
+		_try_contact(target)
+		return
+	velocity = chase_velocity(global_position, target.global_position, move_speed * get_status_speed_multiplier())
 	move_and_slide()
 	_try_contact(target)
 
@@ -42,6 +56,49 @@ func chase_velocity(from: Vector2, to: Vector2, speed: float) -> Vector2:
 
 func is_dead(hp: int) -> bool:
 	return hp <= 0
+
+
+# --- 상태이상 (계약 #51) ---
+
+func apply_status_effect(effect_id: StringName, duration: float, params: Dictionary = {}) -> void:
+	_ensure_status_effects().call("apply_effect", effect_id, duration, params)
+
+
+func tick_status_effects(delta: float) -> void:
+	_ensure_status_effects().call("tick", delta, self)
+
+
+func has_status_effect(effect_id: StringName) -> bool:
+	return bool(_ensure_status_effects().call("has_effect", effect_id))
+
+
+func clear_status_effect(effect_id: StringName) -> void:
+	_ensure_status_effects().call("clear_effect", effect_id)
+
+
+func clear_negative_status_effects() -> void:
+	_ensure_status_effects().call("clear_negative_effects")
+
+
+func get_status_speed_multiplier() -> float:
+	return float(_ensure_status_effects().call("get_speed_multiplier"))
+
+
+func is_status_movement_blocked() -> bool:
+	return bool(_ensure_status_effects().call("blocks_movement"))
+
+
+func is_status_action_blocked() -> bool:
+	return bool(_ensure_status_effects().call("blocks_actions"))
+
+
+func _ensure_status_effects() -> Node:
+	if _status_effects != null and is_instance_valid(_status_effects):
+		return _status_effects
+	_status_effects = StatusEffectController.new()
+	_status_effects.name = "StatusEffects"
+	add_child(_status_effects)
+	return _status_effects
 
 
 # --- 피격 / 처치 / 접촉 (I/O) ---

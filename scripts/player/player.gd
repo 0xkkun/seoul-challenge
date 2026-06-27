@@ -6,6 +6,7 @@ extends CharacterBody2D
 ## 이동·조준·쿨다운·반동 수학은 순수 함수로 분리해 물리/입력 없이 단위 테스트한다.
 
 const MapItemCatalog = preload("res://scripts/items/map_item_catalog.gd")
+const StatusEffectController = preload("res://scripts/combat/status_effect_controller.gd")
 
 ## 발사 순간의 발사 지점(global)과 방향. #10 정화탄이 이 시그널을 받아 스폰한다.
 signal fired(muzzle_position: Vector2, direction: Vector2)
@@ -60,12 +61,14 @@ var _dash_power_attack_timer: float = 0.0
 var _dash_power_attack_consumed: bool = false
 var _was_special_pressed := false
 var _has_bat: bool = false   ## 야구배트 장착 여부(맵 클리어 보상). 기본 맨손.
+var _bat_awakened: bool = false
 var _facing: Vector2 = Vector2.DOWN
 var _health: int = 0
 var _invuln_timer: float = 0.0
 var _touch: Node = null
 var _base_run_stats := {}
 var _run_modifier_ids: Array[StringName] = []
+var _status_effects: Node = null
 
 @onready var _swing_visual: Node2D = get_node_or_null(^"MeleeSwing")
 @onready var _power_impact_visual: Node2D = get_node_or_null(^"PowerImpact")
@@ -74,9 +77,11 @@ var _run_modifier_ids: Array[StringName] = []
 
 func _ready() -> void:
 	add_to_group(&"player")
+	_ensure_status_effects()
 	_capture_base_run_stats()
 	_health = max_health
 	_connect_run_session_events()
+	_refresh_bat_awakened_from_progression()
 	if not touch_controls_path.is_empty():
 		_touch = get_node_or_null(touch_controls_path)
 	# HUD·죽음 컨트롤러가 연결된 뒤 초기 체력을 알리도록 지연 발신.
@@ -87,12 +92,20 @@ func _ready() -> void:
 
 
 func _physics_process(delta: float) -> void:
+	tick_status_effects(delta)
 	_invuln_timer = maxf(0.0, _invuln_timer - delta)
 	_dash_power_attack_timer = step_dash_power_attack_window(_dash_power_attack_timer, delta)
 	var move := read_input_vector()
-	_facing = update_facing(_facing, move)
+	var movement_blocked := is_status_movement_blocked()
+	if movement_blocked:
+		move = Vector2.ZERO
+	else:
+		_facing = update_facing(_facing, move)
 	_process_special_skill(delta, move)
-	if _dodge_timer > 0.0:
+	if movement_blocked:
+		_dodge_timer = maxf(0.0, _dodge_timer - delta)
+		velocity = Vector2.ZERO
+	elif _dodge_timer > 0.0:
 		_dodge_timer = maxf(0.0, _dodge_timer - delta)
 		velocity = dodge_velocity(_dodge_direction, dodge_speed)
 	elif _is_attacking:
@@ -101,7 +114,7 @@ func _physics_process(delta: float) -> void:
 	else:
 		# 벨트 원근감: 깊이(상하) 이동을 좌우보다 느리게 한다.
 		move.y *= vertical_speed_factor
-		velocity = step_velocity(velocity, move, delta)
+		velocity = step_velocity(velocity, move, delta, get_status_speed_multiplier())
 	move_and_slide()
 	_process_attack(delta)
 	_update_animation(move)
@@ -110,16 +123,16 @@ func _physics_process(delta: float) -> void:
 # --- 이동/조준/사격 수학 (순수 함수, 테스트 대상) ---
 
 ## 입력 벡터 → 목표 속도. 대각선도 최고 속도를 넘지 않도록 정규화.
-func desired_velocity(input_vector: Vector2) -> Vector2:
+func desired_velocity(input_vector: Vector2, speed_multiplier: float = 1.0) -> Vector2:
 	var v := input_vector
 	if v.length() > 1.0:
 		v = v.normalized()
-	return v * move_speed
+	return v * move_speed * maxf(0.0, speed_multiplier)
 
 
 ## 현재 속도를 목표 속도로 가속/감속. 입력 있으면 acceleration, 없으면 friction.
-func step_velocity(current: Vector2, input_vector: Vector2, delta: float) -> Vector2:
-	var target := desired_velocity(input_vector)
+func step_velocity(current: Vector2, input_vector: Vector2, delta: float, speed_multiplier: float = 1.0) -> Vector2:
+	var target := desired_velocity(input_vector, speed_multiplier)
 	var rate := acceleration if input_vector.length() > 0.01 else friction
 	return current.move_toward(target, rate * delta)
 
@@ -265,6 +278,49 @@ func get_dash_power_attack_remaining() -> float:
 	return _dash_power_attack_timer
 
 
+# --- 상태이상 (계약 #51) ---
+
+func apply_status_effect(effect_id: StringName, duration: float, params: Dictionary = {}) -> void:
+	_ensure_status_effects().call("apply_effect", effect_id, duration, params)
+
+
+func tick_status_effects(delta: float) -> void:
+	_ensure_status_effects().call("tick", delta, self)
+
+
+func has_status_effect(effect_id: StringName) -> bool:
+	return bool(_ensure_status_effects().call("has_effect", effect_id))
+
+
+func clear_status_effect(effect_id: StringName) -> void:
+	_ensure_status_effects().call("clear_effect", effect_id)
+
+
+func clear_negative_status_effects() -> void:
+	_ensure_status_effects().call("clear_negative_effects")
+
+
+func get_status_speed_multiplier() -> float:
+	return float(_ensure_status_effects().call("get_speed_multiplier"))
+
+
+func is_status_movement_blocked() -> bool:
+	return bool(_ensure_status_effects().call("blocks_movement"))
+
+
+func is_status_action_blocked() -> bool:
+	return bool(_ensure_status_effects().call("blocks_actions"))
+
+
+func _ensure_status_effects() -> Node:
+	if _status_effects != null and is_instance_valid(_status_effects):
+		return _status_effects
+	_status_effects = StatusEffectController.new()
+	_status_effects.name = "StatusEffects"
+	add_child(_status_effects)
+	return _status_effects
+
+
 # --- 입력 I/O (단위 테스트 제외) ---
 
 ## 이동 입력: 터치 조이스틱 우선, 없거나 0이면 키보드.
@@ -322,7 +378,11 @@ func is_special_pressed() -> bool:
 
 
 func try_start_special_skill(input_vector: Vector2 = Vector2.ZERO) -> bool:
+	if is_status_action_blocked():
+		return false
 	if special_skill_id != &"emergency_dodge":
+		return false
+	if is_status_movement_blocked():
 		return false
 	if not can_use_special_skill(special_skill_uses_remaining, _special_cooldown_timer, is_dodging()):
 		return false
@@ -353,6 +413,11 @@ func _process_special_skill(delta: float, move_input: Vector2) -> void:
 	var previous_cooldown := _special_cooldown_timer
 	_special_cooldown_timer = step_special_cooldown(_special_cooldown_timer, delta)
 	var pressed := is_special_pressed()
+	if is_status_action_blocked():
+		_was_special_pressed = pressed
+		if not is_equal_approx(previous_cooldown, _special_cooldown_timer):
+			_broadcast_special_skill_state()
+		return
 	if pressed and not _was_special_pressed:
 		try_start_special_skill(move_input)
 	_was_special_pressed = pressed
@@ -383,14 +448,24 @@ func _connect_run_session_events() -> void:
 	var finished_callback := Callable(self, "_on_session_finished")
 	if not EventBus.session_finished.is_connected(finished_callback):
 		EventBus.session_finished.connect(finished_callback)
+	var unlock_callback := Callable(self, "_on_unlock_changed")
+	if EventBus.has_signal(&"unlock_changed") and not EventBus.unlock_changed.is_connected(unlock_callback):
+		EventBus.unlock_changed.connect(unlock_callback)
 
 
 func _on_session_started(_config: Dictionary) -> void:
 	reset_run_modifiers(true)
+	_refresh_bat_awakened_from_progression()
 
 
 func _on_session_finished(_result: Dictionary) -> void:
 	reset_run_modifiers(false)
+
+
+func _on_unlock_changed(payload: Dictionary) -> void:
+	for unlock: Variant in payload.get("unlocks", []):
+		if StringName(unlock) == &"awakened_bat":
+			set_bat_awakened(true)
 
 
 func _capture_base_run_stats() -> void:
@@ -445,6 +520,8 @@ func _process_attack(delta: float) -> void:
 		_swing_visual.visible = false
 	if _swing_timer <= 0.0 and _power_impact_visual != null:
 		_power_impact_visual.visible = false
+	if is_status_action_blocked():
+		return
 	if _attack_timer > 0.0 or not is_firing():
 		return
 	var dir := aim_direction()
@@ -515,7 +592,10 @@ func _attack_melee(dir: Vector2) -> void:
 			if _has_bat:
 				e.global_position += knockback_vector(global_position, e.global_position, knockback_distance)
 	if _has_bat:
-		_deflect_bullets_in_arc(dir, rng, arc)
+		if _bat_awakened:
+			_deflect_bullets_in_arc(dir, rng, arc)
+		else:
+			_clear_bullets_in_arc(dir, rng, arc)
 	_show_swing(dir, rng, arc)
 	if power_attack:
 		_dash_power_attack_consumed = true
@@ -569,15 +649,29 @@ func _build_swing_polygon(dir: Vector2, rng: float, arc: float) -> PackedVector2
 ## 야구배트 장착(맵 클리어 보상). 통합 단계에서 보상 지급 시 호출.
 func equip_bat() -> void:
 	ranged_enabled = false
+	_refresh_bat_awakened_from_progression()
 	if _has_bat:
 		return
 	_has_bat = true
 	weapon_changed.emit(current_weapon_name())
 
 
+func set_bat_awakened(is_awakened: bool) -> void:
+	_bat_awakened = is_awakened
+
+
+func is_bat_awakened() -> bool:
+	return _bat_awakened
+
+
 ## 현재 무기 이름(UI용).
 func current_weapon_name() -> String:
 	return "야구배트" if _has_bat else "맨손"
+
+
+func _refresh_bat_awakened_from_progression() -> void:
+	if is_inside_tree() and has_node("/root/ProgressionSystem"):
+		_bat_awakened = ProgressionSystem.is_weapon_unlocked(&"awakened_bat")
 
 
 ## 앞쪽 부채꼴 안의 적 투사체(enemy_projectile)를 swing 방향으로 되받아친다(deflect). (배트 전용)
@@ -598,3 +692,14 @@ func _deflect_bullets_in_arc(dir: Vector2, rng: float, arc: float) -> void:
 				node.queue_free()
 	if deflected:
 		HapticManager.on_deflect()
+
+
+func _clear_bullets_in_arc(dir: Vector2, rng: float, arc: float) -> void:
+	for b: Node in get_tree().get_nodes_in_group(&"enemy_projectile"):
+		var node := b as Node2D
+		if node == null or not is_instance_valid(node):
+			continue
+		var to := node.global_position - global_position
+		var to_us := Vector2(to.x, to.y / swing_vertical_factor)
+		if to_us.length() <= rng and in_melee_arc(dir, to_us, arc):
+			node.queue_free()

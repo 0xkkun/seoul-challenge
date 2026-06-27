@@ -9,6 +9,10 @@ signal return_requested
 signal retry_requested
 
 const DEFAULT_MEMORY_REWARD_PER_ROOM := 1
+const UNLOCK_LABELS := {
+	&"baseball_stage_3": "야구부 STAGE 3",
+	&"awakened_bat": "마지막 시즌의 배트",
+}
 
 @onready var status_label: Label = %StatusLabel
 @onready var interaction_label: Label = %InteractionLabel
@@ -20,6 +24,8 @@ const DEFAULT_MEMORY_REWARD_PER_ROOM := 1
 @onready var students_record_label: Label = %StudentsRecordLabel
 @onready var friends_record_label: Label = %FriendsRecordLabel
 @onready var rooms_record_label: Label = %RoomsRecordLabel
+@onready var unlocks_record_panel: PanelContainer = %UnlocksRecordPanel
+@onready var unlocks_record_label: Label = %UnlocksRecordLabel
 @onready var pause_button: Button = %PauseButton
 @onready var resume_button: Button = %ResumeButton
 @onready var finish_button: Button = %FinishButton
@@ -72,6 +78,9 @@ func show_summary(result: Dictionary) -> void:
 	students_record_label.text = "구출 %d" % int(summary["students_rescued"])
 	friends_record_label.text = "친구 %d" % int(summary["friends_purified"])
 	rooms_record_label.text = "방 %d" % int(summary["rooms_cleared"])
+	var unlock_labels: Array[String] = summary["unlocks"]
+	unlocks_record_panel.visible = not unlock_labels.is_empty()
+	unlocks_record_label.text = "해금 %s" % " / ".join(unlock_labels) if not unlock_labels.is_empty() else ""
 	summary_overlay.visible = true
 	action_panel.visible = false
 
@@ -85,6 +94,7 @@ func get_summary_snapshot() -> Dictionary:
 		"students": students_record_label.text,
 		"friends": friends_record_label.text,
 		"rooms": rooms_record_label.text,
+		"unlocks": unlocks_record_label.text if unlocks_record_panel.visible else "",
 	}
 
 
@@ -115,6 +125,7 @@ func _build_summary(result: Dictionary) -> Dictionary:
 		]),
 		"friends_purified": _friends_purified(result),
 		"rooms_cleared": _rooms_cleared(result),
+		"unlocks": _unlock_labels(result),
 	}
 
 
@@ -181,6 +192,16 @@ func _rooms_cleared(result: Dictionary) -> int:
 	if bool(explicit["found"]):
 		return int(explicit["count"])
 	return _array_count(result.get("visited_room_ids", []))
+
+
+func _unlock_labels(result: Dictionary) -> Array[String]:
+	var labels: Array[String] = []
+	for unlock: Variant in result.get("unlocks", []):
+		var unlock_id := StringName(unlock)
+		var label := String(UNLOCK_LABELS.get(unlock_id, String(unlock_id)))
+		if label != "" and not labels.has(label):
+			labels.append(label)
+	return labels
 
 
 func _count_from_keys(result: Dictionary, scalar_keys: Array[String], collection_keys: Array[String]) -> int:
