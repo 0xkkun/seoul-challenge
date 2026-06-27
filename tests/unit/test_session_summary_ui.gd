@@ -38,6 +38,7 @@ func test_success_result_renders_player_facing_summary() -> void:
 	_runner.assert_eq(snapshot["students"], "구출 3", "rescued students render as a record chip")
 	_runner.assert_eq(snapshot["friends"], "친구 1", "purified friends render as a record chip")
 	_runner.assert_eq(snapshot["rooms"], "방 18", "room count renders as a record chip")
+	_runner.assert_eq(snapshot["unlocks"], "", "no unlock row is rendered without unlocks")
 	_assert_no_explainer_copy(snapshot)
 
 
@@ -105,6 +106,21 @@ func test_summary_actions_emit_distinct_flow_signals() -> void:
 
 	_runner.assert_eq(counts["return"], 1, "return button emits return flow")
 	_runner.assert_eq(counts["retry"], 1, "retry button emits retry flow")
+
+
+func test_summary_renders_baseball_unlocks_when_present() -> void:
+	_ui.show_summary({
+		"completed": true,
+		"memory_reward": 8,
+		"students_rescued": 0,
+		"friends_purified": 1,
+		"rooms_cleared": 8,
+		"unlocks": [&"baseball_stage_3", &"awakened_bat"],
+	})
+
+	var snapshot: Dictionary = _ui.get_summary_snapshot()
+	_runner.assert_true(snapshot["unlocks"].contains("야구부 STAGE 3"), "stage unlock is shown")
+	_runner.assert_true(snapshot["unlocks"].contains("마지막 시즌의 배트"), "awakened bat unlock is shown")
 
 
 func test_action_buttons_use_pixel_button_skin() -> void:

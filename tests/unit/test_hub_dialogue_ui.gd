@@ -14,6 +14,8 @@ func _set_runner(runner: Node) -> void:
 
 
 func before_each() -> void:
+	SaveManager.reset_profile()
+	ProgressionSystem.reset_for_tests()
 	_ui = HUB_DIALOGUE_SCENE.instantiate()
 	add_child(_ui)
 
@@ -22,6 +24,8 @@ func after_each() -> void:
 	if is_instance_valid(_ui):
 		_ui.free()
 	_ui = null
+	SaveManager.reset_profile()
+	ProgressionSystem.reset_for_tests()
 
 
 func test_component_uses_landscape_reference_frame() -> void:
@@ -122,6 +126,19 @@ func test_stage_row_tracks_completed_current_and_locked_states() -> void:
 	_runner.assert_eq(_ui.get_stage_state(1), HUB_DIALOGUE_SCRIPT.STAGE_STATE_COMPLETED, "이전 단계는 완료 상태")
 	_runner.assert_eq(_ui.get_stage_state(2), HUB_DIALOGUE_SCRIPT.STAGE_STATE_CURRENT, "현재 단계는 강조 상태")
 	_runner.assert_eq(_ui.get_stage_state(3), HUB_DIALOGUE_SCRIPT.STAGE_STATE_LOCKED, "미래 단계는 잠김 상태")
+
+
+func test_baseball_unlock_event_updates_stage_and_popup() -> void:
+	EventBus.emit_unlock_changed({
+		"friend_id": &"baseball_captain",
+		"unlocks": [&"baseball_stage_3", &"awakened_bat"],
+		"club_stages": {&"baseball": 3},
+	})
+
+	_runner.assert_eq(_ui.get_current_stage(), 3, "야구부 정화 후 stage 3으로 갱신")
+	_runner.assert_eq(_ui.get_stage_state(3), HUB_DIALOGUE_SCRIPT.STAGE_STATE_CURRENT, "stage 3이 현재 보상 상태")
+	_runner.assert_true(_ui.is_unlock_visible(), "각성 배트 해금 팝업을 표시")
+	_runner.assert_eq(_ui.get_unlock_items()[0]["name"], "마지막 시즌의 배트", "각성 배트 아이템명을 표시")
 
 
 func test_choices_are_horizontal_models_and_emit_selected_id() -> void:

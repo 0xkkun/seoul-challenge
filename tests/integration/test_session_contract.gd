@@ -16,6 +16,7 @@ func before_each() -> void:
 	GameManager.reset_session()
 	SaveManager.reset_profile()
 	CurrencySystem.reset_for_tests()
+	ProgressionSystem.reset_for_tests()
 
 
 func after_each() -> void:
@@ -24,6 +25,7 @@ func after_each() -> void:
 	GameManager.reset_session()
 	SaveManager.reset_profile()
 	CurrencySystem.reset_for_tests()
+	ProgressionSystem.reset_for_tests()
 
 
 func test_session_interaction_and_summary() -> void:
@@ -68,6 +70,33 @@ func test_session_interaction_scope_reaches_current_shop_room() -> void:
 
 	_runner.assert_eq(CurrencySystem.get_ingame(), 2, "session interaction can purchase from current shop room")
 	_runner.assert_eq(actor.call("current_weapon_name"), "야구배트", "session shop interaction equips purchased item")
+
+	session.queue_free()
+
+
+func test_session_result_tracks_baseball_friend_purification_unlocks() -> void:
+	var packed := load("res://scenes/session/session_root.tscn") as PackedScene
+	var session := packed.instantiate()
+	add_child(session)
+
+	var manager := session.get_node("%RoomManager") as RoomManager
+	var friend_room_def := _first_room_of_type(manager.layout, RoomLayout.TYPE_FRIEND)
+	_runner.assert_not_null(friend_room_def, "session run layout includes a friend room")
+	if friend_room_def == null:
+		return
+	_runner.assert_true(manager.enter_room(friend_room_def.room_id), "test enters generated friend room")
+	var friends: Array = manager.current_room.call("get_active_friends")
+	_runner.assert_eq(friends.size(), 1, "friend room spawns the purification target")
+	if friends.size() == 1:
+		var friend := friends[0] as Node
+		friend.emit_signal("purified", friend)
+
+	var result: Dictionary = session.finish_session()
+
+	_runner.assert_eq(result["friends_purified"], 1, "session result counts purified friends")
+	_runner.assert_eq(result["friend_ids"], [&"baseball_captain"], "session result records the baseball friend id")
+	_runner.assert_true((result["unlocks"] as Array).has(&"awakened_bat"), "session result includes awakened bat unlock")
+	_runner.assert_true((result["unlocks"] as Array).has(&"baseball_stage_3"), "session result includes baseball stage 3 unlock")
 
 	session.queue_free()
 

@@ -6,6 +6,7 @@
 script = ExtResource("1_friend_room")
 room_id = &"friend_room"
 room_type = &"friend"
+friend_id = &"baseball_captain"
 door_dirs = Array[StringName]([&"W", &"E"])
 
 [node name="Floor" type="ColorRect" parent="."]

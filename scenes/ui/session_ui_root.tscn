@@ -279,6 +279,22 @@ text = "방 18"
 horizontal_alignment = 1
 vertical_alignment = 1
 
+[node name="UnlocksRecordPanel" type="PanelContainer" parent="Root/SummaryOverlay/SummaryPanel/SummaryMargin/SummaryStack/SummaryContent/RecordsStack"]
+unique_name_in_owner = true
+visible = false
+custom_minimum_size = Vector2(0, 54)
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_record_green")
+
+[node name="UnlocksRecordLabel" type="Label" parent="Root/SummaryOverlay/SummaryPanel/SummaryMargin/SummaryStack/SummaryContent/RecordsStack/UnlocksRecordPanel"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 24
+theme_override_colors/font_color = Color(0.596078, 0.811765, 0.490196, 1)
+text = "해금 마지막 시즌의 배트"
+horizontal_alignment = 1
+vertical_alignment = 1
+
 [node name="SummaryActions" type="HBoxContainer" parent="Root/SummaryOverlay/SummaryPanel/SummaryMargin/SummaryStack"]
 layout_mode = 2
 theme_override_constants/separation = 16

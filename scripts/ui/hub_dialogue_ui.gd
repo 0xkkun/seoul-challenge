@@ -36,6 +36,9 @@ const UNLOCK_COLOR := Color(0.94, 0.89, 0.75)
 const UNLOCK_BORDER_COLOR := Color(0.84, 0.68, 0.28)
 const DEFAULT_BALL_COLOR := Color(0.9, 0.88, 0.8)
 const DEFAULT_BAT_COLOR := Color(0.54, 0.55, 0.6)
+const BASEBALL_CAPTAIN := &"baseball_captain"
+const BASEBALL_STAGE_3 := &"baseball_stage_3"
+const AWAKENED_BAT := &"awakened_bat"
 
 @onready var _dialogue_dimmer: ColorRect = %DialogueDimmer
 @onready var _portrait_panel: ColorRect = %PortraitPanel
@@ -77,6 +80,8 @@ func _ready() -> void:
 		{"id": CHOICE_ACCEPT, "text": "받는다", "emphasized": true},
 	])
 	_unlock_overlay.visible = false
+	_connect_progression_events()
+	apply_baseball_progress(false)
 
 
 func get_reference_size() -> Vector2:
@@ -203,6 +208,18 @@ func show_unlock(title: String, subtitle: String, items: Array[Dictionary]) -> v
 	_unlock_overlay.visible = true
 
 
+func apply_baseball_progress(show_unlock_popup := false) -> void:
+	var is_purified := false
+	if has_node("/root/ProgressionSystem"):
+		is_purified = ProgressionSystem.is_friend_purified(BASEBALL_CAPTAIN)
+	if not is_purified:
+		set_stage(2)
+		return
+	set_stage(3, 3)
+	if show_unlock_popup:
+		_show_awakened_bat_unlock()
+
+
 func hide_unlock() -> void:
 	var was_visible := _unlock_overlay.visible
 	_unlock_overlay.visible = false
@@ -313,6 +330,29 @@ func _render_unlock_items() -> void:
 
 func _on_choice_pressed(choice_id: StringName) -> void:
 	select_choice(choice_id)
+
+
+func _connect_progression_events() -> void:
+	if not has_node("/root/EventBus"):
+		return
+	var unlock_callback := Callable(self, "_on_unlock_changed")
+	if EventBus.has_signal(&"unlock_changed") and not EventBus.unlock_changed.is_connected(unlock_callback):
+		EventBus.unlock_changed.connect(unlock_callback)
+
+
+func _on_unlock_changed(payload: Dictionary) -> void:
+	var unlocks: Array = payload.get("unlocks", [])
+	if StringName(payload.get("friend_id", &"")) != BASEBALL_CAPTAIN and not unlocks.has(AWAKENED_BAT):
+		return
+	set_stage(3, 3)
+	if unlocks.has(AWAKENED_BAT) or unlocks.has(BASEBALL_STAGE_3):
+		_show_awakened_bat_unlock()
+
+
+func _show_awakened_bat_unlock() -> void:
+	show_unlock("마지막 시즌의 배트", "배트가 적탄을 되받아친다", [
+		{"id": AWAKENED_BAT, "name": "마지막 시즌의 배트", "color": DEFAULT_BAT_COLOR},
+	])
 
 
 func _tap_to_continue_choice_id() -> StringName:
