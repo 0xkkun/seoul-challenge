@@ -7,11 +7,11 @@ const FRAME_COUNT := 12
 const ANIMATION_SPEED := 18.0
 const LIFETIME := 0.67
 const Z_INDEX := 44
-const VISUAL_MIN_Y_SCALE := 0.14
+const CAPTURED_VISUAL_LIFT_PIXELS := 28.0
 
 var _age := 0.0
 var _animation: AnimatedSprite2D = null
-var _squash_visual: Node2D = null
+var _captured_visual_ghost: Node2D = null
 
 
 func _ready() -> void:
@@ -31,12 +31,12 @@ func capture_visual(source: CanvasItem = null) -> void:
 	var clone := _clone_visual(source)
 	if clone == null:
 		return
-	_squash_visual = Node2D.new()
-	_squash_visual.name = "SquashVisual"
-	_squash_visual.z_index = 0
-	_squash_visual.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	add_child(_squash_visual)
-	_squash_visual.add_child(clone)
+	_captured_visual_ghost = Node2D.new()
+	_captured_visual_ghost.name = "CapturedMonsterGhost"
+	_captured_visual_ghost.z_index = 0
+	_captured_visual_ghost.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	add_child(_captured_visual_ghost)
+	_captured_visual_ghost.add_child(clone)
 	clone.global_transform = source_node.global_transform
 	_update_captured_visual()
 
@@ -54,8 +54,10 @@ func get_visual_contract() -> Dictionary:
 		"uses_line_art": false,
 		"animates_scale": false,
 		"captures_visual": true,
-		"squashes_captured_visual": true,
-		"visual_min_y_scale": VISUAL_MIN_Y_SCALE,
+		"squashes_captured_visual": false,
+		"preserves_captured_visual_scale": true,
+		"captured_visual_lift_pixels": CAPTURED_VISUAL_LIFT_PIXELS,
+		"uses_white_flash": false,
 		"uses_detached_node": true,
 		"anchors_to_feet": true,
 	}
@@ -84,20 +86,21 @@ func _process(delta: float) -> void:
 
 
 func _clear_captured_visual() -> void:
-	if _squash_visual != null and is_instance_valid(_squash_visual):
-		if _squash_visual.get_parent() == self:
-			remove_child(_squash_visual)
-		_squash_visual.free()
-	_squash_visual = null
+	if _captured_visual_ghost != null and is_instance_valid(_captured_visual_ghost):
+		if _captured_visual_ghost.get_parent() == self:
+			remove_child(_captured_visual_ghost)
+		_captured_visual_ghost.free()
+	_captured_visual_ghost = null
 
 
 func _update_captured_visual() -> void:
-	if _squash_visual == null or not is_instance_valid(_squash_visual):
+	if _captured_visual_ghost == null or not is_instance_valid(_captured_visual_ghost):
 		return
 	var progress := clampf(_age / LIFETIME, 0.0, 1.0)
 	var eased := progress * progress * (3.0 - (2.0 * progress))
-	_squash_visual.scale = Vector2(1.0, lerpf(1.0, VISUAL_MIN_Y_SCALE, eased))
-	_squash_visual.modulate.a = 1.0 - eased
+	_captured_visual_ghost.scale = Vector2.ONE
+	_captured_visual_ghost.position = Vector2(0.0, -CAPTURED_VISUAL_LIFT_PIXELS * eased)
+	_captured_visual_ghost.modulate.a = 1.0 - eased
 
 
 func _build_death_animation() -> void:

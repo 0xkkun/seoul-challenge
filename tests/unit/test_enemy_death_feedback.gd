@@ -52,8 +52,10 @@ func test_enemy_death_fade_contract_exists() -> void:
 		_runner.assert_eq(bool(contract.get("uses_line_art", true)), false, "사망 페이드는 링/선 이펙트를 쓰지 않는다")
 		_runner.assert_eq(bool(contract.get("animates_scale", true)), false, "사망 페이드는 크기를 부풀리지 않는다")
 		_runner.assert_eq(bool(contract.get("captures_visual", false)), true, "사망 페이드는 몬스터 visual을 잠깐 유지한다")
-		_runner.assert_eq(bool(contract.get("squashes_captured_visual", false)), true, "사망 페이드는 몬스터 visual만 Y축으로 찌부시킨다")
-		_runner.assert_true(float(contract.get("visual_min_y_scale", 1.0)) <= 0.2, "찌부 연출은 사망 순간을 읽을 만큼 충분히 눌린다")
+		_runner.assert_eq(bool(contract.get("squashes_captured_visual", true)), false, "사망 페이드는 몬스터 visual을 Y축으로 찌부시키지 않는다")
+		_runner.assert_eq(bool(contract.get("preserves_captured_visual_scale", false)), true, "사망 페이드는 몬스터 visual 원본 비율을 유지한다")
+		_runner.assert_true(float(contract.get("captured_visual_lift_pixels", 0.0)) >= 20.0, "사망 잔상은 짧게 위로 떠오른다")
+		_runner.assert_eq(bool(contract.get("uses_white_flash", true)), false, "사망 페이드는 흰색 플래시를 쓰지 않는다")
 	fade.queue_free()
 
 
@@ -88,7 +90,7 @@ func test_death_fade_plays_dedicated_death_animation() -> void:
 	fade.free()
 
 
-func test_death_fade_captures_monster_visual_and_squashes_it_from_feet() -> void:
+func test_death_fade_captures_monster_visual_and_preserves_scale_from_feet() -> void:
 	var fade := _new_death_fade()
 	add_child(fade)
 	fade.global_position = Vector2(100.0, 200.0)
@@ -106,28 +108,26 @@ func test_death_fade_captures_monster_visual_and_squashes_it_from_feet() -> void
 
 	fade.call("capture_visual", source)
 
-	var squash := _find_squash_visual(fade)
-	_runner.assert_not_null(squash, "사망 페이드는 원본 몬스터 visual을 복제한 찌부 루트를 가진다")
-	if squash == null:
+	var ghost := _find_captured_monster_ghost(fade)
+	_runner.assert_not_null(ghost, "사망 페이드는 원본 몬스터 visual을 복제한 잔상 루트를 가진다")
+	if ghost == null:
 		source.queue_free()
 		fade.queue_free()
 		return
-	_runner.assert_eq(squash.name, "SquashVisual", "찌부 visual 루트 이름은 안정적이다")
-	_runner.assert_true(squash.scale.is_equal_approx(Vector2.ONE), "찌부 visual은 원본 크기로 시작한다")
-	_runner.assert_true(squash.get_child_count() > 0, "찌부 visual은 복제된 몬스터 visual을 포함한다")
-	var clone := squash.get_child(0) as Polygon2D
+	_runner.assert_eq(ghost.name, "CapturedMonsterGhost", "잔상 visual 루트 이름은 안정적이다")
+	_runner.assert_true(ghost.scale.is_equal_approx(Vector2.ONE), "잔상 visual은 원본 크기로 시작한다")
+	_runner.assert_true(ghost.get_child_count() > 0, "잔상 visual은 복제된 몬스터 visual을 포함한다")
+	var clone := ghost.get_child(0) as Polygon2D
 	_runner.assert_not_null(clone, "Polygon2D 몬스터 visual도 복제할 수 있다")
 	if clone != null:
-		_runner.assert_true(clone != source, "찌부 visual은 곧 사라질 원본 노드를 직접 쓰지 않는다")
+		_runner.assert_true(clone != source, "잔상 visual은 곧 사라질 원본 노드를 직접 쓰지 않는다")
 		_runner.assert_true(EnemyDeathFade.foot_position_for(fade, clone).is_equal_approx(fade.global_position), "복제 visual의 발은 사망 이펙트 기준점에 고정된다")
 
 	fade.call("_process", 0.24)
 
-	_runner.assert_true(is_equal_approx(squash.scale.x, 1.0), "찌부 연출은 몬스터 visual의 X축 크기를 유지한다")
-	_runner.assert_true(squash.scale.y < 1.0, "찌부 연출은 몬스터 visual의 Y축만 줄인다")
-	_runner.assert_true(squash.modulate.a < 1.0, "찌부 visual은 사망 이펙트와 함께 사라진다")
-	if clone != null:
-		_runner.assert_true(EnemyDeathFade.foot_position_for(fade, clone).is_equal_approx(fade.global_position), "찌부 중에도 발 위치는 밀리지 않는다")
+	_runner.assert_true(ghost.scale.is_equal_approx(Vector2.ONE), "잔상 visual은 사망 중에도 원본 비율을 유지한다")
+	_runner.assert_true(ghost.position.y < 0.0, "잔상 visual은 찌부 대신 짧게 위로 떠오른다")
+	_runner.assert_true(ghost.modulate.a < 1.0, "잔상 visual은 사망 이펙트와 함께 사라진다")
 	source.queue_free()
 	fade.queue_free()
 
@@ -148,13 +148,13 @@ func test_death_fade_preserves_captured_animated_sprite_frame() -> void:
 
 	fade.call("capture_visual", source)
 
-	var squash := _find_squash_visual(fade)
-	_runner.assert_not_null(squash, "AnimatedSprite2D visual도 사망 순간 복제본을 가진다")
-	if squash == null:
+	var ghost := _find_captured_monster_ghost(fade)
+	_runner.assert_not_null(ghost, "AnimatedSprite2D visual도 사망 순간 복제본을 가진다")
+	if ghost == null:
 		source.queue_free()
 		fade.queue_free()
 		return
-	var clone := squash.get_child(0) as AnimatedSprite2D
+	var clone := ghost.get_child(0) as AnimatedSprite2D
 	_runner.assert_not_null(clone, "AnimatedSprite2D 몬스터 visual을 복제한다")
 	if clone != null:
 		_runner.assert_eq(clone.animation, &"move", "복제 visual은 원본 애니메이션을 유지한다")
@@ -197,7 +197,7 @@ func _assert_enemy_death_spawns_fade(enemy: Node2D, label: String) -> void:
 	_runner.assert_true(fade.global_position.is_equal_approx(_expected_enemy_foot_position(enemy)), "%s death fade starts at the enemy feet" % label)
 	_runner.assert_true(fade.z_index >= 40, "%s death fade draws above room actors briefly" % label)
 	_runner.assert_true(_has_death_animation(fade), "%s death fade plays the shared death animation" % label)
-	_runner.assert_not_null(_find_squash_visual(fade), "%s death fade keeps a squashed copy of the monster visual" % label)
+	_runner.assert_not_null(_find_captured_monster_ghost(fade), "%s death fade keeps a scale-preserving monster ghost" % label)
 	_runner.assert_eq(_count_line_nodes(fade), 0, "%s death fade does not draw rings or shards" % label)
 	var before_scale := fade.scale
 	var before_alpha := fade.modulate.a
@@ -232,9 +232,9 @@ func _find_death_animation(root: Node) -> AnimatedSprite2D:
 	return null
 
 
-func _find_squash_visual(root: Node) -> Node2D:
+func _find_captured_monster_ghost(root: Node) -> Node2D:
 	for child in root.get_children():
-		if child is Node2D and child.name == "SquashVisual":
+		if child is Node2D and child.name == "CapturedMonsterGhost":
 			return child
 	return null
 
