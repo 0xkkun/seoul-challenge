@@ -48,6 +48,24 @@ func test_health_is_clamped_to_valid_range() -> void:
 	_runner.assert_eq(_hud.get_filled_heart_count(), 0, "체력 0이면 채워진 하트가 없다")
 
 
+func test_top_hud_slots_leave_space_for_upgraded_hearts() -> void:
+	_hud.set_health(7, 7)
+
+	var health_panel := _hud.get_node("Root/HealthPanel") as Control
+	var hearts := _hud.get_node("%Hearts") as HBoxContainer
+	var stub_panel := _hud.get_node("Root/StubPanel") as Control
+	var heart_width := 0.0
+	for heart: Control in hearts.get_children():
+		heart_width += heart.custom_minimum_size.x
+	var gap_width := float(maxi(0, hearts.get_child_count() - 1) * hearts.get_theme_constant("separation"))
+	var upgraded_hearts_right := health_panel.offset_left + heart_width + gap_width
+
+	_runner.assert_true(
+		stub_panel.offset_left >= upgraded_hearts_right + 8.0,
+		"top HUD status slots leave breathing room after seven upgraded hearts"
+	)
+
+
 func test_skill_state_renders_uses_and_cooldown() -> void:
 	_runner.assert_true(_hud.has_method("set_skill_state"), "HUD exposes skill state setter")
 	_runner.assert_true(_hud.has_method("get_skill_text"), "HUD exposes skill text for tests")
