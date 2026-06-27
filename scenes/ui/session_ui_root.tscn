@@ -137,6 +137,7 @@ alignment = 1
 [node name="MemoryChip" type="TextureRect" parent="Root/SummaryOverlay/SummaryPanel/SummaryMargin/SummaryStack/SummaryContent/RewardPanel/RewardMargin/RewardRow"]
 custom_minimum_size = Vector2(128, 128)
 layout_mode = 2
+texture_filter = 1
 size_flags_vertical = 4
 texture_filter = 1
 texture = ExtResource("3_shard")

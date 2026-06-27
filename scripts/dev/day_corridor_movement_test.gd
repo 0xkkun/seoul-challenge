@@ -135,6 +135,7 @@ var _ambient_rng := RandomNumberGenerator.new()
 var _crowd_label_elapsed := 0.0
 var _student3_label_shown_for_entry := false
 var _ambient_tier := DaySchoolRumors.TIER_FIRST_VISIT
+var _run_navigation_arrow_tween: Tween
 var _character_base_position := Vector2.ZERO
 var _walk_texture: Texture2D = null
 var _walk_hframes := 0
@@ -372,6 +373,15 @@ func is_touch_controls_visible() -> bool:
 
 func get_objective_text() -> String:
 	return _objective_label.text
+
+
+func is_run_navigation_arrow_glow_active() -> bool:
+	return (
+		_gyeongbokgung_run_arrow_label != null
+		and _gyeongbokgung_run_arrow_label.visible
+		and _run_navigation_arrow_tween != null
+		and _run_navigation_arrow_tween.is_valid()
+	)
 
 
 func is_return_confirm_visible() -> bool:
@@ -1203,7 +1213,55 @@ func _update_run_navigation_arrow() -> void:
 	if _gyeongbokgung_run_arrow_label == null:
 		return
 	_gyeongbokgung_run_arrow_label.text = RUN_NAVIGATION_ARROW_TEXT
-	_gyeongbokgung_run_arrow_label.visible = _should_show_run_navigation_arrow()
+	var should_show := _should_show_run_navigation_arrow()
+	_gyeongbokgung_run_arrow_label.visible = should_show
+	if should_show:
+		_start_run_navigation_arrow_glow()
+	else:
+		_stop_run_navigation_arrow_glow()
+
+
+func _start_run_navigation_arrow_glow() -> void:
+	if _run_navigation_arrow_tween != null and _run_navigation_arrow_tween.is_valid():
+		return
+	_gyeongbokgung_run_arrow_label.pivot_offset = _gyeongbokgung_run_arrow_label.size * 0.5
+	_gyeongbokgung_run_arrow_label.scale = Vector2.ONE
+	_gyeongbokgung_run_arrow_label.modulate = Color.WHITE
+	_run_navigation_arrow_tween = create_tween()
+	_run_navigation_arrow_tween.set_loops()
+	_run_navigation_arrow_tween.tween_property(
+		_gyeongbokgung_run_arrow_label,
+		"scale",
+		Vector2(1.08, 1.08),
+		0.55
+	).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	_run_navigation_arrow_tween.parallel().tween_property(
+		_gyeongbokgung_run_arrow_label,
+		"modulate",
+		Color(1.0, 1.0, 1.0, 0.82),
+		0.55
+	).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	_run_navigation_arrow_tween.tween_property(
+		_gyeongbokgung_run_arrow_label,
+		"scale",
+		Vector2.ONE,
+		0.55
+	).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	_run_navigation_arrow_tween.parallel().tween_property(
+		_gyeongbokgung_run_arrow_label,
+		"modulate",
+		Color.WHITE,
+		0.55
+	).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+
+
+func _stop_run_navigation_arrow_glow() -> void:
+	if _run_navigation_arrow_tween != null and _run_navigation_arrow_tween.is_valid():
+		_run_navigation_arrow_tween.kill()
+	_run_navigation_arrow_tween = null
+	if _gyeongbokgung_run_arrow_label != null:
+		_gyeongbokgung_run_arrow_label.scale = Vector2.ONE
+		_gyeongbokgung_run_arrow_label.modulate = Color.WHITE
 
 
 func _should_show_run_navigation_arrow() -> bool:
