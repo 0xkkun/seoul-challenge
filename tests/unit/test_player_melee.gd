@@ -52,6 +52,58 @@ func test_melee_hits_enemy_in_front() -> void:
 	p.free()
 
 
+func test_barehand_reach_is_forgiving_for_mobile_combat() -> void:
+	var p = PlayerScript.new()
+	_runner.assert_true(p.melee_range >= 44.0, "맨손 기본 사거리는 모바일에서 헛손질이 잦지 않게 넉넉해야 한다")
+	p.free()
+
+
+func test_barehand_hit_applies_small_knockback() -> void:
+	var p = PlayerScript.new()
+	add_child(p)
+	p.position = Vector2.ZERO
+	var e := StubEnemy.new()
+	e.position = Vector2(30.0, 0.0)
+	e.add_to_group(&"enemy")
+	add_child(e)
+
+	p._attack_melee(Vector2.RIGHT)
+
+	_runner.assert_true(e.position.x > 30.0, "맨손도 적을 살짝 밀어내 타격 반응을 만든다")
+	e.free()
+	p.free()
+
+
+func test_melee_hit_emits_combat_feedback() -> void:
+	_runner.assert_true(EventBus.has_signal("combat_feedback"), "전투 피드백 이벤트 표면이 존재한다")
+	_runner.assert_true(EventBus.has_method("emit_combat_feedback"), "전투 피드백은 payload wrapper 로 발신한다")
+	if not EventBus.has_signal("combat_feedback") or not EventBus.has_method("emit_combat_feedback"):
+		return
+
+	var payloads: Array[Dictionary] = []
+	var callback := func(payload: Dictionary) -> void:
+		payloads.append(payload)
+	EventBus.combat_feedback.connect(callback)
+
+	var p = PlayerScript.new()
+	add_child(p)
+	p.position = Vector2.ZERO
+	var e := StubEnemy.new()
+	e.position = Vector2(25.0, 0.0)
+	e.add_to_group(&"enemy")
+	add_child(e)
+	p._attack_melee(Vector2.RIGHT)
+
+	_runner.assert_eq(payloads.size(), 1, "근접 타격은 전투 피드백 이벤트를 1회 낸다")
+	if payloads.size() == 1:
+		_runner.assert_eq(payloads[0].get("kind", &""), &"melee_hit", "피드백 종류는 근접 히트")
+		_runner.assert_true(float(payloads[0].get("intensity", 0.0)) > 0.0, "카메라/이펙트가 쓸 intensity 를 포함한다")
+
+	EventBus.combat_feedback.disconnect(callback)
+	e.free()
+	p.free()
+
+
 func test_dash_power_attack_hits_farther_and_deals_bonus_damage() -> void:
 	var p = PlayerScript.new()
 	add_child(p)

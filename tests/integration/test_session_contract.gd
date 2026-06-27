@@ -276,6 +276,29 @@ func test_session_render_layer_contract() -> void:
 	session.queue_free()
 
 
+func test_session_camera_reacts_to_combat_feedback() -> void:
+	_runner.assert_true(EventBus.has_method("emit_combat_feedback"), "combat feedback event wrapper exists")
+	if not EventBus.has_method("emit_combat_feedback"):
+		return
+
+	var packed := load("res://scenes/session/session_root.tscn") as PackedScene
+	var session := packed.instantiate()
+	add_child(session)
+
+	var player_camera := session.get_node("%PlayerCamera") as Camera2D
+	_runner.assert_eq(player_camera.offset, Vector2.ZERO, "camera starts without feedback offset")
+
+	EventBus.emit_combat_feedback({
+		"kind": &"melee_hit",
+		"intensity": 4.0,
+		"direction": Vector2.RIGHT,
+	})
+
+	_runner.assert_true(player_camera.offset.length() > 0.0, "combat feedback applies an immediate camera offset")
+
+	session.queue_free()
+
+
 func test_session_result_actions_unpause_and_preserve_retry_config() -> void:
 	GameManager.start_session({
 		"source": "session_result_test",

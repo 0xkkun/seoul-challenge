@@ -22,16 +22,18 @@ signal run_modifiers_changed(payload: Dictionary)
 @export var move_speed: float = 260.0      ## 최고 속도 (px/s)
 @export var acceleration: float = 2200.0   ## 가속 (px/s^2)
 @export var friction: float = 2600.0       ## 감속 (px/s^2)
-@export var vertical_speed_factor: float = 0.6  ## 깊이(상하) 이동을 좌우보다 느리게 — 벨트 원근감
+@export var vertical_speed_factor: float = 0.8  ## 깊이(상하) 이동을 좌우보다 느리게 — 벨트 원근감
 @export var stick_deadzone: float = 0.2    ## 게임패드 스틱 데드존
 @export var fire_cooldown: float = 0.22    ## 연사 간격 (s)
 @export var muzzle_offset: float = 18.0    ## 발사 지점 오프셋 (px)
 @export var recoil_strength: float = 55.0  ## 발사 반동(조준 반대 방향 킥) (px/s)
 @export var ranged_enabled: bool = false   ## 원거리(야구공) 무기 — 기본 OFF(처음엔 근접). 언락 시 ON.
 @export var attack_cooldown: float = 0.35  ## 근접 공격 간격 (s)
+@export var attack_move_speed_multiplier: float = 0.78  ## 공격 애니 중 이동 유지 비율
 @export var melee_damage: int = 1          ## 맨손 피해
-@export var melee_range: float = 34.0      ## 맨손 사거리 (px) — 짧은 펀치
+@export var melee_range: float = 44.0      ## 맨손 사거리 (px) — 모바일 헛손질 완화
 @export var melee_arc: float = 1.4         ## 맨손 타격 각 (rad)
+@export var barehand_knockback: float = 18.0  ## 맨손 히트 리액션용 약한 넉백(px)
 @export var bat_damage: int = 2            ## 배트 피해(보상 무기)
 @export var bat_range: float = 100.0       ## 배트 사거리 (px) — 방망이 끝까지 길게
 @export var bat_arc: float = 2.4            ## 배트 타격 각 (rad) — 넓게 휘두름
@@ -124,13 +126,13 @@ func _physics_process(delta: float) -> void:
 	elif _dodge_timer > 0.0:
 		_dodge_timer = maxf(0.0, _dodge_timer - delta)
 		velocity = dodge_velocity(_dodge_direction, dodge_speed)
-	elif _is_attacking:
-		# 공격 중엔 이동 정지 — 입력을 무시하고 감속한다(이동하며 공격 불가).
-		velocity = step_velocity(velocity, Vector2.ZERO, delta)
 	else:
-		# 벨트 원근감: 깊이(상하) 이동을 좌우보다 느리게 한다.
-		move.y *= vertical_speed_factor
-		velocity = step_velocity(velocity, move, delta, get_status_speed_multiplier())
+		velocity = step_velocity(
+			velocity,
+			movement_input_for_velocity(move),
+			delta,
+			movement_speed_multiplier(_is_attacking, get_status_speed_multiplier())
+		)
 	move_and_slide()
 	clamp_to_movement_bounds()
 	_process_attack(delta)
@@ -152,6 +154,19 @@ func step_velocity(current: Vector2, input_vector: Vector2, delta: float, speed_
 	var target := desired_velocity(input_vector, speed_multiplier)
 	var rate := acceleration if input_vector.length() > 0.01 else friction
 	return current.move_toward(target, rate * delta)
+
+
+func movement_input_for_velocity(input_vector: Vector2) -> Vector2:
+	var adjusted := input_vector
+	adjusted.y *= vertical_speed_factor
+	return adjusted
+
+
+func movement_speed_multiplier(is_attack_animating: bool, status_multiplier: float = 1.0) -> float:
+	var multiplier := maxf(0.0, status_multiplier)
+	if is_attack_animating:
+		multiplier *= clampf(attack_move_speed_multiplier, 0.0, 1.0)
+	return multiplier
 
 
 func clamp_position_to_bounds(position: Vector2, bounds: Rect2) -> Vector2:
@@ -697,6 +712,7 @@ func _attack_melee(dir: Vector2) -> void:
 		dmg += dash_power_attack_damage_bonus
 		rng *= dash_power_attack_range_multiplier
 		knockback_distance *= dash_power_attack_knockback_multiplier
+	var hit_count := 0
 	for enemy: Node in get_tree().get_nodes_in_group(&"enemy"):
 		var e := enemy as Node2D
 		if e == null or not is_instance_valid(e):
@@ -704,10 +720,12 @@ func _attack_melee(dir: Vector2) -> void:
 		var to := e.global_position - global_position
 		var to_us := Vector2(to.x, to.y / swing_vertical_factor)
 		if to_us.length() <= rng and in_melee_arc(dir, to_us, arc):
+			hit_count += 1
 			if enemy.has_method("take_damage"):
 				enemy.call("take_damage", dmg)
-			if _has_bat:
-				e.global_position += knockback_vector(global_position, e.global_position, knockback_distance)
+			var applied_knockback := knockback_distance if _has_bat else barehand_knockback
+			if applied_knockback > 0.0:
+				e.global_position += knockback_vector(global_position, e.global_position, applied_knockback)
 	if _has_bat:
 		if _bat_awakened:
 			_deflect_bullets_in_arc(dir, rng, arc)
@@ -722,6 +740,8 @@ func _attack_melee(dir: Vector2) -> void:
 		_dash_power_attack_consumed = true
 		_dash_power_attack_timer = 0.0
 		_show_power_impact(dir, rng, arc)
+	if hit_count > 0:
+		_emit_combat_feedback(&"melee_hit", dir, hit_count, _melee_feedback_intensity(power_attack))
 
 
 ## 원거리 발사(야구공) — 보존된 무기. ranged_enabled 일 때만 사용. fired → ProjectileLauncher 가 스폰.
@@ -729,6 +749,24 @@ func _attack_ranged(dir: Vector2) -> void:
 	fired.emit(global_position + dir * muzzle_offset, dir)
 	velocity += recoil_velocity(dir, recoil_strength)
 	HapticManager.on_fire()
+
+
+func _melee_feedback_intensity(power_attack: bool) -> float:
+	if power_attack:
+		return 5.0
+	return 3.5 if _has_bat else 2.4
+
+
+func _emit_combat_feedback(kind: StringName, dir: Vector2, hit_count: int, intensity: float) -> void:
+	if not has_node("/root/EventBus") or not EventBus.has_method("emit_combat_feedback"):
+		return
+	EventBus.emit_combat_feedback({
+		"kind": kind,
+		"direction": dir.normalized() if dir.length() > 0.001 else _facing,
+		"hit_count": hit_count,
+		"intensity": intensity,
+		"source_position": global_position,
+	})
 
 
 ## 휘두르기 시각 표시 — 실제 사거리(rng)·각(arc)으로 부채꼴을 그려 타격 범위와 일치시킨다.
