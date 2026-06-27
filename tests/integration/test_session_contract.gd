@@ -1065,6 +1065,37 @@ func test_session_finish_request_confirms_abandon_to_school() -> void:
 	session.queue_free()
 
 
+func test_baseball_onboarding_abandon_returns_to_lobby_not_corridor() -> void:
+	GameManager.start_session({
+		"source": "intro_abandon_test",
+		"stage_id": &"gyeongbokgung",
+		"stage_name": "경복궁",
+		SceneTransition.RUN_CONFIG_ONBOARDING_KIND: SceneTransition.ONBOARDING_KIND_BASEBALL_CAPTAIN,
+	})
+	var packed := load("res://scenes/session/session_root.tscn") as PackedScene
+	var session := packed.instantiate()
+	var action_counts := {"school": 0, "lobby": 0}
+	session.return_to_school_callable = func() -> void:
+		action_counts["school"] += 1
+	_runner.assert_true(_has_property(session, "return_to_lobby_callable"), "session can inject a lobby return for incomplete onboarding exits")
+	if _has_property(session, "return_to_lobby_callable"):
+		session.set("return_to_lobby_callable", func() -> void:
+			action_counts["lobby"] += 1
+		)
+	add_child(session)
+
+	session._on_finish_requested()
+	_runner.assert_true(session.is_exit_confirm_visible(), "onboarding abandon still asks for confirmation")
+	_runner.assert_true(UiTestHarness.press_by_test_id(session, ConfirmModal.TEST_ID_YES), "yes confirms onboarding abandon")
+	_runner.assert_eq(action_counts["school"], 0, "incomplete onboarding does not return to the day corridor")
+	_runner.assert_eq(action_counts["lobby"], 1, "incomplete onboarding returns to the lobby")
+	_runner.assert_false(GameManager.is_session_active(), "onboarding abandon resets the active run")
+	_runner.assert_false(SaveManager.get_flag(SceneTransition.FLAG_ONBOARDING_BASEBALL_COMPLETE), "abandon does not mark onboarding complete")
+
+	remove_child(session)
+	session.free()
+
+
 func test_room_base_lifecycle_opens_door_and_requests_transition() -> void:
 	var packed := load("res://scenes/session/room_base.tscn") as PackedScene
 	var room := packed.instantiate() as Room
@@ -1302,6 +1333,13 @@ func _room_def(
 	room_def.hidden = hidden
 	room_def.scene_path = "res://scenes/session/room_base.tscn"
 	return room_def
+
+
+func _has_property(node: Object, property_name: String) -> bool:
+	for property: Dictionary in node.get_property_list():
+		if String(property.get("name", "")) == property_name:
+			return true
+	return false
 
 
 func _layout_signature(layout: RoomLayout) -> String:
