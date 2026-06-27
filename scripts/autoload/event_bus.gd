@@ -10,6 +10,9 @@ signal friend_purified(payload: Dictionary)
 signal boss_defeated(payload: Dictionary)
 signal currency_changed(payload: Dictionary)
 signal special_skill_state_changed(payload: Dictionary)
+## #154 액션쾌감 피드백 — payload 예 {"kind": StringName, "intensity": float, "direction": Vector2}.
+## 전투 객체는 피드백 의도만 발신하고, 카메라/이펙트/HUD 쪽이 구독해 표현한다.
+signal combat_feedback(payload: Dictionary)
 signal settings_changed(settings: Dictionary)
 ## #19 밤 전투 계약: 플레이어 체력 변화 — payload {"current": int, "max": int}.
 ## 전투 트랙은 emit_player_health_changed() 로 발신, HUD(#13) 등은 구독만 한다.
@@ -60,6 +63,10 @@ func emit_currency_changed(payload: Dictionary) -> void:
 
 func emit_special_skill_state_changed(payload: Dictionary) -> void:
 	special_skill_state_changed.emit(payload.duplicate(true))
+
+
+func emit_combat_feedback(payload: Dictionary) -> void:
+	combat_feedback.emit(payload.duplicate(true))
 
 
 func emit_settings_changed(settings: Dictionary) -> void:

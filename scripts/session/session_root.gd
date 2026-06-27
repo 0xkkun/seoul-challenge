@@ -18,6 +18,8 @@ const ABANDON_RUN_MESSAGE := "런을 포기할까요? 이번 밤 보상은 사�
 const QUIT_GAME_MESSAGE := "게임을 종료할까요?"
 const WEAPON_BASEBALL := &"baseball"
 const WEAPON_BAT := &"bat"
+const COMBAT_FEEDBACK_RECOVER_TIME := 0.10
+const COMBAT_FEEDBACK_MAX_OFFSET := 7.0
 
 @onready var world_layer: Node2D = $WorldLayer
 @onready var room_layer: Node2D = %RoomLayer
@@ -45,6 +47,7 @@ var _minimap_full := false
 var _paused_before_exit_modal := false
 var _friend_ids: Array[StringName] = []
 var _unlocks: Array[StringName] = []
+var _camera_feedback_tween: Tween = null
 
 
 func _ready() -> void:
@@ -59,6 +62,7 @@ func _ready() -> void:
 	death_return_controller.death_result_builder_callable = Callable(self, "_build_death_result")
 	death_return_controller.game_over_callable = Callable(self, "_show_death_summary")
 	_connect_progression_events()
+	_connect_combat_feedback_events()
 	room_manager.room_changed.connect(_on_room_changed)
 	room_manager.configure(_build_run_layout(), room_layer, actor)
 	room_manager.start_layout()
@@ -81,6 +85,7 @@ func _apply_render_layers() -> void:
 
 func _exit_tree() -> void:
 	_disconnect_progression_events()
+	_disconnect_combat_feedback_events()
 	if has_node("/root/PoolManager"):
 		PoolManager.clear_all()
 	if not _handoff_session_on_exit and has_node("/root/GameManager") and GameManager.is_session_active():
@@ -222,6 +227,54 @@ func _disconnect_progression_events() -> void:
 	var unlock_callback := Callable(self, "_on_unlock_changed")
 	if EventBus.has_signal(&"unlock_changed") and EventBus.unlock_changed.is_connected(unlock_callback):
 		EventBus.unlock_changed.disconnect(unlock_callback)
+
+
+func _connect_combat_feedback_events() -> void:
+	if not has_node("/root/EventBus") or not EventBus.has_signal(&"combat_feedback"):
+		return
+	var callback := Callable(self, "_on_combat_feedback")
+	if not EventBus.combat_feedback.is_connected(callback):
+		EventBus.combat_feedback.connect(callback)
+
+
+func _disconnect_combat_feedback_events() -> void:
+	if not has_node("/root/EventBus") or not EventBus.has_signal(&"combat_feedback"):
+		return
+	var callback := Callable(self, "_on_combat_feedback")
+	if EventBus.combat_feedback.is_connected(callback):
+		EventBus.combat_feedback.disconnect(callback)
+
+
+func _on_combat_feedback(payload: Dictionary) -> void:
+	if player_camera == null:
+		return
+	var raw_direction: Variant = payload.get("direction", Vector2.RIGHT)
+	var direction := Vector2.RIGHT
+	if raw_direction is Vector2:
+		direction = raw_direction
+	var intensity := float(payload.get("intensity", 2.0))
+	player_camera.offset = camera_feedback_offset(direction, intensity)
+	_start_camera_feedback_recover()
+
+
+func camera_feedback_offset(direction: Vector2, intensity: float) -> Vector2:
+	var safe_direction := direction.normalized() if direction.length() > 0.001 else Vector2.RIGHT
+	var amount := clampf(intensity, 1.0, COMBAT_FEEDBACK_MAX_OFFSET)
+	return -safe_direction * amount
+
+
+func _start_camera_feedback_recover() -> void:
+	if not is_inside_tree() or player_camera == null:
+		return
+	if _camera_feedback_tween != null and _camera_feedback_tween.is_valid():
+		_camera_feedback_tween.kill()
+	_camera_feedback_tween = create_tween()
+	_camera_feedback_tween.tween_property(
+		player_camera,
+		"offset",
+		Vector2.ZERO,
+		COMBAT_FEEDBACK_RECOVER_TIME
+	).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 
 
 func _on_friend_purified(payload: Dictionary) -> void:

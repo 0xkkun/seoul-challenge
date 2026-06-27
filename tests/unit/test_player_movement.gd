@@ -26,6 +26,26 @@ func test_default_move_speed_is_snappier() -> void:
 	p.free()
 
 
+func test_vertical_movement_keeps_topdown_evasion_responsive() -> void:
+	var p = PlayerScript.new()
+	_runner.assert_true(p.vertical_speed_factor >= 0.78, "상하 이동이 전투 회피를 답답하게 만들지 않는다")
+	p.free()
+
+
+func test_attack_animation_keeps_movement_control() -> void:
+	var p = PlayerScript.new()
+	_runner.assert_true(_has_property(p, "attack_move_speed_multiplier"), "공격 중 이동 배율을 명시적으로 노출한다")
+	_runner.assert_true(p.has_method("movement_speed_multiplier"), "공격 중 이동 배율 계산은 순수 함수로 제공한다")
+	if not _has_property(p, "attack_move_speed_multiplier") or not p.has_method("movement_speed_multiplier"):
+		p.free()
+		return
+
+	var multiplier: float = p.call("movement_speed_multiplier", true, 1.0)
+	_runner.assert_true(multiplier >= 0.7, "공격 애니메이션 중에도 이동 제어가 유지된다")
+	_runner.assert_true(multiplier < 1.0, "공격 중에는 약한 무게감만 남긴다")
+	p.free()
+
+
 func test_diagonal_speed_is_normalized() -> void:
 	var p = PlayerScript.new()
 	var speed: float = p.move_speed
@@ -54,3 +74,10 @@ func test_room_bounds_clamps_horizontal_exit() -> void:
 	var clamped: Vector2 = p.call("clamp_position_to_bounds", Vector2(1220.0, 12.0), bounds)
 	_runner.assert_eq(clamped, Vector2(960.0, 12.0), "오른쪽 방 경계 밖 위치는 바닥 끝으로 제한된다")
 	p.free()
+
+
+func _has_property(node: Object, property_name: String) -> bool:
+	for property: Dictionary in node.get_property_list():
+		if String(property.get("name", "")) == property_name:
+			return true
+	return false
