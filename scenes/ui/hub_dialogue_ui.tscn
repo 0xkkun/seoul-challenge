@@ -105,7 +105,7 @@ offset_right = 840.0
 offset_bottom = 48.0
 theme_override_constants/separation = 4
 
-[node name="DialogueLabel" type="Label" parent="Root/DialogueBar/DialogueContent"]
+[node name="DialogueLabel" type="RichTextLabel" parent="Root/DialogueBar/DialogueContent"]
 unique_name_in_owner = true
 layout_mode = 1
 anchor_right = 1.0
@@ -114,7 +114,10 @@ offset_top = 50.0
 offset_right = -40.0
 offset_bottom = 96.0
 grow_horizontal = 2
+bbcode_enabled = true
 text = "\"겁먹으면 스윙이 늦어. 밤의 궁에서는 더 그렇겠지.\""
+fit_content = true
+scroll_active = false
 autowrap_mode = 3
 
 [node name="MemoryLabel" type="Label" parent="Root/DialogueBar/DialogueContent"]

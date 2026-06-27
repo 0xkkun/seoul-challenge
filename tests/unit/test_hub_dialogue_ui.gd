@@ -58,6 +58,17 @@ func test_dialogue_content_updates_from_data() -> void:
 	_runner.assert_eq(_ui.get_memory_text(), "기억: 실험실 싱크대의 물방울", "기억 플레이버 텍스트가 데이터로 갱신된다")
 
 
+func test_dialogue_supports_bold_bbcode_without_polluting_plain_text() -> void:
+	_ui.set_dialogue("야구부 주장", "네가 찾는 친구는 [b]도깨비왕[/b]에게 잡혀갔다는 말이 있어.", "")
+
+	var dialogue_label: Node = _ui.get_node("%DialogueLabel")
+	_runner.assert_true(dialogue_label is RichTextLabel, "대사 본문은 BBCode 강조를 렌더링할 수 있다")
+	if dialogue_label is RichTextLabel:
+		_runner.assert_true((dialogue_label as RichTextLabel).bbcode_enabled, "대사 본문은 BBCode를 활성화한다")
+	_runner.assert_eq(_ui.get_dialogue_text(), "네가 찾는 친구는 도깨비왕에게 잡혀갔다는 말이 있어.", "테스트/상태용 plain text에는 BBCode가 섞이지 않는다")
+	_runner.assert_true(_ui.get_dialogue_markup_text().contains("[b]도깨비왕[/b]"), "렌더링용 문구는 도깨비왕을 볼드 처리한다")
+
+
 func test_sprite_portrait_uses_texture_without_panel_background() -> void:
 	_ui.set_dialogue("반 친구", "낮엔 뛰지 말고, 얘기부터 하자.", "", HUB_DIALOGUE_SCRIPT.PORTRAIT_COLOR, PEOPLE2_TEXTURE, 1, false)
 
