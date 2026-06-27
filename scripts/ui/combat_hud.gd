@@ -7,7 +7,11 @@ class_name CombatHud
 const HEART_TEXTURE := preload("res://assets/ui/icons/combat/hp_heart.png")
 const HEART_FILLED_MODULATE := Color(1.0, 1.0, 1.0, 1.0)
 const HEART_EMPTY_MODULATE := Color(0.35, 0.35, 0.38, 0.55)
+const HEART_DAMAGE_PULSE_MODULATE := Color(1.0, 0.28, 0.28, 0.95)
 const HEART_SIZE := Vector2(28, 28)
+const HEART_DAMAGE_PULSE_SCALE := Vector2(1.28, 1.28)
+const HEART_DAMAGE_PULSE_PIVOT_OFFSET := Vector2.ZERO
+const HEART_DAMAGE_PULSE_SECONDS := 0.16
 const WEAPON_SLOT_STUB_TEXT := "기억 무기: 준비 중"
 const SKILL_SLOT_STUB_TEXT := "회피: 준비 중"
 const MobileSafeArea := preload("res://scripts/ui/mobile_safe_area.gd")
@@ -20,6 +24,7 @@ const MobileSafeArea := preload("res://scripts/ui/mobile_safe_area.gd")
 
 var _current_health := 0
 var _max_health := 0
+var _heart_pulse_tweens := {}
 
 
 func _ready() -> void:
@@ -42,9 +47,10 @@ func _exit_tree() -> void:
 
 ## 체력을 직접 지정한다. (전투 미연동 상태에서의 stub/테스트 진입점)
 func set_health(current: int, max_health: int) -> void:
+	var previous_health := _current_health
 	_max_health = maxi(0, max_health)
 	_current_health = clampi(current, 0, _max_health)
-	_render_hearts()
+	_render_hearts(previous_health)
 
 
 func get_current_health() -> int:
@@ -61,6 +67,22 @@ func get_filled_heart_count() -> int:
 		if bool(heart.get_meta(&"filled", false)):
 			filled += 1
 	return filled
+
+
+func get_heart_feedback_snapshot() -> Array[Dictionary]:
+	var snapshot: Array[Dictionary] = []
+	for child in _hearts.get_children():
+		var heart := child as TextureRect
+		if heart == null:
+			continue
+		snapshot.append({
+			"filled": bool(heart.get_meta(&"filled", false)),
+			"damage_pulse": bool(heart.get_meta(&"damage_pulse", false)),
+			"scale": heart.scale,
+			"pivot_offset": heart.pivot_offset,
+			"modulate": heart.modulate,
+		})
+	return snapshot
 
 
 func set_skill_state(payload: Dictionary) -> void:
@@ -103,14 +125,16 @@ func _on_special_skill_state_changed(payload: Dictionary) -> void:
 	set_skill_state(payload)
 
 
-func _render_hearts() -> void:
+func _render_hearts(previous_health: int = _current_health) -> void:
 	while _hearts.get_child_count() > _max_health:
 		var extra := _hearts.get_child(_hearts.get_child_count() - 1)
+		_kill_heart_pulse(extra)
 		_hearts.remove_child(extra)
 		extra.free()
 	while _hearts.get_child_count() < _max_health:
 		var heart := TextureRect.new()
 		heart.custom_minimum_size = HEART_SIZE
+		heart.pivot_offset = HEART_DAMAGE_PULSE_PIVOT_OFFSET
 		heart.texture = HEART_TEXTURE
 		heart.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		heart.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
@@ -119,7 +143,61 @@ func _render_hearts() -> void:
 		var heart := _hearts.get_child(index) as TextureRect
 		var filled := index < _current_health
 		heart.set_meta(&"filled", filled)
-		heart.modulate = HEART_FILLED_MODULATE if filled else HEART_EMPTY_MODULATE
+		var damage_pulse := index >= _current_health and index < previous_health
+		if damage_pulse:
+			_pulse_damage_heart(heart)
+		else:
+			_kill_heart_pulse(heart)
+			_apply_heart_visual(heart, filled)
+
+
+func _apply_heart_visual(heart: TextureRect, filled: bool) -> void:
+	heart.pivot_offset = HEART_DAMAGE_PULSE_PIVOT_OFFSET
+	heart.scale = Vector2.ONE
+	heart.modulate = HEART_FILLED_MODULATE if filled else HEART_EMPTY_MODULATE
+	heart.set_meta(&"damage_pulse", false)
+
+
+func _pulse_damage_heart(heart: TextureRect) -> void:
+	_kill_heart_pulse(heart)
+	heart.pivot_offset = HEART_DAMAGE_PULSE_PIVOT_OFFSET
+	heart.scale = HEART_DAMAGE_PULSE_SCALE
+	heart.modulate = HEART_DAMAGE_PULSE_MODULATE
+	heart.set_meta(&"damage_pulse", true)
+	if not is_inside_tree():
+		return
+	var heart_id := heart.get_instance_id()
+	var target_modulate := HEART_FILLED_MODULATE if bool(heart.get_meta(&"filled", false)) else HEART_EMPTY_MODULATE
+	var tween := create_tween()
+	tween.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
+	_heart_pulse_tweens[heart_id] = tween
+	tween.tween_property(
+		heart,
+		^"scale",
+		Vector2.ONE,
+		HEART_DAMAGE_PULSE_SECONDS
+	).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tween.parallel().tween_property(
+		heart,
+		^"modulate",
+		target_modulate,
+		HEART_DAMAGE_PULSE_SECONDS
+	).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	tween.finished.connect(func() -> void:
+		_heart_pulse_tweens.erase(heart_id)
+		if is_instance_valid(heart):
+			_apply_heart_visual(heart, bool(heart.get_meta(&"filled", false)))
+	)
+
+
+func _kill_heart_pulse(heart: Node) -> void:
+	if heart == null:
+		return
+	var heart_id := heart.get_instance_id()
+	var tween: Tween = _heart_pulse_tweens.get(heart_id, null)
+	if tween != null and tween.is_valid():
+		tween.kill()
+	_heart_pulse_tweens.erase(heart_id)
 
 
 func _skill_display_name(skill_id: StringName) -> String:

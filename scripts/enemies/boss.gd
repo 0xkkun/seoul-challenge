@@ -25,17 +25,21 @@ enum Phase { RECOVER, TELEGRAPH, CHARGE, SWING }
 @export var max_hp: int = 30
 @export var move_speed: float = 70.0       ## 평상시(RECOVER) 추적 속도
 @export var charge_speed: float = 360.0     ## 돌진 속도
-@export var recover_time: float = 1.0
+@export var recover_time: float = 0.85
 @export var telegraph_time: float = 0.6
 @export var charge_time: float = 0.7
 @export var contact_damage: int = 1
 @export var contact_range: float = 34.0
+@export var weak_attack_damage: int = 2
 @export var weak_attack_range: float = 104.0
 @export var weak_attack_arc: float = 1.6
+@export var strong_attack_damage: int = 3
 @export var strong_attack_range: float = 144.0
 @export var strong_attack_arc: float = 1.8
 @export_range(0, 7, 1) var strong_attack_hit_frame := 3
 @export var strong_attack_animation_fps: float = 12.0
+@export var weak_attack_feedback_intensity: float = 4.5
+@export var strong_attack_feedback_intensity: float = 7.0
 @export var contact_cooldown: float = 0.5
 @export var hit_invuln_time: float = 0.12
 @export var target_group: StringName = &"player"
@@ -217,7 +221,15 @@ func _begin_pattern(target: Node2D) -> void:
 		AudioManager.play_sfx(AudioManager.BOSS_ATTACK)
 		_play_attack_animation(attack_animation, aim)
 		_play_ground_impact_effect(aim)
-		_try_swing_attack(target, aim, weak_attack_range, weak_attack_arc)
+		_try_swing_attack(
+			target,
+			aim,
+			weak_attack_range,
+			weak_attack_arc,
+			weak_attack_damage,
+			&"weak_attack",
+			weak_attack_feedback_intensity
+		)
 		_phase = Phase.SWING
 		_phase_timer = 0.45
 
@@ -264,7 +276,15 @@ func _tick_strong_attack_hit(target: Node2D, delta: float) -> void:
 		return
 	_strong_attack_hit_resolved = true
 	_play_wound_slash_effect(_charge_dir)
-	_try_swing_attack(target, _charge_dir, strong_attack_range, strong_attack_arc)
+	_try_swing_attack(
+		target,
+		_charge_dir,
+		strong_attack_range,
+		strong_attack_arc,
+		strong_attack_damage,
+		&"strong_attack",
+		strong_attack_feedback_intensity
+	)
 	_try_contact(target)
 
 
@@ -398,12 +418,40 @@ func _try_contact(target: Node2D) -> void:
 	_contact_timer = contact_cooldown
 
 
-func _try_swing_attack(target: Node2D, facing: Vector2, swing_range: float, arc: float) -> void:
+func _try_swing_attack(
+	target: Node2D,
+	facing: Vector2,
+	swing_range: float,
+	arc: float,
+	damage: int,
+	attack_kind: StringName,
+	feedback_intensity: float
+) -> void:
 	if _contact_timer > 0.0 or target == null:
 		return
 	var to_target := target.global_position - global_position
 	if not in_swing_arc(facing, to_target, swing_range, arc):
 		return
 	if target.has_method("take_damage"):
-		target.call("take_damage", contact_damage)
+		target.call("take_damage", damage)
+		_emit_boss_hit_feedback(target, facing, damage, attack_kind, feedback_intensity)
 	_contact_timer = contact_cooldown
+
+
+func _emit_boss_hit_feedback(
+	target: Node2D,
+	facing: Vector2,
+	damage: int,
+	attack_kind: StringName,
+	intensity: float
+) -> void:
+	if not has_node("/root/EventBus") or not EventBus.has_method("emit_combat_feedback"):
+		return
+	var direction := facing.normalized() if facing.length() > 0.001 else _aim_to(target)
+	EventBus.emit_combat_feedback({
+		"kind": &"boss_hit",
+		"attack": attack_kind,
+		"damage": damage,
+		"intensity": intensity,
+		"direction": direction,
+	})

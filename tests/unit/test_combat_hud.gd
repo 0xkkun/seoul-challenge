@@ -68,6 +68,45 @@ func test_health_changed_event_updates_hearts() -> void:
 	_runner.assert_eq(_hud.get_filled_heart_count(), 2, "피격 시 하트 감소 반영")
 
 
+func test_health_loss_pulses_only_lost_hearts() -> void:
+	_runner.assert_true(_hud.has_method("get_heart_feedback_snapshot"), "HUD exposes heart feedback state for tests")
+	if not _hud.has_method("get_heart_feedback_snapshot"):
+		return
+	_hud.set_health(5, 5)
+	_hud.set_health(2, 5)
+
+	var snapshot: Array = _hud.call("get_heart_feedback_snapshot")
+
+	_runner.assert_eq(snapshot.size(), 5, "최대 체력만큼 하트 피드백 상태를 노출한다")
+	if snapshot.size() == 5:
+		for index in range(2):
+			_runner.assert_false(bool(snapshot[index].get("damage_pulse", false)), "남은 하트는 피해 펄스를 하지 않는다")
+			_runner.assert_true(bool(snapshot[index].get("filled", false)), "남은 하트는 채워진 상태다")
+		for index in range(2, 5):
+			_runner.assert_true(bool(snapshot[index].get("damage_pulse", false)), "잃은 하트만 피해 펄스를 한다")
+			_runner.assert_false(bool(snapshot[index].get("filled", true)), "잃은 하트는 비워진 상태다")
+			var scale := snapshot[index].get("scale", Vector2.ONE) as Vector2
+			_runner.assert_true(scale.x > 1.0 and scale.y > 1.0, "피해 펄스 하트는 즉시 커져 보인다")
+
+
+func test_health_damage_pulse_expands_inward_from_safe_area_edge() -> void:
+	_runner.assert_true(_hud.has_method("get_heart_feedback_snapshot"), "HUD exposes heart feedback state for tests")
+	if not _hud.has_method("get_heart_feedback_snapshot"):
+		return
+	_hud.set_health(5, 5)
+	_hud.set_health(0, 5)
+
+	var snapshot: Array = _hud.call("get_heart_feedback_snapshot")
+
+	_runner.assert_eq(snapshot.size(), 5, "최대 체력만큼 하트 피드백 상태를 노출한다")
+	if not snapshot.is_empty():
+		_runner.assert_eq(
+			snapshot[0].get("pivot_offset", Vector2.INF),
+			Vector2.ZERO,
+			"좌상단 하트 피해 펄스는 safe-area 밖이 아니라 화면 안쪽으로 확장된다"
+		)
+
+
 func test_health_is_clamped_to_valid_range() -> void:
 	_hud.set_health(99, 3)
 	_runner.assert_eq(_hud.get_filled_heart_count(), 3, "현재 체력은 최대치로 클램프된다")
