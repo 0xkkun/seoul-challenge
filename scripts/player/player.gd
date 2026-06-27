@@ -348,6 +348,10 @@ func damaged_health(current: int, amount: int) -> int:
 	return maxi(0, current - amount)
 
 
+func restored_health(current: int, amount: int, health_limit: int) -> int:
+	return clampi(current + maxi(0, amount), 0, maxi(0, health_limit))
+
+
 # --- 체력/피격 (계약: EventBus.player_health_changed 발신) ---
 
 func get_health() -> int:
@@ -360,6 +364,7 @@ func apply_run_modifier(item_id: StringName) -> bool:
 	_capture_base_run_stats()
 	_run_modifier_ids.append(item_id)
 	_apply_run_modifier_stats()
+	_apply_instant_item_effects(item_id)
 	_broadcast_run_modifiers_changed()
 	return true
 
@@ -739,6 +744,18 @@ func _apply_run_modifier_stats() -> void:
 	if previous_health != _health or previous_max_health != max_health:
 		_broadcast_health()
 	_broadcast_special_skill_state()
+
+
+func _apply_instant_item_effects(item_id: StringName) -> void:
+	var item_def := MapItemCatalog.get_item_def(item_id)
+	var modifiers: Dictionary = item_def.get("modifiers", {})
+	var restore_amount := int(modifiers.get("health_restore_add", 0))
+	if restore_amount <= 0:
+		return
+	var previous_health := _health
+	_health = restored_health(_health, restore_amount, max_health)
+	if previous_health != _health:
+		_broadcast_health()
 
 
 func _apply_stats(stats: Dictionary) -> void:
