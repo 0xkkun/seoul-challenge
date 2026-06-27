@@ -19,6 +19,7 @@ script = ExtResource("1_player")
 shape = SubResource("CircleShape2D_player")
 
 [node name="Sprite" type="AnimatedSprite2D" parent="."]
+z_index = 2
 texture_filter = 1
 sprite_frames = ExtResource("3_walk")
 animation = &"idle"
@@ -51,7 +52,7 @@ hframes = 9
 
 [node name="AttackDust" type="Node2D" parent="."]
 visible = false
-z_index = -1
+z_index = 1
 
 [node name="DustSprite" type="AnimatedSprite2D" parent="AttackDust"]
 visible = false
