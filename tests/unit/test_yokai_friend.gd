@@ -95,7 +95,7 @@ func test_stun_reveals_purify_cue_without_text_prompt() -> void:
 	_runner.assert_false(bool(snapshot["has_text_prompt"]), "조작 설명 문구 대신 비주얼만 쓴다")
 
 
-func test_purify_hold_updates_progress_ring_and_beam() -> void:
+func test_purify_proximity_updates_progress_ring_and_beam_without_attack_input() -> void:
 	var f = FriendScene.instantiate()
 	f.target_group = TEST_PLAYER_GROUP
 	var target := PurifyTarget.new()
@@ -104,22 +104,22 @@ func test_purify_hold_updates_progress_ring_and_beam() -> void:
 	add_child(target)
 	f.global_position = Vector2.ZERO
 	target.global_position = Vector2(30.0, 0.0)
-	target.firing = true
+	target.firing = false
 
 	f.take_damage(5)
 	f.call("_process_stun", 0.6)
 
 	var snapshot: Dictionary = f.call("get_purify_visual_snapshot")
 	_runner.assert_true(bool(snapshot["in_range"]), "정화 가능 거리 안에 있음을 표시한다")
-	_runner.assert_true(bool(snapshot["channeling"]), "공격 홀드 중 채널링 상태를 표시한다")
-	_runner.assert_true(float(snapshot["progress"]) > 0.45, "홀드 진행도가 링에 반영된다")
+	_runner.assert_true(bool(snapshot["channeling"]), "정화 범위 안에 머무르면 채널링 상태를 표시한다")
+	_runner.assert_true(float(snapshot["progress"]) > 0.45, "근접 유지 진행도가 링에 반영된다")
 	_runner.assert_true(int(snapshot["progress_point_count"]) > 4, "진행 링이 일부 채워진다")
-	_runner.assert_true(bool(snapshot["progress_visible"]), "홀드 중 진행 링이 실제로 표시된다")
-	_runner.assert_true(bool(snapshot["beam_visible"]), "홀드 중 친구와 플레이어 사이 빛줄기를 보여준다")
-	_runner.assert_true(bool(snapshot["beam_glow_visible"]), "홀드 중 빛줄기 글로우를 함께 보여준다")
+	_runner.assert_true(bool(snapshot["progress_visible"]), "정화 중 진행 링이 실제로 표시된다")
+	_runner.assert_true(bool(snapshot["beam_visible"]), "정화 중 친구와 플레이어 사이 빛줄기를 보여준다")
+	_runner.assert_true(bool(snapshot["beam_glow_visible"]), "정화 중 빛줄기 글로우를 함께 보여준다")
 
 
-func test_releasing_purify_hold_resets_progress_and_hides_beam() -> void:
+func test_leaving_purify_range_resets_progress_and_hides_beam() -> void:
 	var f = FriendScene.instantiate()
 	f.target_group = TEST_PLAYER_GROUP
 	var target := PurifyTarget.new()
@@ -127,17 +127,17 @@ func test_releasing_purify_hold_resets_progress_and_hides_beam() -> void:
 	add_child(f)
 	add_child(target)
 	target.global_position = Vector2(30.0, 0.0)
-	target.firing = true
+	target.firing = false
 
 	f.take_damage(5)
 	f.call("_process_stun", 0.5)
-	target.firing = false
+	target.global_position = Vector2(120.0, 0.0)
 	f.call("_process_stun", 0.1)
 
 	var snapshot: Dictionary = f.call("get_purify_visual_snapshot")
-	_runner.assert_eq(snapshot["state"], &"ready", "홀드를 놓으면 다시 정화 가능 상태")
-	_runner.assert_eq(snapshot["progress"], 0.0, "홀드를 놓으면 진행도가 리셋된다")
-	_runner.assert_false(bool(snapshot["beam_visible"]), "홀드를 놓으면 빛줄기를 숨긴다")
+	_runner.assert_eq(snapshot["state"], &"ready", "정화 범위 밖으로 나가면 다시 정화 가능 상태")
+	_runner.assert_eq(snapshot["progress"], 0.0, "정화 범위 밖으로 나가면 진행도가 리셋된다")
+	_runner.assert_false(bool(snapshot["beam_visible"]), "정화 범위 밖에서는 빛줄기를 숨긴다")
 
 
 func test_purify_completion_spawns_detached_burst_before_friend_is_removed() -> void:
@@ -148,7 +148,7 @@ func test_purify_completion_spawns_detached_burst_before_friend_is_removed() -> 
 	add_child(f)
 	add_child(target)
 	target.global_position = Vector2(30.0, 0.0)
-	target.firing = true
+	target.firing = false
 
 	f.take_damage(5)
 	f.call("_process_stun", f.purify_time + 0.05)
