@@ -4,6 +4,7 @@ extends Node
 const COMBAT_HUD_SCENE := preload("res://scenes/ui/combat_hud.tscn")
 const MobileSafeArea := preload("res://scripts/ui/mobile_safe_area.gd")
 const REMOVED_BASEBALL_NAME := "낡은" + "야구공"
+const HP_HEART_TEXTURE_PATH := "res://assets/ui/icons/combat/hp_heart.png"
 
 var _runner: Node
 # CombatHud 글로벌 클래스 등록(에디터 import) 순서에 의존하지 않도록 타입 주석 없이 둔다.
@@ -43,6 +44,21 @@ func test_set_health_renders_filled_and_empty_hearts() -> void:
 
 	_hud.set_health(1, 3)
 	_runner.assert_eq(_hud.get_filled_heart_count(), 1, "체력 감소가 하트에 반영된다")
+
+
+func test_health_hearts_use_downloaded_hp_texture() -> void:
+	_hud.set_health(2, 3)
+	var texture := load(HP_HEART_TEXTURE_PATH) as Texture2D
+	_runner.assert_not_null(texture, "다운로드한 HP 하트 에셋을 프로젝트 전투 UI 에셋으로 가져온다")
+
+	var hearts := _hud.get_node("%Hearts") as HBoxContainer
+	_runner.assert_eq(hearts.get_child_count(), 3, "체력 슬롯은 최대 체력만큼 생성된다")
+	for child in hearts.get_children():
+		var heart := child as TextureRect
+		_runner.assert_not_null(heart, "체력 슬롯은 HP 텍스처를 그릴 TextureRect 를 사용한다")
+		if heart != null:
+			_runner.assert_eq(heart.texture, texture, "체력 슬롯은 HP 하트 텍스처를 공유한다")
+			_runner.assert_eq(heart.stretch_mode, TextureRect.STRETCH_KEEP_ASPECT_CENTERED, "하트 픽셀 에셋 비율을 유지한다")
 
 
 func test_health_changed_event_updates_hearts() -> void:
