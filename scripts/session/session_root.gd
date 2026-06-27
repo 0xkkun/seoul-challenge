@@ -50,6 +50,7 @@ const REWARD_CHOICE_DELAY_SECONDS := 1.0
 
 var completed_interactions := 0
 var return_to_school_callable: Callable
+var return_to_lobby_callable: Callable
 var retry_session_callable: Callable
 var quit_game_callable: Callable
 var _handoff_session_on_exit := false
@@ -1007,12 +1008,31 @@ func _request_abandon_run() -> void:
 
 func _abandon_run_to_school() -> void:
 	get_tree().paused = false
+	var force_lobby := _should_force_lobby_for_incomplete_onboarding_exit()
 	if has_node("/root/GameManager"):
 		GameManager.reset_session()
+	if force_lobby:
+		_return_to_lobby()
+		return
 	if return_to_school_callable.is_valid():
 		return_to_school_callable.call()
 	else:
 		SceneTransition.go_to_day_lobby()
+
+
+func _should_force_lobby_for_incomplete_onboarding_exit() -> bool:
+	if not _is_baseball_onboarding_run():
+		return false
+	if has_node("/root/SaveManager") and SaveManager.get_flag(SceneTransition.FLAG_ONBOARDING_BASEBALL_COMPLETE):
+		return false
+	return true
+
+
+func _return_to_lobby() -> void:
+	if return_to_lobby_callable.is_valid():
+		return_to_lobby_callable.call()
+	else:
+		SceneTransition.go_to_lobby()
 
 
 func _request_quit_game() -> void:
