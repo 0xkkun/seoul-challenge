@@ -61,7 +61,7 @@ func test_day_corridor_scene_uses_mobile_landscape_plate() -> void:
 	_runner.assert_eq(scene.get_left_school_character_count(), 1, "left corridor keeps only the talk target after people1 removal")
 	_runner.assert_eq(scene.get_right_school_character_count(), 2, "right corridor balances two school character sprites")
 	_runner.assert_true(scene.do_school_characters_match_background_tint(), "school characters share the corridor background tint")
-	_runner.assert_true(scene.do_school_characters_match_player_scale(), "school characters use the same x2 scale as the player")
+	_runner.assert_true(scene.do_school_characters_match_player_scale(), "school characters use the same configured scale as the player")
 	_runner.assert_true(scene.is_left_school_character_group_visible(), "left school character group starts visible")
 	_runner.assert_false(scene.is_right_school_character_group_visible(), "right school character group starts hidden")
 	_runner.assert_true(scene.is_talk_target_visible(), "left room starts with the talk target visible")

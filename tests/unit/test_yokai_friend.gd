@@ -54,11 +54,22 @@ func test_damage_ignored_while_stunned() -> void:
 	f.free()
 
 
+func test_visual_uses_baseball_captain_sprite_instead_of_placeholder() -> void:
+	var f = FriendScene.instantiate()
+	var snapshot: Dictionary = f.call("get_visual_snapshot")
+	_runner.assert_true(bool(snapshot["has_sprite"]), "요괴 친구는 실제 야구부 주장 스프라이트를 가진다")
+	_runner.assert_eq(snapshot["texture_path"], "res://assets/characters/school/baseball_captain.png", "온보딩 정화 대상은 야구부 주장 에셋을 사용한다")
+	_runner.assert_eq(snapshot["frame_count"], 6, "야구부 주장 에셋은 6프레임으로 분할된다")
+	_runner.assert_true(bool(snapshot["sprite_visible"]), "정화 대상 스프라이트는 보인다")
+	_runner.assert_false(bool(snapshot["placeholder_visible"]), "임시 네모 placeholder는 숨긴다")
+	f.free()
+
+
 func test_hit_reaction_blocks_repeat_stun_accumulation_and_restores_visual() -> void:
 	var f = FriendScene.instantiate()
 	f.max_stun = 2
 	add_child(f)
-	var visual := f.get_node("Placeholder") as CanvasItem
+	var visual := f.get_node("Sprite") as CanvasItem
 	var base_modulate := visual.modulate
 	f.take_damage(1)
 	_runner.assert_true(f.has_method("is_hit_invulnerable"), "요괴 친구는 피격 무적 질의 API를 노출한다")
