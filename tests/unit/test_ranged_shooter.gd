@@ -96,6 +96,33 @@ func test_fires_on_interval() -> void:
 	e.free()
 
 
+func test_spawn_fade_blocks_fire_and_restores_visual() -> void:
+	var e = RangedShooterScene.instantiate()
+	add_child(e)
+	var shots: Array[Vector2] = []
+	e.fired.connect(func(_origin, dir): shots.append(dir))
+	var visual := e.get_node("Placeholder") as CanvasItem
+	var base_modulate := visual.modulate
+
+	_runner.assert_true(e.has_method("start_spawn_fade"), "원거리 적은 등장 페이드 API를 노출한다")
+	_runner.assert_true(e.has_method("is_spawn_protected"), "원거리 적은 등장 보호 상태를 노출한다")
+	_runner.assert_true(e.has_method("tick_spawn_fade"), "원거리 적은 등장 페이드 tick API를 노출한다")
+	if not e.has_method("start_spawn_fade") or not e.has_method("is_spawn_protected") or not e.has_method("tick_spawn_fade"):
+		return
+
+	e.call("start_spawn_fade", 0.2)
+	var fired_while_spawning: bool = e.tick_fire(e.fire_interval, Vector2.ZERO, Vector2(0.0, 100.0))
+	_runner.assert_false(fired_while_spawning, "등장 중 원거리 적은 발사하지 않는다")
+	_runner.assert_eq(shots.size(), 0, "등장 중 fired 신호 없음")
+	_runner.assert_true(visual.modulate.a < base_modulate.a, "등장 시작 시 시각 요소가 투명해진다")
+
+	e.call("tick_spawn_fade", 0.25)
+	_runner.assert_false(e.call("is_spawn_protected"), "등장 페이드가 끝나면 보호가 해제된다")
+	_runner.assert_eq(visual.modulate, base_modulate, "등장 페이드 종료 후 원래 시각 상태로 복구")
+	var fired_after_spawn: bool = e.tick_fire(e.fire_interval, Vector2.ZERO, Vector2(0.0, 100.0))
+	_runner.assert_true(fired_after_spawn, "보호 종료 후 원거리 적은 정상 발사한다")
+
+
 func test_dies_after_max_hp_damage() -> void:
 	var e = RangedShooterScene.instantiate()
 	add_child(e)  # _ready → _hp = max_hp(2)

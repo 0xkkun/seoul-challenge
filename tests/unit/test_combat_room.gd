@@ -62,11 +62,14 @@ func test_combat_room_spawns_and_bounds_enemies_inside_play_area() -> void:
 		_runner.assert_not_null(enemy_node, "combat enemy is a Node2D")
 		_runner.assert_true(enemy.has_method("get_movement_bounds"), "combat enemies expose player-style movement bounds")
 		_runner.assert_true(enemy.has_method("has_movement_bounds"), "combat enemies expose movement bounds state")
+		_runner.assert_true(enemy.has_method("is_spawn_protected"), "combat enemies expose spawn protection state")
 		if enemy_node == null or not enemy.has_method("get_movement_bounds") or not enemy.has_method("has_movement_bounds"):
 			continue
 		_runner.assert_true(enemy.call("has_movement_bounds"), "combat enemy movement bounds are enabled")
 		_runner.assert_eq(enemy.call("get_movement_bounds"), expected_bounds, "combat enemy movement bounds match the current room play area")
 		_runner.assert_true(expected_bounds.has_point(enemy_node.global_position), "combat enemy starts inside the current room play area")
+		if enemy.has_method("is_spawn_protected"):
+			_runner.assert_true(enemy.call("is_spawn_protected"), "combat enemy starts in fade-in protection")
 
 
 func test_combat_room_with_no_spawn_budget_clears_on_enter() -> void:
@@ -141,7 +144,7 @@ func test_combat_room_emits_ingame_rewards_for_enemy_defeats_and_clear() -> void
 	_runner.assert_eq(CurrencySystem.get_ingame(), 7, "four enemy defeats plus combat clear reward ingame currency")
 
 
-func test_combat_room_spawns_later_waves_before_clear() -> void:
+func test_combat_room_spawns_full_encounter_on_enter_even_when_wave_count_configured() -> void:
 	var room := _instantiate_combat_room()
 	if room == null:
 		return
@@ -159,16 +162,11 @@ func test_combat_room_spawns_later_waves_before_clear() -> void:
 	var summary: Dictionary = room.call("get_encounter_summary")
 	_runner.assert_eq(summary["total_count"], 6, "wave encounter budget includes all enemies")
 	_runner.assert_eq(summary["wave_count"], 2, "wave encounter keeps authored wave count")
-	_runner.assert_eq(room.call("get_remaining_enemy_count"), 3, "first wave spawns half of the encounter")
+	_runner.assert_eq(room.call("get_remaining_enemy_count"), 6, "combat room spawns the full encounter on enter")
 
 	_defeat_active_enemies(room)
 
-	_runner.assert_false(room.call("is_cleared"), "combat waits for the next wave before clearing")
-	_runner.assert_eq(room.call("get_remaining_enemy_count"), 3, "second wave spawns when the first wave is defeated")
-
-	_defeat_active_enemies(room)
-
-	_runner.assert_true(room.call("is_cleared"), "combat clears after the final wave")
+	_runner.assert_true(room.call("is_cleared"), "combat clears after every initially spawned enemy is defeated")
 	_runner.assert_eq(room.call("get_remaining_enemy_count"), 0, "final wave leaves no active enemies")
 	_runner.assert_eq(CurrencySystem.get_ingame(), 9, "six enemy defeats plus combat clear reward ingame currency")
 

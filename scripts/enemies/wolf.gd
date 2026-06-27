@@ -3,6 +3,7 @@ extends CharacterBody2D
 
 const HitReactionController = preload("res://scripts/combat/hit_reaction_controller.gd")
 const StatusEffectController = preload("res://scripts/combat/status_effect_controller.gd")
+const SpawnFadeController = preload("res://scripts/combat/spawn_fade_controller.gd")
 const EnemyDeathFade = preload("res://scripts/combat/enemy_death_fade.gd")
 const EnemyHealthBar = preload("res://scripts/enemies/enemy_health_bar.gd")
 const FACING_DEADZONE := 0.01
@@ -25,6 +26,7 @@ signal defeated(enemy)
 @export var attack_animation: StringName = &"attack"
 @export var health_bar_width: float = 40.0
 @export var health_bar_height: float = 4.0
+@export var spawn_fade_time: float = 0.35
 
 var _hp: int = 0
 var _dead := false
@@ -34,6 +36,7 @@ var _dash_direction := Vector2.RIGHT
 var _dash_hit_targets := {}
 var _hit_reaction: Node = null
 var _status_effects: Node = null
+var _spawn_fade: Node = null
 var _health_bar: RefCounted = null
 var _movement_bounds := Rect2()
 var _movement_bounds_enabled := false
@@ -45,12 +48,20 @@ func _ready() -> void:
 	add_to_group(&"enemy")
 	_ensure_hit_reaction()
 	_ensure_status_effects()
+	_ensure_spawn_fade()
 	_reset_health_bar()
 
 
 func _physics_process(delta: float) -> void:
 	tick_hit_reaction(delta)
 	tick_status_effects(delta)
+	tick_spawn_fade(delta)
+	if is_spawn_protected():
+		velocity = Vector2.ZERO
+		move_and_slide()
+		clamp_to_movement_bounds()
+		_update_animation()
+		return
 	var target := _find_target()
 	if target == null:
 		velocity = Vector2.ZERO
@@ -234,6 +245,29 @@ func _ensure_status_effects() -> Node:
 	return _status_effects
 
 
+func start_spawn_fade(duration: float = -1.0) -> void:
+	var fade_duration := spawn_fade_time if duration < 0.0 else duration
+	_ensure_spawn_fade().call("start", fade_duration, _get_visual())
+
+
+func tick_spawn_fade(delta: float) -> void:
+	_ensure_spawn_fade().call("tick", delta)
+
+
+func is_spawn_protected() -> bool:
+	return bool(_ensure_spawn_fade().call("is_active"))
+
+
+func _ensure_spawn_fade() -> Node:
+	if _spawn_fade != null and is_instance_valid(_spawn_fade):
+		return _spawn_fade
+	_spawn_fade = SpawnFadeController.new()
+	_spawn_fade.name = "SpawnFade"
+	add_child(_spawn_fade)
+	_spawn_fade.call("bind_visual", _get_visual())
+	return _spawn_fade
+
+
 func take_damage(amount: int) -> void:
 	if _dead or is_hit_invulnerable():
 		return
@@ -271,6 +305,8 @@ func _find_target() -> Node2D:
 
 func _try_dash_hit(target: Node2D) -> void:
 	if _dash_state != &"dash" or target == null:
+		return
+	if is_spawn_protected():
 		return
 	if is_status_action_blocked():
 		return

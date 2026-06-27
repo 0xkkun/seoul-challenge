@@ -10,6 +10,7 @@ signal fired(origin: Vector2, direction: Vector2)
 
 const HitReactionController = preload("res://scripts/combat/hit_reaction_controller.gd")
 const StatusEffectController = preload("res://scripts/combat/status_effect_controller.gd")
+const SpawnFadeController = preload("res://scripts/combat/spawn_fade_controller.gd")
 const EnemyDeathFade = preload("res://scripts/combat/enemy_death_fade.gd")
 const EnemyHealthBar = preload("res://scripts/enemies/enemy_health_bar.gd")
 const ENEMY_BULLET := preload("res://scenes/enemies/enemy_bullet.tscn")
@@ -27,12 +28,14 @@ const FACING_DEADZONE := 0.01
 @export var attack_animation: StringName = &"attack"
 @export var health_bar_width: float = 36.0
 @export var health_bar_height: float = 4.0
+@export var spawn_fade_time: float = 0.35
 
 var _hp: int = 0
 var _fire_timer: float = 0.0
 var _dead := false
 var _hit_reaction: Node = null
 var _status_effects: Node = null
+var _spawn_fade: Node = null
 var _health_bar: RefCounted = null
 var _movement_bounds := Rect2()
 var _movement_bounds_enabled := false
@@ -45,6 +48,7 @@ func _ready() -> void:
 	add_to_group(&"enemy")
 	_ensure_hit_reaction()
 	_ensure_status_effects()
+	_ensure_spawn_fade()
 	_reset_health_bar()
 	fired.connect(_spawn_bullet)
 
@@ -52,6 +56,13 @@ func _ready() -> void:
 func _physics_process(delta: float) -> void:
 	tick_hit_reaction(delta)
 	tick_status_effects(delta)
+	tick_spawn_fade(delta)
+	if is_spawn_protected():
+		velocity = Vector2.ZERO
+		move_and_slide()
+		clamp_to_movement_bounds()
+		_update_animation()
+		return
 	var target := _find_target()
 	if target == null:
 		return
@@ -244,8 +255,35 @@ func _ensure_status_effects() -> Node:
 	return _status_effects
 
 
+# --- 등장 페이드 / 스폰 보호 ---
+
+func start_spawn_fade(duration: float = -1.0) -> void:
+	var fade_duration := spawn_fade_time if duration < 0.0 else duration
+	_ensure_spawn_fade().call("start", fade_duration, _get_visual())
+
+
+func tick_spawn_fade(delta: float) -> void:
+	_ensure_spawn_fade().call("tick", delta)
+
+
+func is_spawn_protected() -> bool:
+	return bool(_ensure_spawn_fade().call("is_active"))
+
+
+func _ensure_spawn_fade() -> Node:
+	if _spawn_fade != null and is_instance_valid(_spawn_fade):
+		return _spawn_fade
+	_spawn_fade = SpawnFadeController.new()
+	_spawn_fade.name = "SpawnFade"
+	add_child(_spawn_fade)
+	_spawn_fade.call("bind_visual", _get_visual())
+	return _spawn_fade
+
+
 ## 발사 쿨다운을 진행하고, 준비되면 fired 를 방출하고 타이머를 리셋한다. 발사했으면 true.
 func tick_fire(delta: float, origin: Vector2, target_position: Vector2) -> bool:
+	if is_spawn_protected():
+		return false
 	_fire_timer = step_fire_cooldown(_fire_timer, delta)
 	if not is_ready_to_fire(_fire_timer):
 		return false
