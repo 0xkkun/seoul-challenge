@@ -83,6 +83,10 @@ func test_open_door_builds_five_frame_sprite_portal() -> void:
 	_runner.assert_eq(portal_sprite.vframes, 1, "portal sprite sheet has one row")
 	_runner.assert_eq(portal_sprite.texture_filter, CanvasItem.TEXTURE_FILTER_NEAREST, "portal keeps pixel edges crisp")
 	_runner.assert_true(portal_sprite.frame >= 0 and portal_sprite.frame < 5, "portal starts on a valid animation frame")
+	_runner.assert_true(portal_sprite.scale.x >= 1.1 and portal_sprite.scale.y >= 1.1, "portal sprite is enlarged for mobile readability")
+	var average_color := _average_opaque_texture_color(portal_sprite.texture)
+	_runner.assert_true(average_color.r > average_color.b * 1.6, "portal texture is warm gold instead of blue")
+	_runner.assert_true(average_color.g > average_color.b * 1.1, "portal texture keeps a yellow highlight")
 	_runner.assert_true(portal_visual.get_node_or_null("PortalColumn") == null, "procedural light column is removed")
 	_runner.assert_true(portal_visual.get_node_or_null("PortalGroundGlow") == null, "procedural ground flare is removed")
 	_runner.assert_true(portal_visual.get_node_or_null("PortalStreaks") == null, "procedural streaks are removed")
@@ -174,3 +178,25 @@ func _create_door(door_dir: StringName) -> RoomDoor:
 
 	add_child(door)
 	return door
+
+
+func _average_opaque_texture_color(texture: Texture2D) -> Color:
+	if texture == null:
+		return Color.BLACK
+	var image := texture.get_image()
+	if image == null:
+		return Color.BLACK
+	var total := Color.BLACK
+	var count := 0
+	for y: int in range(image.get_height()):
+		for x: int in range(image.get_width()):
+			var color := image.get_pixel(x, y)
+			if color.a <= 0.2:
+				continue
+			total.r += color.r
+			total.g += color.g
+			total.b += color.b
+			count += 1
+	if count <= 0:
+		return Color.BLACK
+	return Color(total.r / float(count), total.g / float(count), total.b / float(count), 1.0)

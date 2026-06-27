@@ -5,7 +5,7 @@ const RoomPalette = preload("res://scripts/constants/room_palette.gd")
 const PORTAL_TEXTURE = preload("res://assets/effects/portal.png")
 const PORTAL_FRAME_COUNT := 5
 const PORTAL_FRAME_TIME := 0.08
-const PORTAL_DISPLAY_SCALE := Vector2(0.78, 0.78)
+const PORTAL_DISPLAY_SCALE := Vector2(1.12, 1.12)
 
 signal state_changed(door_dir: StringName, state: int)
 signal transition_requested(door_dir: StringName)
