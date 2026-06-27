@@ -4,9 +4,10 @@ extends CanvasLayer
 ## 무기 슬롯은 후속 이슈를 위한 placeholder stub 이다.
 class_name CombatHud
 
-const HEART_FILLED_COLOR := Color(0.86, 0.22, 0.27)
-const HEART_EMPTY_COLOR := Color(0.25, 0.25, 0.28)
-const HEART_SIZE := Vector2(22, 22)
+const HEART_TEXTURE := preload("res://assets/ui/icons/combat/hp_heart.png")
+const HEART_FILLED_MODULATE := Color(1.0, 1.0, 1.0, 1.0)
+const HEART_EMPTY_MODULATE := Color(0.35, 0.35, 0.38, 0.55)
+const HEART_SIZE := Vector2(28, 28)
 const WEAPON_SLOT_STUB_TEXT := "기억 무기: 준비 중"
 const SKILL_SLOT_STUB_TEXT := "회피: 준비 중"
 const MobileSafeArea := preload("res://scripts/ui/mobile_safe_area.gd")
@@ -56,8 +57,8 @@ func get_max_health() -> int:
 
 func get_filled_heart_count() -> int:
 	var filled := 0
-	for heart: ColorRect in _hearts.get_children():
-		if heart.color == HEART_FILLED_COLOR:
+	for heart in _hearts.get_children():
+		if bool(heart.get_meta(&"filled", false)):
 			filled += 1
 	return filled
 
@@ -108,12 +109,17 @@ func _render_hearts() -> void:
 		_hearts.remove_child(extra)
 		extra.free()
 	while _hearts.get_child_count() < _max_health:
-		var heart := ColorRect.new()
+		var heart := TextureRect.new()
 		heart.custom_minimum_size = HEART_SIZE
+		heart.texture = HEART_TEXTURE
+		heart.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		heart.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		_hearts.add_child(heart)
 	for index in _hearts.get_child_count():
-		var heart := _hearts.get_child(index) as ColorRect
-		heart.color = HEART_FILLED_COLOR if index < _current_health else HEART_EMPTY_COLOR
+		var heart := _hearts.get_child(index) as TextureRect
+		var filled := index < _current_health
+		heart.set_meta(&"filled", filled)
+		heart.modulate = HEART_FILLED_MODULATE if filled else HEART_EMPTY_MODULATE
 
 
 func _skill_display_name(skill_id: StringName) -> String:

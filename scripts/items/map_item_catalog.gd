@@ -25,7 +25,6 @@ const ITEMS := {
 		"flavor": "푸른 불씨가 공격 타이밍을 앞당긴다.",
 		"modifiers": {
 			"attack_cooldown_mult": 0.84,
-			"fire_cooldown_mult": 0.84,
 		},
 	},
 	&"wind_step": {
@@ -84,7 +83,6 @@ const _BASE_MODIFIERS := {
 	"move_speed_mult": 1.0,
 	"bat_knockback_mult": 1.0,
 	"attack_cooldown_mult": 1.0,
-	"fire_cooldown_mult": 1.0,
 }
 
 const _EFFECT_ORDER := [
@@ -98,7 +96,6 @@ const _EFFECT_ORDER := [
 	"move_speed_mult",
 	"bat_knockback_mult",
 	"attack_cooldown_mult",
-	"fire_cooldown_mult",
 ]
 
 
@@ -229,8 +226,6 @@ static func _modifier_effect_text(modifier_key: String, value: Variant) -> Strin
 			return _signed_multiplier_effect("배트 넉백", float(value))
 		"attack_cooldown_mult":
 			return _cooldown_multiplier_as_speed_effect("근접 공격 속도", float(value))
-		"fire_cooldown_mult":
-			return _cooldown_multiplier_as_speed_effect("투척 속도", float(value))
 	return ""
 
 

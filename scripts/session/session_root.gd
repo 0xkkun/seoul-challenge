@@ -22,6 +22,7 @@ const QUIT_GAME_MESSAGE := "게임을 종료할까요?"
 const LEGACY_REMOVED_WEAPON_ID := &"baseball"
 const WEAPON_BAT := &"bat"
 const COMBAT_FEEDBACK_RECOVER_TIME := 0.10
+const COMBAT_FEEDBACK_SHAKE_STEP_TIME := 0.035
 const COMBAT_FEEDBACK_MAX_OFFSET := 7.0
 const ROOM_ENTRY_SPAWN_INSET := Vector2(140.0, 96.0)
 const TOP_LEFT_HUD_GAP := 8.0
@@ -41,6 +42,7 @@ const REWARD_CHOICE_DELAY_SECONDS := 1.0
 @onready var touch_controls: Node = %TouchControls
 @onready var combat_hud: CanvasLayer = %CombatHud
 @onready var session_ui_root: CanvasLayer = %SessionUIRoot
+@onready var ingame_control_onboarding: CanvasLayer = %IngameControlOnboarding
 @onready var player_camera: Camera2D = %PlayerCamera
 @onready var _fade_rect: ColorRect = $FadeLayer/FadeRect
 @onready var _minimap: Control = $MinimapLayer/Minimap
@@ -48,6 +50,7 @@ const REWARD_CHOICE_DELAY_SECONDS := 1.0
 
 var completed_interactions := 0
 var return_to_school_callable: Callable
+var return_to_lobby_callable: Callable
 var retry_session_callable: Callable
 var quit_game_callable: Callable
 var _handoff_session_on_exit := false
@@ -78,6 +81,7 @@ func _ready() -> void:
 	PoolManager.register_scene(&"sample_marker", POOLED_MARKER_SCENE, 1, pooled_object_layer)
 	interaction_system.configure(actor, self)
 	_configure_player_camera()
+	_configure_ingame_control_onboarding()
 	death_return_controller.death_result_builder_callable = Callable(self, "_build_death_result")
 	death_return_controller.game_over_callable = Callable(self, "_show_death_summary")
 	_connect_progression_events()
@@ -123,6 +127,17 @@ func _keep_combat_health_below_map_tab() -> void:
 		return
 	health_panel.offset_top = target_top
 	health_panel.offset_bottom = target_top + health_height
+
+
+func _configure_ingame_control_onboarding() -> void:
+	if ingame_control_onboarding == null:
+		return
+	if ingame_control_onboarding.has_method("configure"):
+		ingame_control_onboarding.call("configure", touch_controls, player_camera, actor)
+	if _is_baseball_onboarding_run() and ingame_control_onboarding.has_method("start"):
+		ingame_control_onboarding.call("start")
+	else:
+		ingame_control_onboarding.visible = false
 
 
 func _exit_tree() -> void:
@@ -226,7 +241,16 @@ func _make_room_def(
 
 func _is_baseball_onboarding_run() -> bool:
 	var config := GameManager.get_active_config()
-	return StringName(config.get(SceneTransition.RUN_CONFIG_ONBOARDING_KIND, &"")) == SceneTransition.ONBOARDING_KIND_BASEBALL_CAPTAIN
+	var is_onboarding_config := StringName(config.get(SceneTransition.RUN_CONFIG_ONBOARDING_KIND, &"")) == SceneTransition.ONBOARDING_KIND_BASEBALL_CAPTAIN
+	if not is_onboarding_config:
+		return false
+	# Fallback guard: once the baseball onboarding is recorded complete, never treat a run
+	# as onboarding again — even if a stale active config still carries the onboarding kind
+	# (e.g. retrying from the result screen reuses the previous config). Without this the
+	# captain re-spawns and the onboarding can be re-cleared after it was already finished.
+	if has_node("/root/SaveManager") and SaveManager.get_flag(SceneTransition.FLAG_ONBOARDING_BASEBALL_COMPLETE):
+		return false
+	return true
 
 
 func _resolve_run_layout_seed() -> int:
@@ -428,8 +452,9 @@ func _on_combat_feedback(payload: Dictionary) -> void:
 	if raw_direction is Vector2:
 		direction = raw_direction
 	var intensity := float(payload.get("intensity", 2.0))
-	player_camera.offset = camera_feedback_offset(direction, intensity)
-	_start_camera_feedback_recover()
+	var offsets := camera_feedback_shake_offsets(direction, intensity)
+	player_camera.offset = offsets[0]
+	_start_camera_feedback_recover(offsets)
 
 
 func _on_room_cleared_for_reward(payload: Dictionary) -> void:
@@ -544,6 +569,8 @@ func _show_room_reward_choices(room_id: StringName) -> void:
 	_release_combat_touch_inputs()
 	_hide_touch_controls_for_reward_choice()
 	get_tree().paused = true
+	if session_ui_root.has_method("set_reward_choice_onboarding_hint"):
+		session_ui_root.call("set_reward_choice_onboarding_hint", _should_show_reward_choice_onboarding(room_id))
 	session_ui_root.call("show_reward_choices", room_id, choices)
 	session_ui_root.set_status("전투 보상")
 
@@ -559,6 +586,8 @@ func _on_reward_choice_selected(item_id: StringName) -> void:
 		applied = bool(actor.call("apply_run_modifier", item_id))
 	if session_ui_root.has_method("hide_reward_choices"):
 		session_ui_root.call("hide_reward_choices")
+	if session_ui_root.has_method("set_reward_choice_onboarding_hint"):
+		session_ui_root.call("set_reward_choice_onboarding_hint", false)
 	get_tree().paused = _paused_before_reward_choice
 	_restore_touch_controls_after_reward_choice()
 	_reset_current_room_door_transition_latches()
@@ -572,6 +601,10 @@ func _on_reward_choice_selected(item_id: StringName) -> void:
 			"item_display_name": MapItemCatalog.get_display_name(item_id),
 			"applied": applied,
 		})
+
+
+func _should_show_reward_choice_onboarding(room_id: StringName) -> bool:
+	return _is_baseball_onboarding_run() and room_id == &"combat_1"
 
 
 func _build_reward_choice_models(room_id: StringName) -> Array[Dictionary]:
@@ -635,18 +668,43 @@ func camera_feedback_offset(direction: Vector2, intensity: float) -> Vector2:
 	return -safe_direction * amount
 
 
-func _start_camera_feedback_recover() -> void:
+func camera_feedback_shake_offsets(direction: Vector2, intensity: float) -> Array:
+	var first := camera_feedback_offset(direction, intensity)
+	if first.length() <= 0.001:
+		return [Vector2.ZERO]
+	var amount := first.length()
+	var safe_direction := direction.normalized() if direction.length() > 0.001 else Vector2.RIGHT
+	var tangent := Vector2(-safe_direction.y, safe_direction.x)
+	return [
+		first,
+		safe_direction * amount * 0.55 + tangent * amount * 0.20,
+		-safe_direction * amount * 0.30,
+		Vector2.ZERO,
+	]
+
+
+func _start_camera_feedback_recover(offsets: Array = []) -> void:
 	if not is_inside_tree() or player_camera == null:
 		return
 	if _camera_feedback_tween != null and _camera_feedback_tween.is_valid():
 		_camera_feedback_tween.kill()
 	_camera_feedback_tween = create_tween()
-	_camera_feedback_tween.tween_property(
-		player_camera,
-		"offset",
-		Vector2.ZERO,
-		COMBAT_FEEDBACK_RECOVER_TIME
-	).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	if offsets.size() <= 1:
+		_camera_feedback_tween.tween_property(
+			player_camera,
+			"offset",
+			Vector2.ZERO,
+			COMBAT_FEEDBACK_RECOVER_TIME
+		).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+		return
+	for index in range(1, offsets.size()):
+		var duration := COMBAT_FEEDBACK_RECOVER_TIME if index == offsets.size() - 1 else COMBAT_FEEDBACK_SHAKE_STEP_TIME
+		_camera_feedback_tween.tween_property(
+			player_camera,
+			"offset",
+			offsets[index],
+			duration
+		).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 
 
 func _on_friend_purified(payload: Dictionary) -> void:
@@ -959,12 +1017,31 @@ func _request_abandon_run() -> void:
 
 func _abandon_run_to_school() -> void:
 	get_tree().paused = false
+	var force_lobby := _should_force_lobby_for_incomplete_onboarding_exit()
 	if has_node("/root/GameManager"):
 		GameManager.reset_session()
+	if force_lobby:
+		_return_to_lobby()
+		return
 	if return_to_school_callable.is_valid():
 		return_to_school_callable.call()
 	else:
 		SceneTransition.go_to_day_lobby()
+
+
+func _should_force_lobby_for_incomplete_onboarding_exit() -> bool:
+	if not _is_baseball_onboarding_run():
+		return false
+	if has_node("/root/SaveManager") and SaveManager.get_flag(SceneTransition.FLAG_ONBOARDING_BASEBALL_COMPLETE):
+		return false
+	return true
+
+
+func _return_to_lobby() -> void:
+	if return_to_lobby_callable.is_valid():
+		return_to_lobby_callable.call()
+	else:
+		SceneTransition.go_to_lobby()
 
 
 func _request_quit_game() -> void:

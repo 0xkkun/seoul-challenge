@@ -1,0 +1,416 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>적 사망 UX 프로토타입</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #10131b;
+      --panel: #171d27;
+      --panel-2: #202838;
+      --gold: #e9c860;
+      --gold-2: #9d7937;
+      --ink: #f3efd7;
+      --muted: #aeb8c7;
+      --red: #e15b52;
+      --cyan: #6cd7d2;
+      --ground: #3f423d;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+      letter-spacing: 0;
+    }
+
+    main {
+      width: min(1120px, calc(100vw - 32px));
+      margin: 0 auto;
+      padding: 28px 0;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 320px;
+      gap: 16px;
+      align-items: stretch;
+    }
+
+    .stage {
+      position: relative;
+      min-height: 620px;
+      border: 2px solid #2e3442;
+      border-radius: 8px;
+      overflow: hidden;
+      background:
+        linear-gradient(#131927 0 0) padding-box,
+        linear-gradient(90deg, var(--gold-2), #4f6070) border-box;
+    }
+
+    .stage::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        linear-gradient(to bottom, rgba(10, 14, 24, 0.2), rgba(5, 7, 10, 0.5)),
+        repeating-linear-gradient(0deg, rgba(255,255,255,0.02) 0 1px, transparent 1px 4px);
+      pointer-events: none;
+    }
+
+    .room {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      padding-top: 56px;
+    }
+
+    .floor {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      height: 174px;
+      background:
+        linear-gradient(to bottom, transparent 0 12px, rgba(0,0,0,0.28) 12px),
+        repeating-linear-gradient(90deg, #30372f 0 52px, #353c35 52px 104px);
+      border-top: 2px solid #59604e;
+    }
+
+    .focus {
+      position: relative;
+      width: 520px;
+      height: 430px;
+      transform: translateY(58px);
+    }
+
+    .shadow {
+      position: absolute;
+      left: 50%;
+      bottom: 100px;
+      width: 138px;
+      height: 20px;
+      border-radius: 50%;
+      transform: translateX(-50%);
+      background: rgba(0, 0, 0, 0.42);
+      filter: blur(2px);
+      animation: shadowPulse 1800ms ease-out infinite;
+    }
+
+    .monster {
+      position: absolute;
+      left: calc(50% - 72px);
+      bottom: 105px;
+      width: 144px;
+      height: 144px;
+      image-rendering: pixelated;
+      background-image: url("../../assets/sprites/enemies/wolf/wolf_move.png");
+      background-size: 500% 100%;
+      background-position: 0 0;
+      animation:
+        wolfIdle 800ms steps(5) infinite,
+        deathLift 1800ms cubic-bezier(.2, .9, .2, 1) infinite;
+      transform-origin: 50% 100%;
+      filter: drop-shadow(0 6px 0 rgba(0,0,0,0.18));
+    }
+
+    .death-fx {
+      position: absolute;
+      left: calc(50% - 64px);
+      bottom: 94px;
+      width: 128px;
+      height: 128px;
+      image-rendering: pixelated;
+      background-image: url("../../assets/effects/enemy_death.png");
+      background-size: 1200% 100%;
+      background-position: 0 0;
+      opacity: 0;
+      transform-origin: 50% 100%;
+      animation:
+        deathSheet 1800ms steps(12) infinite,
+        deathFxAlpha 1800ms linear infinite;
+    }
+
+    .impact {
+      position: absolute;
+      left: 50%;
+      bottom: 178px;
+      width: 150px;
+      height: 44px;
+      transform: translateX(-50%);
+      opacity: 0;
+      animation: impactSnap 1800ms linear infinite;
+    }
+
+    .impact span {
+      position: absolute;
+      top: 50%;
+      width: 58px;
+      height: 4px;
+      background: var(--gold);
+      box-shadow: 0 0 10px rgba(233, 200, 96, 0.75);
+    }
+
+    .impact span:first-child {
+      left: 0;
+      transform: rotate(12deg);
+    }
+
+    .impact span:last-child {
+      right: 0;
+      transform: rotate(-12deg);
+    }
+
+    .motif {
+      position: absolute;
+      left: calc(50% - 105px);
+      bottom: 136px;
+      width: 210px;
+      height: 118px;
+      pointer-events: none;
+      opacity: 0;
+      animation: soulLift 1800ms ease-out infinite;
+    }
+
+    .motif i {
+      position: absolute;
+      width: 8px;
+      height: 8px;
+      border-radius: 2px;
+      background: var(--cyan);
+      box-shadow: 0 0 10px rgba(108, 215, 210, 0.85);
+    }
+
+    .motif i:nth-child(1) { left: 38px; top: 76px; }
+    .motif i:nth-child(2) { left: 96px; top: 34px; }
+    .motif i:nth-child(3) { right: 42px; top: 88px; }
+
+    .hud {
+      position: absolute;
+      left: 24px;
+      top: 22px;
+      right: 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .label {
+      min-width: 0;
+      padding: 8px 12px;
+      border: 1px solid #384051;
+      border-radius: 6px;
+      background: rgba(13, 18, 28, 0.82);
+      font-size: 14px;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+
+    button {
+      appearance: none;
+      border: 1px solid var(--gold-2);
+      border-radius: 6px;
+      background: #243149;
+      color: var(--ink);
+      min-height: 40px;
+      padding: 0 16px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    button:hover {
+      border-color: var(--gold);
+      background: #2b3a57;
+    }
+
+    .side {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .card {
+      border: 1px solid #303849;
+      border-radius: 8px;
+      background: var(--panel);
+      padding: 16px;
+    }
+
+    h1, h2 {
+      margin: 0;
+      line-height: 1.25;
+    }
+
+    h1 {
+      font-size: 22px;
+      color: var(--gold);
+    }
+
+    h2 {
+      font-size: 15px;
+      color: var(--ink);
+      margin-bottom: 10px;
+    }
+
+    p {
+      margin: 8px 0 0;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.55;
+    }
+
+    ol {
+      margin: 0;
+      padding-left: 20px;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.7;
+    }
+
+    .chip-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .chip {
+      border: 1px solid #3c4659;
+      border-radius: 999px;
+      padding: 6px 10px;
+      background: var(--panel-2);
+      color: var(--ink);
+      font-size: 12px;
+    }
+
+    .play .monster,
+    .play .death-fx,
+    .play .impact,
+    .play .motif,
+    .play .shadow {
+      animation-play-state: running;
+    }
+
+    @keyframes wolfIdle {
+      from { background-position-x: 0%; }
+      to { background-position-x: -500%; }
+    }
+
+    @keyframes deathLift {
+      0%, 12% { opacity: 1; transform: translateY(0) scale(1); filter: brightness(1) drop-shadow(0 6px 0 rgba(0,0,0,0.18)); }
+      18% { opacity: 1; transform: translateY(0) scale(1); filter: brightness(1.65) drop-shadow(0 6px 0 rgba(0,0,0,0.18)); }
+      34% { opacity: 0.86; transform: translateY(-18px) scale(1); }
+      58% { opacity: 0; transform: translateY(-34px) scale(1); }
+      100% { opacity: 0; transform: translateY(-34px) scale(1); }
+    }
+
+    @keyframes deathSheet {
+      0%, 13% { background-position-x: 0%; }
+      64%, 100% { background-position-x: -1200%; }
+    }
+
+    @keyframes deathFxAlpha {
+      0%, 11% { opacity: 0; transform: scale(1); }
+      14% { opacity: 1; transform: scale(1); }
+      66% { opacity: 1; transform: scale(1); }
+      78%, 100% { opacity: 0; transform: scale(1); }
+    }
+
+    @keyframes impactSnap {
+      0%, 12% { opacity: 0; transform: translateX(-50%) scaleX(0.2); }
+      15% { opacity: 1; transform: translateX(-50%) scaleX(1); }
+      28%, 100% { opacity: 0; transform: translateX(-50%) scaleX(1.12); }
+    }
+
+    @keyframes soulLift {
+      0%, 20% { opacity: 0; transform: translateY(0); }
+      32% { opacity: 1; }
+      74% { opacity: 0; transform: translateY(-50px); }
+      100% { opacity: 0; transform: translateY(-50px); }
+    }
+
+    @keyframes shadowPulse {
+      0%, 12% { opacity: 1; transform: translateX(-50%) scaleX(1); }
+      42% { opacity: 0.55; transform: translateX(-50%) scaleX(0.74); }
+      70%, 100% { opacity: 0; transform: translateX(-50%) scaleX(0.64); }
+    }
+
+    @media (max-width: 860px) {
+      main {
+        grid-template-columns: 1fr;
+      }
+
+      .stage {
+        min-height: 520px;
+      }
+
+      .focus {
+        transform: translateY(42px) scale(0.86);
+      }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <section class="stage play" id="stage" aria-label="적 사망 연출 프로토타입">
+      <div class="hud">
+        <div class="label">제안: 짜부 없음 · 발 위치 이펙트 고정 · 몬스터 잔상 페이드</div>
+        <button type="button" id="replay">다시 보기</button>
+      </div>
+      <div class="room">
+        <div class="focus">
+          <div class="shadow"></div>
+          <div class="death-fx"></div>
+          <div class="monster"></div>
+          <div class="impact"><span></span><span></span></div>
+          <div class="motif"><i></i><i></i><i></i></div>
+        </div>
+      </div>
+      <div class="floor"></div>
+    </section>
+
+    <aside class="side">
+      <section class="card">
+        <h1>적 사망 UX</h1>
+        <p>몬스터를 납작하게 누르지 않고, 사망 순간을 읽을 수 있는 짧은 잔상과 발 위치 이펙트로 정리한 안입니다.</p>
+        <div class="chip-row">
+          <span class="chip">scale 왜곡 없음</span>
+          <span class="chip">0.6초 내 종료</span>
+          <span class="chip">발 위치 고정</span>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>타임라인</h2>
+        <ol>
+          <li>피격 순간: 사망 이펙트와 몬스터 밝기 변화로 타이밍 표시</li>
+          <li>0.15초: 사망 PNG가 발 위치에서 재생</li>
+          <li>0.25초: 몬스터는 원본 비율로 살짝 떠오름</li>
+          <li>0.55초: 몬스터 잔상만 사라지고 이펙트 종료</li>
+        </ol>
+      </section>
+
+      <section class="card">
+        <h2>게임 적용 시 계약</h2>
+        <p>현재 `SquashVisual` 대신 `CapturedMonsterGhost`로 이름을 바꾸고, `scale`은 `Vector2.ONE` 유지, `modulate.a`와 `position.y`만 애니메이션하는 방식이 좋습니다.</p>
+      </section>
+    </aside>
+  </main>
+
+  <script>
+    const stage = document.getElementById("stage");
+    document.getElementById("replay").addEventListener("click", () => {
+      stage.classList.remove("play");
+      void stage.offsetWidth;
+      stage.classList.add("play");
+    });
+  </script>
+</body>
+</html>

@@ -34,6 +34,13 @@ func test_chase_zero_on_same_position() -> void:
 	e.free()
 
 
+func test_chase_stops_inside_contact_range() -> void:
+	var e = ChaserScene.instantiate()
+	var v: Vector2 = e.chase_velocity(Vector2.ZERO, Vector2.RIGHT * 20.0, 50.0, 28.0)
+	_runner.assert_eq(v, Vector2.ZERO, "접촉 거리 안에서는 플레이어 중심으로 계속 파고들지 않는다")
+	e.free()
+
+
 func test_dies_after_max_hp_damage() -> void:
 	var e = ChaserScene.instantiate()
 	add_child(e)  # _ready → _hp = max_hp(3)

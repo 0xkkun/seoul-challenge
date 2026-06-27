@@ -2,6 +2,8 @@ extends CanvasLayer
 ## 모바일 터치 컨트롤(#52) — 좌하단 가상 조이스틱 + 장면 조작 범주별 우측 액션 버튼.
 ## 플레이어가 get_move() / is_attack_pressed() 로 읽는다.
 
+signal skill_pressed
+
 const CONTROL_CATEGORY_COMBAT := "combat"
 const CONTROL_CATEGORY_DAY_DIALOGUE := "day_dialogue"
 const MobileSafeArea := preload("res://scripts/ui/mobile_safe_area.gd")
@@ -22,6 +24,7 @@ var _control_category := CONTROL_CATEGORY_COMBAT
 func _ready() -> void:
 	_apply_landscape_safe_area()
 	_apply_control_category()
+	_connect_skill_button_events()
 	if not visibility_changed.is_connected(_on_visibility_changed):
 		visibility_changed.connect(_on_visibility_changed)
 	if has_node("/root/EventBus") and not EventBus.special_skill_state_changed.is_connected(set_skill_state):
@@ -102,6 +105,20 @@ func _apply_control_category() -> void:
 	_sync_input_processing()
 	if not is_combat and _skill.has_method("release"):
 		_skill.call("release")
+
+
+func _connect_skill_button_events() -> void:
+	if _skill == null or not _skill.has_signal("skill_pressed"):
+		return
+	var callback := Callable(self, "_on_skill_button_pressed")
+	if not _skill.is_connected("skill_pressed", callback):
+		_skill.connect("skill_pressed", callback)
+
+
+func _on_skill_button_pressed() -> void:
+	if not visible or _control_category != CONTROL_CATEGORY_COMBAT:
+		return
+	skill_pressed.emit()
 
 
 func _are_controls_ready() -> bool:

@@ -1,0 +1,177 @@
+[gd_resource type="SpriteFrames" load_steps=26 format=3]
+
+[ext_resource type="Texture2D" path="res://assets/sprites/enemies/boss/boss_move.png" id="1_move"]
+[ext_resource type="Texture2D" path="res://assets/sprites/enemies/boss/boss_weak_attack.png" id="2_weak"]
+[ext_resource type="Texture2D" path="res://assets/sprites/enemies/boss/boss_strong_attack.png" id="3_strong"]
+
+[sub_resource type="AtlasTexture" id="move0"]
+atlas = ExtResource("1_move")
+region = Rect2(0, 0, 200, 160)
+
+[sub_resource type="AtlasTexture" id="move1"]
+atlas = ExtResource("1_move")
+region = Rect2(200, 0, 200, 160)
+
+[sub_resource type="AtlasTexture" id="move2"]
+atlas = ExtResource("1_move")
+region = Rect2(400, 0, 200, 160)
+
+[sub_resource type="AtlasTexture" id="move3"]
+atlas = ExtResource("1_move")
+region = Rect2(600, 0, 200, 160)
+
+[sub_resource type="AtlasTexture" id="move4"]
+atlas = ExtResource("1_move")
+region = Rect2(800, 0, 200, 160)
+
+[sub_resource type="AtlasTexture" id="move5"]
+atlas = ExtResource("1_move")
+region = Rect2(1000, 0, 200, 160)
+
+[sub_resource type="AtlasTexture" id="move6"]
+atlas = ExtResource("1_move")
+region = Rect2(1200, 0, 200, 160)
+
+[sub_resource type="AtlasTexture" id="weak0"]
+atlas = ExtResource("2_weak")
+region = Rect2(0, 0, 200, 160)
+
+[sub_resource type="AtlasTexture" id="weak1"]
+atlas = ExtResource("2_weak")
+region = Rect2(200, 0, 200, 160)
+
+[sub_resource type="AtlasTexture" id="weak2"]
+atlas = ExtResource("2_weak")
+region = Rect2(400, 0, 200, 160)
+
+[sub_resource type="AtlasTexture" id="weak3"]
+atlas = ExtResource("2_weak")
+region = Rect2(600, 0, 200, 160)
+
+[sub_resource type="AtlasTexture" id="weak4"]
+atlas = ExtResource("2_weak")
+region = Rect2(800, 0, 200, 160)
+
+[sub_resource type="AtlasTexture" id="weak5"]
+atlas = ExtResource("2_weak")
+region = Rect2(1000, 0, 200, 160)
+
+[sub_resource type="AtlasTexture" id="weak6"]
+atlas = ExtResource("2_weak")
+region = Rect2(1200, 0, 200, 160)
+
+[sub_resource type="AtlasTexture" id="strong0"]
+atlas = ExtResource("3_strong")
+region = Rect2(0, 0, 200, 160)
+
+[sub_resource type="AtlasTexture" id="strong1"]
+atlas = ExtResource("3_strong")
+region = Rect2(200, 0, 200, 160)
+
+[sub_resource type="AtlasTexture" id="strong2"]
+atlas = ExtResource("3_strong")
+region = Rect2(400, 0, 200, 160)
+
+[sub_resource type="AtlasTexture" id="strong3"]
+atlas = ExtResource("3_strong")
+region = Rect2(600, 0, 200, 160)
+
+[sub_resource type="AtlasTexture" id="strong4"]
+atlas = ExtResource("3_strong")
+region = Rect2(800, 0, 200, 160)
+
+[sub_resource type="AtlasTexture" id="strong5"]
+atlas = ExtResource("3_strong")
+region = Rect2(1000, 0, 200, 160)
+
+[sub_resource type="AtlasTexture" id="strong6"]
+atlas = ExtResource("3_strong")
+region = Rect2(1200, 0, 200, 160)
+
+[sub_resource type="AtlasTexture" id="strong7"]
+atlas = ExtResource("3_strong")
+region = Rect2(1400, 0, 200, 160)
+
+[resource]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("move0")
+}, {
+"duration": 1.0,
+"texture": SubResource("move1")
+}, {
+"duration": 1.0,
+"texture": SubResource("move2")
+}, {
+"duration": 1.0,
+"texture": SubResource("move3")
+}, {
+"duration": 1.0,
+"texture": SubResource("move4")
+}, {
+"duration": 1.0,
+"texture": SubResource("move5")
+}, {
+"duration": 1.0,
+"texture": SubResource("move6")
+}],
+"loop": true,
+"name": &"move",
+"speed": 8.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("weak0")
+}, {
+"duration": 1.0,
+"texture": SubResource("weak1")
+}, {
+"duration": 1.0,
+"texture": SubResource("weak2")
+}, {
+"duration": 1.0,
+"texture": SubResource("weak3")
+}, {
+"duration": 1.0,
+"texture": SubResource("weak4")
+}, {
+"duration": 1.0,
+"texture": SubResource("weak5")
+}, {
+"duration": 1.0,
+"texture": SubResource("weak6")
+}],
+"loop": false,
+"name": &"attack",
+"speed": 16.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("strong0")
+}, {
+"duration": 1.0,
+"texture": SubResource("strong1")
+}, {
+"duration": 1.0,
+"texture": SubResource("strong2")
+}, {
+"duration": 1.0,
+"texture": SubResource("strong3")
+}, {
+"duration": 1.0,
+"texture": SubResource("strong4")
+}, {
+"duration": 1.0,
+"texture": SubResource("strong5")
+}, {
+"duration": 1.0,
+"texture": SubResource("strong6")
+}, {
+"duration": 1.0,
+"texture": SubResource("strong7")
+}],
+"loop": false,
+"name": &"strong_attack",
+"speed": 12.0
+}]

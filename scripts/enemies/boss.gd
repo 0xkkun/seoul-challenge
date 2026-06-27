@@ -1,8 +1,8 @@
 extends CharacterBody2D
-## #17 최종 보스 — 텔레그래프 패턴(돌진 + 탄막 버스트)을 번갈아 사용. 처치=탈출.
+## #17 최종 보스 — 텔레그래프 패턴(돌진 강공격 + 근접 약공격)을 번갈아 사용. 처치=탈출.
 ##
-## 사이클: RECOVER(느린 추적) → TELEGRAPH(정지·경고) → 패턴 실행(CHARGE 대시 / BURST 부채꼴 탄막) → RECOVER.
-## 패턴 선택·돌진 방향·탄막 방향은 순수 함수로 단위 테스트한다. 처치 시 defeated 방출(런 탈출 트리거).
+## 사이클: RECOVER(느린 추적) → TELEGRAPH(정지·경고) → 패턴 실행(CHARGE 강공격 / SWING 약공격) → RECOVER.
+## 패턴 선택·돌진 방향·스윙 판정은 순수 함수로 단위 테스트한다. 처치 시 defeated 방출(런 탈출 트리거).
 
 ## 처치됨 — 탈출/런 클리어 트리거(계약).
 signal defeated(boss)
@@ -12,9 +12,10 @@ signal telegraph_started
 const HitReactionController = preload("res://scripts/combat/hit_reaction_controller.gd")
 const EnemyDeathFade = preload("res://scripts/combat/enemy_death_fade.gd")
 const EnemyHealthBar = preload("res://scripts/enemies/enemy_health_bar.gd")
-const ENEMY_BULLET := preload("res://scenes/enemies/enemy_bullet.tscn")
+const FACING_DEADZONE := 0.05
+const HIT_TIMING_EPSILON := 0.0001
 
-enum Phase { RECOVER, TELEGRAPH, CHARGE, BURST }
+enum Phase { RECOVER, TELEGRAPH, CHARGE, SWING }
 
 @export var max_hp: int = 30
 @export var move_speed: float = 70.0       ## 평상시(RECOVER) 추적 속도
@@ -22,25 +23,37 @@ enum Phase { RECOVER, TELEGRAPH, CHARGE, BURST }
 @export var recover_time: float = 1.0
 @export var telegraph_time: float = 0.6
 @export var charge_time: float = 0.7
-@export var burst_count: int = 7
-@export var burst_spread: float = 1.2       ## 부채꼴 전체 각(rad)
 @export var contact_damage: int = 1
 @export var contact_range: float = 34.0
+@export var weak_attack_range: float = 104.0
+@export var weak_attack_arc: float = 1.6
+@export var strong_attack_range: float = 144.0
+@export var strong_attack_arc: float = 1.8
+@export_range(0, 7, 1) var strong_attack_hit_frame := 3
+@export var strong_attack_animation_fps: float = 12.0
 @export var contact_cooldown: float = 0.5
 @export var hit_invuln_time: float = 0.12
 @export var target_group: StringName = &"player"
 @export var health_bar_width: float = 64.0
 @export var health_bar_height: float = 5.0
+@export var move_animation: StringName = &"move"
+@export var attack_animation: StringName = &"attack"
+@export var strong_attack_animation: StringName = &"strong_attack"
 
 var _hp: int = 0
 var _dead := false
 var _phase: Phase = Phase.RECOVER
 var _phase_timer: float = 0.0
-var _pattern_index: int = 1   ## 다음 패턴 (0=돌진, 1=탄막) — 첫 사이클은 돌진부터
+var _pattern_index: int = 1   ## 다음 패턴 (0=돌진, 1=약공격) — 첫 사이클은 돌진부터
 var _charge_dir: Vector2 = Vector2.ZERO
+var _charge_elapsed: float = 0.0
+var _strong_attack_hit_resolved: bool = false
+var _pattern_target: Node2D = null
 var _contact_timer: float = 0.0
 var _hit_reaction: Node = null
 var _health_bar: RefCounted = null
+
+@onready var _sprite: AnimatedSprite2D = get_node_or_null(^"Sprite")
 
 
 func _ready() -> void:
@@ -50,6 +63,7 @@ func _ready() -> void:
 	_phase_timer = recover_time
 	_ensure_hit_reaction()
 	_reset_health_bar()
+	_play_move_animation()
 
 
 func _physics_process(delta: float) -> void:
@@ -67,12 +81,13 @@ func _physics_process(delta: float) -> void:
 			if _phase_timer <= 0.0:
 				_begin_pattern(target)
 		Phase.CHARGE:
+			var charge_target := _current_pattern_target(target)
 			velocity = _charge_dir * charge_speed
 			move_and_slide()
-			_try_contact(target)
+			_tick_strong_attack_hit(charge_target, delta)
 			if _phase_timer <= 0.0:
 				_begin_recover()
-		Phase.BURST:
+		Phase.SWING:
 			velocity = Vector2.ZERO
 			if _phase_timer <= 0.0:
 				_begin_recover()
@@ -90,20 +105,24 @@ func pick_next_pattern(current: int) -> int:
 	return (current + 1) % 2
 
 
-## 조준 방향 기준 부채꼴 발사 방향 배열.
-func burst_directions(aim_dir: Vector2, count: int, spread: float) -> Array:
-	var result: Array = []
-	if count <= 0:
-		return result
-	var base := aim_dir.angle() if aim_dir.length() > 0.001 else 0.0
-	if count == 1:
-		result.append(Vector2.from_angle(base))
-		return result
-	var start := base - spread * 0.5
-	var step_angle := spread / float(count - 1)
-	for i in count:
-		result.append(Vector2.from_angle(start + step_angle * i))
-	return result
+## 조준 방향 기준 전방 스윙 판정.
+func in_swing_arc(facing: Vector2, to_target: Vector2, swing_range: float, arc: float) -> bool:
+	if swing_range <= 0.0 or arc <= 0.0:
+		return false
+	var target_distance := to_target.length()
+	if target_distance > swing_range:
+		return false
+	if target_distance <= 0.001:
+		return true
+	if facing.length() <= 0.001:
+		return true
+	return absf(facing.normalized().angle_to(to_target.normalized())) <= arc * 0.5
+
+
+func strong_attack_hit_ready(elapsed: float, hit_frame: int, animation_speed: float) -> bool:
+	if hit_frame <= 0 or animation_speed <= 0.0:
+		return true
+	return elapsed + HIT_TIMING_EPSILON >= float(hit_frame) / animation_speed
 
 
 # --- 피격 반응 (계약 #136) ---
@@ -126,7 +145,7 @@ func _ensure_hit_reaction() -> Node:
 	_hit_reaction = HitReactionController.new()
 	_hit_reaction.name = "HitReaction"
 	add_child(_hit_reaction)
-	var visual := get_node_or_null(^"Placeholder") as CanvasItem
+	var visual := _get_visual()
 	if visual != null:
 		_hit_reaction.call("bind_visual", visual)
 	return _hit_reaction
@@ -175,30 +194,29 @@ func _begin_telegraph() -> void:
 
 
 func _begin_pattern(target: Node2D) -> void:
+	_pattern_target = target
 	if _pattern_index == 0:
 		_charge_dir = _aim_to(target)
+		_charge_elapsed = 0.0
+		_strong_attack_hit_resolved = false
 		_phase = Phase.CHARGE
 		_phase_timer = charge_time
+		_play_attack_animation(strong_attack_animation, _charge_dir)
 	else:
-		_fire_burst(target)
-		_phase = Phase.BURST
-		_phase_timer = 0.4
-
-
-func _fire_burst(target: Node2D) -> void:
-	var aim := _aim_to(target)
-	var parent := get_parent()
-	if parent == null:
-		return
-	for dir: Vector2 in burst_directions(aim, burst_count, burst_spread):
-		var bullet := ENEMY_BULLET.instantiate()
-		parent.add_child(bullet)
-		bullet.call("launch", global_position, dir)
+		var aim := _aim_to(target)
+		_play_attack_animation(attack_animation, aim)
+		_try_swing_attack(target, aim, weak_attack_range, weak_attack_arc)
+		_phase = Phase.SWING
+		_phase_timer = 0.45
 
 
 func _begin_recover() -> void:
 	_phase = Phase.RECOVER
 	_phase_timer = recover_time
+	_charge_elapsed = 0.0
+	_strong_attack_hit_resolved = false
+	_pattern_target = null
+	_play_move_animation()
 
 
 func _slow_follow(target: Node2D) -> void:
@@ -206,6 +224,7 @@ func _slow_follow(target: Node2D) -> void:
 		velocity = Vector2.ZERO
 		return
 	velocity = charge_velocity(global_position, target.global_position, move_speed)
+	_update_move_animation()
 	move_and_slide()
 	_try_contact(target)
 
@@ -219,6 +238,65 @@ func _aim_to(target: Node2D) -> Vector2:
 
 func _find_target() -> Node2D:
 	return get_tree().get_first_node_in_group(target_group) as Node2D
+
+
+func _strong_attack_hit_ready_now() -> bool:
+	return strong_attack_hit_ready(_charge_elapsed, strong_attack_hit_frame, strong_attack_animation_fps)
+
+
+func _tick_strong_attack_hit(target: Node2D, delta: float) -> void:
+	_charge_elapsed += delta
+	if _strong_attack_hit_resolved:
+		return
+	if not _strong_attack_hit_ready_now():
+		return
+	_strong_attack_hit_resolved = true
+	_try_swing_attack(target, _charge_dir, strong_attack_range, strong_attack_arc)
+	_try_contact(target)
+
+
+func _current_pattern_target(fallback: Node2D) -> Node2D:
+	if _pattern_target != null and is_instance_valid(_pattern_target):
+		return _pattern_target
+	return fallback
+
+
+func _update_move_animation() -> void:
+	if _sprite == null or _sprite.sprite_frames == null:
+		return
+	_update_sprite_facing()
+	_play_move_animation()
+
+
+func _play_move_animation() -> void:
+	if _sprite == null or _sprite.sprite_frames == null:
+		return
+	if not _sprite.sprite_frames.has_animation(move_animation):
+		return
+	if _sprite.animation != move_animation:
+		_sprite.play(move_animation)
+	elif not _sprite.is_playing():
+		_sprite.play()
+
+
+func _play_attack_animation(animation_name: StringName, facing_direction: Vector2 = Vector2.ZERO) -> void:
+	if _sprite == null or _sprite.sprite_frames == null:
+		return
+	_set_sprite_facing_from_direction(facing_direction)
+	if _sprite.sprite_frames.has_animation(animation_name):
+		_sprite.play(animation_name)
+		_sprite.frame = 0
+
+
+func _update_sprite_facing() -> void:
+	_set_sprite_facing_from_direction(velocity)
+
+
+func _set_sprite_facing_from_direction(direction: Vector2) -> void:
+	if direction.x < -FACING_DEADZONE:
+		_sprite.flip_h = true
+	elif direction.x > FACING_DEADZONE:
+		_sprite.flip_h = false
 
 
 func _get_visual() -> CanvasItem:
@@ -262,6 +340,17 @@ func _try_contact(target: Node2D) -> void:
 	if _contact_timer > 0.0 or target == null:
 		return
 	if global_position.distance_to(target.global_position) > contact_range:
+		return
+	if target.has_method("take_damage"):
+		target.call("take_damage", contact_damage)
+	_contact_timer = contact_cooldown
+
+
+func _try_swing_attack(target: Node2D, facing: Vector2, swing_range: float, arc: float) -> void:
+	if _contact_timer > 0.0 or target == null:
+		return
+	var to_target := target.global_position - global_position
+	if not in_swing_arc(facing, to_target, swing_range, arc):
 		return
 	if target.has_method("take_damage"):
 		target.call("take_damage", contact_damage)

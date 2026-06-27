@@ -1,4 +1,4 @@
-[gd_resource type="SpriteFrames" load_steps=13 format=3]
+[gd_resource type="SpriteFrames" load_steps=14 format=3]
 
 [ext_resource type="Texture2D" path="res://assets/sprites/enemies/kumiho/kumiho_move.png" id="1_move"]
 [ext_resource type="Texture2D" path="res://assets/sprites/enemies/kumiho/kumiho_attack.png" id="2_attack"]
@@ -43,6 +43,10 @@ region = Rect2(384, 0, 128, 128)
 atlas = ExtResource("2_attack")
 region = Rect2(512, 0, 128, 128)
 
+[sub_resource type="AtlasTexture" id="attack5"]
+atlas = ExtResource("2_attack")
+region = Rect2(640, 0, 128, 128)
+
 [resource]
 animations = [{
 "frames": [{
@@ -80,6 +84,9 @@ animations = [{
 }, {
 "duration": 1.0,
 "texture": SubResource("attack4")
+}, {
+"duration": 1.0,
+"texture": SubResource("attack5")
 }],
 "loop": false,
 "name": &"attack",

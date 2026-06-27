@@ -74,7 +74,12 @@ func _physics_process(delta: float) -> void:
 		_update_animation()
 		_try_contact(target)
 		return
-	velocity = chase_velocity(global_position, target.global_position, move_speed * get_status_speed_multiplier())
+	velocity = chase_velocity(
+		global_position,
+		target.global_position,
+		move_speed * get_status_speed_multiplier(),
+		contact_range
+	)
 	move_and_slide()
 	clamp_to_movement_bounds()
 	_update_animation()
@@ -83,9 +88,11 @@ func _physics_process(delta: float) -> void:
 
 # --- 순수 함수(테스트 대상) ---
 
-## from→to 향하는 추적 속도. 같은 위치면 ZERO.
-func chase_velocity(from: Vector2, to: Vector2, speed: float) -> Vector2:
+## from→to 향하는 추적 속도. 같은 위치거나 정지 거리 안이면 ZERO.
+func chase_velocity(from: Vector2, to: Vector2, speed: float, stop_distance: float = 0.0) -> Vector2:
 	var dir := to - from
+	if dir.length() <= maxf(0.0, stop_distance):
+		return Vector2.ZERO
 	return dir.normalized() * speed if dir.length() > 0.001 else Vector2.ZERO
 
 

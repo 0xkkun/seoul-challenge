@@ -3,7 +3,7 @@ extends Control
 
 signal return_requested
 signal weapon_changed(weapon_id: StringName)
-signal map_requested
+signal departure_requested(stage_id: StringName)
 
 const DungeonTheme := preload("res://scripts/ui/dungeon_ui_theme.gd")
 const PixelButton := preload("res://scripts/ui/pixel_button_style.gd")
@@ -12,11 +12,13 @@ const MobileSafeArea := preload("res://scripts/ui/mobile_safe_area.gd")
 const FontRoles := preload("res://scripts/ui/ui_font_roles.gd")
 
 const WEAPON_BAT := &"bat"
+const STAGE_GYEONGBOKGUNG := &"gyeongbokgung"
+const STAGE_GYEONGBOKGUNG_NAME := "경복궁"
 
 const ACTION_RETURN := "locker_maintenance.return"
 const ACTION_SELECT_BAT := "locker_maintenance.weapon.bat"
 const ACTION_CYCLE_WEAPON := "locker_maintenance.weapon.cycle"
-const ACTION_OPEN_MAP := "locker_maintenance.map"
+const ACTION_START_GYEONGBOKGUNG := "locker_maintenance.map"
 const ACTION_UPGRADE_PREFIX := "locker_maintenance.upgrade."
 const BAT_ICON_PATH := "res://assets/ui/icons/seoul_challenge/baseball_bat.png"
 const BG_PATH := "res://assets/backgrounds/locker/locker_maintenance_bg.png"
@@ -29,12 +31,13 @@ var _weapon_status_label: Label
 var _bat_card: Button
 var _loadout_panel: PanelContainer
 var _weapon_button: Button
-var _map_button: Button
+var _departure_button: Button
 var _return_button: Button
 var _upgrade_balance_label: Label
 var _upgrade_pip_labels: Dictionary = {}
 var _upgrade_cost_labels: Dictionary = {}
 var _upgrade_buttons: Dictionary = {}
+var _is_departure_requested := false
 
 
 func _ready() -> void:
@@ -47,8 +50,8 @@ func get_selected_weapon_id() -> StringName:
 	return _selected_weapon_id
 
 
-func get_map_entry_count() -> int:
-	return _count_action_entries(self, ACTION_OPEN_MAP)
+func get_departure_entry_count() -> int:
+	return _count_action_entries(self, ACTION_START_GYEONGBOKGUNG)
 
 
 func get_weapon_card_icon_path(weapon_id: StringName) -> String:
@@ -67,6 +70,15 @@ func select_weapon(weapon_id: StringName) -> void:
 	_selected_weapon_id = weapon_id
 	_apply_weapon_card_state()
 	weapon_changed.emit(_selected_weapon_id)
+
+
+func get_departure_config() -> Dictionary:
+	var config := SceneTransition.get_pending_run_config()
+	config["source"] = "locker_maintenance"
+	config["stage_id"] = STAGE_GYEONGBOKGUNG
+	config["stage_name"] = STAGE_GYEONGBOKGUNG_NAME
+	config[SceneTransition.RUN_CONFIG_SELECTED_WEAPON_ID] = _selected_weapon_id
+	return config
 
 
 func _build_ui() -> void:
@@ -125,7 +137,7 @@ func _build_background() -> void:
 	)
 	add_child(left_fade)
 
-	# 하단 그라운딩 — 반사된 밝은 바닥을 가라앉혀 복도/지도 버튼이 떠 보이지 않게 한다.
+	# 하단 그라운딩 — 반사된 밝은 바닥을 가라앉혀 하단 출발 버튼이 떠 보이지 않게 한다.
 	var bottom_fade := TextureRect.new()
 	bottom_fade.name = "BottomGroundingFade"
 	bottom_fade.anchor_left = 0.0
@@ -305,7 +317,7 @@ func _build_upgrade_panel() -> void:
 	balance_chip.anchor_top = 0.222
 	balance_chip.anchor_right = 0.935
 	balance_chip.anchor_bottom = 0.272
-	# 패널과 같은 카드 프레임 패밀리로 — 우측 모서리 라인이 패널/지도 버튼과 일치하게.
+	# 패널과 같은 카드 프레임 패밀리로 — 우측 모서리 라인이 패널/출발 버튼과 일치하게.
 	balance_chip.add_theme_stylebox_override(
 		"panel",
 		DungeonTheme.card_style(10.0, 4.0, Color.WHITE, 16.0)
@@ -484,15 +496,15 @@ func _pip_bbcode(level: int, max_level: int) -> String:
 func _build_action_bar() -> void:
 	# 각 버튼을 자기 컬럼과 같은 폭(0.41)·같은 좌우 모서리에 맞춰 좌우 대칭으로 둔다.
 	var return_rect := MobileSafeArea.bottom_anchored_rect(0.065, 0.41, 0.12, 43.0)
-	var map_rect := MobileSafeArea.bottom_anchored_rect(0.525, 0.41, 0.12, 43.0)
-	_return_button = _make_action_button("ReturnButton", "← 복도", return_rect, ACTION_RETURN)
+	var departure_rect := MobileSafeArea.bottom_anchored_rect(0.525, 0.41, 0.12, 43.0)
+	_return_button = _make_action_button("ReturnButton", "이전으로", return_rect, ACTION_RETURN)
 	add_child(_return_button)
 
-	_map_button = _make_action_button("MapButton", "지도 ▶", map_rect, ACTION_OPEN_MAP)
-	add_child(_map_button)
+	_departure_button = _make_action_button("GyeongbokgungButton", "경복궁으로", departure_rect, ACTION_START_GYEONGBOKGUNG)
+	add_child(_departure_button)
 
 	_return_button.pressed.connect(_on_return_pressed)
-	_map_button.pressed.connect(_on_map_pressed)
+	_departure_button.pressed.connect(_on_departure_pressed)
 
 
 func _make_weapon_card(node_name: String, text: String, relative_rect: Rect2, action: String) -> Button:
@@ -542,8 +554,9 @@ func _make_action_button(node_name: String, text: String, relative_rect: Rect2, 
 	button.alignment = HORIZONTAL_ALIGNMENT_CENTER
 	button.add_theme_font_size_override("font_size", 21)
 	button.focus_mode = Control.FOCUS_NONE
-	var variant := PixelButton.VARIANT_PRIMARY if action == ACTION_OPEN_MAP else PixelButton.VARIANT_SECONDARY
-	PixelButton.apply(button, variant, Vector2(0.0, 64.0))
+	var variant := PixelButton.VARIANT_PRIMARY if action == ACTION_START_GYEONGBOKGUNG else PixelButton.VARIANT_SECONDARY
+	var with_press_sfx := action != ACTION_START_GYEONGBOKGUNG
+	PixelButton.apply(button, variant, Vector2(0.0, 64.0), with_press_sfx)
 	FontRoles.apply_pixel(button)
 	_set_button_meta(button, action.replace(".", "_"), action)
 	return button
@@ -561,7 +574,7 @@ func _apply_weapon_card_state() -> void:
 		"normal",
 		_make_weapon_state_style(true)
 	)
-	_weapon_status_label.text = "선택한 장비\n\n금 간 나무 배트\n\n지도에서\n경복궁으로 이동"
+	_weapon_status_label.text = "선택한 장비\n\n금 간 나무 배트\n\n경복궁으로\n바로 이동"
 
 
 func _make_weapon_state_style(selected: bool) -> StyleBox:
@@ -588,11 +601,22 @@ func _on_cycle_weapon_pressed() -> void:
 	select_weapon(WEAPON_BAT)
 
 
-func _on_map_pressed() -> void:
+func _on_departure_pressed() -> void:
+	if _is_departure_requested:
+		return
+	_is_departure_requested = true
+	if _departure_button != null:
+		_departure_button.disabled = true
 	_save_pending_loadout()
-	map_requested.emit()
+	departure_requested.emit(STAGE_GYEONGBOKGUNG)
 	if scene_transition_enabled:
-		SceneTransition.go_to_night_map_select()
+		var result := SceneTransition.start_session(get_departure_config())
+		if result == OK:
+			SceneTransition.clear_pending_run_config()
+		else:
+			_is_departure_requested = false
+			if _departure_button != null:
+				_departure_button.disabled = false
 
 
 func _get_initial_weapon_id() -> StringName:

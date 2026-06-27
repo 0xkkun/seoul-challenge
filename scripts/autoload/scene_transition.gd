@@ -3,7 +3,6 @@ extends Node
 const LOBBY_SCENE := "res://scenes/lobby/lobby.tscn"
 const DAY_LOBBY_SCENE := "res://scenes/dev/day_corridor_movement_test.tscn"
 const LOCKER_MAINTENANCE_SCENE := "res://scenes/ui/locker_maintenance.tscn"
-const NIGHT_MAP_SELECT_SCENE := "res://scenes/ui/night_map_select.tscn"
 const SESSION_SCENE := "res://scenes/session/session_root.tscn"
 const RUN_CONFIG_SELECTED_WEAPON_ID := "selected_weapon_id"
 const RUN_CONFIG_LAYOUT_SEED := "layout_seed"
@@ -58,11 +57,6 @@ func go_to_locker_maintenance() -> Error:
 	return _change_scene(LOCKER_MAINTENANCE_SCENE)
 
 
-func go_to_night_map_select() -> Error:
-	last_requested_scene = NIGHT_MAP_SELECT_SCENE
-	return _change_scene(NIGHT_MAP_SELECT_SCENE)
-
-
 func start_session(config: Dictionary = {}) -> Error:
 	if get_tree() == null:
 		return ERR_UNCONFIGURED
@@ -89,10 +83,6 @@ func get_day_scene_path() -> String:
 
 func get_locker_maintenance_scene_path() -> String:
 	return LOCKER_MAINTENANCE_SCENE
-
-
-func get_night_map_select_scene_path() -> String:
-	return NIGHT_MAP_SELECT_SCENE
 
 
 func get_session_scene_path() -> String:

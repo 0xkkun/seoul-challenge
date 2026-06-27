@@ -152,6 +152,54 @@ func test_session_root_uses_three_room_baseball_onboarding_layout() -> void:
 	session.queue_free()
 
 
+func test_session_starts_control_onboarding_only_for_first_baseball_run() -> void:
+	GameManager.start_session({
+		"source": "intro",
+		"stage_id": &"gyeongbokgung",
+		"stage_name": "경복궁",
+		SceneTransition.RUN_CONFIG_ONBOARDING_KIND: SceneTransition.ONBOARDING_KIND_BASEBALL_CAPTAIN,
+	})
+	var packed := load("res://scenes/session/session_root.tscn") as PackedScene
+	var onboarding_session := packed.instantiate()
+	add_child(onboarding_session)
+
+	var onboarding := onboarding_session.get_node_or_null("%IngameControlOnboarding") as CanvasLayer
+	var player_camera := onboarding_session.get_node("%PlayerCamera") as Camera2D
+	var touch_controls := onboarding_session.get_node("%TouchControls") as CanvasLayer
+	_runner.assert_not_null(onboarding, "session mounts the in-game control onboarding layer")
+	if onboarding != null:
+		_runner.assert_true(onboarding.has_method("is_active"), "control onboarding exposes active state")
+		_runner.assert_true(onboarding.has_method("get_current_step_snapshot"), "control onboarding exposes current step state")
+		if onboarding.has_method("is_active"):
+			_runner.assert_true(bool(onboarding.call("is_active")), "first baseball onboarding run starts control onboarding")
+		if onboarding.has_method("get_current_step_snapshot"):
+			var snapshot: Dictionary = onboarding.call("get_current_step_snapshot")
+			_runner.assert_eq(snapshot.get("step_id"), &"move", "control onboarding starts by teaching movement")
+			_runner.assert_eq(snapshot.get("target_names", []), ["Joystick"], "movement step highlights the left joystick")
+			_runner.assert_true(float(snapshot.get("dim_alpha", 0.0)) > 0.0, "movement step dims non-target gameplay")
+	_runner.assert_false(get_tree().paused, "control onboarding does not pause first-room input")
+	_runner.assert_true(touch_controls.visible, "control onboarding leaves touch controls usable")
+	_runner.assert_true(player_camera.zoom.x > 1.0, "control onboarding applies a subtle camera zoom-in")
+
+	onboarding_session.queue_free()
+	GameManager.reset_session()
+
+	GameManager.start_session({
+		"source": "regular_run",
+		SceneTransition.RUN_CONFIG_LAYOUT_SEED: 40,
+	})
+	var regular_session := packed.instantiate()
+	add_child(regular_session)
+	var regular_onboarding := regular_session.get_node_or_null("%IngameControlOnboarding") as CanvasLayer
+	var regular_camera := regular_session.get_node("%PlayerCamera") as Camera2D
+	_runner.assert_not_null(regular_onboarding, "regular session still mounts the reusable onboarding layer")
+	if regular_onboarding != null and regular_onboarding.has_method("is_active"):
+		_runner.assert_false(bool(regular_onboarding.call("is_active")), "regular runs do not auto-show first control onboarding")
+	_runner.assert_true(regular_camera.zoom.is_equal_approx(Vector2.ONE), "regular runs keep the native camera zoom")
+
+	regular_session.queue_free()
+
+
 func test_generated_session_rooms_never_enter_empty_uncleared_state() -> void:
 	var packed := load("res://scenes/session/session_root.tscn") as PackedScene
 
@@ -261,6 +309,43 @@ func test_baseball_onboarding_friend_purification_finishes_run_and_sets_reward_f
 	_runner.assert_true(session_ui.call("is_summary_visible"), "onboarding completion opens the result summary")
 
 	session.queue_free()
+
+
+func test_baseball_onboarding_combat_reward_explains_first_reward_choice() -> void:
+	GameManager.start_session({
+		"source": "intro_reward_onboarding",
+		SceneTransition.RUN_CONFIG_ONBOARDING_KIND: SceneTransition.ONBOARDING_KIND_BASEBALL_CAPTAIN,
+	})
+	var packed := load("res://scenes/session/session_root.tscn") as PackedScene
+	var session := packed.instantiate()
+	add_child(session)
+
+	var manager := session.get_node("%RoomManager") as RoomManager
+	var session_ui: CanvasLayer = session.get_node("%SessionUIRoot")
+	_runner.assert_true(manager.enter_room(&"combat_1"), "test enters the onboarding combat room")
+
+	_defeat_all_combat_waves(manager.current_room)
+
+	_runner.assert_true(manager.is_current_room_cleared(), "onboarding combat room clears before reward onboarding")
+	_runner.assert_true(session.has_method("flush_pending_reward_choice_for_tests"), "session exposes deterministic reward delay flush")
+	if not session.has_method("flush_pending_reward_choice_for_tests"):
+		session.queue_free()
+		return
+	_runner.assert_true(session.call("flush_pending_reward_choice_for_tests"), "onboarding combat opens the reward cards")
+
+	var snapshot: Dictionary = session_ui.call("get_reward_choice_snapshot")
+	_runner.assert_true(bool(snapshot.get("visible", false)), "reward choice overlay is visible")
+	_runner.assert_true(bool(snapshot.get("onboarding_hint_visible", false)), "first onboarding combat reward includes reward-choice guidance")
+	_runner.assert_eq(snapshot.get("onboarding_hint_title", ""), "전투 보상", "reward onboarding title names the moment")
+	_runner.assert_true(String(snapshot.get("onboarding_hint_body", "")).contains("하나"), "reward onboarding tells the player to choose one card")
+	_runner.assert_eq(int(snapshot.get("onboarding_hint_target_count", 0)), 3, "reward onboarding points at all three reward cards")
+
+	var choice_ids: Array = snapshot.get("choice_ids", []) as Array
+	if not choice_ids.is_empty():
+		session_ui.call("select_reward_choice", choice_ids[0])
+	get_tree().paused = false
+	GameManager.reset_session()
+	session.free()
 
 
 func test_session_generated_layout_omits_disabled_shop_and_event_rooms() -> void:
@@ -635,7 +720,7 @@ func test_session_combat_hud_shows_initial_player_health() -> void:
 
 func test_session_root_applies_locker_weapon_config() -> void:
 	GameManager.start_session({
-		"source": "night_map_select",
+		"source": "locker_maintenance",
 		SceneTransition.RUN_CONFIG_SELECTED_WEAPON_ID: &"bat",
 	})
 
@@ -692,7 +777,7 @@ func test_session_player_awakens_bat_on_lobby_quest_not_purify() -> void:
 
 func test_session_root_ignores_removed_baseball_weapon_config() -> void:
 	GameManager.start_session({
-		"source": "night_map_select",
+		"source": "locker_maintenance",
 		SceneTransition.RUN_CONFIG_SELECTED_WEAPON_ID: &"baseball",
 	})
 
@@ -795,6 +880,32 @@ func test_session_camera_reacts_to_combat_feedback() -> void:
 	})
 
 	_runner.assert_true(player_camera.offset.length() > 0.0, "combat feedback applies an immediate camera offset")
+
+	session.queue_free()
+
+
+func test_session_camera_feedback_uses_visible_shake_sequence() -> void:
+	var packed := load("res://scenes/session/session_root.tscn") as PackedScene
+	var session := packed.instantiate()
+	add_child(session)
+
+	_runner.assert_true(session.has_method("camera_feedback_shake_offsets"), "session exposes testable camera shake offsets")
+	if not session.has_method("camera_feedback_shake_offsets"):
+		session.queue_free()
+		return
+
+	var offsets: Array = session.call("camera_feedback_shake_offsets", Vector2.RIGHT, 5.5)
+	_runner.assert_true(offsets.size() >= 4, "camera feedback uses multiple shake samples before settling")
+	if offsets.size() >= 4:
+		var first := offsets[0] as Vector2
+		var second := offsets[1] as Vector2
+		var third := offsets[2] as Vector2
+		var last := offsets[offsets.size() - 1] as Vector2
+		_runner.assert_true(first.length() > 0.0, "first shake sample kicks the camera immediately")
+		_runner.assert_true(second.length() > 0.0, "second shake sample keeps the hit readable")
+		_runner.assert_true(signf(first.x) != signf(second.x), "shake alternates direction instead of a single fade")
+		_runner.assert_true(third.length() < first.length(), "later shake samples decay")
+		_runner.assert_eq(last, Vector2.ZERO, "shake sequence settles back to zero")
 
 	session.queue_free()
 
@@ -952,6 +1063,37 @@ func test_session_finish_request_confirms_abandon_to_school() -> void:
 	_runner.assert_false(GameManager.is_session_active(), "abandon resets the active run")
 
 	session.queue_free()
+
+
+func test_baseball_onboarding_abandon_returns_to_lobby_not_corridor() -> void:
+	GameManager.start_session({
+		"source": "intro_abandon_test",
+		"stage_id": &"gyeongbokgung",
+		"stage_name": "경복궁",
+		SceneTransition.RUN_CONFIG_ONBOARDING_KIND: SceneTransition.ONBOARDING_KIND_BASEBALL_CAPTAIN,
+	})
+	var packed := load("res://scenes/session/session_root.tscn") as PackedScene
+	var session := packed.instantiate()
+	var action_counts := {"school": 0, "lobby": 0}
+	session.return_to_school_callable = func() -> void:
+		action_counts["school"] += 1
+	_runner.assert_true(_has_property(session, "return_to_lobby_callable"), "session can inject a lobby return for incomplete onboarding exits")
+	if _has_property(session, "return_to_lobby_callable"):
+		session.set("return_to_lobby_callable", func() -> void:
+			action_counts["lobby"] += 1
+		)
+	add_child(session)
+
+	session._on_finish_requested()
+	_runner.assert_true(session.is_exit_confirm_visible(), "onboarding abandon still asks for confirmation")
+	_runner.assert_true(UiTestHarness.press_by_test_id(session, ConfirmModal.TEST_ID_YES), "yes confirms onboarding abandon")
+	_runner.assert_eq(action_counts["school"], 0, "incomplete onboarding does not return to the day corridor")
+	_runner.assert_eq(action_counts["lobby"], 1, "incomplete onboarding returns to the lobby")
+	_runner.assert_false(GameManager.is_session_active(), "onboarding abandon resets the active run")
+	_runner.assert_false(SaveManager.get_flag(SceneTransition.FLAG_ONBOARDING_BASEBALL_COMPLETE), "abandon does not mark onboarding complete")
+
+	remove_child(session)
+	session.free()
 
 
 func test_room_base_lifecycle_opens_door_and_requests_transition() -> void:
@@ -1191,6 +1333,13 @@ func _room_def(
 	room_def.hidden = hidden
 	room_def.scene_path = "res://scenes/session/room_base.tscn"
 	return room_def
+
+
+func _has_property(node: Object, property_name: String) -> bool:
+	for property: Dictionary in node.get_property_list():
+		if String(property.get("name", "")) == property_name:
+			return true
+	return false
 
 
 func _layout_signature(layout: RoomLayout) -> String:
