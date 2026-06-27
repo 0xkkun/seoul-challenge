@@ -58,7 +58,12 @@ func go_to_night_map_select() -> Error:
 
 
 func start_session(config: Dictionary = {}) -> Error:
+	if get_tree() == null:
+		return ERR_UNCONFIGURED
+	if _is_transitioning:
+		return ERR_BUSY
 	last_requested_scene = SESSION_SCENE
+	_play_session_transition_sfx()
 	if has_node("/root/GameManager"):
 		GameManager.start_session(config)
 	return _change_scene(SESSION_SCENE)
@@ -162,6 +167,11 @@ func _change_scene(scene_path: String) -> Error:
 	tween.tween_property(_fade_rect, ^"color:a", 1.0, FADE_SECONDS)
 	tween.tween_callback(_change_scene_after_fade.bind(scene_path))
 	return OK
+
+
+func _play_session_transition_sfx() -> void:
+	if has_node("/root/AudioManager"):
+		AudioManager.play_random_session_transition_sfx()
 
 
 func _change_scene_after_fade(scene_path: String) -> Error:
