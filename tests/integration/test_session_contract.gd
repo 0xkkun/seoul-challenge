@@ -48,6 +48,23 @@ func test_session_interaction_and_summary() -> void:
 	session.queue_free()
 
 
+func test_session_hides_template_interactable_visual_during_gameplay() -> void:
+	var packed := load("res://scenes/session/session_root.tscn") as PackedScene
+	var session := packed.instantiate()
+	add_child(session)
+
+	var sample := session.get_node("%SampleInteractable")
+	var body := sample.get_node_or_null("Body") as CanvasItem
+	_runner.assert_not_null(body, "sample interactable keeps the harness body node")
+	if body != null:
+		_runner.assert_false(body.is_visible_in_tree(), "template sample interactable body is not rendered in gameplay")
+
+	var dispatched: int = session.trigger_sample_interaction()
+	_runner.assert_eq(dispatched, 1, "hidden sample interactable still keeps the interaction harness contract")
+
+	session.queue_free()
+
+
 func test_session_root_uses_new_layout_seed_without_config() -> void:
 	var packed := load("res://scenes/session/session_root.tscn") as PackedScene
 	var layout_ids := {}
