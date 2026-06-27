@@ -34,6 +34,15 @@ func test_random_session_transition_school_bell_records_one_variant() -> void:
 	_runner.assert_eq(AudioManager.get_played_sfx(), [sfx_id], "random transition SFX records the played variant")
 
 
+func test_bgm_restarts_after_short_stream_finishes() -> void:
+	AudioManager.play_bgm(AudioManager.LOBBY_BGM_DEFAULT)
+	AudioManager._bgm_player.stop()
+
+	AudioManager._on_bgm_player_finished()
+
+	_runner.assert_true(AudioManager.is_bgm_playing(), "short BGM streams restart after finished")
+
+
 func test_scene_transition_school_bell_helper_uses_transition_variants() -> void:
 	SceneTransition._play_session_transition_sfx()
 	var played_sfx := AudioManager.get_played_sfx()

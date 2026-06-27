@@ -147,6 +147,7 @@ func _ensure_bgm_player() -> AudioStreamPlayer:
 	_bgm_player = AudioStreamPlayer.new()
 	_bgm_player.name = "BgmPlayer"
 	add_child(_bgm_player)
+	_bgm_player.finished.connect(_on_bgm_player_finished)
 	return _bgm_player
 
 
@@ -162,6 +163,15 @@ func _prepare_bgm_stream(stream: AudioStream) -> AudioStream:
 func _on_sfx_player_finished(player: AudioStreamPlayer) -> void:
 	_sfx_players.erase(player)
 	player.queue_free()
+
+
+func _on_bgm_player_finished() -> void:
+	if _current_bgm == &"" or _current_bgm_path == "":
+		return
+	if not _is_bgm_enabled():
+		return
+	if _bgm_player != null and _bgm_player.stream != null:
+		_bgm_player.play()
 
 
 func _clear_sfx_players() -> void:
