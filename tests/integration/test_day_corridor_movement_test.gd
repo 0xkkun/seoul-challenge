@@ -320,7 +320,7 @@ func test_day_corridor_dialogue_signal_updates_state() -> void:
 
 	_runner.assert_eq(scene.get_dialogue_count(), 1, "dialogue count increments")
 	_runner.assert_eq(AudioManager.get_played_sfx(), [AudioManager.UI_BUTTON_PRESS], "school dialogue open plays a UI button SFX")
-	_runner.assert_eq(scene.get_objective_text(), "목표: 복도 끝 사물함에서 기억 무기를 챙기자", "objective advances after the first memory beat")
+	_runner.assert_eq(scene.get_objective_text(), "목표: 복도 끝 사물함에서 장비를 챙기자", "objective advances after the first memory beat")
 	_runner.assert_true(scene.is_dialogue_ui_visible(), "dialogue trigger opens the hub dialogue UI")
 	_runner.assert_false(scene.is_touch_controls_visible(), "touch controls hide while the dialogue bar is open")
 	_runner.assert_true(scene.is_talk_target_visible(), "world talk target remains visible behind the dialogue focus")
@@ -334,8 +334,8 @@ func test_day_corridor_dialogue_signal_updates_state() -> void:
 	_runner.assert_eq(scene.get_node("%HubDialogueUi").get_portrait_frame(), 1, "dialogue portrait stays on the open-eye frame")
 	_runner.assert_false(scene.get_node("%HubDialogueUi").is_portrait_animating(), "dialogue portrait does not blink while talking")
 	_runner.assert_eq(scene.get_active_dialogue_line_index(), 0, "first trigger starts at the first dialogue line")
-	_runner.assert_eq(scene.get_active_dialogue_text(), "낮엔 뛰지 말고, 얘기부터 하자.", "dialogue text is rendered without duplicating the speaker name")
-	_runner.assert_eq(scene.get_active_dialogue_memory_text(), "기억: 창밖으로 밀려드는 낮빛", "memory text is rendered through HubDialogueUi")
+	_runner.assert_eq(scene.get_active_dialogue_text(), "몸 조심해. 무리하지 마.", "dialogue text is rendered without duplicating the speaker name")
+	_runner.assert_eq(scene.get_active_dialogue_memory_text(), "", "memory flavor line removed from captain dialogue")
 	_runner.assert_eq(scene.get_dialogue_choice_ids(), [&"next"], "dialogue UI exposes only the currently available action")
 	_runner.assert_eq(scene.get_node("%HubDialogueUi").get_choice_texts(), [HubDialogueScript.CONTINUE_HINT_TOUCH], "first dialogue line exposes a tap-to-continue hint")
 	_runner.assert_true(scene.get_node("%HubDialogueUi").is_tap_to_continue_active(), "first dialogue line advances from any dialogue tap")
@@ -647,7 +647,7 @@ func test_day_corridor_dialogue_choices_advance_and_close_ui() -> void:
 	_runner.assert_true(UiTestHarness.press_by_uat_action(scene, "day_corridor.dialogue.next"), "harness presses next by action id")
 	_runner.assert_eq(scene.get_dialogue_count(), 2, "next choice advances the dialogue counter")
 	_runner.assert_eq(scene.get_active_dialogue_line_index(), 1, "next choice advances to the second line")
-	_runner.assert_eq(scene.get_active_dialogue_text(), "복도 끝 교실에 들르면 준비할 수 있어.", "second dialogue line is rendered")
+	_runner.assert_eq(scene.get_active_dialogue_text(), "표정이 안 좋다. 잘 버티고 있는 거지?", "second dialogue line is rendered")
 	_runner.assert_true(scene.is_dialogue_ui_visible(), "next choice keeps dialogue UI open")
 	_runner.assert_eq(scene.get_dialogue_choice_ids(), [&"next"], "middle dialogue line still exposes only next")
 

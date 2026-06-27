@@ -19,7 +19,7 @@ extends RefCounted
 ##   tier        : &"first_visit" | &"post_purify" | &"post_enhanced"
 ##   system_link : &"memory_weapon" | &"locker" | &"purify_friend" | &"night_palace"
 ##   text        : 본문
-##   memory      : people2(dialogue) 보조 기억 라인. 그 외 화자는 "".
+##   memory      : (현재 미사용) 보조 라인. 모든 화자 "".
 ##   weight      : people4(ambient_crowd) 가중치. 그 외 1.
 ##   condition   : (선택) E1 동적 소문 게이트. &"" | &"last_run_died" | &"last_run_cleared".
 ##                 컨텍스트 last_run과 일치할 때만 후보. 없으면 항상 후보.
@@ -65,22 +65,22 @@ const ENTRIES: Array[Dictionary] = [
 	# ── people2 (dialogue) — 모든 reachable tier에 ≥1줄 (% size 나눗셈 안전) ──
 	{"id": &"p2_first_1", "speaker": SPEAKER_PEOPLE2, "tier": TIER_FIRST_VISIT,
 	 "system_link": &"night_palace", "weight": 1, "condition": &"",
-	 "text": "낮엔 뛰지 말고, 얘기부터 하자.", "memory": "기억: 창밖으로 밀려드는 낮빛"},
+	 "text": "몸 조심해. 무리하지 마.", "memory": ""},
 	{"id": &"p2_first_2", "speaker": SPEAKER_PEOPLE2, "tier": TIER_FIRST_VISIT,
 	 "system_link": &"locker", "weight": 1, "condition": &"",
-	 "text": "복도 끝 교실에 들르면 준비할 수 있어.", "memory": "기억: 복도 끝 교실 문손잡이"},
+	 "text": "표정이 안 좋다. 잘 버티고 있는 거지?", "memory": ""},
 	{"id": &"p2_first_3", "speaker": SPEAKER_PEOPLE2, "tier": TIER_FIRST_VISIT,
 	 "system_link": &"night_palace", "weight": 1, "condition": &"",
-	 "text": "밤에 나가기 전에 여기서 할 얘기는 끝내자.", "memory": "기억: 야자 시작 전의 짧은 정적"},
+	 "text": "오늘도 무사히 돌아와.", "memory": ""},
 	{"id": &"p2_purify_1", "speaker": SPEAKER_PEOPLE2, "tier": TIER_POST_PURIFY,
 	 "system_link": &"purify_friend", "weight": 1, "condition": &"",
-	 "text": "야구부 주장 돌아왔어. 너 기다리더라 — 가서 말 걸어 봐.", "memory": "기억: 운동장에 돌아온 보통의 소음"},
+	 "text": "야구부 주장 돌아왔어. 너 기다리더라 — 가서 말 걸어 봐.", "memory": ""},
 	{"id": &"p2_purify_2", "speaker": SPEAKER_PEOPLE2, "tier": TIER_POST_PURIFY,
 	 "system_link": &"purify_friend", "weight": 1, "condition": &"",
-	 "text": "걔가 마지막 시즌 배트를 너한테 넘기고 싶대. 받아 둬.", "memory": "기억: 주장이 내밀던 낡은 배트 손잡이"},
+	 "text": "걔가 마지막 시즌 배트를 너한테 넘기고 싶대. 받아 둬.", "memory": ""},
 	{"id": &"p2_enh_1", "speaker": SPEAKER_PEOPLE2, "tier": TIER_POST_ENHANCED,
 	 "system_link": &"memory_weapon", "weight": 1, "condition": &"",
-	 "text": "그거 챙겼구나. 손에 익혀 둬. 밤에는 아무도 설명 안 해줘.", "memory": "기억: 사물함 안쪽의 차가운 손잡이"},
+	 "text": "그거 챙겼구나. 손에 익혀 둬. 밤에는 아무도 설명 안 해줘.", "memory": ""},
 
 	# ── people3 (ambient, 근접 라벨) ──
 	{"id": &"p3_first_locker", "speaker": SPEAKER_PEOPLE3, "tier": TIER_FIRST_VISIT,

@@ -21,7 +21,7 @@ const ACTION_DIALOGUE_CLOSE := "day_corridor.dialogue.close"
 const ACTION_DISMISS_UNLOCK := "day_corridor.dialogue.dismiss_unlock"
 const ACTION_EXIT_TO_LOBBY := "day_corridor.exit_to_lobby"
 const OBJECTIVE_TALK := "목표: 야구부 주장과 이야기하고, 밤의 궁으로 갈 준비를 하자"
-const OBJECTIVE_LOCKER := "목표: 복도 끝 사물함에서 기억 무기를 챙기자"
+const OBJECTIVE_LOCKER := "목표: 복도 끝 사물함에서 장비를 챙기자"
 const OBJECTIVE_BASEBALL_REWARD := "목표: 야구부 주장에게 돌아가 배트와 단서를 받자"
 const OBJECTIVE_REENTER_GYEONGBOKGUNG := "목표: 복도 끝 사물함에서 배트를 챙기고 경복궁으로 다시 가자"
 const OBJECTIVE_BOSS_RESULT_REPORT := "목표: 야구부 주장에게 도깨비왕의 결말을 전하자"
@@ -37,29 +37,29 @@ const BASEBALL_CAPTAIN_REWARD_CALLOUT_TEXT := "!  야구부 주장"
 const BASEBALL_CAPTAIN_BOSS_RESULT_CALLOUT_TEXT := "!  야구부 주장"
 const CRACKED_BAT_ID := &"cracked_bat"
 const CRACKED_BAT_NAME := "금 간 나무 배트"
-const CRACKED_BAT_POPUP_SUBTITLE := "야구부 주장이 건넨 기억 무기"
+const CRACKED_BAT_POPUP_SUBTITLE := "야구부 주장이 건넨 첫 무기"
 const BASEBALL_REWARD_LINES := [
 	{
 		"text": "고마워. 아까는 내가 제정신이 아니었던 것 같아.",
-		"memory": "기억: 운동장 흙먼지와 거칠어진 숨",
+		"memory": "",
 	},
 	{
 		"text": "이 금 간 나무 배트 가져가. 밤에 다시 들어가야 한다면 네 손에 있는 게 나아.\n[b]이 배트는 적의 공격을 튕겨내거나 돌진하는 적을 효과적으로 막을 수 있어![/b]",
-		"memory": "기억: 사물함 안쪽에 기대 둔 금 간 나무 배트",
+		"memory": "",
 	},
 	{
 		"text": "네가 찾는 친구는 [b]도깨비왕[/b]에게 잡혀갔다는 말이 있어. 아니면 그보다 더 큰 무언가일지도 몰라.",
-		"memory": "기억: 궁궐 어둠 너머의 낮은 웃음",
+		"memory": "",
 	},
 ]
 const BOSS_RESULT_REPORT_LINES := [
 	{
 		"text": "도깨비왕이 그냥 쓰러졌다고? 그럼 네 친구를 데려간 건 따로 있어.",
-		"memory": "기억: 궁궐 바닥에 남은 검은 먼지",
+		"memory": "",
 	},
 	{
 		"text": "지금은 여기까지야. 다음 단서가 생길 때까지 준비해 두자.",
-		"memory": "기억: 아직 닫히지 않은 밤의 문",
+		"memory": "",
 	},
 ]
 

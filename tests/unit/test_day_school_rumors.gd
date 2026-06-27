@@ -51,10 +51,11 @@ func test_people2_has_lines_in_every_tier() -> void:
 		_runner.assert_true(lines.size() >= 1, "people2 tier %s 에 대사 ≥1 (실제 %d)" % [str(tier), lines.size()])
 
 
-func test_people2_first_visit_keeps_original_opening_line() -> void:
-	# 회귀: 마이그레이션이 기존 첫 대사를 보존하는지
+func test_people2_first_visit_opening_is_caring_flavor() -> void:
+	# 첫 방문 대사는 안내가 아닌 안부 플레이버이고, 기억 보조 라인은 비어 있다.
 	var lines: Array = RUMORS.pick_lines(RUMORS.SPEAKER_PEOPLE2, RUMORS.TIER_FIRST_VISIT)
-	_runner.assert_eq(String(lines[0].get("text", "")), "낮엔 뛰지 말고, 얘기부터 하자.", "people2 첫 대사 보존")
+	_runner.assert_eq(String(lines[0].get("text", "")), "몸 조심해. 무리하지 마.", "people2 첫 대사는 안부 플레이버")
+	_runner.assert_eq(String(lines[0].get("memory", "")), "", "people2 기억 보조 라인 제거")
 
 
 func test_condition_excluded_without_context() -> void:
