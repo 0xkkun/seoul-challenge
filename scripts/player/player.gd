@@ -61,6 +61,7 @@ signal run_modifiers_changed(payload: Dictionary)
 @export var dash_dust_back_offset: float = 30.0
 @export var dash_dust_foot_offset: float = 52.0
 @export var dash_animation_visual_time: float = 0.5
+@export_range(0, 9, 1) var dash_animation_start_frame := 2
 @export var dash_power_attack_grace_time: float = 0.15  ## 대시 직후 강화 근접 공격 입력 허용 시간(s)
 @export_range(0, 9, 1) var dash_power_attack_damage_bonus := 1
 @export var dash_power_attack_range_multiplier: float = 1.15
@@ -891,26 +892,56 @@ func _play_dodge_anim(dir: Vector2, restart := false) -> void:
 		return
 	if absf(dir.x) > 0.05:
 		_sprite.flip_h = dir.x < 0.0
-	var base_duration := animation_duration_seconds(_sprite.sprite_frames, &"dash")
+	var start_frame := dash_animation_runtime_start_frame(
+		_sprite.sprite_frames,
+		&"dash",
+		dash_animation_start_frame
+	)
+	var base_duration := animation_duration_seconds_from_frame(_sprite.sprite_frames, &"dash", start_frame)
 	var visual_duration := dash_animation_duration(dodge_duration, dash_animation_visual_time)
 	_sprite.speed_scale = dash_animation_speed_scale(base_duration, visual_duration)
 	if restart or _sprite.animation != &"dash":
 		_sprite.play(&"dash")
-		_sprite.frame = 0
+		_sprite.set_frame_and_progress(start_frame, 0.0)
 	elif not _sprite.is_playing():
 		_sprite.play()
 
 
 func animation_duration_seconds(frames: SpriteFrames, animation: StringName) -> float:
+	return animation_duration_seconds_from_frame(frames, animation, 0)
+
+
+func animation_duration_seconds_from_frame(
+	frames: SpriteFrames,
+	animation: StringName,
+	start_frame: int = 0
+) -> float:
 	if frames == null or not frames.has_animation(animation):
 		return 0.0
 	var animation_speed := float(frames.get_animation_speed(animation))
 	if animation_speed <= 0.0:
 		return 0.0
+	var frame_count := frames.get_frame_count(animation)
+	if frame_count <= 0:
+		return 0.0
+	var safe_start_frame := clampi(start_frame, 0, frame_count - 1)
 	var total_frame_duration := 0.0
-	for index in range(frames.get_frame_count(animation)):
+	for index in range(safe_start_frame, frame_count):
 		total_frame_duration += float(frames.get_frame_duration(animation, index))
 	return total_frame_duration / animation_speed
+
+
+func dash_animation_runtime_start_frame(
+	frames: SpriteFrames,
+	animation: StringName,
+	preferred_start_frame: int
+) -> int:
+	if frames == null or not frames.has_animation(animation):
+		return 0
+	var frame_count := frames.get_frame_count(animation)
+	if frame_count <= 0:
+		return 0
+	return clampi(preferred_start_frame, 0, frame_count - 1)
 
 
 func attack_animation_speed_scale(base_duration: float, target_duration: float) -> float:
