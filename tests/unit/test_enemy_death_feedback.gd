@@ -165,6 +165,39 @@ func test_death_fade_preserves_captured_animated_sprite_frame() -> void:
 	fade.queue_free()
 
 
+func test_death_fade_uses_attack_pose_instead_of_looping_walk_when_available() -> void:
+	var fade := _new_death_fade()
+	add_child(fade)
+	fade.global_position = Vector2(32.0, 96.0)
+	var source := AnimatedSprite2D.new()
+	source.name = "SourceAnimatedMonster"
+	source.sprite_frames = _new_test_sprite_frames_with_attack()
+	source.animation = &"move"
+	source.centered = true
+	source.global_position = fade.global_position - Vector2(0.0, 32.0)
+	add_child(source)
+	source.play(&"move")
+	source.set_frame_and_progress(1, 0.45)
+
+	fade.call("capture_visual", source)
+
+	var ghost := _find_captured_monster_ghost(fade)
+	_runner.assert_not_null(ghost, "공격 포즈 잔상 visual 루트를 가진다")
+	if ghost == null:
+		source.queue_free()
+		fade.queue_free()
+		return
+	var clone := ghost.get_child(0) as AnimatedSprite2D
+	_runner.assert_not_null(clone, "AnimatedSprite2D 몬스터 visual을 복제한다")
+	if clone != null:
+		_runner.assert_eq(clone.animation, &"attack", "이동 중 죽어도 걷기 루프 대신 공격 포즈로 멈춘다")
+		_runner.assert_eq(clone.frame, 1, "공격 포즈는 마지막 공격 프레임을 사용한다")
+		_runner.assert_true(is_equal_approx(clone.frame_progress, 0.0), "공격 포즈는 루프 진행도를 이어받지 않는다")
+		_runner.assert_false(clone.is_playing(), "복제 visual은 사망 후 애니메이션을 이어 재생하지 않는다")
+	source.queue_free()
+	fade.queue_free()
+
+
 func test_death_fade_keeps_effect_scale_stable_until_lifetime_expires() -> void:
 	var fade := _new_death_fade()
 	add_child(fade)
@@ -247,6 +280,16 @@ func _new_test_sprite_frames() -> SpriteFrames:
 	var texture := load(DEATH_SHEET_PATH) as Texture2D
 	frames.add_frame(&"move", texture)
 	frames.add_frame(&"move", texture)
+	return frames
+
+
+func _new_test_sprite_frames_with_attack() -> SpriteFrames:
+	var frames := _new_test_sprite_frames()
+	var texture := load(DEATH_SHEET_PATH) as Texture2D
+	frames.add_animation(&"attack")
+	frames.add_frame(&"attack", texture)
+	frames.add_frame(&"attack", texture)
+	frames.set_animation_loop(&"attack", false)
 	return frames
 
 
