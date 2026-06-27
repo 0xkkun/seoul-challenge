@@ -11,6 +11,7 @@ const ATTACK_ICON_SCALE := 0.44
 const DIALOGUE_ICON_SCALE := 0.34
 const DIALOGUE_TAIL_BLOCKS := 1
 const DIALOGUE_TAIL_STYLE := "emoji_corner"
+const DIALOGUE_TAIL_DRAW_ORDER := "after_bubble"
 const OUTER_RING_ALPHA := 0.28
 const OUTER_RING_PRESSED_ALPHA := 0.42
 const INNER_RING_ALPHA := 0.10
@@ -66,6 +67,7 @@ func get_visual_contract() -> Dictionary:
 		"icon_scale": _current_icon_scale(),
 		"dialogue_tail_style": DIALOGUE_TAIL_STYLE,
 		"dialogue_tail_blocks": DIALOGUE_TAIL_BLOCKS,
+		"dialogue_tail_draw_order": DIALOGUE_TAIL_DRAW_ORDER,
 		"label_text": "",
 		"outer_ring_alpha": OUTER_RING_ALPHA,
 		"inner_ring_alpha": INNER_RING_ALPHA,
@@ -151,9 +153,9 @@ func _draw_dialogue_icon(center: Vector2, radius: float) -> void:
 		tail_points[1] as Vector2,
 		tail_points[2] as Vector2,
 	])
+	draw_style_box(_make_dialogue_bubble_style(fill, color, pixel), bubble)
 	draw_polygon(tail_polygon, PackedColorArray([fill]))
 	draw_polyline(tail_polygon, color, pixel, true)
-	draw_style_box(_make_dialogue_bubble_style(fill, color, pixel), bubble)
 	for line_rect: Rect2 in line_rects:
 		draw_rect(line_rect, color, true)
 
