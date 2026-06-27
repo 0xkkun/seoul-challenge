@@ -20,7 +20,7 @@ const DEFAULT_STAGE_NAME := "경복궁"
 const PAUSE_MENU_MESSAGE := "일시정지"
 const ABANDON_RUN_MESSAGE := "런을 포기할까요? 이번 밤 보상은 사라지고 영구 재화는 유지됩니다"
 const QUIT_GAME_MESSAGE := "게임을 종료할까요?"
-const WEAPON_BASEBALL := &"baseball"
+const LEGACY_REMOVED_WEAPON_ID := &"baseball"
 const WEAPON_BAT := &"bat"
 const COMBAT_FEEDBACK_RECOVER_TIME := 0.10
 const COMBAT_FEEDBACK_MAX_OFFSET := 7.0
@@ -169,12 +169,14 @@ func _apply_session_loadout() -> void:
 		return
 	var weapon_id := StringName(config.get(SceneTransition.RUN_CONFIG_SELECTED_WEAPON_ID, &""))
 	match weapon_id:
-		WEAPON_BASEBALL:
-			actor.set("ranged_enabled", true)
-		WEAPON_BAT:
-			actor.set("ranged_enabled", false)
-			if actor.has_method("equip_bat"):
-				actor.call("equip_bat")
+		WEAPON_BAT, LEGACY_REMOVED_WEAPON_ID:
+			_equip_story_bat()
+
+
+func _equip_story_bat() -> void:
+	actor.set("ranged_enabled", false)
+	if actor.has_method("equip_bat"):
+		actor.call("equip_bat")
 
 
 func _connect_player_weapon_events() -> void:

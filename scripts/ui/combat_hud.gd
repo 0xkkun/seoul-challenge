@@ -162,8 +162,6 @@ func _initial_weapon_id() -> StringName:
 
 func _weapon_display_name(weapon_id: StringName) -> String:
 	match weapon_id:
-		&"baseball":
-			return "낡은 야구공"
 		&"bat":
 			return "금 간 나무 배트"
 		_:
