@@ -272,6 +272,23 @@ func test_bat_swing_show_builds_reference_style_crescent_arc() -> void:
 		_runner.assert_true(slash_echo.default_color.a < slash_front.default_color.a, "bat echo reads as a trailing afterimage")
 
 
+func test_bat_attack_hides_debug_like_melee_range_wedge() -> void:
+	var player := (load("res://scenes/player/player.tscn") as PackedScene).instantiate()
+	add_child(player)
+	player.equip_bat()
+
+	player._attack_melee(Vector2.RIGHT)
+
+	var melee_swing := player.get_node_or_null("MeleeSwing") as CanvasItem
+	var bat_swing := player.get_node_or_null("BatSwingImpact") as CanvasItem
+	_runner.assert_not_null(melee_swing, "player keeps melee swing node for bare hands")
+	_runner.assert_not_null(bat_swing, "player keeps bat swing effect node")
+	if melee_swing != null:
+		_runner.assert_false(melee_swing.visible, "bat attack does not show the white range wedge")
+	if bat_swing != null:
+		_runner.assert_true(bat_swing.visible, "bat attack still shows the authored slash effect")
+
+
 func test_player_scene_includes_layered_power_impact_effect() -> void:
 	var player := (load("res://scenes/player/player.tscn") as PackedScene).instantiate()
 	add_child(player)

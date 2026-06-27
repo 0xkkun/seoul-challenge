@@ -713,9 +713,11 @@ func _attack_melee(dir: Vector2) -> void:
 			_deflect_bullets_in_arc(dir, rng, arc)
 		else:
 			_clear_bullets_in_arc(dir, rng, arc)
-	_show_swing(dir, rng, arc)
 	if _has_bat:
+		_hide_swing()
 		_show_bat_swing_effect(dir, rng, arc)
+	else:
+		_show_swing(dir, rng, arc)
 	if power_attack:
 		_dash_power_attack_consumed = true
 		_dash_power_attack_timer = 0.0
@@ -738,6 +740,12 @@ func _show_swing(dir: Vector2, rng: float, arc: float) -> void:
 	_swing_visual.rotation = 0.0
 	_swing_visual.visible = true
 	_swing_timer = swing_visual_time
+
+
+func _hide_swing() -> void:
+	_swing_timer = 0.0
+	if _swing_visual != null:
+		_swing_visual.visible = false
 
 
 func _show_bat_swing_effect(dir: Vector2, rng: float, arc: float) -> void:
