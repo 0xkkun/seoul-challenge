@@ -66,7 +66,7 @@ signal run_modifiers_changed(payload: Dictionary)
 @export var dash_power_attack_range_multiplier: float = 1.15
 @export var dash_power_attack_knockback_multiplier: float = 1.5
 @export var max_health: int = 5            ## 최대 체력(하트)
-@export var invuln_time: float = 0.5       ## 피격 후 무적 시간 (s) — 보스 탄막 원샷 방지
+@export var invuln_time: float = 0.5       ## 피격 후 무적 시간 (s) — 연속 피격 방지
 @export var special_skill_id: StringName = &"emergency_dodge"
 @export_range(0, 9, 1) var special_skill_max_uses := 3
 @export_range(0, 9, 1) var special_skill_uses_remaining := 3
