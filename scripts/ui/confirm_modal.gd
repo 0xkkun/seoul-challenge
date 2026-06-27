@@ -5,6 +5,7 @@ const TEST_ID_YES := "confirm_modal.yes_button"
 const TEST_ID_NO := "confirm_modal.no_button"
 const ACTION_YES := "confirm_modal.yes"
 const ACTION_NO := "confirm_modal.no"
+const FontRoles := preload("res://scripts/ui/ui_font_roles.gd")
 
 @onready var _message_label: Label = %MessageLabel
 @onready var _yes_button: Button = %YesButton
@@ -23,6 +24,7 @@ func _ready() -> void:
 	_no_button.set_meta("uat_action", ACTION_NO)
 	_yes_button.pressed.connect(confirm_yes)
 	_no_button.pressed.connect(confirm_no)
+	FontRoles.apply_body(_message_label)
 	_apply_button_styles(false)
 
 
@@ -91,3 +93,5 @@ func _apply_button_styles(danger: bool) -> void:
 	var yes_variant := PixelButtonStyle.VARIANT_DANGER if danger else PixelButtonStyle.VARIANT_PRIMARY
 	PixelButtonStyle.apply(_yes_button, yes_variant, Vector2(132.0, 50.0))
 	PixelButtonStyle.apply(_no_button, PixelButtonStyle.VARIANT_SECONDARY, Vector2(132.0, 50.0))
+	FontRoles.apply_pixel(_yes_button)
+	FontRoles.apply_pixel(_no_button)

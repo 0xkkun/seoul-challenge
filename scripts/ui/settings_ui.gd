@@ -20,9 +20,11 @@ const _SOUND_ON_ICON := preload("res://assets/ui/icons/settings/sound.png")
 const _SOUND_OFF_ICON := preload("res://assets/ui/icons/settings/sound_off.png")
 const _HAPTIC_ON_ICON := preload("res://assets/ui/icons/settings/haptic.png")
 const _HAPTIC_OFF_ICON := preload("res://assets/ui/icons/settings/haptic_off.png")
+const FontRoles := preload("res://scripts/ui/ui_font_roles.gd")
 
 @onready var _root: Control = $Root
 @onready var _panel: PanelContainer = $Root/Panel
+@onready var _title_label: Label = $Root/Panel/Margin/Stack/TitleLabel
 @onready var _rows: VBoxContainer = %Rows
 @onready var _close_button: Button = %CloseButton
 
@@ -41,6 +43,8 @@ func _ready() -> void:
 	_close_button.pressed.connect(_on_close_pressed)
 	_close_button.focus_mode = Control.FOCUS_NONE
 	PixelButtonStyle.apply(_close_button, PixelButtonStyle.VARIANT_SECONDARY, Vector2(136.0, 50.0))
+	FontRoles.apply_title(_title_label)
+	FontRoles.apply_pixel(_close_button)
 	_build_rows()
 	_refresh_all()
 
@@ -172,6 +176,7 @@ func _make_toggle_row(row: Dictionary) -> Control:
 	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	label.add_theme_font_size_override("font_size", 22)
+	FontRoles.apply_pixel(label)
 	label.add_theme_color_override("font_color", Color(0.94, 0.96, 0.97, 1.0))
 	hbox.add_child(label)
 
@@ -218,6 +223,7 @@ func _sync_toggle_button(key: String) -> void:
 	button.text = "ON" if enabled else "OFF"
 	var variant := PixelButtonStyle.VARIANT_PRIMARY if enabled else PixelButtonStyle.VARIANT_SECONDARY
 	PixelButtonStyle.apply(button, variant, _TOGGLE_MIN_SIZE)
+	FontRoles.apply_pixel(button)
 	var icon := state.get("icon") as TextureRect
 	if icon != null:
 		var icon_texture: Texture2D = (state.get("icon_on") if enabled else state.get("icon_off")) as Texture2D

@@ -2,6 +2,7 @@ extends Control
 
 const BACKGROUND_CROP_ANCHOR := Vector2(0.5, 0.0)
 const NightIntroCutscene := preload("res://scripts/cutscene/night_intro_cutscene.gd")
+const FontRoles := preload("res://scripts/ui/ui_font_roles.gd")
 
 ## 최초 1회 게임 시작 시 밤 인트로 콜드오픈을 재생했는지 표시하는 세이브 플래그.
 const FLAG_SEEN_NIGHT_INTRO := &"seen_night_intro"
@@ -13,6 +14,7 @@ const FIRST_NIGHT_WEAPON_ID := &"bat"
 @onready var background: TextureRect = $Background
 @onready var start_button: Button = %StartButton
 @onready var settings_button: Button = %SettingsButton
+@onready var tagline_label: Label = $LogoPane/TaglineLabel
 @onready var status_label: Label = %StatusLabel
 @onready var _confirm_modal: ConfirmModal = %ConfirmModal
 @onready var _settings_ui: SettingsUI = %SettingsUI
@@ -40,10 +42,18 @@ func _ready() -> void:
 	PixelButtonStyle.attach_press_sfx(settings_button)
 	status_label.text = ""
 	status_label.visible = false
+	_apply_font_roles()
 
 
 func is_quit_confirm_visible() -> bool:
 	return _confirm_modal.is_open()
+
+
+func _apply_font_roles() -> void:
+	FontRoles.apply_body(tagline_label)
+	FontRoles.apply_pixel(start_button)
+	FontRoles.apply_pixel(settings_button)
+	FontRoles.apply_pixel(status_label)
 
 
 func get_quit_confirm_message() -> String:

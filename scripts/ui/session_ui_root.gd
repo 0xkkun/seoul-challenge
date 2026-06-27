@@ -14,6 +14,7 @@ const DEFAULT_MAP_NAME := "경복궁"
 const MAP_TAB_TEST_ID := "session.map_tab"
 const MAP_TAB_ACTION := "session.map_tab"
 const MobileSafeArea := preload("res://scripts/ui/mobile_safe_area.gd")
+const FontRoles := preload("res://scripts/ui/ui_font_roles.gd")
 const REWARD_CHOICE_ROW_OFFSET_LEFT := -390.0
 const REWARD_CHOICE_ROW_OFFSET_TOP := -84.0
 const REWARD_CHOICE_ROW_OFFSET_RIGHT := 390.0
@@ -76,6 +77,7 @@ func _ready() -> void:
 	retry_button.set_meta("uat_action", "session.retry")
 	_apply_landscape_safe_area()
 	_apply_button_styles()
+	_apply_font_roles()
 	_apply_result_panel_styles()
 	map_tab_button.pressed.connect(_on_map_tab_button_pressed)
 	return_button.pressed.connect(_on_return_button_pressed)
@@ -146,6 +148,22 @@ func _style_record_panel(path: String, fill: Color) -> void:
 			"panel",
 			DungeonUiTheme.panel_style(fill, DungeonUiTheme.COLOR_GOLD_DIM, 2, 0.0, 0.0, 4)
 		)
+
+
+func _apply_font_roles() -> void:
+	FontRoles.apply_pixel(map_tab_button)
+	FontRoles.apply_pixel(status_label)
+	FontRoles.apply_pixel(interaction_label)
+	FontRoles.apply_title(result_title_label)
+	FontRoles.apply_body(narrative_label)
+	FontRoles.apply_body(memory_label)
+	FontRoles.apply_pixel(memory_amount_label)
+	FontRoles.apply_pixel(students_record_label)
+	FontRoles.apply_pixel(friends_record_label)
+	FontRoles.apply_pixel(rooms_record_label)
+	FontRoles.apply_pixel(unlocks_record_label)
+	FontRoles.apply_pixel(return_button)
+	FontRoles.apply_pixel(retry_button)
 
 
 func set_status(text: String) -> void:
@@ -342,6 +360,7 @@ func _ensure_reward_choice_overlay() -> void:
 	_reward_choice_title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_reward_choice_title_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	_reward_choice_title_label.add_theme_font_size_override("font_size", 30)
+	FontRoles.apply_title(_reward_choice_title_label)
 	_reward_choice_title_label.add_theme_color_override("font_color", Color(0.937255, 0.811765, 0.298039, 1.0))
 	_reward_choice_title_label.add_theme_color_override("font_outline_color", Color(0.0, 0.0, 0.0, 0.85))
 	_reward_choice_title_label.add_theme_constant_override("outline_size", 4)
@@ -431,6 +450,7 @@ func _render_reward_choices() -> void:
 		button.set_meta("uat_action", "session.reward_choice.%s" % String(item_id))
 		button.pressed.connect(_on_reward_choice_pressed.bind(item_id))
 		PixelButtonStyle.apply(button, PixelButtonStyle.VARIANT_PRIMARY, REWARD_CHOICE_CARD_SIZE)
+		FontRoles.apply_pixel(button)
 		button.pivot_offset = REWARD_CHOICE_CARD_SIZE * 0.5
 		_add_reward_choice_card_content(button, display_name, effect)
 		_reward_choice_row.add_child(button)
@@ -462,6 +482,7 @@ func _add_reward_choice_card_content(button: Button, display_name: String, effec
 	title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	title.add_theme_font_size_override("font_size", REWARD_CHOICE_CARD_TITLE_FONT_SIZE)
+	FontRoles.apply_title(title)
 	title.add_theme_color_override("font_color", REWARD_CHOICE_CARD_TITLE_COLOR)
 	title.add_theme_color_override("font_outline_color", Color(0.0, 0.0, 0.0, 0.88))
 	title.add_theme_constant_override("outline_size", REWARD_CHOICE_CARD_TITLE_OUTLINE)
@@ -475,6 +496,7 @@ func _add_reward_choice_card_content(button: Button, display_name: String, effec
 	effect_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	effect_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	effect_label.add_theme_font_size_override("font_size", REWARD_CHOICE_CARD_EFFECT_FONT_SIZE)
+	FontRoles.apply_pixel(effect_label)
 	effect_label.add_theme_color_override("font_color", REWARD_CHOICE_CARD_EFFECT_COLOR)
 	effect_label.add_theme_color_override("font_outline_color", Color(0.0, 0.0, 0.0, 0.65))
 	effect_label.add_theme_constant_override("outline_size", REWARD_CHOICE_CARD_EFFECT_OUTLINE)
