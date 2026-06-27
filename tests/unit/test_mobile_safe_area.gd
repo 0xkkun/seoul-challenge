@@ -31,7 +31,7 @@ func test_bottom_anchored_cta_rect_keeps_home_indicator_gap() -> void:
 	))
 
 	_runner.assert_true(float(margins["bottom"]) >= MobileSafeArea.cta_bottom_margin(), "하단 CTA는 홈 인디케이터 위로 뜬다")
-	_runner.assert_true(float(margins["right"]) >= 57.0, "기존 우측 CTA의 가로 여백을 유지한다")
+	_runner.assert_true(float(margins["right"]) >= MobileSafeArea.MIN_RIGHT, "하단 CTA는 우측 가로폰 safe-area 안쪽에 머문다")
 
 
 func test_apply_edge_offsets_moves_control_inside_landscape_safe_area() -> void:
@@ -40,10 +40,18 @@ func test_apply_edge_offsets_moves_control_inside_landscape_safe_area() -> void:
 	control.anchor_right = 1.0
 	control.anchor_top = 1.0
 	control.anchor_bottom = 1.0
+	control.offset_left = -200.0
+	control.offset_top = -160.0
+	control.offset_right = -40.0
+	control.offset_bottom = -40.0
 	add_child(control)
 
+	var original_width := control.offset_right - control.offset_left
+	var original_height := control.offset_bottom - control.offset_top
 	MobileSafeArea.apply_edge_offsets(control, -1.0, -1.0, 72.0, 58.0)
 
 	_runner.assert_eq(control.offset_right, -72.0, "오른쪽 safe-area offset을 적용한다")
 	_runner.assert_eq(control.offset_bottom, -58.0, "하단 safe-area offset을 적용한다")
+	_runner.assert_eq(control.offset_right - control.offset_left, original_width, "한쪽 edge 이동은 기존 너비를 보존한다")
+	_runner.assert_eq(control.offset_bottom - control.offset_top, original_height, "한쪽 edge 이동은 기존 높이를 보존한다")
 	control.free()

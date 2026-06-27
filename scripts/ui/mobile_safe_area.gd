@@ -38,21 +38,38 @@ static func cta_bottom_margin() -> float:
 
 
 static func bottom_anchored_rect(left: float, width: float, height: float, bottom_margin_px := CTA_BOTTOM, viewport_size := DESIGN_VIEWPORT) -> Rect2:
+	var safe_left := MIN_LEFT / viewport_size.x
+	var safe_right := 1.0 - (MIN_RIGHT / viewport_size.x)
+	var clamped_left := clampf(left, safe_left, safe_right - width)
 	var top := 1.0 - (bottom_margin_px / viewport_size.y) - height
-	return Rect2(left, top, width, height)
+	return Rect2(clamped_left, top, width, height)
 
 
 static func apply_edge_offsets(control: Control, left := -1.0, top := -1.0, right := -1.0, bottom := -1.0) -> void:
 	if control == null:
 		return
+	var preserve_width := left >= 0.0 and right < 0.0 and is_equal_approx(control.anchor_left, control.anchor_right)
+	var preserve_right_width := right >= 0.0 and left < 0.0 and is_equal_approx(control.anchor_left, control.anchor_right)
+	var preserve_height := top >= 0.0 and bottom < 0.0 and is_equal_approx(control.anchor_top, control.anchor_bottom)
+	var preserve_bottom_height := bottom >= 0.0 and top < 0.0 and is_equal_approx(control.anchor_top, control.anchor_bottom)
+	var width := control.offset_right - control.offset_left
+	var height := control.offset_bottom - control.offset_top
 	if left >= 0.0:
 		control.offset_left = left
-	if top >= 0.0:
-		control.offset_top = top
+		if preserve_width:
+			control.offset_right = control.offset_left + width
 	if right >= 0.0:
 		control.offset_right = -right
+		if preserve_right_width:
+			control.offset_left = control.offset_right - width
+	if top >= 0.0:
+		control.offset_top = top
+		if preserve_height:
+			control.offset_bottom = control.offset_top + height
 	if bottom >= 0.0:
 		control.offset_bottom = -bottom
+		if preserve_bottom_height:
+			control.offset_top = control.offset_bottom - height
 
 
 static func margins_for_rect(rect: Rect2, viewport_size := DESIGN_VIEWPORT) -> Dictionary:
