@@ -29,7 +29,6 @@ var _collision_shape: CollisionShape2D
 var _blocker_body: StaticBody2D
 var _blocker_shape: CollisionShape2D
 var _actor: Node2D
-var _ping_marker: Label
 var _portal_visual: Node2D
 var _portal_sprite: Sprite2D
 var _portal_frame_timer := 0.0
@@ -43,7 +42,6 @@ func _ready() -> void:
 	_blocker_body = _resolve_blocker_body()
 	_blocker_shape = _resolve_blocker_shape()
 	_actor = _resolve_actor()
-	_ping_marker = _resolve_ping_marker()
 	_portal_visual = _resolve_portal_visual()
 	if position == Vector2.ZERO:
 		position = RoomPalette.get_door_position(door_dir)
@@ -53,11 +51,10 @@ func _ready() -> void:
 		_trigger_area.area_entered.connect(_on_area_entered)
 	_apply_visual_layout()
 	_apply_portal_layout()
-	_apply_ping_marker_layout()
 	_apply_collision_shape()
 	_apply_blocker_shape()
 	_apply_state()
-	set_process(_ping_marker != null or _portal_visual != null)
+	set_process(_portal_visual != null)
 	set_physics_process(_actor != null)
 
 
@@ -130,11 +127,6 @@ func _physics_process(_delta: float) -> void:
 
 
 func _process(delta: float) -> void:
-	var tick := float(Time.get_ticks_msec())
-	if _ping_marker != null and _ping_marker.visible:
-		var marker_color := RoomPalette.MINIMAP_PING_COLOR
-		marker_color.a = 0.62 + sin(tick / 160.0) * 0.22
-		_ping_marker.modulate = marker_color
 	if _portal_visual != null and _portal_visual.visible:
 		_advance_portal_sprite(delta)
 
@@ -150,8 +142,6 @@ func _apply_state() -> void:
 			(_visual as ColorRect).color = color
 		else:
 			_visual.modulate = RoomPalette.DOOR_OPEN_COLOR if is_open() else RoomPalette.DOOR_LOCKED_COLOR
-	if _ping_marker != null:
-		_ping_marker.visible = is_open()
 	if _portal_visual != null:
 		_portal_visual.visible = is_open()
 	if _blocker_shape != null:
@@ -182,19 +172,6 @@ func _apply_portal_layout() -> void:
 	_portal_sprite.scale = PORTAL_DISPLAY_SCALE
 	_portal_sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	_portal_sprite.z_index = 1
-
-
-func _apply_ping_marker_layout() -> void:
-	if _ping_marker == null:
-		return
-	_ping_marker.text = _ping_arrow_for_door_dir(door_dir)
-	_ping_marker.custom_minimum_size = Vector2(20.0, 20.0)
-	_ping_marker.size = Vector2(20.0, 20.0)
-	_ping_marker.position = _ping_marker_position_for_door_dir(door_dir)
-	_ping_marker.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_ping_marker.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_ping_marker.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_ping_marker.z_index = 20
 
 
 func _apply_collision_shape() -> void:
@@ -264,16 +241,6 @@ func _resolve_blocker_shape() -> CollisionShape2D:
 	return shape
 
 
-func _resolve_ping_marker() -> Label:
-	var marker := find_child("PingMarker", false, false) as Label
-	if marker != null:
-		return marker
-	marker = Label.new()
-	marker.name = "PingMarker"
-	add_child(marker)
-	return marker
-
-
 func _resolve_portal_visual() -> Node2D:
 	var portal := find_child("PortalVisual", false, false) as Node2D
 	if portal == null:
@@ -331,32 +298,6 @@ func _remove_legacy_portal_child(parent: Node, child_name: String) -> void:
 		return
 	parent.remove_child(child)
 	child.queue_free()
-
-
-func _ping_arrow_for_door_dir(next_door_dir: StringName) -> String:
-	match next_door_dir:
-		&"N":
-			return "^"
-		&"S":
-			return "v"
-		&"E":
-			return ">"
-		&"W":
-			return "<"
-	return "."
-
-
-func _ping_marker_position_for_door_dir(next_door_dir: StringName) -> Vector2:
-	match next_door_dir:
-		&"N":
-			return Vector2(-10.0, -38.0)
-		&"S":
-			return Vector2(-10.0, 18.0)
-		&"E":
-			return Vector2(22.0, -10.0)
-		&"W":
-			return Vector2(-42.0, -10.0)
-	return Vector2(-10.0, -10.0)
 
 
 func _on_body_entered(_body: Node2D) -> void:
