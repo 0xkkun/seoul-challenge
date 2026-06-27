@@ -13,6 +13,15 @@ class StubEnemy extends Node2D:
 		taken += amount
 
 
+class StubParryEnemy extends StubEnemy:
+	var parry_count: int = 0
+	var parried_dir: Vector2 = Vector2.ZERO
+	func parry_dash(direction: Vector2) -> bool:
+		parry_count += 1
+		parried_dir = direction
+		return true
+
+
 class StubBullet extends Node2D:
 	var deflect_count: int = 0
 	var deflected_dir: Vector2 = Vector2.ZERO
@@ -282,6 +291,40 @@ func test_bat_deflects_enemy_projectile_in_arc() -> void:
 	_runner.assert_eq(b.deflect_count, 1, "배트 부채꼴 안 적탄을 되받아침")
 	_runner.assert_eq(b.deflected_dir, Vector2.RIGHT, "스윙 방향으로 되받아침")
 	b.free()
+	p.free()
+
+
+func test_bat_swing_parries_dash_enemy_in_arc() -> void:
+	var p = PlayerScript.new()
+	add_child(p)
+	p.position = Vector2.ZERO
+	p.equip_bat()
+	var e := StubParryEnemy.new()
+	e.position = Vector2(40.0, 0.0)
+	e.add_to_group(&"enemy")
+	add_child(e)
+
+	p._attack_melee(Vector2.RIGHT)
+
+	_runner.assert_eq(e.parry_count, 1, "배트 스윙은 정면 돌진 적을 패링한다")
+	_runner.assert_eq(e.parried_dir, Vector2.RIGHT, "패링 방향은 배트 스윙 방향을 따른다")
+	e.free()
+	p.free()
+
+
+func test_bare_hands_do_not_parry_dash_enemy() -> void:
+	var p = PlayerScript.new()
+	add_child(p)
+	p.position = Vector2.ZERO
+	var e := StubParryEnemy.new()
+	e.position = Vector2(25.0, 0.0)
+	e.add_to_group(&"enemy")
+	add_child(e)
+
+	p._attack_melee(Vector2.RIGHT)
+
+	_runner.assert_eq(e.parry_count, 0, "맨손은 늑대 돌진을 패링하지 못한다")
+	e.free()
 	p.free()
 
 

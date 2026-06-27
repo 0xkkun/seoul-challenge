@@ -16,6 +16,7 @@ signal defeated(enemy)
 @export var dash_windup_time: float = 0.24
 @export var dash_duration: float = 0.28
 @export var dash_recover_time: float = 0.52
+@export var parried_recover_time: float = 0.72
 @export var hit_invuln_time: float = 0.12
 @export var target_group: StringName = &"player"
 @export var move_animation: StringName = &"move"
@@ -64,6 +65,16 @@ func _physics_process(delta: float) -> void:
 
 func get_dash_state() -> StringName:
 	return _dash_state
+
+
+func parry_dash(_direction: Vector2 = Vector2.ZERO) -> bool:
+	if _dash_state != &"dash":
+		return false
+	_dash_state = &"recover"
+	_dash_timer = parried_recover_time
+	_dash_hit_targets.clear()
+	velocity = Vector2.ZERO
+	return true
 
 
 func tick_dash_ai(delta: float, origin: Vector2, target_position: Vector2) -> Vector2:

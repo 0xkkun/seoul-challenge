@@ -136,6 +136,33 @@ func test_wolf_dash_hit_is_blocked_while_stunned() -> void:
 	_runner.assert_eq(target.damage_taken, 0, "stunned wolf dash cannot damage the player")
 
 
+func test_wolf_dash_can_be_parried_into_recovery() -> void:
+	_runner.assert_true(ResourceLoader.exists(WOLF_SCENE_PATH), "wolf dash enemy scene exists")
+	if not ResourceLoader.exists(WOLF_SCENE_PATH):
+		return
+
+	var enemy := (load(WOLF_SCENE_PATH) as PackedScene).instantiate()
+	var target := DamageTarget.new()
+	add_child(enemy)
+	add_child(target)
+	enemy.global_position = Vector2.ZERO
+	target.global_position = Vector2.RIGHT * 8.0
+
+	enemy.call("tick_dash_ai", 0.1, enemy.global_position, target.global_position)
+	enemy.call("tick_dash_ai", enemy.dash_windup_time, enemy.global_position, target.global_position)
+	_runner.assert_eq(enemy.call("get_dash_state"), &"dash", "test setup puts wolf in active dash")
+	_runner.assert_true(enemy.has_method("parry_dash"), "wolf exposes a dash parry API for bat timing")
+	if not enemy.has_method("parry_dash"):
+		return
+
+	var parried: bool = bool(enemy.call("parry_dash", Vector2.LEFT))
+	_runner.assert_true(parried, "active wolf dash can be parried")
+	_runner.assert_eq(enemy.call("get_dash_state"), &"recover", "parried wolf exits active dash into recovery")
+
+	enemy.call("_try_dash_hit", target)
+	_runner.assert_eq(target.damage_taken, 0, "parried wolf dash cannot damage after being stopped")
+
+
 func test_combat_room_can_spawn_wolf_dash_enemy_from_config() -> void:
 	var room := (load(COMBAT_ROOM_SCENE_PATH) as PackedScene).instantiate()
 	add_child(room)
