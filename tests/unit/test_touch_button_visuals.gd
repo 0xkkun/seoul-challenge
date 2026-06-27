@@ -43,6 +43,8 @@ func test_attack_button_dialogue_mode_uses_smaller_speech_icon_contract() -> voi
 	_runner.assert_eq(contract.get("icon_shape"), "speech_bubble", "dialogue mode uses a speech bubble/message icon")
 	_runner.assert_eq(contract.get("icon_path"), "", "dialogue mode uses the built-in pixel speech icon instead of the combat asset")
 	_runner.assert_true(is_equal_approx(float(contract.get("icon_scale", 0.0)), 0.34), "dialogue icon is smaller than the combat icon")
+	_runner.assert_eq(contract.get("dialogue_tail_blocks"), 3, "dialogue speech bubble tail extends past the compact two-block shape")
+	_runner.assert_eq(contract.get("label_text"), "", "dialogue action remains icon-only without visible copy")
 	button.free()
 
 

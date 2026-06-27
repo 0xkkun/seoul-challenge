@@ -108,11 +108,15 @@ func test_day_corridor_routes_touch_attack_to_dialogue_not_combat() -> void:
 	var touch_controls: Node = scene.get_node("%TouchControls")
 	var attack_button: Control = touch_controls.get_node("AttackButton")
 	var skill_button: Control = touch_controls.get_node("SkillButton")
+	var interaction_prompt := scene.get_node("%InteractionPrompt") as Label
+	var talk_button_label := scene.get_node("%TalkButtonLabel") as Label
 
 	_runner.assert_eq(player.get("touch_controls_path"), NodePath("../MoveOnlyTouchProxy"), "player reads touch movement through the move-only proxy")
 	_runner.assert_eq(touch_controls.get_control_category(), "day_dialogue", "day corridor uses the movement/dialogue touch control category")
 	_runner.assert_true(attack_button.visible, "day corridor keeps the touch dialogue button visible")
 	_runner.assert_false(skill_button.visible, "day corridor hides the dodge button")
+	_runner.assert_eq(interaction_prompt.text, "", "world interaction helper does not render the word 대화")
+	_runner.assert_eq(talk_button_label.text, "", "touch action helper does not render the word 대화")
 	_runner.assert_false(proxy.is_attack_pressed(), "proxy never forwards the touch attack button to player firing")
 	_runner.assert_false(touch_controls.is_skill_pressed(), "day corridor does not expose dodge input through touch controls")
 	_runner.assert_true(scene.is_combat_output_disabled(), "day scene removes projectile output and recoil")
