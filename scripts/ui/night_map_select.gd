@@ -7,6 +7,10 @@ signal stage_selected(stage_id: StringName)
 const DungeonTheme := preload("res://scripts/ui/dungeon_ui_theme.gd")
 const PixelButton := preload("res://scripts/ui/pixel_button_style.gd")
 const MobileSafeArea := preload("res://scripts/ui/mobile_safe_area.gd")
+const NightIntroCutscene := preload("res://scripts/cutscene/night_intro_cutscene.gd")
+
+## 첫 밤 진입 직전 1회만 콜드오픈을 재생하기 위한 세이브 플래그.
+const FLAG_SEEN_NIGHT_INTRO := &"seen_night_intro"
 
 const STAGE_GYEONGBOKGUNG := &"gyeongbokgung"
 const ACTION_RETURN := "night_map_select.return"
@@ -168,11 +172,36 @@ func _on_gyeongbokgung_pressed() -> void:
 	if _depart_button != null:
 		_depart_button.disabled = true
 	stage_selected.emit(STAGE_GYEONGBOKGUNG)
-	if scene_transition_enabled:
-		var result := SceneTransition.start_session(get_departure_config())
-		if result == OK:
-			SceneTransition.clear_pending_run_config()
-		else:
-			_is_departure_requested = false
-			if _depart_button != null:
-				_depart_button.disabled = false
+	if not scene_transition_enabled:
+		return
+	if _should_play_night_intro():
+		await _play_night_intro()
+	_start_session_now()
+
+
+## 첫 밤 진입일 때만(세이브 플래그 미설정) 콜드오픈을 재생한다.
+func _should_play_night_intro() -> bool:
+	if not has_node("/root/SaveManager"):
+		return false
+	return not SaveManager.get_flag(FLAG_SEEN_NIGHT_INTRO)
+
+
+func _play_night_intro() -> void:
+	var intro := NightIntroCutscene.new()
+	add_child(intro)
+	intro.play()
+	await intro.finished
+	if has_node("/root/SaveManager"):
+		SaveManager.set_flag(FLAG_SEEN_NIGHT_INTRO, true)
+	if is_instance_valid(intro):
+		intro.queue_free()
+
+
+func _start_session_now() -> void:
+	var result := SceneTransition.start_session(get_departure_config())
+	if result == OK:
+		SceneTransition.clear_pending_run_config()
+	else:
+		_is_departure_requested = false
+		if _depart_button != null:
+			_depart_button.disabled = false
