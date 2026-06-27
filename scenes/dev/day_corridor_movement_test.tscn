@@ -1,4 +1,4 @@
-[gd_scene load_steps=13 format=3]
+[gd_scene load_steps=14 format=3]
 
 [ext_resource type="Script" path="res://scripts/dev/day_corridor_movement_test.gd" id="1_demo"]
 [ext_resource type="Texture2D" path="res://assets/backgrounds/corridor/day/school_bg_left.png" id="2_bg1"]
@@ -8,6 +8,7 @@
 [ext_resource type="Script" path="res://scripts/dev/day_corridor_touch_proxy.gd" id="6_proxy"]
 [ext_resource type="Texture2D" path="res://assets/characters/student/walking.png" id="7_student"]
 [ext_resource type="Texture2D" path="res://assets/characters/student/idle.png" id="12_idle"]
+[ext_resource type="Texture2D" path="res://assets/characters/school/day_friend.png" id="13_friend"]
 [ext_resource type="PackedScene" path="res://scenes/ui/hub_dialogue_ui.tscn" id="8_dialogue"]
 [ext_resource type="Script" path="res://scripts/dev/uat_command_bridge.gd" id="9_uat"]
 [ext_resource type="Texture2D" path="res://assets/ui/icons/gear.svg" id="10_gear"]
@@ -15,7 +16,9 @@
 
 [node name="DayCorridorMovementTest" type="Node2D"]
 script = ExtResource("1_demo")
+talk_target_texture = ExtResource("13_friend")
 character_idle_texture = ExtResource("12_idle")
+dialogue_portrait_texture = ExtResource("13_friend")
 
 [node name="Background" type="Node2D" parent="."]
 unique_name_in_owner = true
@@ -46,14 +49,14 @@ unique_name_in_owner = true
 position = Vector2(1010, 616)
 z_index = 8
 
-[node name="Body" type="Polygon2D" parent="TalkTarget"]
-color = Color(0.9, 0.78, 0.36, 1)
-polygon = PackedVector2Array(-13, -42, 13, -42, 13, 0, -13, 0)
-
-[node name="Head" type="Polygon2D" parent="TalkTarget"]
-position = Vector2(0, -58)
-color = Color(0.96, 0.84, 0.62, 1)
-polygon = PackedVector2Array(-14, -14, 14, -14, 14, 14, -14, 14)
+[node name="TalkTargetSprite" type="Sprite2D" parent="TalkTarget"]
+unique_name_in_owner = true
+position = Vector2(0, -128)
+scale = Vector2(2, 2)
+texture_filter = 1
+texture = ExtResource("13_friend")
+hframes = 8
+vframes = 1
 
 [node name="Player" parent="." instance=ExtResource("4_player")]
 unique_name_in_owner = true
