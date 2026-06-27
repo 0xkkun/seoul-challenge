@@ -4,6 +4,7 @@ extends Node
 const PlayerScript := preload("res://scripts/player/player.gd")
 const BulletScene := preload("res://scenes/projectiles/purify_bullet.tscn")
 const LauncherScript := preload("res://scripts/player/projectile_launcher.gd")
+const BaseballFrames := preload("res://assets/sprites/player/player_baseball_frames.tres")
 const REMOVED_BASEBALL_NAME := "낡은" + "야구공"
 
 var _runner: Node
@@ -42,3 +43,26 @@ func test_launcher_identity_is_not_a_memory_weapon() -> void:
 	_runner.assert_false(String(info.get("name")).contains(REMOVED_BASEBALL_NAME), "removed baseball memory weapon is not exposed as weapon identity")
 	_runner.assert_true(String(info.get("flavor")).length() > 0, "기억 플레이버 텍스트 존재")
 	l.free()
+
+
+func test_baseball_walk_frames_fit_updated_sprite_sheet() -> void:
+	_runner.assert_eq(BaseballFrames.get_frame_count(&"walk"), 7, "야구부 걷기 시트는 7프레임")
+
+	for index in range(BaseballFrames.get_frame_count(&"walk")):
+		var frame_texture := BaseballFrames.get_frame_texture(&"walk", index) as AtlasTexture
+		_runner.assert_not_null(frame_texture, "walk frame %d uses atlas texture" % index)
+		if frame_texture == null:
+			continue
+
+		var atlas := frame_texture.atlas
+		_runner.assert_not_null(atlas, "walk frame %d has atlas" % index)
+		if atlas == null:
+			continue
+
+		_runner.assert_eq(atlas.get_width(), 896, "걷기 시트 폭은 7 * 128")
+		_runner.assert_eq(atlas.get_height(), 128, "걷기 시트 높이는 128")
+		_runner.assert_eq(frame_texture.region.size, Vector2(128, 128), "walk frame %d keeps 128px square" % index)
+		_runner.assert_true(
+			frame_texture.region.position.x + frame_texture.region.size.x <= float(atlas.get_width()),
+			"walk frame %d stays inside updated sheet" % index
+		)
