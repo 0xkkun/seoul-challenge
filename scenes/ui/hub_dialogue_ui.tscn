@@ -51,6 +51,7 @@ grow_vertical = 0
 [node name="PortraitSprite" type="Sprite2D" parent="Root"]
 unique_name_in_owner = true
 visible = false
+z_index = 2
 position = Vector2(112, 386)
 scale = Vector2(2.1, 2.1)
 texture_filter = 1

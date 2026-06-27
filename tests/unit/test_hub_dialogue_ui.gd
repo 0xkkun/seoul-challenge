@@ -57,6 +57,7 @@ func test_sprite_portrait_uses_texture_without_panel_background() -> void:
 	var panel := _ui.get_node("%PortraitPanel") as ColorRect
 	var accent := _ui.get_node("%PortraitAccent") as ColorRect
 	var sprite := _ui.get_node("%PortraitSprite") as Sprite2D
+	var dialogue_bar := _ui.get_node("%DialogueBar") as PanelContainer
 	var frame_before := sprite.frame
 	_ui.call("_process", 0.7)
 
@@ -65,6 +66,7 @@ func test_sprite_portrait_uses_texture_without_panel_background() -> void:
 	_runner.assert_eq(_ui.get_portrait_texture_path(), "res://assets/characters/school/day_friend.png", "초상화 텍스처 경로를 노출한다")
 	_runner.assert_true(panel.color.a <= 0.01, "스프라이트 초상화는 단색 배경 패널을 비운다")
 	_runner.assert_false(accent.visible, "스프라이트 초상화는 기존 하단 accent를 숨긴다")
+	_runner.assert_true(sprite.z_index > dialogue_bar.z_index, "스프라이트 초상화는 대화 바 위에 그려진다")
 	_runner.assert_true(sprite.frame != frame_before, "초상화 스프라이트는 대화 중 프레임을 재생한다")
 
 
