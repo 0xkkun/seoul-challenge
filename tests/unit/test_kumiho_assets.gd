@@ -12,7 +12,7 @@ func _set_runner(runner: Node) -> void:
 	_runner = runner
 
 
-func test_kumiho_scene_uses_5_move_and_6_attack_frames() -> void:
+func test_kumiho_scene_uses_5_move_and_5_attack_frames() -> void:
 	_runner.assert_true(ResourceLoader.exists(KUMIHO_SCENE_PATH), "kumiho ranged enemy scene exists")
 	if not ResourceLoader.exists(KUMIHO_SCENE_PATH):
 		return
@@ -29,7 +29,7 @@ func test_kumiho_scene_uses_5_move_and_6_attack_frames() -> void:
 	if frames == null:
 		return
 	_runner.assert_eq(frames.get_frame_count(&"move"), 5, "kumiho move sheet is split into five 128px frames")
-	_runner.assert_eq(frames.get_frame_count(&"attack"), 6, "kumiho attack sheet is split into six 128px frames")
+	_runner.assert_eq(frames.get_frame_count(&"attack"), 5, "kumiho attack sheet is split into five 128px frames")
 	_runner.assert_true(frames.get_animation_loop(&"move"), "kumiho movement loops")
 	_runner.assert_false(frames.get_animation_loop(&"attack"), "kumiho attack does not loop")
 
