@@ -127,6 +127,44 @@ func test_session_interaction_scope_reaches_current_shop_room() -> void:
 	session.queue_free()
 
 
+func test_combat_clear_requires_reward_choice_before_room_transition() -> void:
+	GameManager.start_session({
+		"source": "reward_choice_test",
+		SceneTransition.RUN_CONFIG_LAYOUT_SEED: 40,
+	})
+	var packed := load("res://scenes/session/session_root.tscn") as PackedScene
+	var session := packed.instantiate()
+	add_child(session)
+
+	var manager := session.get_node("%RoomManager") as RoomManager
+	var actor := session.get_node("%Player") as Node
+	var session_ui: CanvasLayer = session.get_node("%SessionUIRoot")
+	var combat_room_def := _first_room_of_type(manager.layout, RoomLayout.TYPE_COMBAT)
+	_runner.assert_not_null(combat_room_def, "session run layout includes combat room")
+	if combat_room_def == null:
+		return
+	_runner.assert_true(manager.enter_room(combat_room_def.room_id), "test enters combat reward room")
+	_runner.assert_false(session_ui.call("is_reward_choice_visible"), "reward choices are hidden before combat clear")
+
+	for enemy: Node in manager.current_room.call("get_active_enemies"):
+		if enemy.has_method("take_damage"):
+			enemy.call("take_damage", 99)
+
+	_runner.assert_true(manager.is_current_room_cleared(), "combat room is cleared")
+	_runner.assert_true(session_ui.call("is_reward_choice_visible"), "combat clear opens reward choice overlay")
+	_runner.assert_true(get_tree().paused, "reward choice pauses room transition input")
+	var snapshot: Dictionary = session_ui.call("get_reward_choice_snapshot")
+	_runner.assert_eq((snapshot["choice_ids"] as Array).size(), 3, "reward choice offers three roguelike options")
+	var chosen_item := (snapshot["choice_ids"] as Array)[0] as StringName
+	_runner.assert_true(session_ui.call("select_reward_choice", chosen_item), "player can choose one reward")
+
+	_runner.assert_false(session_ui.call("is_reward_choice_visible"), "reward choice closes after selection")
+	_runner.assert_false(get_tree().paused, "selection resumes the run")
+	_runner.assert_true((actor.call("get_run_modifier_ids") as Array).has(chosen_item), "chosen reward applies to player run modifiers")
+
+	session.queue_free()
+
+
 func test_session_result_tracks_baseball_friend_purification_unlocks() -> void:
 	var packed := load("res://scenes/session/session_root.tscn") as PackedScene
 	var session := packed.instantiate()

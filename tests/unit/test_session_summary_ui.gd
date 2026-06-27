@@ -108,6 +108,40 @@ func test_summary_actions_emit_distinct_flow_signals() -> void:
 	_runner.assert_eq(counts["retry"], 1, "retry button emits retry flow")
 
 
+func test_reward_choices_render_three_actions_and_emit_selected_id() -> void:
+	var selected_ids: Array[StringName] = []
+	_ui.reward_choice_selected.connect(func(item_id: StringName) -> void: selected_ids.append(item_id))
+
+	_ui.show_reward_choices(&"combat_1", [
+		{
+			"item_id": &"gung_talisman",
+			"display_name": "궁 부적",
+			"flavor": "붉은 궁 부적이 주먹과 배트에 힘을 싣는다.",
+		},
+		{
+			"item_id": &"dokkaebi_fire",
+			"display_name": "도깨비불",
+			"flavor": "푸른 불씨가 공격 박자를 앞당긴다.",
+		},
+		{
+			"item_id": &"wind_step",
+			"display_name": "바람 매듭",
+			"flavor": "매듭이 풀리며 발끝이 가벼워진다.",
+		},
+	])
+
+	var snapshot: Dictionary = _ui.get_reward_choice_snapshot()
+	_runner.assert_true(snapshot["visible"], "reward choice overlay is visible")
+	_runner.assert_eq(snapshot["room_id"], &"combat_1", "reward choice keeps source room id")
+	_runner.assert_eq(snapshot["choice_ids"], [&"gung_talisman", &"dokkaebi_fire", &"wind_step"], "reward choices keep stable item order")
+	_runner.assert_eq(snapshot["choice_texts"][0], "궁 부적", "reward button uses display name")
+	_runner.assert_true(snapshot["choice_flavors"][1].contains("공격 박자"), "reward flavor is available for scan")
+
+	_runner.assert_true(_ui.select_reward_choice(&"dokkaebi_fire"), "reward choice can be selected by id")
+	_runner.assert_eq(selected_ids, [&"dokkaebi_fire"], "selection emits item id once")
+	_runner.assert_false(_ui.is_reward_choice_visible(), "selection hides reward choice overlay")
+
+
 func test_summary_renders_baseball_unlocks_when_present() -> void:
 	_ui.show_summary({
 		"completed": true,
