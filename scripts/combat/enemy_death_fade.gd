@@ -138,13 +138,12 @@ func _clone_animated_sprite(source: AnimatedSprite2D) -> AnimatedSprite2D:
 	var clone := AnimatedSprite2D.new()
 	clone.sprite_frames = source.sprite_frames
 	clone.animation = source.animation
-	clone.frame = source.frame
-	clone.frame_progress = source.frame_progress
 	clone.centered = source.centered
 	clone.offset = source.offset
 	clone.flip_h = source.flip_h
 	clone.flip_v = source.flip_v
 	clone.stop()
+	clone.set_frame_and_progress(source.frame, source.frame_progress)
 	_prepare_clone_canvas_item(source, clone)
 	return clone
 
