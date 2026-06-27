@@ -8,6 +8,7 @@ extends CharacterBody2D
 const MapItemCatalog = preload("res://scripts/items/map_item_catalog.gd")
 const HitReactionController = preload("res://scripts/combat/hit_reaction_controller.gd")
 const StatusEffectController = preload("res://scripts/combat/status_effect_controller.gd")
+const MetaUpgradeCatalog = preload("res://scripts/items/meta_upgrade_catalog.gd")
 
 ## 발사 순간의 발사 지점(global)과 방향. #10 정화탄이 이 시그널을 받아 스폰한다.
 signal fired(muzzle_position: Vector2, direction: Vector2)
@@ -68,6 +69,7 @@ var _health: int = 0
 var _invuln_timer: float = 0.0
 var _touch: Node = null
 var _base_run_stats := {}
+var _meta_modifiers := {}
 var _run_modifier_ids: Array[StringName] = []
 var _hit_reaction: Node = null
 var _movement_bounds := Rect2()
@@ -83,7 +85,10 @@ func _ready() -> void:
 	add_to_group(&"player")
 	_ensure_status_effects()
 	_capture_base_run_stats()
+	_seed_meta_modifiers()
+	_apply_stats(MapItemCatalog.apply_modifiers_to_stats(_base_run_stats, _composed_modifiers()))
 	_health = max_health
+	special_skill_uses_remaining = special_skill_max_uses
 	_connect_run_session_events()
 	_refresh_bat_awakened_from_progression()
 	if not touch_controls_path.is_empty():
@@ -283,16 +288,20 @@ func apply_run_modifier(item_id: StringName) -> bool:
 
 func reset_run_modifiers(restore_health := false) -> void:
 	_capture_base_run_stats()
+	_seed_meta_modifiers()
 	_run_modifier_ids.clear()
 	var previous_health := _health
 	var previous_max_health := max_health
-	_apply_stats(_base_run_stats)
+	_apply_stats(MapItemCatalog.apply_modifiers_to_stats(_base_run_stats, _composed_modifiers()))
 	if restore_health:
 		_health = max_health
+		special_skill_uses_remaining = special_skill_max_uses
 	else:
 		_health = mini(_health, max_health)
+		special_skill_uses_remaining = mini(special_skill_uses_remaining, special_skill_max_uses)
 	if previous_health != _health or previous_max_health != max_health:
 		_broadcast_health()
+	_broadcast_special_skill_state()
 	_broadcast_run_modifiers_changed()
 
 
@@ -563,21 +572,39 @@ func _capture_base_run_stats() -> void:
 		"melee_damage": melee_damage,
 		"bat_damage": bat_damage,
 		"max_health": max_health,
+		"special_skill_max_uses": special_skill_max_uses,
 	}
+
+
+func _seed_meta_modifiers() -> void:
+	if has_node("/root/SaveManager"):
+		_meta_modifiers = MetaUpgradeCatalog.compose_modifiers(SaveManager.get_meta_upgrades())
+	else:
+		_meta_modifiers = {}
+
+
+## 영구 메타 모디파이어 + 런 아이템 모디파이어를 합친 최종 모디파이어.
+func _composed_modifiers() -> Dictionary:
+	return MapItemCatalog.merge_modifiers(MapItemCatalog.compose_modifiers(_run_modifier_ids), _meta_modifiers)
 
 
 func _apply_run_modifier_stats() -> void:
 	var previous_health := _health
 	var previous_max_health := max_health
-	var modifiers := MapItemCatalog.compose_modifiers(_run_modifier_ids)
-	var stats := MapItemCatalog.apply_modifiers_to_stats(_base_run_stats, modifiers)
+	var previous_max_uses := special_skill_max_uses
+	var stats := MapItemCatalog.apply_modifiers_to_stats(_base_run_stats, _composed_modifiers())
 	_apply_stats(stats)
 	if max_health > previous_max_health:
 		_health += max_health - previous_max_health
 	elif _health > max_health:
 		_health = max_health
+	if special_skill_max_uses > previous_max_uses:
+		special_skill_uses_remaining += special_skill_max_uses - previous_max_uses
+	elif special_skill_uses_remaining > special_skill_max_uses:
+		special_skill_uses_remaining = special_skill_max_uses
 	if previous_health != _health or previous_max_health != max_health:
 		_broadcast_health()
+	_broadcast_special_skill_state()
 
 
 func _apply_stats(stats: Dictionary) -> void:
@@ -587,6 +614,7 @@ func _apply_stats(stats: Dictionary) -> void:
 	melee_damage = int(stats.get("melee_damage", melee_damage))
 	bat_damage = int(stats.get("bat_damage", bat_damage))
 	max_health = int(stats.get("max_health", max_health))
+	special_skill_max_uses = int(stats.get("special_skill_max_uses", special_skill_max_uses))
 
 
 func _broadcast_run_modifiers_changed() -> void:

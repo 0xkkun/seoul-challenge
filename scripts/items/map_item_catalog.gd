@@ -39,6 +39,7 @@ const _BASE_MODIFIERS := {
 	"melee_damage_add": 0,
 	"bat_damage_add": 0,
 	"max_health_add": 0,
+	"special_skill_uses_add": 0,
 	"move_speed_mult": 1.0,
 	"attack_cooldown_mult": 1.0,
 	"fire_cooldown_mult": 1.0,
@@ -105,4 +106,16 @@ static func apply_modifiers_to_stats(base_stats: Dictionary, modifiers: Dictiona
 	stats["melee_damage"] = maxi(0, int(base_stats.get("melee_damage", 0)) + int(modifiers.get("melee_damage_add", 0)))
 	stats["bat_damage"] = maxi(0, int(base_stats.get("bat_damage", 0)) + int(modifiers.get("bat_damage_add", 0)))
 	stats["max_health"] = maxi(1, int(base_stats.get("max_health", 1)) + int(modifiers.get("max_health_add", 0)))
+	stats["special_skill_max_uses"] = maxi(0, int(base_stats.get("special_skill_max_uses", 0)) + int(modifiers.get("special_skill_uses_add", 0)))
 	return stats
+
+
+## 두 모디파이어 dict 를 합친다(_add 는 합, _mult 는 곱). 메타 + 런 아이템 모디파이어 결합용.
+static func merge_modifiers(base: Dictionary, extra: Dictionary) -> Dictionary:
+	var result := base.duplicate(true)
+	for key: Variant in extra.keys():
+		if String(key).ends_with("_mult"):
+			result[key] = float(result.get(key, 1.0)) * float(extra[key])
+		else:
+			result[key] = int(result.get(key, 0)) + int(extra[key])
+	return result

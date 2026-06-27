@@ -112,6 +112,16 @@ func _change_ingame(amount: int, reason: String) -> void:
 	_emit_currency_changed("ingame", delta, reason)
 
 
+## 영구 재화 소비 공개 API. 잔액이 충분하면 차감 후 true, 아니면 변화 없이 false.
+func spend_permanent(amount: int, reason: String) -> bool:
+	if amount <= 0:
+		return false
+	if _permanent < amount:
+		return false
+	_change_permanent(-amount, reason)
+	return true
+
+
 func _change_permanent(amount: int, reason: String) -> void:
 	var next := _permanent + amount
 	if next < 0:

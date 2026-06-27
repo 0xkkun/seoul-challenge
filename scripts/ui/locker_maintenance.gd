@@ -7,6 +7,7 @@ signal map_requested
 
 const DungeonTheme := preload("res://scripts/ui/dungeon_ui_theme.gd")
 const PixelButton := preload("res://scripts/ui/pixel_button_style.gd")
+const MetaUpgradeCatalog := preload("res://scripts/items/meta_upgrade_catalog.gd")
 
 const WEAPON_BASEBALL := &"baseball"
 const WEAPON_BAT := &"bat"
@@ -16,6 +17,7 @@ const ACTION_SELECT_BASEBALL := "locker_maintenance.weapon.baseball"
 const ACTION_SELECT_BAT := "locker_maintenance.weapon.bat"
 const ACTION_CYCLE_WEAPON := "locker_maintenance.weapon.cycle"
 const ACTION_OPEN_MAP := "locker_maintenance.map"
+const ACTION_UPGRADE_PREFIX := "locker_maintenance.upgrade."
 
 @export var scene_transition_enabled := true
 
@@ -27,11 +29,16 @@ var _loadout_panel: PanelContainer
 var _weapon_button: Button
 var _map_button: Button
 var _return_button: Button
+var _upgrade_balance_label: Label
+var _upgrade_pip_labels: Dictionary = {}
+var _upgrade_cost_labels: Dictionary = {}
+var _upgrade_buttons: Dictionary = {}
 
 
 func _ready() -> void:
 	_build_ui()
 	select_weapon(_get_initial_weapon_id())
+	_refresh_upgrades()
 
 
 func get_selected_weapon_id() -> StringName:
@@ -66,6 +73,7 @@ func _build_ui() -> void:
 	_build_locker_wall(background)
 	_build_title()
 	_build_weapon_cards()
+	_build_upgrade_panel()
 	_build_action_bar()
 
 
@@ -178,12 +186,15 @@ func _build_weapon_cards() -> void:
 	)
 	add_child(_bat_card)
 
+	# 선택 피드백은 무기 카드 골드 테두리로 표시하고, 우측 컬럼은 강화 패널에 양보한다.
+	# (노드·라벨·텍스트는 UI 계약 테스트를 위해 유지하되 화면에는 숨긴다.)
 	_loadout_panel = PanelContainer.new()
 	_loadout_panel.name = "LoadoutSummaryPanel"
-	_loadout_panel.anchor_left = 0.68
-	_loadout_panel.anchor_top = 0.30
-	_loadout_panel.anchor_right = 0.94
-	_loadout_panel.anchor_bottom = 0.70
+	_loadout_panel.visible = false
+	_loadout_panel.anchor_left = 0.66
+	_loadout_panel.anchor_top = 0.255
+	_loadout_panel.anchor_right = 0.95
+	_loadout_panel.anchor_bottom = 0.40
 	_loadout_panel.add_theme_stylebox_override(
 		"panel",
 		DungeonTheme.panel_style(DungeonTheme.COLOR_PANEL, DungeonTheme.COLOR_GOLD_DIM, 2, 14.0, 12.0)
@@ -199,6 +210,168 @@ func _build_weapon_cards() -> void:
 	_weapon_status_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	_weapon_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_loadout_panel.add_child(_weapon_status_label)
+
+
+func _build_upgrade_panel() -> void:
+	var panel := PanelContainer.new()
+	panel.name = "UpgradePanel"
+	panel.unique_name_in_owner = true
+	panel.anchor_left = 0.66
+	panel.anchor_top = 0.30
+	panel.anchor_right = 0.95
+	panel.anchor_bottom = 0.80
+	panel.add_theme_stylebox_override(
+		"panel",
+		DungeonTheme.panel_style(DungeonTheme.COLOR_PANEL, DungeonTheme.COLOR_GOLD_DIM, 2, 12.0, 10.0)
+	)
+	add_child(panel)
+
+	var vbox := VBoxContainer.new()
+	vbox.name = "UpgradeList"
+	vbox.add_theme_constant_override("separation", 8)
+	panel.add_child(vbox)
+
+	var header := HBoxContainer.new()
+	header.name = "UpgradeHeader"
+	vbox.add_child(header)
+
+	var title := Label.new()
+	title.text = "강화"
+	title.add_theme_font_size_override("font_size", 24)
+	title.add_theme_color_override("font_color", Color(0.86, 0.80, 0.62, 1.0))
+	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	header.add_child(title)
+
+	_upgrade_balance_label = Label.new()
+	_upgrade_balance_label.name = "UpgradeBalanceLabel"
+	_upgrade_balance_label.add_theme_font_size_override("font_size", 20)
+	_upgrade_balance_label.add_theme_color_override("font_color", DungeonTheme.COLOR_GOLD)
+	_upgrade_balance_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	header.add_child(_upgrade_balance_label)
+
+	var gap := Control.new()
+	gap.custom_minimum_size = Vector2(0.0, 4.0)
+	vbox.add_child(gap)
+
+	for id: StringName in MetaUpgradeCatalog.upgrade_ids():
+		vbox.add_child(_make_upgrade_row(id))
+
+
+func _make_upgrade_row(id: StringName) -> Control:
+	var row := HBoxContainer.new()
+	row.name = "UpgradeRow_%s" % id
+	row.add_theme_constant_override("separation", 8)
+
+	var name_label := Label.new()
+	name_label.text = MetaUpgradeCatalog.display_name(id)
+	name_label.add_theme_font_size_override("font_size", 17)
+	name_label.add_theme_color_override("font_color", DungeonTheme.COLOR_TEXT)
+	name_label.custom_minimum_size = Vector2(48.0, 0.0)
+	name_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	row.add_child(name_label)
+
+	var pips := RichTextLabel.new()
+	pips.bbcode_enabled = true
+	pips.fit_content = true
+	pips.scroll_active = false
+	pips.autowrap_mode = TextServer.AUTOWRAP_OFF
+	pips.add_theme_font_size_override("normal_font_size", 18)
+	pips.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	pips.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(pips)
+	_upgrade_pip_labels[id] = pips
+
+	var cost_label := Label.new()
+	cost_label.add_theme_font_size_override("font_size", 17)
+	cost_label.add_theme_color_override("font_color", DungeonTheme.COLOR_GOLD)
+	cost_label.custom_minimum_size = Vector2(56.0, 0.0)
+	cost_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	cost_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	row.add_child(cost_label)
+	_upgrade_cost_labels[id] = cost_label
+
+	var action := ACTION_UPGRADE_PREFIX + String(id)
+	var button := Button.new()
+	button.name = "UpgradeButton_%s" % id
+	button.text = "강화"
+	button.focus_mode = Control.FOCUS_NONE
+	PixelButton.apply(button, PixelButton.VARIANT_SECONDARY, Vector2(72.0, 44.0))
+	_set_button_meta(button, "upgrade_%s" % id, action)
+	button.pressed.connect(_on_upgrade_pressed.bind(id))
+	row.add_child(button)
+	_upgrade_buttons[id] = button
+
+	return row
+
+
+func _refresh_upgrades() -> void:
+	if _upgrade_balance_label == null:
+		return
+	var balance := _permanent_balance()
+	_upgrade_balance_label.text = "보유 ◆%d" % balance
+	for id: StringName in MetaUpgradeCatalog.upgrade_ids():
+		var level := _saved_upgrade_level(id)
+		var max_level := MetaUpgradeCatalog.max_level(id)
+		var pips := _upgrade_pip_labels.get(id) as RichTextLabel
+		var cost_label := _upgrade_cost_labels.get(id) as Label
+		var button := _upgrade_buttons.get(id) as Button
+		if pips != null:
+			pips.text = _pip_bbcode(level, max_level)
+		var maxed := MetaUpgradeCatalog.is_maxed(id, level)
+		var affordable := MetaUpgradeCatalog.can_purchase(id, level, balance)
+		if cost_label != null:
+			if maxed:
+				cost_label.text = ""
+			else:
+				cost_label.text = "◆%d" % MetaUpgradeCatalog.cost_to_next(id, level)
+				cost_label.add_theme_color_override(
+					"font_color",
+					DungeonTheme.COLOR_GOLD if affordable else DungeonTheme.COLOR_MUTED_TEXT
+				)
+		if button != null:
+			if maxed:
+				button.text = "MAX"
+				button.disabled = true
+			else:
+				button.text = "강화"
+				button.disabled = not affordable
+
+
+func _on_upgrade_pressed(id: StringName) -> void:
+	var level := _saved_upgrade_level(id)
+	var balance := _permanent_balance()
+	if not MetaUpgradeCatalog.can_purchase(id, level, balance):
+		return
+	var cost := MetaUpgradeCatalog.cost_to_next(id, level)
+	if not has_node("/root/CurrencySystem"):
+		return
+	if CurrencySystem.spend_permanent(cost, "meta_upgrade:%s" % String(id)):
+		if has_node("/root/SaveManager"):
+			SaveManager.set_meta_upgrade_level(id, level + 1)
+		_refresh_upgrades()
+
+
+func _saved_upgrade_level(id: StringName) -> int:
+	if has_node("/root/SaveManager"):
+		return SaveManager.get_meta_upgrade_level(id)
+	return 0
+
+
+func _permanent_balance() -> int:
+	if has_node("/root/CurrencySystem"):
+		return CurrencySystem.get_permanent()
+	return 0
+
+
+func _pip_bbcode(level: int, max_level: int) -> String:
+	var bb := ""
+	for i in range(max_level):
+		if i < level:
+			bb += "[color=#f0c04a]●[/color]"
+		else:
+			bb += "[color=#5a4d28]○[/color]"
+	return bb
 
 
 func _build_action_bar() -> void:
