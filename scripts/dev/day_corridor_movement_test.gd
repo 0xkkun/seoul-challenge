@@ -102,6 +102,7 @@ var quit_game_callable: Callable
 
 func _ready() -> void:
 	SceneTransition.configure_exit_requests()
+	AudioManager.play_bgm(AudioManager.SCHOOL_HALLWAY_BGM)
 	_disable_combat_output()
 	_hide_player_default_visuals()
 	_ambient_student_sprites = [_right_student3_sprite, _right_crowd_sprite]

@@ -26,6 +26,17 @@ func test_session_transition_school_bell_variants_are_registered() -> void:
 		_runner.assert_true(ResourceLoader.exists(AudioManager.get_sfx_stream_path(sfx_id)), "%s audio resource exists" % sfx_id)
 
 
+func test_school_hallway_bgm_is_registered() -> void:
+	var stream_path := AudioManager.get_bgm_stream_path(AudioManager.SCHOOL_HALLWAY_BGM)
+
+	_runner.assert_true(AudioManager.has_bgm(AudioManager.SCHOOL_HALLWAY_BGM), "school hallway BGM is registered")
+	_runner.assert_eq(stream_path, "res://assets/audio/bgm/school_hallway_bgm.ogg", "school hallway BGM path is stable")
+	_runner.assert_true(ResourceLoader.exists(stream_path), "school hallway BGM resource exists")
+	var stream := load(stream_path) as AudioStreamOggVorbis
+	_runner.assert_not_null(stream, "school hallway BGM loads as OGG Vorbis")
+	_runner.assert_true(stream.loop, "school hallway BGM loops as background music")
+
+
 func test_random_session_transition_school_bell_records_one_variant() -> void:
 	var sfx_id := AudioManager.play_random_session_transition_sfx()
 	var sfx_ids := AudioManager.get_session_transition_sfx_ids()

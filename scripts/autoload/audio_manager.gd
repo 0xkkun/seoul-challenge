@@ -2,6 +2,7 @@ extends Node
 
 const LOBBY_BGM_DEFAULT := &"lobby_bgm_default"
 const LOBBY_BGM_ALTERNATE := &"lobby_bgm_alternate"
+const SCHOOL_HALLWAY_BGM := &"school_hallway_bgm"
 const SCHOOL_BELL_TRANSITION_FRONT := &"school_bell_transition_front"
 const SCHOOL_BELL_TRANSITION_BACK := &"school_bell_transition_back"
 const UI_BUTTON_PRESS := &"ui_button_press"
@@ -13,6 +14,7 @@ const SESSION_TRANSITION_SFX_IDS: Array[StringName] = [
 const _BGM_STREAM_PATHS := {
 	LOBBY_BGM_DEFAULT: "res://assets/audio/bgm/lobby_bgm_default.wav",
 	LOBBY_BGM_ALTERNATE: "res://assets/audio/bgm/lobby_bgm_alternate.wav",
+	SCHOOL_HALLWAY_BGM: "res://assets/audio/bgm/school_hallway_bgm.ogg",
 }
 const _SFX_STREAM_PATHS := {
 	SCHOOL_BELL_TRANSITION_FRONT: "res://assets/audio/sfx/school_bell_transition_front.wav",
