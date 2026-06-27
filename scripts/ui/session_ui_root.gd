@@ -23,6 +23,9 @@ const REWARD_CHOICE_TITLE_TEXT := "방 클리어 보상"
 const REWARD_CHOICE_TITLE_OFFSET_TOP := -170.0
 const REWARD_CHOICE_TITLE_OFFSET_BOTTOM := -124.0
 const REWARD_CHOICE_CARD_SIZE := Vector2(244.0, 146.0)
+const REWARD_CHOICE_CARD_ORNAMENT_HEIGHT := 49.0
+const REWARD_CHOICE_CARD_ORNAMENT_INSET_X := 3.0
+const REWARD_CHOICE_CARD_ORNAMENT_TOP := 10.0
 const REWARD_CHOICE_DIM_ALPHA := 0.28
 const REWARD_CHOICE_CARD_TITLE_FONT_SIZE := 25
 const REWARD_CHOICE_CARD_EFFECT_FONT_SIZE := 15
@@ -278,6 +281,11 @@ func get_reward_choice_snapshot() -> Dictionary:
 	var effect_font_sizes: Array[int] = []
 	var title_outline_sizes: Array[int] = []
 	var effect_outline_sizes: Array[int] = []
+	var card_heights: Array[float] = []
+	var ornament_heights: Array[float] = []
+	var content_expands: Array[bool] = []
+	var background_texture_paths: Array[String] = []
+	var ornament_texture_paths: Array[String] = []
 	for choice: Dictionary in _reward_choice_models:
 		texts.append(String(choice.get("display_name", "")))
 		effects.append(String(choice.get("effect", "")))
@@ -290,6 +298,11 @@ func get_reward_choice_snapshot() -> Dictionary:
 				effect_font_sizes.append(_reward_choice_label_font_size(card, "RewardEffectLabel"))
 				title_outline_sizes.append(_reward_choice_label_outline_size(card, "RewardTitleLabel"))
 				effect_outline_sizes.append(_reward_choice_label_outline_size(card, "RewardEffectLabel"))
+				card_heights.append(card.custom_minimum_size.y)
+				ornament_heights.append(_reward_choice_card_ornament_height(card))
+				content_expands.append(_reward_choice_card_content_expands(card))
+				background_texture_paths.append(_reward_choice_card_background_texture_path(card))
+				ornament_texture_paths.append(_reward_choice_card_ornament_texture_path(card))
 	return {
 		"visible": is_reward_choice_visible(),
 		"room_id": _reward_choice_room_id,
@@ -301,6 +314,11 @@ func get_reward_choice_snapshot() -> Dictionary:
 		"choice_effect_font_sizes": effect_font_sizes,
 		"choice_title_outline_sizes": title_outline_sizes,
 		"choice_effect_outline_sizes": effect_outline_sizes,
+		"choice_card_heights": card_heights,
+		"choice_card_ornament_heights": ornament_heights,
+		"choice_card_content_expands": content_expands,
+		"choice_card_background_texture_paths": background_texture_paths,
+		"choice_card_ornament_texture_paths": ornament_texture_paths,
 		"visible_card_count": _reward_choice_cards.size(),
 		"has_backdrop": _reward_choice_dim != null and is_instance_valid(_reward_choice_dim),
 		"dim_alpha": _reward_choice_dim.color.a if _reward_choice_dim != null and is_instance_valid(_reward_choice_dim) else 0.0,
@@ -449,7 +467,7 @@ func _render_reward_choices() -> void:
 		button.set_meta("test_id", "session.reward_choice.%s" % String(item_id))
 		button.set_meta("uat_action", "session.reward_choice.%s" % String(item_id))
 		button.pressed.connect(_on_reward_choice_pressed.bind(item_id))
-		PixelButtonStyle.apply(button, PixelButtonStyle.VARIANT_PRIMARY, REWARD_CHOICE_CARD_SIZE)
+		_apply_reward_choice_card_style(button)
 		FontRoles.apply_pixel(button)
 		button.pivot_offset = REWARD_CHOICE_CARD_SIZE * 0.5
 		_add_reward_choice_card_content(button, display_name, effect)
@@ -458,28 +476,36 @@ func _render_reward_choices() -> void:
 
 
 func _add_reward_choice_card_content(button: Button, display_name: String, effect: String) -> void:
-	var margin := MarginContainer.new()
-	margin.name = "RewardCardMargin"
-	margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	margin.set_anchors_preset(Control.PRESET_FULL_RECT)
-	margin.add_theme_constant_override("margin_left", 14)
-	margin.add_theme_constant_override("margin_top", 14)
-	margin.add_theme_constant_override("margin_right", 14)
-	margin.add_theme_constant_override("margin_bottom", 12)
-	button.add_child(margin)
-
-	var stack := VBoxContainer.new()
-	stack.name = "RewardCardTextStack"
-	stack.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	stack.alignment = BoxContainer.ALIGNMENT_CENTER
-	stack.add_theme_constant_override("separation", 9)
-	margin.add_child(stack)
+	var ornament := TextureRect.new()
+	ornament.name = "RewardCardOrnamentFrame"
+	ornament.texture = PixelButtonStyle.NORMAL_TEXTURE
+	ornament.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	ornament.stretch_mode = TextureRect.STRETCH_SCALE
+	ornament.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	ornament.custom_minimum_size = Vector2(0.0, REWARD_CHOICE_CARD_ORNAMENT_HEIGHT)
+	ornament.anchor_left = 0.0
+	ornament.anchor_top = 0.0
+	ornament.anchor_right = 1.0
+	ornament.anchor_bottom = 0.0
+	ornament.offset_left = REWARD_CHOICE_CARD_ORNAMENT_INSET_X
+	ornament.offset_top = REWARD_CHOICE_CARD_ORNAMENT_TOP
+	ornament.offset_right = -REWARD_CHOICE_CARD_ORNAMENT_INSET_X
+	ornament.offset_bottom = REWARD_CHOICE_CARD_ORNAMENT_TOP + REWARD_CHOICE_CARD_ORNAMENT_HEIGHT
+	button.add_child(ornament)
 
 	var title := Label.new()
 	title.name = "RewardTitleLabel"
 	title.text = display_name
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	title.anchor_left = 0.0
+	title.anchor_top = 0.0
+	title.anchor_right = 1.0
+	title.anchor_bottom = 0.0
+	title.offset_left = 32.0
+	title.offset_top = REWARD_CHOICE_CARD_ORNAMENT_TOP
+	title.offset_right = -32.0
+	title.offset_bottom = REWARD_CHOICE_CARD_ORNAMENT_TOP + REWARD_CHOICE_CARD_ORNAMENT_HEIGHT
 	title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	title.add_theme_font_size_override("font_size", REWARD_CHOICE_CARD_TITLE_FONT_SIZE)
 	FontRoles.apply_title(title)
@@ -487,7 +513,29 @@ func _add_reward_choice_card_content(button: Button, display_name: String, effec
 	title.add_theme_color_override("font_outline_color", Color(0.0, 0.0, 0.0, 0.88))
 	title.add_theme_constant_override("outline_size", REWARD_CHOICE_CARD_TITLE_OUTLINE)
 	title.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	stack.add_child(title)
+	button.add_child(title)
+
+	var margin := MarginContainer.new()
+	margin.name = "RewardCardMargin"
+	margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	margin.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	margin.anchor_left = 0.0
+	margin.anchor_top = 0.0
+	margin.anchor_right = 1.0
+	margin.anchor_bottom = 1.0
+	margin.offset_left = 14.0
+	margin.offset_top = REWARD_CHOICE_CARD_ORNAMENT_TOP + REWARD_CHOICE_CARD_ORNAMENT_HEIGHT + 8.0
+	margin.offset_right = -14.0
+	margin.offset_bottom = -12.0
+	button.add_child(margin)
+
+	var stack := VBoxContainer.new()
+	stack.name = "RewardCardTextStack"
+	stack.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	stack.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	stack.alignment = BoxContainer.ALIGNMENT_CENTER
+	stack.add_theme_constant_override("separation", 0)
+	margin.add_child(stack)
 
 	var effect_label := Label.new()
 	effect_label.name = "RewardEffectLabel"
@@ -502,6 +550,61 @@ func _add_reward_choice_card_content(button: Button, display_name: String, effec
 	effect_label.add_theme_constant_override("outline_size", REWARD_CHOICE_CARD_EFFECT_OUTLINE)
 	effect_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	stack.add_child(effect_label)
+
+
+func _apply_reward_choice_card_style(button: Button) -> void:
+	PixelButtonStyle.attach_press_sfx(button)
+	button.focus_mode = Control.FOCUS_NONE
+	button.add_theme_stylebox_override(
+		"normal",
+		DungeonUiTheme.panel_style(
+			Color(0.052, 0.066, 0.088, 0.92),
+			DungeonUiTheme.COLOR_GOLD_DIM,
+			2,
+			14.0,
+			10.0,
+			6
+		)
+	)
+	button.add_theme_stylebox_override(
+		"hover",
+		DungeonUiTheme.panel_style(
+			Color(0.074, 0.092, 0.12, 0.96),
+			DungeonUiTheme.COLOR_GOLD,
+			2,
+			14.0,
+			10.0,
+			6
+		)
+	)
+	button.add_theme_stylebox_override(
+		"pressed",
+		DungeonUiTheme.panel_style(
+			Color(0.031, 0.04, 0.055, 0.96),
+			DungeonUiTheme.COLOR_GOLD_DIM,
+			2,
+			14.0,
+			10.0,
+			6
+		)
+	)
+	button.add_theme_stylebox_override("focus", button.get_theme_stylebox("hover"))
+	button.add_theme_stylebox_override(
+		"disabled",
+		DungeonUiTheme.panel_style(
+			Color(0.029, 0.034, 0.043, 0.86),
+			Color(0.15, 0.17, 0.21, 1.0),
+			2,
+			14.0,
+			10.0,
+			6
+		)
+	)
+	button.add_theme_color_override("font_color", Color(0.984314, 0.956863, 0.839216, 1.0))
+	button.add_theme_color_override("font_hover_color", Color(1.0, 0.984314, 0.878431, 1.0))
+	button.add_theme_color_override("font_focus_color", Color(1.0, 0.984314, 0.878431, 1.0))
+	button.add_theme_color_override("font_pressed_color", Color(0.831373, 0.705882, 0.388235, 1.0))
+	button.add_theme_color_override("font_disabled_color", Color(0.72, 0.67, 0.52, 1.0))
 
 
 func _reward_choice_card_snapshot_text(card: Button) -> String:
@@ -527,6 +630,34 @@ func _reward_choice_label_outline_size(card: Button, label_name: String) -> int:
 
 func _reward_choice_card_label(card: Button, label_name: String) -> Label:
 	return card.find_child(label_name, true, false) as Label
+
+
+func _reward_choice_card_ornament_height(card: Button) -> float:
+	var ornament := _reward_choice_card_ornament(card)
+	return ornament.custom_minimum_size.y if ornament != null else 0.0
+
+
+func _reward_choice_card_content_expands(card: Button) -> bool:
+	var stack := card.find_child("RewardCardTextStack", true, false) as Control
+	return stack != null and (stack.size_flags_vertical & Control.SIZE_EXPAND) != 0
+
+
+func _reward_choice_card_background_texture_path(card: Button) -> String:
+	var texture_style := card.get_theme_stylebox("normal") as StyleBoxTexture
+	if texture_style == null or texture_style.texture == null:
+		return ""
+	return texture_style.texture.resource_path
+
+
+func _reward_choice_card_ornament_texture_path(card: Button) -> String:
+	var ornament := _reward_choice_card_ornament(card)
+	if ornament == null or ornament.texture == null:
+		return ""
+	return ornament.texture.resource_path
+
+
+func _reward_choice_card_ornament(card: Button) -> TextureRect:
+	return card.find_child("RewardCardOrnamentFrame", true, false) as TextureRect
 
 
 func _node_suffix_for_reward_id(item_id: StringName) -> String:
