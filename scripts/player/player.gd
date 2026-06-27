@@ -35,7 +35,7 @@ signal run_modifiers_changed(payload: Dictionary)
 @export var muzzle_offset: float = 18.0    ## 발사 지점 오프셋 (px)
 @export var recoil_strength: float = 55.0  ## 발사 반동(조준 반대 방향 킥) (px/s)
 @export var ranged_enabled: bool = false   ## 원거리(야구공) 무기 — 기본 OFF(처음엔 근접). 언락 시 ON.
-@export var attack_cooldown: float = 0.35  ## 근접 공격 간격 (s)
+@export var attack_cooldown: float = 0.40  ## 근접 공격 간격 (s)
 @export var attack_move_speed_multiplier: float = 0.35  ## 공격 후딜 중 낮은 이동 유지 비율
 @export var attack_movement_commit_time: float = 0.11  ## 공격 시작 이동 커밋 시간(s)
 @export var melee_damage: int = 1          ## 맨손 피해
