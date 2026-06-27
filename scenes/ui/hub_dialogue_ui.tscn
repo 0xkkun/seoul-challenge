@@ -27,14 +27,15 @@ color = Color(0.03, 0.04, 0.06, 0.46)
 
 [node name="PortraitPanel" type="ColorRect" parent="Root"]
 unique_name_in_owner = true
+clip_contents = true
 layout_mode = 1
 anchors_preset = 2
 anchor_top = 1.0
 anchor_bottom = 1.0
 offset_left = 54.0
-offset_top = -283.0
-offset_right = 190.0
-offset_bottom = -87.0
+offset_top = -360.0
+offset_right = 268.0
+offset_bottom = -150.0
 grow_vertical = 0
 
 [node name="PortraitAccent" type="ColorRect" parent="Root/PortraitPanel"]
@@ -48,12 +49,12 @@ offset_top = -76.0
 grow_horizontal = 2
 grow_vertical = 0
 
-[node name="PortraitSprite" type="Sprite2D" parent="Root"]
+[node name="PortraitSprite" type="Sprite2D" parent="Root/PortraitPanel"]
 unique_name_in_owner = true
 visible = false
 z_index = 1
 self_modulate = Color(0.94, 0.92, 0.88, 1)
-position = Vector2(128, 398)
+position = Vector2(73, 173)
 scale = Vector2(2.55, 2.55)
 texture_filter = 1
 hframes = 8
@@ -87,9 +88,9 @@ mouse_filter = 2
 [node name="NameLabel" type="Label" parent="Root/DialogueBar/DialogueContent"]
 unique_name_in_owner = true
 layout_mode = 1
-offset_left = 350.0
+offset_left = 210.0
 offset_top = 14.0
-offset_right = 454.0
+offset_right = 314.0
 offset_bottom = 44.0
 text = "야구부 주장"
 horizontal_alignment = 1
@@ -108,9 +109,9 @@ theme_override_constants/separation = 4
 unique_name_in_owner = true
 layout_mode = 1
 anchor_right = 1.0
-offset_left = 350.0
+offset_left = 210.0
 offset_top = 50.0
-offset_right = -318.0
+offset_right = -40.0
 offset_bottom = 96.0
 grow_horizontal = 2
 text = "\"스윙은 겁먹으면 늦어. 밤의 궁에선 더 그렇겠지.\""
@@ -120,9 +121,9 @@ autowrap_mode = 3
 unique_name_in_owner = true
 layout_mode = 1
 anchor_right = 1.0
-offset_left = 350.0
+offset_left = 210.0
 offset_top = 104.0
-offset_right = -318.0
+offset_right = -290.0
 offset_bottom = 132.0
 grow_horizontal = 2
 text = "기억: 손바닥의 희미한 배트 자국"
@@ -134,9 +135,9 @@ layout_mode = 1
 anchor_left = 1.0
 anchor_right = 1.0
 offset_left = -282.0
-offset_top = 56.0
+offset_top = 102.0
 offset_right = -18.0
-offset_bottom = 100.0
+offset_bottom = 142.0
 grow_horizontal = 0
 theme_override_constants/separation = 8
 alignment = 2

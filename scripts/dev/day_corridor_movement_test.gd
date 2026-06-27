@@ -4,17 +4,7 @@ signal dialogue_requested(payload: Dictionary)
 signal maintenance_requested(payload: Dictionary)
 
 const REFERENCE_VIEWPORT_SIZE := Vector2(960.0, 540.0)
-const DIALOGUE_SPEAKER := "반 친구"
-const DIALOGUE_LINES: Array[String] = [
-	"낮엔 뛰지 말고, 얘기부터 하자.",
-	"복도 끝 교실에 들르면 준비가 끝나.",
-	"밤에 나가기 전에 여기서 필요한 얘기를 끝내자.",
-]
-const DIALOGUE_MEMORY_LINES: Array[String] = [
-	"기억: 창밖으로 밀려드는 낮빛",
-	"기억: 복도 끝 교실 문손잡이",
-	"기억: 야자 시작 전의 짧은 정적",
-]
+# people2 대사/기억은 DaySchoolRumors 데이터 모듈에서 진행도 tier로 선택한다 (Issue #202).
 const ROOM_LEFT := &"left"
 const ROOM_RIGHT := &"right"
 const EDGE_OUTER_LEFT := &"outer_left"
@@ -53,6 +43,12 @@ const QUIT_GAME_MESSAGE := "게임을 종료할까요?"
 @export var dialogue_portrait_texture: Texture2D
 @export var dialogue_portrait_frame := 1
 @export var ambient_student_idle_fps := 4.0
+@export var ambient_label_proximity_radius := 280.0
+@export var ambient_crowd_base_cooldown := 4.0
+@export var ambient_crowd_min_cooldown := 2.2
+@export var ambient_label_min_seconds := 1.8
+@export var ambient_label_per_char_seconds := 0.08
+@export var ambient_label_fade_seconds := 0.2
 @export var room_transition_fade_time := 0.18
 @export var room_transition_spawn_inset := 320.0
 @export var outer_edge_scene_transition_enabled := true
@@ -70,6 +66,10 @@ const QUIT_GAME_MESSAGE := "게임을 종료할까요?"
 @onready var _talk_target_sprite: Sprite2D = %TalkTargetSprite
 @onready var _right_student3_sprite: Sprite2D = %RightStudent3Sprite
 @onready var _right_crowd_sprite: Sprite2D = %RightCrowdSprite
+@onready var _right_student3: Node2D = %RightStudent3
+@onready var _right_crowd: Node2D = %RightCrowd
+@onready var _right_student3_label: Label = %RightStudent3Label
+@onready var _right_crowd_label: Label = %RightCrowdLabel
 @onready var _day_character_root: Node2D = %DayCharacterRoot
 @onready var _character_sprite: Sprite2D = %CharacterSprite
 @onready var _interaction_prompt: Label = %InteractionPrompt
@@ -82,12 +82,17 @@ const QUIT_GAME_MESSAGE := "게임을 종료할까요?"
 
 var _dialogue_count := 0
 var _dialogue_line_index := -1
+var _dialogue_lines: Array[Dictionary] = []
 var _was_dialogue_pressed := false
 var _walk_elapsed := 0.0
 var _idle_elapsed := 0.0
 var _talk_target_elapsed := 0.0
 var _ambient_student_elapsed := 0.0
 var _ambient_student_sprites: Array[Sprite2D] = []
+var _ambient_rng := RandomNumberGenerator.new()
+var _crowd_label_elapsed := 0.0
+var _student3_label_shown_for_entry := false
+var _ambient_tier := DaySchoolRumors.TIER_FIRST_VISIT
 var _character_base_position := Vector2.ZERO
 var _walk_texture: Texture2D = null
 var _walk_hframes := 0
@@ -106,6 +111,8 @@ func _ready() -> void:
 	_disable_combat_output()
 	_hide_player_default_visuals()
 	_ambient_student_sprites = [_right_student3_sprite, _right_crowd_sprite]
+	_ambient_rng.randomize()
+	_hide_ambient_labels()
 	_apply_nearest_texture_filter()
 	_apply_school_character_visual_treatment()
 	_fit_character_to_asset_scale()
@@ -151,6 +158,7 @@ func _process(delta: float) -> void:
 	_sync_camera()
 	_update_interaction_prompt()
 	_process_dialogue_input()
+	_update_ambient_rumor_labels(delta)
 
 
 func get_reference_viewport_size() -> Vector2:
@@ -386,10 +394,45 @@ func perform_uat_action(action_name: String) -> bool:
 
 func trigger_dialogue() -> void:
 	if is_dialogue_ui_visible():
-		_show_dialogue_line((_dialogue_line_index + 1) % DIALOGUE_LINES.size())
+		if _dialogue_lines.is_empty():
+			return
+		_show_dialogue_line((_dialogue_line_index + 1) % _dialogue_lines.size())
+		return
+	_resolve_dialogue_lines()
+	if _dialogue_lines.is_empty():
 		return
 	_open_dialogue_ui()
 	_show_dialogue_line(0)
+
+
+## people2 대사를 현재 진행도 tier + 컨텍스트로 해석한다. 대화 open 시점에 호출.
+func _resolve_dialogue_lines() -> void:
+	_dialogue_lines = DaySchoolRumors.pick_lines(
+		DaySchoolRumors.SPEAKER_PEOPLE2, _current_rumor_tier(), _rumor_context()
+	)
+
+
+func _current_rumor_tier() -> StringName:
+	return DaySchoolRumors.current_tier(get_node_or_null(^"/root/ProgressionSystem"))
+
+
+func _rumor_context() -> Dictionary:
+	return {"last_run": _last_run_outcome()}
+
+
+func _last_run_outcome() -> StringName:
+	if not has_node(^"/root/SaveManager"):
+		return &""
+	var results: Array = SaveManager.load_profile().get("session_results", [])
+	if results.is_empty():
+		return &""
+	var last: Dictionary = results[results.size() - 1]
+	var outcome := String(last.get("outcome", "")).to_lower()
+	if outcome in ["death", "dead", "failed"] or bool(last.get("died", false)):
+		return &"died"
+	if bool(last.get("completed", false)) or String(last.get("reason", "")) == "boss_resolved" or outcome in ["success", "escaped", "complete", "completed"]:
+		return &"cleared"
+	return &""
 
 
 func close_dialogue() -> void:
@@ -519,6 +562,7 @@ func _apply_room_state() -> void:
 	if _current_room_id != ROOM_LEFT:
 		close_dialogue()
 	_sync_talk_target_visibility()
+	_reset_ambient_rumor_state()
 
 
 func _sync_talk_target_visibility() -> void:
@@ -662,6 +706,108 @@ func _update_ambient_school_character_sprites(delta: float) -> void:
 		sprite.frame = int(_ambient_student_elapsed * ambient_student_idle_fps + index * 2) % frame_count
 
 
+## people3 근접 라벨(진입당 1회) + people4 군중 웅성거림(E2 진행도 스케일 쿨다운).
+## 자유 이동 경로에서만 호출 — 대화/전환/모달 중엔 호출되지 않으므로 자연히 일시정지.
+func _update_ambient_rumor_labels(delta: float) -> void:
+	if _current_room_id != ROOM_RIGHT:
+		return
+	if _right_student3 != null and not _student3_label_shown_for_entry and _is_player_near(_right_student3, ambient_label_proximity_radius):
+		var lines := DaySchoolRumors.pick_lines(DaySchoolRumors.SPEAKER_PEOPLE3, _ambient_tier, _rumor_context())
+		if not lines.is_empty():
+			var entry: Dictionary = lines[_ambient_rng.randi_range(0, lines.size() - 1)]
+			_show_ambient_label(_right_student3_label, String(entry.get("text", "")))
+			_student3_label_shown_for_entry = true
+	_crowd_label_elapsed += delta
+	if _crowd_label_elapsed >= _crowd_label_cooldown():
+		_crowd_label_elapsed = 0.0
+		var fragment := DaySchoolRumors.pick_crowd_fragment(_ambient_tier, _ambient_rng, _rumor_context())
+		if not fragment.is_empty():
+			_show_ambient_label(_right_crowd_label, String(fragment.get("text", "")))
+
+
+## E2: 진행도가 오를수록 군중 웅성거림 쿨다운 단축(분위기 고조). 상한 클램프.
+func _crowd_label_cooldown() -> float:
+	var progression := get_node_or_null(^"/root/ProgressionSystem")
+	var progressed := 0.0
+	if progression != null:
+		if progression.is_friend_purified(DaySchoolRumors.FRIEND_BASEBALL_CAPTAIN):
+			progressed += 1.0
+		if progression.is_weapon_unlocked(DaySchoolRumors.WEAPON_AWAKENED_BAT):
+			progressed += 1.0
+	var t := clampf(progressed / 2.0, 0.0, 1.0)
+	return lerpf(ambient_crowd_base_cooldown, ambient_crowd_min_cooldown, t)
+
+
+func _is_player_near(node: Node2D, radius: float) -> bool:
+	return absf(_player.global_position.x - node.global_position.x) <= radius
+
+
+func _show_ambient_label(label: Label, text: String) -> void:
+	if label == null or text.strip_edges() == "":
+		return
+	label.text = text
+	# 콘텐츠 폭에 맞춰 머리 위 중앙 정렬 (pill이 텍스트를 감싸도록)
+	var width := label.get_minimum_size().x
+	label.offset_left = -width * 0.5
+	label.offset_right = width * 0.5
+	label.visible = true
+	label.modulate.a = 0.0
+	var hold := ambient_label_min_seconds + float(text.length()) * ambient_label_per_char_seconds
+	var tween := create_tween()
+	tween.tween_property(label, ^"modulate:a", 1.0, ambient_label_fade_seconds)
+	tween.tween_interval(hold)
+	tween.tween_property(label, ^"modulate:a", 0.0, ambient_label_fade_seconds)
+	tween.tween_callback(func() -> void:
+		if is_instance_valid(label):
+			label.visible = false
+	)
+
+
+func _hide_ambient_labels() -> void:
+	for label: Label in [_right_student3_label, _right_crowd_label]:
+		if label != null:
+			label.visible = false
+			label.modulate.a = 0.0
+
+
+func _reset_ambient_rumor_state() -> void:
+	if _current_room_id == ROOM_RIGHT:
+		_student3_label_shown_for_entry = false
+		_crowd_label_elapsed = 0.0
+		_ambient_tier = _current_rumor_tier()
+	else:
+		_hide_ambient_labels()
+
+
+# ── 테스트 훅 ──
+func get_ambient_tier() -> StringName:
+	return _ambient_tier
+
+
+func get_student3_rumor_label_text() -> String:
+	return _right_student3_label.text if _right_student3_label != null else ""
+
+
+func get_crowd_rumor_label_text() -> String:
+	return _right_crowd_label.text if _right_crowd_label != null else ""
+
+
+func debug_show_student3_rumor() -> String:
+	var lines := DaySchoolRumors.pick_lines(DaySchoolRumors.SPEAKER_PEOPLE3, _ambient_tier, _rumor_context())
+	if lines.is_empty():
+		return ""
+	_show_ambient_label(_right_student3_label, String(lines[0].get("text", "")))
+	return get_student3_rumor_label_text()
+
+
+func debug_rotate_crowd_rumor() -> String:
+	var fragment := DaySchoolRumors.pick_crowd_fragment(_ambient_tier, _ambient_rng, _rumor_context())
+	if fragment.is_empty():
+		return ""
+	_show_ambient_label(_right_crowd_label, String(fragment.get("text", "")))
+	return get_crowd_rumor_label_text()
+
+
 func _sync_camera() -> void:
 	var half_view := _get_visible_world_size() * 0.5
 	_camera.global_position = Vector2(
@@ -794,19 +940,25 @@ func _open_dialogue_ui() -> void:
 
 
 func _show_dialogue_line(line_index: int) -> void:
+	if _dialogue_lines.is_empty():
+		return
 	_dialogue_count += 1
-	_dialogue_line_index = posmod(line_index, DIALOGUE_LINES.size())
+	_dialogue_line_index = posmod(line_index, _dialogue_lines.size())
+	var entry: Dictionary = _dialogue_lines[_dialogue_line_index]
+	var line_text := String(entry.get("text", ""))
+	var memory_text := String(entry.get("memory", ""))
+	var meta := DaySchoolRumors.speaker_meta(DaySchoolRumors.SPEAKER_PEOPLE2)
 	_update_objective_label()
 	_hub_dialogue_ui.set_dialogue(
-		DIALOGUE_SPEAKER,
-		DIALOGUE_LINES[_dialogue_line_index],
-		DIALOGUE_MEMORY_LINES[_dialogue_line_index],
+		String(meta.get("display_name", "")),
+		line_text,
+		memory_text,
 		HubDialogueUi.PORTRAIT_COLOR,
 		dialogue_portrait_texture,
 		dialogue_portrait_frame,
 		false
 	)
-	var is_last_line := _dialogue_line_index >= DIALOGUE_LINES.size() - 1
+	var is_last_line := _dialogue_line_index >= _dialogue_lines.size() - 1
 	_hub_dialogue_ui.set_choices([
 		{
 			"id": CHOICE_CLOSE if is_last_line else CHOICE_NEXT,
@@ -818,9 +970,9 @@ func _show_dialogue_line(line_index: int) -> void:
 	])
 	dialogue_requested.emit({
 		"count": _dialogue_count,
-		"line": DIALOGUE_LINES[_dialogue_line_index],
+		"line": line_text,
 		"line_index": _dialogue_line_index,
-		"memory": DIALOGUE_MEMORY_LINES[_dialogue_line_index],
+		"memory": memory_text,
 		"source": &"day_corridor",
 	})
 

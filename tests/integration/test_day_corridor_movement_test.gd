@@ -11,9 +11,17 @@ func _set_runner(runner: Node) -> void:
 	_runner = runner
 
 
+func before_each() -> void:
+	# 진행도/세이브 공유 autoload 격리 — 소문 tier(first_visit)와 동적 소문 컨텍스트 안정화.
+	ProgressionSystem.reset_for_tests()
+	SaveManager.reset_profile()
+
+
 func after_each() -> void:
 	AudioManager.reset()
 	SceneTransition.clear_pending_day_corridor_context()
+	ProgressionSystem.reset_for_tests()
+	SaveManager.reset_profile()
 	for child: Node in get_children():
 		remove_child(child)
 		child.free()
@@ -464,3 +472,75 @@ func _assert_pixel_button_texture(style: StyleBox, texture_path: String, message
 	_runner.assert_eq(texture_style.texture.resource_path, texture_path, message)
 	_runner.assert_eq(texture_style.texture_margin_left, 60.0, "%s left 9-slice margin" % message)
 	_runner.assert_eq(texture_style.texture_margin_top, 12.0, "%s top 9-slice margin" % message)
+
+
+# ── #202 ambient 소문 라벨 (people3 근접 / people4 군중) ──
+
+func _enter_right_room(scene: Node) -> void:
+	var player: CharacterBody2D = scene.get_node("%Player")
+	player.global_position = Vector2(scene.get_player_right_bound() + 1.0, scene.get_floor_y())
+	player.velocity.x = 80.0
+	scene.update_room_transition_request()
+
+
+## 조건(condition) 무관하게 화자+tier에 속한 소문인지 확인 (동적 소문 포함).
+func _text_in_pool(rumors: GDScript, speaker: StringName, tier: StringName, text: String) -> bool:
+	for entry: Dictionary in rumors.ENTRIES:
+		if entry.get("speaker", &"") == speaker and entry.get("tier", &"") == tier:
+			if String(entry.get("text", "")) == text:
+				return true
+	return false
+
+
+func test_day_corridor_right_room_shows_ambient_rumors_first_visit() -> void:
+	ProgressionSystem.reset_for_tests()
+	SaveManager.reset_profile()
+	var rumors: GDScript = load("res://resources/dialogue/day_school_rumors.gd")
+	var scene := DayCorridorScene.instantiate()
+	scene.room_transition_fade_time = 0.0
+	scene.outer_edge_scene_transition_enabled = false
+	add_child(scene)
+
+	_runner.assert_eq(scene.get_student3_rumor_label_text(), "", "people3 라벨은 시작 시 비어 있다")
+	_runner.assert_eq(scene.get_crowd_rumor_label_text(), "", "people4 라벨은 시작 시 비어 있다")
+
+	_enter_right_room(scene)
+	_runner.assert_eq(scene.get_current_room_id(), &"right", "우측 방으로 진입한다")
+	_runner.assert_eq(scene.get_ambient_tier(), rumors.TIER_FIRST_VISIT, "정화 전 ambient tier는 first_visit")
+
+	var p3_text: String = scene.debug_show_student3_rumor()
+	_runner.assert_true(p3_text != "", "people3 근접 라벨 텍스트가 채워진다")
+	_runner.assert_true(
+		_text_in_pool(rumors, rumors.SPEAKER_PEOPLE3, rumors.TIER_FIRST_VISIT, p3_text),
+		"people3 라벨은 first_visit 풀 소속"
+	)
+
+	var p4_text: String = scene.debug_rotate_crowd_rumor()
+	_runner.assert_true(p4_text != "", "people4 군중 조각이 채워진다")
+	_runner.assert_true(
+		_text_in_pool(rumors, rumors.SPEAKER_PEOPLE4, rumors.TIER_FIRST_VISIT, p4_text),
+		"people4 조각은 first_visit 풀 소속"
+	)
+
+	ProgressionSystem.reset_for_tests()
+
+
+func test_day_corridor_ambient_tier_reflects_progression() -> void:
+	var rumors: GDScript = load("res://resources/dialogue/day_school_rumors.gd")
+	ProgressionSystem.reset_for_tests()
+	SaveManager.reset_profile()
+	ProgressionSystem.record_friend_purified(rumors.FRIEND_BASEBALL_CAPTAIN)
+
+	var scene := DayCorridorScene.instantiate()
+	scene.room_transition_fade_time = 0.0
+	scene.outer_edge_scene_transition_enabled = false
+	add_child(scene)
+	_enter_right_room(scene)
+
+	# 현재 코드는 정화 시 강화배트도 즉시 언락 → post_enhanced (#243 전 동작)
+	_runner.assert_eq(
+		scene.get_ambient_tier(), rumors.TIER_POST_ENHANCED,
+		"정화/강화배트 해금 후 ambient tier는 post_enhanced"
+	)
+
+	ProgressionSystem.reset_for_tests()
