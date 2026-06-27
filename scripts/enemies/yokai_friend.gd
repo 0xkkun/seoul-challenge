@@ -12,6 +12,7 @@ signal stunned
 
 const HitReactionController = preload("res://scripts/combat/hit_reaction_controller.gd")
 
+const FACING_DEADZONE := 0.01
 const PURIFY_CUE_NAME := "PurifyCue"
 const PURIFY_RANGE_RING_NAME := "RangeRing"
 const PURIFY_PROGRESS_RING_NAME := "ProgressRing"
@@ -41,8 +42,9 @@ enum State { CHASING, STUNNED, PURIFIED }
 @export var contact_range: float = 30.0
 @export var contact_cooldown: float = 0.7
 @export var hit_invuln_time: float = 0.12
-@export var visual_idle_fps: float = 6.0
 @export var target_group: StringName = &"player"
+@export var move_animation: StringName = &"move"
+@export var attack_animation: StringName = &"attack"
 
 var _state: State = State.CHASING
 var _stun_accum: int = 0
@@ -60,7 +62,7 @@ var _purify_visual_state: StringName = &"hidden"
 var _purify_in_range := false
 var _purify_channeling := false
 var _purify_completion_spawned := false
-var _visual_elapsed := 0.0
+@onready var _sprite: AnimatedSprite2D = get_node_or_null(^"Sprite")
 
 
 func _ready() -> void:
@@ -80,13 +82,13 @@ func is_purified() -> bool:
 
 
 func _physics_process(delta: float) -> void:
-	_animate_visual(delta)
 	tick_hit_reaction(delta)
 	match _state:
 		State.CHASING:
 			_process_chase(delta)
 		State.STUNNED:
 			_process_stun(delta)
+	_update_animation()
 
 
 # --- 순수 함수(테스트 대상) ---
@@ -187,12 +189,22 @@ func get_purify_visual_snapshot() -> Dictionary:
 
 
 func get_visual_snapshot() -> Dictionary:
-	var sprite := get_node_or_null(^"Sprite") as Sprite2D
+	var sprite := _get_sprite()
+	var frames := sprite.sprite_frames if sprite != null else null
 	var placeholder := get_node_or_null(^"Placeholder") as CanvasItem
+	var move_frame_count := _animation_frame_count(frames, move_animation)
+	var attack_frame_count := _animation_frame_count(frames, attack_animation)
 	return {
 		"has_sprite": sprite != null,
-		"texture_path": sprite.texture.resource_path if sprite != null and sprite.texture != null else "",
-		"frame_count": sprite.hframes * sprite.vframes if sprite != null else 0,
+		"sprite_type": "AnimatedSprite2D" if sprite != null else "",
+		"sprite_frames_path": frames.resource_path if frames != null else "",
+		"texture_path": _animation_frame_atlas_path(frames, move_animation, 0),
+		"frame_count": move_frame_count,
+		"move_frame_count": move_frame_count,
+		"attack_frame_count": attack_frame_count,
+		"move_loops": frames.get_animation_loop(move_animation) if frames != null and frames.has_animation(move_animation) else false,
+		"attack_loops": frames.get_animation_loop(attack_animation) if frames != null and frames.has_animation(attack_animation) else false,
+		"animation": sprite.animation if sprite != null else &"",
 		"sprite_visible": sprite.visible if sprite != null else false,
 		"placeholder_visible": placeholder.visible if placeholder != null else false,
 	}
@@ -204,6 +216,7 @@ func _enter_stunned() -> void:
 	_purify_progress = 0.0
 	_purify_completion_spawned = false
 	velocity = Vector2.ZERO
+	_play_move_animation()
 	_set_stunned_visual(true)
 	_update_purify_cue(null, false, false)
 	stunned.emit()
@@ -253,6 +266,7 @@ func _return_to_chase_after_stun() -> void:
 	_state = State.CHASING
 	_stun_accum = 0
 	_purify_progress = 0.0
+	_play_move_animation()
 	_set_stunned_visual(false)
 	_hide_purify_cue()
 
@@ -272,6 +286,7 @@ func _try_contact(target: Node2D) -> void:
 		return
 	if global_position.distance_to(target.global_position) > contact_range:
 		return
+	_play_attack_animation(target.global_position - global_position)
 	if target.has_method("take_damage"):
 		target.call("take_damage", contact_damage)
 	_contact_timer = contact_cooldown
@@ -390,21 +405,72 @@ func _set_stunned_visual(enabled: bool) -> void:
 
 
 func _get_visual_node() -> CanvasItem:
-	var sprite := get_node_or_null(^"Sprite") as CanvasItem
+	var sprite := _get_sprite() as CanvasItem
 	if sprite != null:
 		return sprite
 	return get_node_or_null(^"Placeholder") as CanvasItem
 
 
-func _animate_visual(delta: float) -> void:
-	var sprite := get_node_or_null(^"Sprite") as Sprite2D
+func _update_animation() -> void:
+	var sprite := _get_sprite()
+	if sprite == null or sprite.sprite_frames == null:
+		return
+	if sprite.animation == attack_animation and sprite.is_playing():
+		return
+	_set_sprite_facing_from_direction(velocity)
+	if sprite.sprite_frames.has_animation(move_animation) and sprite.animation != move_animation:
+		sprite.play(move_animation)
+
+
+func _play_attack_animation(facing_direction: Vector2 = Vector2.ZERO) -> void:
+	var sprite := _get_sprite()
+	if sprite == null or sprite.sprite_frames == null:
+		return
+	_set_sprite_facing_from_direction(facing_direction)
+	if sprite.sprite_frames.has_animation(attack_animation):
+		sprite.play(attack_animation)
+
+
+func _play_move_animation() -> void:
+	var sprite := _get_sprite()
+	if sprite == null or sprite.sprite_frames == null:
+		return
+	if sprite.sprite_frames.has_animation(move_animation):
+		sprite.play(move_animation)
+
+
+func _set_sprite_facing_from_direction(direction: Vector2) -> void:
+	var sprite := _get_sprite()
 	if sprite == null:
 		return
-	var frame_count := sprite.hframes * sprite.vframes
-	if frame_count <= 1 or visual_idle_fps <= 0.0:
-		return
-	_visual_elapsed += delta
-	sprite.frame = int(floor(_visual_elapsed * visual_idle_fps)) % frame_count
+	if direction.x < -FACING_DEADZONE:
+		sprite.flip_h = true
+	elif direction.x > FACING_DEADZONE:
+		sprite.flip_h = false
+
+
+func _get_sprite() -> AnimatedSprite2D:
+	if _sprite != null and is_instance_valid(_sprite):
+		return _sprite
+	return get_node_or_null(^"Sprite") as AnimatedSprite2D
+
+
+func _animation_frame_count(frames: SpriteFrames, animation_name: StringName) -> int:
+	if frames == null or not frames.has_animation(animation_name):
+		return 0
+	return frames.get_frame_count(animation_name)
+
+
+func _animation_frame_atlas_path(frames: SpriteFrames, animation_name: StringName, frame_index: int) -> String:
+	if frames == null or not frames.has_animation(animation_name):
+		return ""
+	if frame_index < 0 or frame_index >= frames.get_frame_count(animation_name):
+		return ""
+	var texture := frames.get_frame_texture(animation_name, frame_index)
+	if texture is AtlasTexture:
+		var atlas := (texture as AtlasTexture).atlas
+		return atlas.resource_path if atlas != null else ""
+	return texture.resource_path if texture != null else ""
 
 
 func _spawn_completion_burst() -> void:
