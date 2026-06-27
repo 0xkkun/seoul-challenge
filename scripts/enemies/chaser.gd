@@ -4,6 +4,7 @@ extends CharacterBody2D
 
 const HitReactionController = preload("res://scripts/combat/hit_reaction_controller.gd")
 const StatusEffectController = preload("res://scripts/combat/status_effect_controller.gd")
+const FACING_DEADZONE := 0.01
 
 ## 처치됨 — RoomManager/전투방이 듣고 방 클리어 카운트에 사용한다(계약 #19).
 signal defeated(enemy)
@@ -225,6 +226,7 @@ func _try_contact(target: Node2D) -> void:
 func _update_animation() -> void:
 	if _sprite == null or _sprite.sprite_frames == null:
 		return
+	_update_sprite_facing()
 	if _sprite.animation == attack_animation and _sprite.is_playing():
 		return
 	if _sprite.sprite_frames.has_animation(move_animation) and _sprite.animation != move_animation:
@@ -236,6 +238,13 @@ func _play_attack_animation() -> void:
 		return
 	if _sprite.sprite_frames.has_animation(attack_animation):
 		_sprite.play(attack_animation)
+
+
+func _update_sprite_facing() -> void:
+	if velocity.x < -FACING_DEADZONE:
+		_sprite.flip_h = true
+	elif velocity.x > FACING_DEADZONE:
+		_sprite.flip_h = false
 
 
 func _get_visual() -> CanvasItem:

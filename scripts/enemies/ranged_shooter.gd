@@ -11,6 +11,7 @@ signal fired(origin: Vector2, direction: Vector2)
 const HitReactionController = preload("res://scripts/combat/hit_reaction_controller.gd")
 const StatusEffectController = preload("res://scripts/combat/status_effect_controller.gd")
 const ENEMY_BULLET := preload("res://scenes/enemies/enemy_bullet.tscn")
+const FACING_DEADZONE := 0.01
 
 @export var max_hp: int = 2
 @export var move_speed: float = 70.0          ## 카이팅 이동 속도 (px/s)
@@ -267,6 +268,7 @@ func _spawn_bullet(origin: Vector2, direction: Vector2) -> void:
 func _update_animation() -> void:
 	if _sprite == null or _sprite.sprite_frames == null:
 		return
+	_update_sprite_facing()
 	if _sprite.animation == attack_animation and _sprite.is_playing():
 		return
 	if _sprite.sprite_frames.has_animation(move_animation) and _sprite.animation != move_animation:
@@ -278,6 +280,13 @@ func _play_attack_animation() -> void:
 		return
 	if _sprite.sprite_frames.has_animation(attack_animation):
 		_sprite.play(attack_animation)
+
+
+func _update_sprite_facing() -> void:
+	if velocity.x < -FACING_DEADZONE:
+		_sprite.flip_h = true
+	elif velocity.x > FACING_DEADZONE:
+		_sprite.flip_h = false
 
 
 func _get_visual() -> CanvasItem:

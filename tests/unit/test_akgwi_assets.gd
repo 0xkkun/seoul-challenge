@@ -62,6 +62,31 @@ func test_akgwi_contact_damage_plays_attack_animation() -> void:
 		_runner.assert_eq(sprite.animation, &"attack", "akgwi switches to attack animation on melee contact")
 
 
+func test_akgwi_sprite_flips_with_horizontal_movement_and_holds_when_idle() -> void:
+	_runner.assert_true(ResourceLoader.exists(AKGWI_SCENE_PATH), "akgwi melee enemy scene exists")
+	if not ResourceLoader.exists(AKGWI_SCENE_PATH):
+		return
+
+	var enemy := (load(AKGWI_SCENE_PATH) as PackedScene).instantiate()
+	add_child(enemy)
+	var sprite := enemy.get_node_or_null("Sprite") as AnimatedSprite2D
+	_runner.assert_not_null(sprite, "akgwi uses an AnimatedSprite2D visual")
+	if sprite == null:
+		return
+
+	enemy.velocity = Vector2.LEFT
+	enemy.call("_update_animation")
+	_runner.assert_true(sprite.flip_h, "akgwi flips left while moving left")
+
+	enemy.velocity = Vector2.DOWN
+	enemy.call("_update_animation")
+	_runner.assert_true(sprite.flip_h, "akgwi keeps the last horizontal facing while moving vertically")
+
+	enemy.velocity = Vector2.RIGHT
+	enemy.call("_update_animation")
+	_runner.assert_false(sprite.flip_h, "akgwi faces right while moving right")
+
+
 func test_combat_room_uses_akgwi_as_default_melee_enemy() -> void:
 	var room := (load(COMBAT_ROOM_SCENE_PATH) as PackedScene).instantiate()
 	add_child(room)
