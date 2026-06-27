@@ -568,6 +568,29 @@ func test_attack_dust_state_places_effect_behind_facing_at_feet() -> void:
 	player.free()
 
 
+func test_attack_dust_diagonal_rotation_snaps_to_cardinal_angles() -> void:
+	var player = PlayerScript.new()
+	_runner.assert_true(player.has_method("build_attack_dust_effect_state"), "player exposes pure attack dust placement helper")
+	if not player.has_method("build_attack_dust_effect_state"):
+		player.free()
+		return
+
+	var diagonal_state: Dictionary = player.call(
+		"build_attack_dust_effect_state",
+		Vector2(1.0, 1.0),
+		Vector2(48.0, 72.0),
+		72.0,
+		26.0,
+		16.0
+	)
+	var position := diagonal_state["position"] as Vector2
+	var rotation := float(diagonal_state["rotation"])
+
+	_runner.assert_true(position.x < 0.0 and position.y < 16.0, "diagonal attack still places dust behind the facing direction")
+	_runner.assert_true(_is_cardinal_rotation(rotation), "diagonal attack dust snaps rotation to 90-degree angles to avoid nearest-filter mosaic")
+	player.free()
+
+
 func test_attack_dust_only_triggers_while_moving() -> void:
 	var player = PlayerScript.new()
 	_runner.assert_true(player.has_method("should_show_attack_dust"), "player exposes dust movement gate helper")
@@ -687,3 +710,9 @@ func _has_property(node: Object, property_name: String) -> bool:
 		if String(property.get("name", "")) == property_name:
 			return true
 	return false
+
+
+func _is_cardinal_rotation(rotation: float) -> bool:
+	var quarter_turn := PI * 0.5
+	var snapped := roundf(rotation / quarter_turn) * quarter_turn
+	return is_equal_approx(rotation, snapped)

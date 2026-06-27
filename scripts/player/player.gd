@@ -1041,14 +1041,20 @@ func build_attack_dust_effect_state(
 	var opposite_dir := -safe_dir
 	var safe_frame_height := maxf(1.0, frame_size.y)
 	var scale_value := maxf(0.001, visual_height / safe_frame_height)
-	var rotation := opposite_dir.angle()
-	if is_equal_approx(rotation, -PI):
-		rotation = PI
+	var rotation := snap_attack_dust_rotation(opposite_dir.angle())
 	return {
 		"position": opposite_dir * maxf(0.0, back_offset) + Vector2(0.0, foot_offset),
 		"rotation": rotation,
 		"scale": Vector2(scale_value, scale_value),
 	}
+
+
+func snap_attack_dust_rotation(rotation: float) -> float:
+	var quarter_turn := PI * 0.5
+	var snapped := roundf(rotation / quarter_turn) * quarter_turn
+	if is_equal_approx(snapped, -PI):
+		return PI
+	return snapped
 
 
 func _show_attack_dust(dir: Vector2, move_input: Vector2) -> void:
