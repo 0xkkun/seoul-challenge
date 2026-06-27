@@ -2,8 +2,6 @@ extends Node2D
 
 const GROUP := &"enemy_death_fx"
 const LIFETIME := 0.22
-const FLASH_TIME := 0.04
-const FLASH_MULTIPLIER := 1.24
 const Z_INDEX := 44
 
 var _age := 0.0
@@ -35,9 +33,13 @@ func capture_visual(source: CanvasItem) -> void:
 	visual_snapshot.name = "VisualSnapshot"
 	visual_snapshot.visible = true
 	visual_snapshot.modulate.a = source.modulate.a
-	if visual_snapshot is AnimatedSprite2D:
-		(visual_snapshot as AnimatedSprite2D).stop()
+	var animated_snapshot := visual_snapshot as AnimatedSprite2D
+	if animated_snapshot != null:
+		animated_snapshot.autoplay = ""
+		animated_snapshot.stop()
 	add_child(visual_snapshot)
+	if animated_snapshot != null:
+		animated_snapshot.stop()
 	_visual = visual_snapshot
 	_base_visual_modulate = visual_snapshot.modulate
 	_apply_visual_state()
@@ -69,19 +71,14 @@ func _apply_visual_state() -> void:
 	modulate.a = 1.0 - ratio
 	if _visual == null:
 		return
-	var flash_ratio := clampf(_age / FLASH_TIME, 0.0, 1.0) if FLASH_TIME > 0.0 else 1.0
-	var brighten := lerpf(FLASH_MULTIPLIER, 1.0, flash_ratio)
-	_visual.modulate = Color(
-		_base_visual_modulate.r * brighten,
-		_base_visual_modulate.g * brighten,
-		_base_visual_modulate.b * brighten,
-		_base_visual_modulate.a
-	)
+	_visual.modulate = _base_visual_modulate
 
 
 func _clear_visual() -> void:
 	if _visual != null and is_instance_valid(_visual):
-		_visual.queue_free()
+		if _visual.get_parent() == self:
+			remove_child(_visual)
+		_visual.free()
 	_visual = null
 
 

@@ -50,6 +50,54 @@ func test_wolf_death_spawns_detached_fade() -> void:
 	_assert_enemy_death_spawns_fade(WolfScene.instantiate(), "wolf")
 
 
+func test_death_fade_freezes_animated_sprite_snapshot_after_entering_tree() -> void:
+	var fade := _new_death_fade()
+	add_child(fade)
+	var source := AnimatedSprite2D.new()
+	var frames := SpriteFrames.new()
+	if not frames.has_animation(&"move"):
+		frames.add_animation(&"move")
+	frames.add_frame(&"move", _make_test_texture())
+	source.sprite_frames = frames
+	source.animation = &"move"
+	source.autoplay = "move"
+
+	fade.call("capture_visual", source)
+
+	var snapshot := _find_visual_snapshot(fade) as AnimatedSprite2D
+	_runner.assert_not_null(snapshot, "animated enemy death fade keeps an animated sprite snapshot")
+	if snapshot != null:
+		_runner.assert_eq(snapshot.autoplay, "", "animated death snapshot clears autoplay")
+		_runner.assert_false(snapshot.is_playing(), "animated death snapshot stays frozen after entering the tree")
+	source.free()
+	fade.free()
+
+
+func test_death_fade_preserves_snapshot_rgb_while_alpha_fades() -> void:
+	var fade := _new_death_fade()
+	add_child(fade)
+	var source := Polygon2D.new()
+	source.modulate = Color(0.42, 0.55, 0.67, 0.75)
+	source.color = Color.WHITE
+	source.polygon = PackedVector2Array([
+		Vector2(-8.0, -8.0),
+		Vector2(8.0, -8.0),
+		Vector2(8.0, 8.0),
+		Vector2(-8.0, 8.0),
+	])
+	fade.call("capture_visual", source)
+	var snapshot := _find_visual_snapshot(fade)
+	_runner.assert_not_null(snapshot, "death fade keeps a visual snapshot")
+	if snapshot != null:
+		var before_color := snapshot.modulate
+		var before_alpha := fade.modulate.a
+		fade.call("_process", 0.01)
+		_runner.assert_true(snapshot.modulate.is_equal_approx(before_color), "death fade preserves snapshot RGB/modulate")
+		_runner.assert_true(fade.modulate.a < before_alpha, "death fade reduces only the root opacity")
+	source.free()
+	fade.free()
+
+
 func _assert_enemy_death_spawns_fade(enemy: Node2D, label: String) -> void:
 	_clear_death_fades()
 	enemy.set("max_hp", 1)
@@ -99,6 +147,24 @@ func _has_visual_snapshot(root: Node) -> bool:
 		if child is CanvasItem and child.name == "VisualSnapshot":
 			return true
 	return false
+
+
+func _find_visual_snapshot(root: Node) -> CanvasItem:
+	for child in root.get_children():
+		if child is CanvasItem and child.name == "VisualSnapshot":
+			return child
+	return null
+
+
+func _new_death_fade() -> Node2D:
+	var script := load(DEATH_FX_SCRIPT_PATH) as Script
+	return script.new() as Node2D
+
+
+func _make_test_texture() -> Texture2D:
+	var image := Image.create(2, 2, false, Image.FORMAT_RGBA8)
+	image.fill(Color.WHITE)
+	return ImageTexture.create_from_image(image)
 
 
 func _count_line_nodes(root: Node) -> int:
