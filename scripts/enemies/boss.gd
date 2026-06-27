@@ -10,6 +10,7 @@ signal defeated(boss)
 signal telegraph_started
 
 const HitReactionController = preload("res://scripts/combat/hit_reaction_controller.gd")
+const EnemyDeathFade = preload("res://scripts/combat/enemy_death_fade.gd")
 const ENEMY_BULLET := preload("res://scenes/enemies/enemy_bullet.tscn")
 
 enum Phase { RECOVER, TELEGRAPH, CHARGE, BURST }
@@ -29,6 +30,7 @@ enum Phase { RECOVER, TELEGRAPH, CHARGE, BURST }
 @export var target_group: StringName = &"player"
 
 var _hp: int = 0
+var _dead := false
 var _phase: Phase = Phase.RECOVER
 var _phase_timer: float = 0.0
 var _pattern_index: int = 1   ## 다음 패턴 (0=돌진, 1=탄막) — 첫 사이클은 돌진부터
@@ -128,7 +130,7 @@ func _ensure_hit_reaction() -> Node:
 # --- 피격/처치 ---
 
 func take_damage(amount: int) -> void:
-	if is_hit_invulnerable():
+	if _dead or is_hit_invulnerable():
 		return
 	HapticManager.on_boss_hit()
 	_hp -= amount
@@ -139,8 +141,22 @@ func take_damage(amount: int) -> void:
 
 
 func _die() -> void:
+	if _dead:
+		return
+	_dead = true
+	_spawn_death_fade()
 	defeated.emit(self)
 	queue_free()
+
+
+func _spawn_death_fade() -> void:
+	var parent := get_parent()
+	if parent == null:
+		return
+	var fade := EnemyDeathFade.new()
+	parent.add_child(fade)
+	fade.global_position = global_position
+	fade.capture_visual(_get_visual())
 
 
 # --- 패턴 진행 (I/O) ---
@@ -197,6 +213,13 @@ func _aim_to(target: Node2D) -> Vector2:
 
 func _find_target() -> Node2D:
 	return get_tree().get_first_node_in_group(target_group) as Node2D
+
+
+func _get_visual() -> CanvasItem:
+	var sprite := get_node_or_null(^"Sprite") as CanvasItem
+	if sprite != null:
+		return sprite
+	return get_node_or_null(^"Placeholder") as CanvasItem
 
 
 func _try_contact(target: Node2D) -> void:
