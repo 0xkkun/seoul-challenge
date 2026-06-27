@@ -10,6 +10,7 @@ const HitReactionController = preload("res://scripts/combat/hit_reaction_control
 const StatusEffectController = preload("res://scripts/combat/status_effect_controller.gd")
 const MetaUpgradeCatalog = preload("res://scripts/items/meta_upgrade_catalog.gd")
 const SLASH_FRAME_WIDTH := 64.0
+const ATTACK_DUST_FRAME_SIZE := Vector2(960.0, 1440.0)
 const BAT_SLASH_VISUAL_SCALE := 1.18
 const POWER_SLASH_VISUAL_SCALE := 1.35
 const WEAPON_NAME_BARE_HANDS := "맨손"
@@ -49,6 +50,10 @@ signal run_modifiers_changed(payload: Dictionary)
 @export var swing_visual_time: float = 0.12  ## 휘두르기 시각 표시 시간 (s)
 @export var bat_swing_visual_time: float = 0.16  ## 배트 초승달 슬래시 표시 시간(s)
 @export var power_impact_visual_time: float = 0.18  ## 강공격 이펙트 재생 시간(s)
+@export var attack_dust_visual_height: float = 72.0  ## 큰 원본 먼지 프레임을 발밑 크기로 축소
+@export var attack_dust_back_offset: float = 26.0  ## 바라보는 방향의 반대쪽 발밑 거리(px)
+@export var attack_dust_foot_offset: float = 16.0  ## 캐릭터 중심에서 발밑으로 내리는 오프셋(px)
+@export var attack_dust_move_threshold: float = 0.1
 @export var dash_power_attack_grace_time: float = 0.15  ## 대시 직후 강화 근접 공격 입력 허용 시간(s)
 @export_range(0, 9, 1) var dash_power_attack_damage_bonus := 1
 @export var dash_power_attack_range_multiplier: float = 1.15
@@ -94,6 +99,7 @@ var _power_impact_tween: Tween = null
 @onready var _swing_visual: Node2D = get_node_or_null(^"MeleeSwing")
 @onready var _bat_swing_visual: Node2D = get_node_or_null(^"BatSwingImpact")
 @onready var _power_impact_visual: Node2D = get_node_or_null(^"PowerImpact")
+@onready var _attack_dust_visual: Node2D = get_node_or_null(^"AttackDust")
 @onready var _sprite: AnimatedSprite2D = get_node_or_null(^"Sprite")
 
 
@@ -114,6 +120,9 @@ func _ready() -> void:
 	_broadcast_special_skill_state.call_deferred()
 	if _sprite != null and not _sprite.animation_finished.is_connected(_on_sprite_animation_finished):
 		_sprite.animation_finished.connect(_on_sprite_animation_finished)
+	var dust_sprite := _get_attack_dust_sprite()
+	if dust_sprite != null and not dust_sprite.animation_finished.is_connected(_hide_attack_dust):
+		dust_sprite.animation_finished.connect(_hide_attack_dust)
 	_ensure_hit_reaction()
 
 
@@ -148,7 +157,7 @@ func _physics_process(delta: float) -> void:
 		)
 	move_and_slide()
 	clamp_to_movement_bounds()
-	_process_attack(delta)
+	_process_attack(delta, move)
 	_update_animation(move)
 
 
@@ -751,7 +760,7 @@ func _broadcast_run_modifiers_changed() -> void:
 
 
 ## 공격 입력/쿨다운 처리. 기본은 근접(휘두르기), ranged_enabled 면 원거리(야구공) 발사.
-func _process_attack(delta: float) -> void:
+func _process_attack(delta: float, move_input: Vector2 = Vector2.ZERO) -> void:
 	_attack_timer = step_fire_cooldown(_attack_timer, delta)
 	_swing_timer = maxf(0.0, _swing_timer - delta)
 	if _swing_timer <= 0.0 and _swing_visual != null:
@@ -769,6 +778,7 @@ func _process_attack(delta: float) -> void:
 	else:
 		_attack_melee(dir)
 		_attack_timer = attack_cooldown
+	_show_attack_dust(dir, move_input)
 	_play_attack_anim(dir)
 
 
@@ -1010,6 +1020,79 @@ func build_slash_effect_state(dir: Vector2, rng: float, frame_width: float, visu
 		"rotation": safe_dir.angle(),
 		"scale": Vector2(scale_value, scale_value),
 	}
+
+
+func should_show_attack_dust(move_input: Vector2) -> bool:
+	return move_input.length() > attack_dust_move_threshold
+
+
+func build_attack_dust_effect_state(
+	facing: Vector2,
+	frame_size: Vector2,
+	visual_height: float,
+	back_offset: float,
+	foot_offset: float
+) -> Dictionary:
+	var safe_dir := facing.normalized() if facing.length() > 0.001 else Vector2.RIGHT
+	var opposite_dir := -safe_dir
+	var safe_frame_height := maxf(1.0, frame_size.y)
+	var scale_value := maxf(0.001, visual_height / safe_frame_height)
+	var rotation := opposite_dir.angle()
+	if is_equal_approx(rotation, -PI):
+		rotation = PI
+	return {
+		"position": opposite_dir * maxf(0.0, back_offset) + Vector2(0.0, foot_offset),
+		"rotation": rotation,
+		"scale": Vector2(scale_value, scale_value),
+	}
+
+
+func _show_attack_dust(dir: Vector2, move_input: Vector2) -> void:
+	if not should_show_attack_dust(move_input):
+		return
+	if _attack_dust_visual == null:
+		return
+	var dust_sprite := _get_attack_dust_sprite()
+	if dust_sprite == null:
+		return
+	var state := build_attack_dust_effect_state(
+		dir,
+		ATTACK_DUST_FRAME_SIZE,
+		attack_dust_visual_height,
+		attack_dust_back_offset,
+		attack_dust_foot_offset
+	)
+	_attack_dust_visual.position = state["position"] as Vector2
+	_attack_dust_visual.rotation = float(state["rotation"])
+	_attack_dust_visual.scale = state["scale"] as Vector2
+	_attack_dust_visual.modulate = Color.WHITE
+	_attack_dust_visual.visible = true
+	dust_sprite.visible = true
+	dust_sprite.frame = 0
+	dust_sprite.speed_scale = 1.0
+	dust_sprite.play(&"burst")
+
+
+func _get_attack_dust_sprite() -> AnimatedSprite2D:
+	if _attack_dust_visual == null:
+		return null
+	return _attack_dust_visual.get_node_or_null(^"DustSprite") as AnimatedSprite2D
+
+
+func _hide_attack_dust() -> void:
+	if _attack_dust_visual == null:
+		return
+	_attack_dust_visual.visible = false
+	_attack_dust_visual.modulate = Color.WHITE
+	_attack_dust_visual.scale = Vector2.ONE
+	_attack_dust_visual.rotation = 0.0
+	_attack_dust_visual.position = Vector2.ZERO
+	var dust_sprite := _get_attack_dust_sprite()
+	if dust_sprite != null:
+		dust_sprite.visible = false
+		dust_sprite.stop()
+		dust_sprite.frame = 0
+		dust_sprite.speed_scale = 1.0
 
 
 func _start_power_impact_tween(slash_sprite: Sprite2D) -> void:
