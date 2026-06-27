@@ -25,7 +25,8 @@ static func panel_style(
 	border_color := COLOR_STEEL,
 	border_width := 2,
 	margin_x := 16.0,
-	margin_y := 12.0
+	margin_y := 12.0,
+	corner_radius := 0
 ) -> StyleBoxFlat:
 	var style := StyleBoxFlat.new()
 	style.bg_color = bg_color
@@ -34,10 +35,10 @@ static func panel_style(
 	style.border_width_top = border_width
 	style.border_width_right = border_width
 	style.border_width_bottom = border_width
-	style.corner_radius_top_left = 0
-	style.corner_radius_top_right = 0
-	style.corner_radius_bottom_right = 0
-	style.corner_radius_bottom_left = 0
+	style.corner_radius_top_left = corner_radius
+	style.corner_radius_top_right = corner_radius
+	style.corner_radius_bottom_right = corner_radius
+	style.corner_radius_bottom_left = corner_radius
 	style.content_margin_left = margin_x
 	style.content_margin_top = margin_y
 	style.content_margin_right = margin_x
