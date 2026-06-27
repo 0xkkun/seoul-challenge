@@ -128,8 +128,8 @@ func _apply_session_loadout() -> void:
 				actor.call("equip_bat")
 
 
-func finish_session() -> Dictionary:
-	var result := _build_session_result()
+func finish_session(overrides: Dictionary = {}) -> Dictionary:
+	var result := _build_session_result(overrides)
 	GameManager.finish_session(result)
 	session_ui_root.show_summary(result)
 	return result
@@ -297,6 +297,8 @@ func _on_room_changed(_room_id: StringName, _room_type: StringName) -> void:
 func _connect_boss_room(room: Node) -> void:
 	if room == null or not room.has_signal("boss_spawn_requested"):
 		return
+	if room.has_method("set_finish_session_on_resolve"):
+		room.call("set_finish_session_on_resolve", false)
 	var callback := Callable(self, "_on_boss_spawn_requested")
 	if not room.is_connected("boss_spawn_requested", callback):
 		room.connect("boss_spawn_requested", callback)
@@ -325,7 +327,13 @@ func _on_boss_defeated(_boss: Node, room: Node) -> void:
 	if _active_boss == _boss:
 		_active_boss = null
 	if room != null and is_instance_valid(room) and room.has_method("complete_boss_encounter"):
-		room.call("complete_boss_encounter")
+		var completed := bool(room.call("complete_boss_encounter"))
+		if completed and has_node("/root/GameManager") and GameManager.is_session_active():
+			finish_session({
+				"reason": "boss_resolved",
+				"room_id": StringName(room.get("room_id")),
+				"boss_id": StringName(room.get("boss_id")),
+			})
 
 
 func _is_layout_complete() -> bool:

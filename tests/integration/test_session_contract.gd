@@ -101,6 +101,41 @@ func test_session_result_tracks_baseball_friend_purification_unlocks() -> void:
 	session.queue_free()
 
 
+func test_boss_victory_result_keeps_baseball_friend_unlocks() -> void:
+	var packed := load("res://scenes/session/session_root.tscn") as PackedScene
+	var session := packed.instantiate()
+	add_child(session)
+
+	var manager := session.get_node("%RoomManager") as RoomManager
+	var friend_room_def := _first_room_of_type(manager.layout, RoomLayout.TYPE_FRIEND)
+	var final_room_def := _first_room_of_type(manager.layout, RoomLayout.TYPE_FINAL)
+	_runner.assert_not_null(friend_room_def, "session run layout includes a friend room")
+	_runner.assert_not_null(final_room_def, "session run layout includes a final room")
+	if friend_room_def == null or final_room_def == null:
+		return
+
+	_runner.assert_true(manager.enter_room(friend_room_def.room_id), "test enters generated friend room")
+	var friends: Array = manager.current_room.call("get_active_friends")
+	_runner.assert_eq(friends.size(), 1, "friend room spawns the purification target")
+	if friends.size() == 1:
+		var friend := friends[0] as Node
+		friend.emit_signal("purified", friend)
+	_runner.assert_true(manager.enter_room(final_room_def.room_id), "test enters generated boss room")
+
+	var defeated_boss := Node.new()
+	session._on_boss_defeated(defeated_boss, manager.current_room)
+	defeated_boss.free()
+
+	var result := GameManager.get_last_result()
+	_runner.assert_false(GameManager.is_session_active(), "boss victory finishes the active run")
+	_runner.assert_eq(result.get("friends_purified", 0), 1, "boss victory result counts purified friends")
+	_runner.assert_eq(result.get("friend_ids", []), [&"baseball_captain"], "boss victory result records the baseball friend id")
+	_runner.assert_true((result.get("unlocks", []) as Array).has(&"awakened_bat"), "boss victory result includes awakened bat unlock")
+	_runner.assert_true((result.get("unlocks", []) as Array).has(&"baseball_stage_3"), "boss victory result includes baseball stage 3 unlock")
+
+	session.queue_free()
+
+
 func test_session_root_preserves_existing_config() -> void:
 	GameManager.start_session({"source": "preconfigured"})
 
