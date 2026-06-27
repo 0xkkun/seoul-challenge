@@ -1,8 +1,9 @@
-[gd_resource type="SpriteFrames" load_steps=28 format=3]
+[gd_resource type="SpriteFrames" load_steps=33 format=3]
 
 [ext_resource type="Texture2D" path="res://assets/sprites/player/baseball_idle.png" id="idle_tex"]
 [ext_resource type="Texture2D" path="res://assets/sprites/player/baseball_walking.png" id="walk_tex"]
 [ext_resource type="Texture2D" path="res://assets/sprites/player/baseball_attack.png" id="atk_tex"]
+[ext_resource type="Texture2D" path="res://assets/sprites/player/player_dash.png" id="dash_tex"]
 
 [sub_resource type="AtlasTexture" id="idle0"]
 atlas = ExtResource("idle_tex")
@@ -59,6 +60,22 @@ region = Rect2(640, 0, 128, 128)
 [sub_resource type="AtlasTexture" id="walk6"]
 atlas = ExtResource("walk_tex")
 region = Rect2(768, 0, 128, 128)
+
+[sub_resource type="AtlasTexture" id="dash0"]
+atlas = ExtResource("dash_tex")
+region = Rect2(0, 0, 128, 128)
+
+[sub_resource type="AtlasTexture" id="dash1"]
+atlas = ExtResource("dash_tex")
+region = Rect2(128, 0, 128, 128)
+
+[sub_resource type="AtlasTexture" id="dash2"]
+atlas = ExtResource("dash_tex")
+region = Rect2(256, 0, 128, 128)
+
+[sub_resource type="AtlasTexture" id="dash3"]
+atlas = ExtResource("dash_tex")
+region = Rect2(384, 0, 128, 128)
 
 [sub_resource type="AtlasTexture" id="atk0"]
 atlas = ExtResource("atk_tex")
@@ -153,6 +170,23 @@ animations = [{
 "loop": true,
 "name": &"walk",
 "speed": 12.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("dash0")
+}, {
+"duration": 1.0,
+"texture": SubResource("dash1")
+}, {
+"duration": 1.0,
+"texture": SubResource("dash2")
+}, {
+"duration": 1.0,
+"texture": SubResource("dash3")
+}],
+"loop": false,
+"name": &"dash",
+"speed": 28.0
 }, {
 "frames": [{
 "duration": 1.0,
