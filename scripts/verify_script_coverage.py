@@ -18,6 +18,16 @@ GD_LOAD_REFERENCE_RE = re.compile(
     r"(?:\b(?:preload|load)\s*\(|\bResourceLoader\.load\s*\()\s*"
     r"[\"']res://([^\"']+)[\"']"
 )
+GD_LOAD_NAME_RE = re.compile(
+    r"(?:\b(?:preload|load)\s*\(|\bResourceLoader\.load\s*\()\s*"
+    r"([A-Za-z_][A-Za-z0-9_]*)\s*\)"
+)
+GD_CONST_RESOURCE_RE = re.compile(
+    r"^\s*const\s+([A-Za-z_][A-Za-z0-9_]*)"
+    r"(?:\s*:\s*[A-Za-z_][A-Za-z0-9_]*)?\s*(?::=|=)\s*"
+    r"[\"']res://([^\"']+)[\"']",
+    re.MULTILINE,
+)
 GD_EXTENDS_REFERENCE_RE = re.compile(r"^\s*extends\s+[\"']res://([^\"']+)[\"']", re.MULTILINE)
 CLASS_NAME_RE = re.compile(r"^\s*class_name\s+([A-Za-z_][A-Za-z0-9_]*)", re.MULTILINE)
 RESOURCE_SUFFIXES = (".gd", ".tscn", ".tres")
@@ -207,15 +217,26 @@ def find_resource_references(text: str) -> set[str]:
 
 
 def find_gd_load_references(text: str) -> set[str]:
+    text_without_comments = strip_gd_comments(text)
+    const_resource_paths = {
+        match.group(1): match.group(2).strip()
+        for match in GD_CONST_RESOURCE_RE.finditer(text_without_comments)
+        if match.group(2).strip()
+    }
     references = {
         match.group(1).strip()
-        for match in GD_LOAD_REFERENCE_RE.finditer(text)
+        for match in GD_LOAD_REFERENCE_RE.finditer(text_without_comments)
         if match.group(1).strip()
     }
     references.update(
         match.group(1).strip()
-        for match in GD_EXTENDS_REFERENCE_RE.finditer(text)
+        for match in GD_EXTENDS_REFERENCE_RE.finditer(text_without_comments)
         if match.group(1).strip()
+    )
+    references.update(
+        const_resource_paths[match.group(1)]
+        for match in GD_LOAD_NAME_RE.finditer(text_without_comments)
+        if match.group(1) in const_resource_paths
     )
     return references
 
@@ -227,11 +248,82 @@ def find_references_for_file(path: str, text: str) -> set[str]:
 
 
 def find_class_name_references(text: str, class_name_paths: dict[str, str]) -> set[str]:
+    code_text = strip_gd_comments_and_strings(text)
     references: set[str] = set()
     for class_name, path in class_name_paths.items():
-        if re.search(r"\b%s\b" % re.escape(class_name), text):
+        if re.search(r"\b%s\b" % re.escape(class_name), code_text):
             references.add(path)
     return references
+
+
+def strip_gd_comments(text: str) -> str:
+    output: list[str] = []
+    quote = ""
+    escaped = False
+    index = 0
+    while index < len(text):
+        char = text[index]
+        if quote:
+            output.append(char)
+            if escaped:
+                escaped = False
+            elif char == "\\":
+                escaped = True
+            elif char == quote:
+                quote = ""
+            index += 1
+            continue
+        if char in ("'", '"'):
+            quote = char
+            output.append(char)
+            index += 1
+            continue
+        if char == "#":
+            while index < len(text) and text[index] != "\n":
+                output.append(" ")
+                index += 1
+            continue
+        output.append(char)
+        index += 1
+    return "".join(output)
+
+
+def strip_gd_comments_and_strings(text: str) -> str:
+    output: list[str] = []
+    quote = ""
+    escaped = False
+    index = 0
+    while index < len(text):
+        char = text[index]
+        if quote:
+            if char == "\n":
+                output.append("\n")
+                quote = ""
+                escaped = False
+                index += 1
+                continue
+            output.append(" ")
+            if escaped:
+                escaped = False
+            elif char == "\\":
+                escaped = True
+            elif char == quote:
+                quote = ""
+            index += 1
+            continue
+        if char in ("'", '"'):
+            quote = char
+            output.append(" ")
+            index += 1
+            continue
+        if char == "#":
+            while index < len(text) and text[index] != "\n":
+                output.append(" ")
+                index += 1
+            continue
+        output.append(char)
+        index += 1
+    return "".join(output)
 
 
 def read_text(root: Path, relative_path: str) -> str:

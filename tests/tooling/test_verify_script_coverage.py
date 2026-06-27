@@ -167,6 +167,56 @@ def test_default_seed_roots_match_quick_gate_suites() -> None:
         assert performance_report.covered_scripts == {"scripts/performance_only.gd"}
 
 
+def test_gd_load_references_follow_path_constants() -> None:
+    module = load_module()
+    with tempfile.TemporaryDirectory() as temp_dir:
+        root = Path(temp_dir)
+        write(root, "scripts/loaded_by_constant.gd", "extends Node\n")
+        write(root, "scripts/commented_only.gd", "extends Node\n")
+        write(
+            root,
+            "tests/unit/test_constant_load.gd",
+            '\n'.join([
+                "extends Node",
+                'const TARGET_PATH := "res://scripts/loaded_by_constant.gd"',
+                '# const COMMENTED_PATH := "res://scripts/commented_only.gd"',
+                '# var ignored := load(COMMENTED_PATH)',
+                "func test_constant_load() -> void:",
+                "\tvar script := load(TARGET_PATH)",
+                "\tassert(script != null)",
+            ]),
+        )
+
+        report = module.compute_script_coverage(root)
+
+        assert report.total_scripts == 2
+        assert report.covered_scripts == {"scripts/loaded_by_constant.gd"}
+        assert report.uncovered_scripts == {"scripts/commented_only.gd"}
+
+
+def test_class_name_mentions_in_comments_and_strings_do_not_cover() -> None:
+    module = load_module()
+    with tempfile.TemporaryDirectory() as temp_dir:
+        root = Path(temp_dir)
+        write(root, "scripts/mentioned_only.gd", "class_name MentionedOnly\nextends Node\n")
+        write(
+            root,
+            "tests/unit/test_mentions.gd",
+            '\n'.join([
+                "extends Node",
+                "# MentionedOnly should not count from comments.",
+                "func test_mentions() -> void:",
+                '\tassert("MentionedOnly" != "")',
+            ]),
+        )
+
+        report = module.compute_script_coverage(root)
+
+        assert report.total_scripts == 1
+        assert report.covered_scripts == set()
+        assert report.uncovered_scripts == {"scripts/mentioned_only.gd"}
+
+
 def test_cli_reports_uncovered_scripts_when_threshold_fails() -> None:
     with tempfile.TemporaryDirectory() as temp_dir:
         root = Path(temp_dir)
@@ -205,6 +255,8 @@ def main() -> None:
     test_class_name_references_mark_scripts_covered()
     test_gd_navigation_constants_do_not_mark_scene_scripts_covered()
     test_default_seed_roots_match_quick_gate_suites()
+    test_gd_load_references_follow_path_constants()
+    test_class_name_mentions_in_comments_and_strings_do_not_cover()
     test_cli_reports_uncovered_scripts_when_threshold_fails()
     print("[test_verify_script_coverage] OK")
 
