@@ -57,6 +57,7 @@ const MobileSafeArea := preload("res://scripts/ui/mobile_safe_area.gd")
 @onready var _unlock_title_label: Label = %UnlockTitleLabel
 @onready var _unlock_subtitle_label: Label = %UnlockSubtitleLabel
 @onready var _unlock_item_grid: GridContainer = %UnlockItemGrid
+@onready var _unlock_continue_hint: Label = %UnlockContinueHint
 
 var _speaker_name := ""
 var _dialogue_text := ""
@@ -259,6 +260,7 @@ func show_unlock(title: String, subtitle: String, items: Array[Dictionary]) -> v
 	for item: Dictionary in items:
 		_unlock_items.append(item.duplicate(true))
 	_render_unlock_items()
+	_unlock_continue_hint.text = CONTINUE_HINT_TOUCH
 	_unlock_overlay.visible = true
 
 
@@ -290,7 +292,16 @@ func get_unlock_items() -> Array[Dictionary]:
 
 
 func _input(event: InputEvent) -> void:
-	if not visible or is_unlock_visible():
+	if not visible:
+		return
+	# #243: 강화배트 언락 팝업이 떠 있으면 탭으로 닫는다(hide_unlock → unlock_hidden).
+	# 팝업에 닫기 어포던스가 없어 라이브로 띄우면 소프트락 되던 latent UI 를 완성.
+	if is_unlock_visible():
+		if _is_advance_tap_event(event):
+			var unlock_viewport := get_viewport()
+			if unlock_viewport != null:
+				unlock_viewport.set_input_as_handled()
+			hide_unlock()
 		return
 	if not _is_advance_tap_event(event):
 		return
@@ -436,7 +447,9 @@ func _on_unlock_changed(payload: Dictionary) -> void:
 	if StringName(payload.get("friend_id", &"")) != BASEBALL_CAPTAIN and not unlocks.has(AWAKENED_BAT):
 		return
 	set_stage(3, 3)
-	if unlocks.has(AWAKENED_BAT) or unlocks.has(BASEBALL_STAGE_3):
+	# #243: 팝업은 강화배트가 *실제로* 해금될 때만 띄운다. 정화 시점의 baseball_stage_3 단독으로는 띄우지 않는다
+	# (정화/언락 분리 — 강화배트는 로비 퀘스트 완료에서 해금).
+	if unlocks.has(AWAKENED_BAT):
 		_show_awakened_bat_unlock()
 
 

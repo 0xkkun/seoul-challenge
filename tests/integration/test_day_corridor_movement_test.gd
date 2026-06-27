@@ -537,10 +537,32 @@ func test_day_corridor_ambient_tier_reflects_progression() -> void:
 	add_child(scene)
 	_enter_right_room(scene)
 
-	# 현재 코드는 정화 시 강화배트도 즉시 언락 → post_enhanced (#243 전 동작)
+	# #243: 정화만으론 강화배트 미해금 → ambient tier 는 post_purify
+	_runner.assert_eq(
+		scene.get_ambient_tier(), rumors.TIER_POST_PURIFY,
+		"정화만으론 ambient tier 는 post_purify (#243)"
+	)
+
+	ProgressionSystem.reset_for_tests()
+
+
+func test_day_corridor_ambient_tier_post_enhanced_after_lobby_quest() -> void:
+	var rumors: GDScript = load("res://resources/dialogue/day_school_rumors.gd")
+	ProgressionSystem.reset_for_tests()
+	SaveManager.reset_profile()
+	ProgressionSystem.record_friend_purified(rumors.FRIEND_BASEBALL_CAPTAIN)
+	ProgressionSystem.record_quest_completed(ProgressionSystem.QUEST_BASEBALL_CAPTAIN_LOBBY)
+
+	var scene := DayCorridorScene.instantiate()
+	scene.room_transition_fade_time = 0.0
+	scene.outer_edge_scene_transition_enabled = false
+	add_child(scene)
+	_enter_right_room(scene)
+
+	# 로비 퀘스트 완료로 강화배트 해금 → ambient tier 는 post_enhanced
 	_runner.assert_eq(
 		scene.get_ambient_tier(), rumors.TIER_POST_ENHANCED,
-		"정화/강화배트 해금 후 ambient tier는 post_enhanced"
+		"로비 퀘스트 완료 후 ambient tier 는 post_enhanced (#243)"
 	)
 
 	ProgressionSystem.reset_for_tests()
