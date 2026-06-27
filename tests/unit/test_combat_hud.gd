@@ -2,7 +2,6 @@ extends Node
 ## #13 전투 HUD 하트 — 체력 변화가 하트 표시에 반영되는지 검증한다.
 
 const COMBAT_HUD_SCENE := preload("res://scenes/ui/combat_hud.tscn")
-const APPROVED_YEOPJEON_ICON_SHA256 := "1ecd8b6b97d37077dde5533ecceac7dc7a82efe2624cb857b91b2ed3f7cd88f2"
 const MobileSafeArea := preload("res://scripts/ui/mobile_safe_area.gd")
 const REMOVED_BASEBALL_NAME := "낡은" + "야구공"
 
@@ -142,53 +141,22 @@ func test_skill_state_event_updates_skill_slot() -> void:
 	_runner.assert_true(_hud.get_skill_text().contains("1/3"), "skill event updates HUD")
 
 
-func test_currency_state_renders_ingame_balance() -> void:
-	_runner.assert_true(_hud.has_method("set_currency_state"), "HUD exposes currency state setter")
-	_runner.assert_true(_hud.has_method("get_currency_text"), "HUD exposes currency text for tests")
-	_runner.assert_true(_hud.has_method("get_currency_icon_path"), "HUD exposes currency icon path for tests")
-	if not _hud.has_method("set_currency_state") or not _hud.has_method("get_currency_text") or not _hud.has_method("get_currency_icon_path"):
-		return
-
-	_hud.set_currency_state({"ingame": 7})
-
-	_runner.assert_eq(_hud.get_currency_text(), "7", "HUD renders only the ingame balance number")
-	_runner.assert_false(_hud.get_currency_text().contains("엽전"), "HUD removes the currency word label")
-	_runner.assert_eq(_hud.get_currency_icon_path(), "res://assets/ui/icons/currency/yeopjeon.png", "HUD uses the yeopjeon icon asset")
-
-
-func test_currency_icon_matches_approved_source_asset() -> void:
-	var icon_hash := FileAccess.get_sha256("res://assets/ui/icons/currency/yeopjeon.png")
-	_runner.assert_eq(icon_hash, APPROVED_YEOPJEON_ICON_SHA256, "HUD yeopjeon icon matches the approved source asset")
-
-
-func test_currency_changed_event_updates_currency_slot() -> void:
-	_runner.assert_true(EventBus.has_method("emit_currency_changed"), "EventBus exposes currency wrapper")
-	_runner.assert_true(_hud.has_method("get_currency_text"), "HUD exposes currency text for tests")
-	if not EventBus.has_method("emit_currency_changed") or not _hud.has_method("get_currency_text"):
-		return
-
-	EventBus.emit_currency_changed({
-		"kind": "ingame",
-		"amount": 3,
-		"ingame": 3,
-		"source": "CurrencySystem",
-	})
-
-	_runner.assert_true(_hud.get_currency_text().contains("3"), "currency event updates HUD")
-
-
-func test_ingame_top_right_hud_hides_non_currency_labels_and_avoids_minimap() -> void:
+func test_hud_has_no_yeopjeon_currency_slot() -> void:
 	var root := _hud.get_node("Root") as Control
-	var currency_panel := root.get_node("CurrencyPanel") as Control
-	var currency_icon := _hud.get_node_or_null("%CurrencyIcon") as TextureRect
-	var currency_amount := _hud.get_node_or_null("%CurrencyAmountLabel") as Label
+
+	_runner.assert_false(_hud.has_method("set_currency_state"), "HUD no longer exposes ingame currency state")
+	_runner.assert_false(_hud.has_method("get_currency_text"), "HUD no longer exposes ingame currency text")
+	_runner.assert_false(_hud.has_method("get_currency_icon_path"), "HUD no longer exposes yeopjeon icon path")
+	_runner.assert_false(root.has_node("CurrencyPanel"), "HUD removes the yeopjeon currency panel")
+	_runner.assert_eq(_hud.get_node_or_null("%CurrencyIcon"), null, "HUD removes the yeopjeon icon node")
+	_runner.assert_eq(_hud.get_node_or_null("%CurrencyAmountLabel"), null, "HUD removes the yeopjeon amount label")
+
+
+func test_top_right_hud_hides_stub_labels_without_currency_panel() -> void:
+	var root := _hud.get_node("Root") as Control
 	var weapon_slot := _hud.get_node("%WeaponSlot") as Control
 	var skill_slot := _hud.get_node("%SkillSlot") as Control
 
-	_runner.assert_not_null(currency_icon, "currency slot includes the yeopjeon icon")
-	_runner.assert_not_null(currency_amount, "currency slot includes the amount label")
 	_runner.assert_false(weapon_slot.visible, "top-right HUD hides the weapon text label")
 	_runner.assert_false(skill_slot.visible, "top-right HUD hides the skill text label")
-	_runner.assert_eq(currency_panel.anchor_left, 1.0, "currency display is anchored from the right edge")
-	_runner.assert_eq(currency_panel.offset_right, -336.0, "currency display stays left of the compact minimap right column")
-	_runner.assert_true(root.has_node("CurrencyPanel"), "currency display is separate from the old label row")
+	_runner.assert_false(root.has_node("CurrencyPanel"), "top-right HUD has no unused currency display")
