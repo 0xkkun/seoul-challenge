@@ -12,6 +12,7 @@ func test_catalog_exposes_multiple_run_items() -> void:
 	if catalog == null:
 		return
 	_runner.assert_true(catalog.call("has_item", &"gung_talisman"), "catalog includes damage talisman")
+	_runner.assert_true(catalog.call("has_item", &"nurse_bandage"), "catalog includes health recovery reward")
 	var item_ids: Array[StringName] = catalog.call("item_ids")
 	_runner.assert_true(item_ids.size() >= 3, "catalog exposes at least three map items")
 	var item_def: Dictionary = catalog.call("get_item_def", &"gung_talisman")
@@ -63,6 +64,7 @@ func test_effect_text_describes_visible_stat_changes() -> void:
 	_runner.assert_eq(catalog.call("get_effect_text", &"dokkaebi_fire"), "근접 공격 간격 -16% / 투척 간격 -16%", "tempo reward explains cooldown reduction")
 	_runner.assert_eq(catalog.call("get_effect_text", &"wind_step"), "이동 속도 +15%", "speed reward explains movement stat")
 	_runner.assert_eq(catalog.call("get_effect_text", &"moon_guard"), "최대 체력 +1", "health reward explains health stat")
+	_runner.assert_eq(catalog.call("get_effect_text", &"nurse_bandage"), "체력 회복 +2", "health recovery reward explains current health restore")
 
 
 func _load_catalog() -> GDScript:
