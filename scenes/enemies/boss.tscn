@@ -19,7 +19,7 @@ texture_filter = 1
 sprite_frames = ExtResource("2_frames")
 animation = &"move"
 autoplay = "move"
-scale = Vector2(0.9, 0.9)
+scale = Vector2(1.35, 1.35)
 
 [node name="Placeholder" type="Polygon2D" parent="."]
 visible = false
