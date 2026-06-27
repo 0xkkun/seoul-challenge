@@ -306,15 +306,40 @@ func test_session_ui_can_resume_while_tree_is_paused() -> void:
 
 	var session_ui: CanvasLayer = session.get_node("%SessionUIRoot")
 	var map_tab: Button = session_ui.get_node("%MapTabButton")
+	var modal := session.get_node("%ConfirmModal") as ConfirmModal
 
-	session._on_pause_requested()
+	_runner.assert_true(UiTestHarness.press_by_test_id(session_ui, "session.map_tab"), "top-left map tab requests pause")
 	_runner.assert_true(get_tree().paused, "pause request pauses scene tree")
 	_runner.assert_eq(session_ui.process_mode, Node.PROCESS_MODE_ALWAYS)
 	_runner.assert_true(session_ui.can_process(), "session UI still processes while paused")
 	_runner.assert_true(map_tab.can_process(), "map tab still processes while paused")
+	_runner.assert_true(modal.is_open(), "pause request opens a visible modal")
+	_runner.assert_eq(modal.get_message_text(), "일시정지", "pause modal uses short player-facing copy")
 
-	_runner.assert_true(UiTestHarness.press_by_test_id(session_ui, "session.map_tab"), "map tab can be pressed by stable test id")
-	_runner.assert_false(get_tree().paused, "map tab resumes the paused scene tree")
+	var continue_button := UiTestHarness.find_by_test_id(modal, ConfirmModal.TEST_ID_YES) as Button
+	var exit_button := UiTestHarness.find_by_test_id(modal, ConfirmModal.TEST_ID_NO) as Button
+	_runner.assert_eq(continue_button.text, "계속하기", "pause modal exposes a continue action")
+	_runner.assert_eq(exit_button.text, "나가기", "pause modal exposes an exit action")
+
+	_runner.assert_true(UiTestHarness.press_by_test_id(modal, ConfirmModal.TEST_ID_YES), "continue button can be pressed by stable test id")
+	_runner.assert_false(modal.is_open(), "continue closes the pause modal")
+	_runner.assert_false(get_tree().paused, "continue resumes the paused scene tree")
+
+	session.queue_free()
+
+
+func test_session_pause_modal_exit_opens_abandon_confirmation() -> void:
+	var packed := load("res://scenes/session/session_root.tscn") as PackedScene
+	var session := packed.instantiate()
+	add_child(session)
+
+	var modal := session.get_node("%ConfirmModal") as ConfirmModal
+	session._on_pause_requested()
+
+	_runner.assert_true(UiTestHarness.press_by_test_id(modal, ConfirmModal.TEST_ID_NO), "exit button can be pressed by stable test id")
+	_runner.assert_true(modal.is_open(), "exit opens the abandon confirmation")
+	_runner.assert_eq(modal.get_message_text(), "런을 포기할까요? 이번 밤 보상은 사라지고 영구 재화는 유지됩니다", "exit action reuses the abandon confirmation")
+	_runner.assert_true(get_tree().paused, "abandon confirmation keeps gameplay paused")
 
 	session.queue_free()
 

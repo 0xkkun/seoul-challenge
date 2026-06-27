@@ -2,12 +2,31 @@ name: Verify
 
 on:
   pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - edited
+      - labeled
+      - unlabeled
+      - ready_for_review
   push:
     branches:
       - main
   workflow_dispatch:
 
 jobs:
+  ui-capture:
+    name: UI capture contract
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7.0.0
+
+      - name: Require screenshots for UI PRs
+        run: python3 scripts/verify_pr_ui_capture.py
+
   quick:
     name: Quick verification
     runs-on: ubuntu-latest

@@ -16,6 +16,7 @@ const SHOP_ROOM_SCENE_PATH := "res://scenes/interactables/shop_room.tscn"
 const FRIEND_ROOM_SCENE_PATH := "res://scenes/interactables/friend_room.tscn"
 const FINAL_ROOM_SCENE_PATH := "res://scenes/interactables/boss_room.tscn"
 const DEFAULT_STAGE_NAME := "경복궁"
+const PAUSE_MENU_MESSAGE := "일시정지"
 const ABANDON_RUN_MESSAGE := "런을 포기할까요? 이번 밤 보상은 사라지고 영구 재화는 유지됩니다"
 const QUIT_GAME_MESSAGE := "게임을 종료할까요?"
 const WEAPON_BASEBALL := &"baseball"
@@ -53,6 +54,7 @@ var _camera_feedback_tween: Tween = null
 var _rewarded_room_ids := {}
 var _pending_reward_room_id: StringName = &""
 var _paused_before_reward_choice := false
+var _pause_modal_open := false
 
 
 func _ready() -> void:
@@ -422,13 +424,39 @@ func _add_unlock_to(target: Array[StringName], unlock_id: StringName) -> void:
 
 
 func _on_pause_requested() -> void:
+	if _confirm_modal.is_open():
+		return
 	get_tree().paused = true
 	session_ui_root.set_status("일시정지")
+	_pause_modal_open = true
+	_confirm_modal.open(
+		PAUSE_MENU_MESSAGE,
+		Callable(self, "_resume_from_pause_modal"),
+		Callable(self, "_request_abandon_from_pause_modal"),
+		false,
+		"계속하기",
+		"나가기"
+	)
 
 
 func _on_resume_requested() -> void:
+	if _pause_modal_open:
+		_confirm_modal.confirm_yes()
+		return
+	if _confirm_modal.is_open():
+		return
+	_resume_from_pause_modal()
+
+
+func _resume_from_pause_modal() -> void:
+	_pause_modal_open = false
 	get_tree().paused = false
 	session_ui_root.set_status("밤런 준비")
+
+
+func _request_abandon_from_pause_modal() -> void:
+	_pause_modal_open = false
+	_request_abandon_run()
 
 
 func _on_finish_requested() -> void:
