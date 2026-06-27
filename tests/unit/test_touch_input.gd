@@ -89,7 +89,7 @@ func test_ingame_control_onboarding_advances_with_actual_touch_input_state() -> 
 	_assert_onboarding_step(onboarding, &"dash", ["SkillButton"])
 	onboarding.call("advance_from_input", {"dash_pressed": true})
 	_assert_onboarding_step(onboarding, &"power_attack", ["SkillButton", "AttackButton"])
-	onboarding.call("advance_from_input", {"dash_pressed": true, "attack_pressed": true, "power_window_active": true})
+	onboarding.call("advance_from_input", {"attack_pressed": true, "power_window_active": true})
 	_runner.assert_false(bool(onboarding.call("is_active")), "강공격 입력까지 확인하면 온보딩은 종료된다")
 
 	touch.queue_free()

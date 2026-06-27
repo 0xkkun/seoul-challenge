@@ -141,8 +141,7 @@ func advance_from_input(input_state: Dictionary) -> bool:
 			should_advance = bool(input_state.get("dash_pressed", false))
 		&"power_attack":
 			should_advance = (
-				bool(input_state.get("dash_pressed", false))
-				and bool(input_state.get("attack_pressed", false))
+				bool(input_state.get("attack_pressed", false))
 				and bool(input_state.get("power_window_active", false))
 			)
 	if not should_advance:
