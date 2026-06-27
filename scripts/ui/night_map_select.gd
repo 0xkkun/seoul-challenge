@@ -80,7 +80,7 @@ func _build_ui() -> void:
 	map_panel.anchor_bottom = 0.72
 	map_panel.add_theme_stylebox_override(
 		"panel",
-		DungeonTheme.panel_style(DungeonTheme.COLOR_PANEL_RAISED, DungeonTheme.COLOR_STEEL_BRIGHT, 2, 22.0, 18.0)
+		DungeonTheme.framed_panel_style(22.0, 18.0)
 	)
 	add_child(map_panel)
 
@@ -102,7 +102,7 @@ func _build_ui() -> void:
 	info_panel.anchor_bottom = 0.72
 	info_panel.add_theme_stylebox_override(
 		"panel",
-		DungeonTheme.panel_style(DungeonTheme.COLOR_PANEL, DungeonTheme.COLOR_GOLD, 3, 18.0, 14.0)
+		DungeonTheme.framed_panel_style(18.0, 14.0)
 	)
 	add_child(info_panel)
 

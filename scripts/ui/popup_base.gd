@@ -13,8 +13,8 @@ extends CanvasLayer
 ## Shared dim color behind every popup (previously copy-pasted per scene).
 const SCRIM_COLOR := Color(0.0156863, 0.0156863, 0.0235294, 0.68)
 
-## Framed-panel palette, matched to the pixel buttons (gold frame on dark navy) so
-## popups read as the same UI family without the button texture's edge ornaments.
+## Framed-panel palette, matched to the pixel buttons (gold frame on dark navy). Kept
+## as the fallback frame for when the shared panel texture cannot be loaded.
 const PANEL_BG_COLOR := Color(0.094, 0.121, 0.18, 0.98)
 const PANEL_BORDER_COLOR := Color(0.83, 0.66, 0.27, 1.0)
 const PANEL_BORDER_WIDTH := 3
@@ -42,15 +42,22 @@ func _setup_popup(
 	apply_panel_style(_popup_panel, margin)
 
 
-## Frame a popup panel with a gold border on dark navy, matched to the pixel button
-## palette so popups read as the same UI family. Static so embedded overlays that are
-## not full PopupBase instances can reuse it too.
+## Frame a popup panel with the textured 9-slice gold frame on dark navy, matched to
+## the pixel buttons so popups read as the same UI family. Falls back to the flat gold
+## border if the texture is unavailable. Static so embedded overlays that are not full
+## PopupBase instances can reuse it too. `margin` becomes the inner content padding.
 static func apply_panel_style(panel: PanelContainer, margin: Vector2 = DEFAULT_PANEL_MARGIN) -> void:
 	if panel == null:
 		return
-	panel.add_theme_stylebox_override(
-		"panel",
-		DungeonUiTheme.panel_style(PANEL_BG_COLOR, PANEL_BORDER_COLOR, PANEL_BORDER_WIDTH, margin.x, margin.y)
+	panel.add_theme_stylebox_override("panel", make_panel_style(margin))
+
+
+## Build the shared popup frame stylebox: the textured 9-slice frame when the panel
+## texture loaded, otherwise the flat gold border fallback. Routed through the central
+## DungeonUiTheme builder so every popup frame stays in one place.
+static func make_panel_style(margin: Vector2 = DEFAULT_PANEL_MARGIN) -> StyleBox:
+	return DungeonUiTheme.framed_panel_style(
+		margin.x, margin.y, PANEL_BG_COLOR, PANEL_BORDER_COLOR, PANEL_BORDER_WIDTH
 	)
 
 

@@ -104,18 +104,48 @@ func _apply_result_panel_styles() -> void:
 	const GOLD := Color(0.784314, 0.631373, 0.227451, 1)
 	const GREEN_BG := Color(0.129412, 0.231373, 0.12549, 1)
 	const GREEN_BORDER := Color(0.352941, 0.490196, 0.352941, 1)
-	_style_panel(PANEL, Color(0.0352941, 0.0980392, 0.0627451, 0.96), GOLD, 2, 4)
-	_style_panel(CONTENT + "/RewardPanel", Color(0.0705882, 0.184314, 0.105882, 1), GOLD, 1, 3)
-	_style_panel(RECORDS + "/StudentsRecordPanel", GREEN_BG, GREEN_BORDER, 1, 3)
-	_style_panel(RECORDS + "/FriendsRecordPanel", Color(0.0980392, 0.172549, 0.254902, 1), Color(0.227451, 0.431373, 0.647059, 1), 1, 3)
-	_style_panel(RECORDS + "/RoomsRecordPanel", Color(0.164706, 0.105882, 0.2, 1), Color(0.415686, 0.227451, 0.541176, 1), 1, 3)
-	_style_panel(RECORDS + "/UnlocksRecordPanel", GREEN_BG, GREEN_BORDER, 1, 3)
+	# Main frame uses the shared textured popup frame (gold-on-navy ornaments) so the
+	# results screen matches the buttons; the inner record/reward panels keep their
+	# category colors as content.
+	var summary_panel := get_node_or_null(PANEL) as PanelContainer
+	if summary_panel != null:
+		summary_panel.add_theme_stylebox_override("panel", DungeonUiTheme.framed_panel_style(10.0, 8.0))
+	# Reward panel was a flat green fill (read as plain next to the textured frame); give
+	# it the card-frame texture with a warm tint so it gains wood-grain + gold trim detail
+	# and ties to the gold crystal / +120.
+	var reward_panel := get_node_or_null(CONTENT + "/RewardPanel") as PanelContainer
+	if reward_panel != null:
+		reward_panel.add_theme_stylebox_override(
+			"panel", DungeonUiTheme.card_style(12.0, 10.0, Color(1.05, 0.98, 0.8))
+		)
+	# Record rows are short bars, so instead of the ornate card frame (whose corners
+	# would swallow the ~54px height) they get a filled category tint sharing the set's
+	# gold trim — green/blue/purple stays legible while reading as the same family.
+	const FILL_GREEN := Color(0.18, 0.27, 0.15)
+	const FILL_BLUE := Color(0.13, 0.25, 0.41)
+	const FILL_PURPLE := Color(0.26, 0.15, 0.37)
+	_style_record_panel(RECORDS + "/StudentsRecordPanel", FILL_GREEN)
+	_style_record_panel(RECORDS + "/FriendsRecordPanel", FILL_BLUE)
+	_style_record_panel(RECORDS + "/RoomsRecordPanel", FILL_PURPLE)
+	_style_record_panel(RECORDS + "/UnlocksRecordPanel", FILL_GREEN)
 
 
 func _style_panel(path: String, bg: Color, border: Color, width: int, corner: int) -> void:
 	var panel := get_node_or_null(path) as PanelContainer
 	if panel != null:
 		panel.add_theme_stylebox_override("panel", DungeonUiTheme.panel_style(bg, border, width, 0.0, 0.0, corner))
+
+
+## Short record bars: filled category tint with the set's gold trim, on a small corner
+## radius so they read as the same family as the textured popups without the ornate
+## card frame collapsing at this height.
+func _style_record_panel(path: String, fill: Color) -> void:
+	var panel := get_node_or_null(path) as PanelContainer
+	if panel != null:
+		panel.add_theme_stylebox_override(
+			"panel",
+			DungeonUiTheme.panel_style(fill, DungeonUiTheme.COLOR_GOLD_DIM, 2, 0.0, 0.0, 4)
+		)
 
 
 func set_status(text: String) -> void:
@@ -143,13 +173,17 @@ func show_summary(result: Dictionary) -> void:
 	var summary := _build_summary(result)
 	result_title_label.text = summary["title"]
 	narrative_label.text = summary["narrative"]
-	memory_label.text = "기억 조각"
+	memory_label.text = "혼 조각"
 	memory_amount_label.text = "+%d" % int(summary["memory_reward"])
-	students_record_label.text = "구출 %d" % int(summary["students_rescued"])
+	# Record bars split the label (static title) from the count (large, colored) so the
+	# number reads as the achievement — set just the number here.
+	students_record_label.text = "%d" % int(summary["students_rescued"])
 	friends_record_label.text = "정화 %d" % int(summary["friends_purified"])
-	rooms_record_label.text = "방 %d" % int(summary["rooms_cleared"])
+	rooms_record_label.text = "%d" % int(summary["rooms_cleared"])
+	# Results screen intentionally shows only 혼 조각 / 구출 / 방; 정화·해금 are hidden
+	# (FriendsRecordPanel is hidden in the scene; keep the unlock row hidden here too).
+	unlocks_record_panel.visible = false
 	var unlock_labels: Array[String] = summary["unlocks"]
-	unlocks_record_panel.visible = not unlock_labels.is_empty()
 	unlocks_record_label.text = "해금 %s" % " / ".join(unlock_labels) if not unlock_labels.is_empty() else ""
 	summary_overlay.visible = true
 	hide_reward_choices()
@@ -525,7 +559,7 @@ func _result_narrative(result: Dictionary) -> String:
 	var outcome := String(result.get("outcome", "")).to_lower()
 	var reason := String(result.get("reason", ""))
 	if outcome in ["death", "dead", "failed"] or bool(result.get("died", false)):
-		return "새벽 종소리와 함께 교실에서 눈을 떴다. 기억 조각은 손에 남아 있다."
+		return "새벽 종소리와 함께 교실에서 눈을 떴다. 혼 조각은 손에 남아 있다."
 	if reason == "onboarding_friend_purified":
 		return "야구부 주장이 제정신을 되찾았다. 학교로 돌아가 배트와 단서를 받자."
 	if reason == "boss_resolved":
