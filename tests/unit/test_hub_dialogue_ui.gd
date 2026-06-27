@@ -70,7 +70,7 @@ func test_dialogue_supports_bold_bbcode_without_polluting_plain_text() -> void:
 
 
 func test_sprite_portrait_uses_texture_without_panel_background() -> void:
-	_ui.set_dialogue("반 친구", "낮엔 뛰지 말고, 얘기부터 하자.", "", HUB_DIALOGUE_SCRIPT.PORTRAIT_COLOR, PEOPLE2_TEXTURE, 1, false)
+	_ui.set_dialogue("반 친구", "몸 조심해. 무리하지 마.", "", HUB_DIALOGUE_SCRIPT.PORTRAIT_COLOR, PEOPLE2_TEXTURE, 1, false)
 
 	var dimmer := _ui.get_node("%DialogueDimmer") as ColorRect
 	var panel := _ui.get_node("%PortraitPanel") as ColorRect
