@@ -6,6 +6,7 @@ extends CharacterBody2D
 ## 이동·조준·쿨다운·반동 수학은 순수 함수로 분리해 물리/입력 없이 단위 테스트한다.
 
 const MapItemCatalog = preload("res://scripts/items/map_item_catalog.gd")
+const StatusEffectController = preload("res://scripts/combat/status_effect_controller.gd")
 
 ## 발사 순간의 발사 지점(global)과 방향. #10 정화탄이 이 시그널을 받아 스폰한다.
 signal fired(muzzle_position: Vector2, direction: Vector2)
@@ -61,6 +62,7 @@ var _invuln_timer: float = 0.0
 var _touch: Node = null
 var _base_run_stats := {}
 var _run_modifier_ids: Array[StringName] = []
+var _status_effects: Node = null
 
 @onready var _swing_visual: Node2D = get_node_or_null(^"MeleeSwing")
 @onready var _sprite: AnimatedSprite2D = get_node_or_null(^"Sprite")
@@ -68,6 +70,7 @@ var _run_modifier_ids: Array[StringName] = []
 
 func _ready() -> void:
 	add_to_group(&"player")
+	_ensure_status_effects()
 	_capture_base_run_stats()
 	_health = max_health
 	_connect_run_session_events()
@@ -82,11 +85,19 @@ func _ready() -> void:
 
 
 func _physics_process(delta: float) -> void:
+	tick_status_effects(delta)
 	_invuln_timer = maxf(0.0, _invuln_timer - delta)
 	var move := read_input_vector()
-	_facing = update_facing(_facing, move)
+	var movement_blocked := is_status_movement_blocked()
+	if movement_blocked:
+		move = Vector2.ZERO
+	else:
+		_facing = update_facing(_facing, move)
 	_process_special_skill(delta, move)
-	if _dodge_timer > 0.0:
+	if movement_blocked:
+		_dodge_timer = maxf(0.0, _dodge_timer - delta)
+		velocity = Vector2.ZERO
+	elif _dodge_timer > 0.0:
 		_dodge_timer = maxf(0.0, _dodge_timer - delta)
 		velocity = dodge_velocity(_dodge_direction, dodge_speed)
 	elif _is_attacking:
@@ -95,7 +106,7 @@ func _physics_process(delta: float) -> void:
 	else:
 		# 벨트 원근감: 깊이(상하) 이동을 좌우보다 느리게 한다.
 		move.y *= vertical_speed_factor
-		velocity = step_velocity(velocity, move, delta)
+		velocity = step_velocity(velocity, move, delta, get_status_speed_multiplier())
 	move_and_slide()
 	_process_attack(delta)
 	_update_animation(move)
@@ -104,16 +115,16 @@ func _physics_process(delta: float) -> void:
 # --- 이동/조준/사격 수학 (순수 함수, 테스트 대상) ---
 
 ## 입력 벡터 → 목표 속도. 대각선도 최고 속도를 넘지 않도록 정규화.
-func desired_velocity(input_vector: Vector2) -> Vector2:
+func desired_velocity(input_vector: Vector2, speed_multiplier: float = 1.0) -> Vector2:
 	var v := input_vector
 	if v.length() > 1.0:
 		v = v.normalized()
-	return v * move_speed
+	return v * move_speed * maxf(0.0, speed_multiplier)
 
 
 ## 현재 속도를 목표 속도로 가속/감속. 입력 있으면 acceleration, 없으면 friction.
-func step_velocity(current: Vector2, input_vector: Vector2, delta: float) -> Vector2:
-	var target := desired_velocity(input_vector)
+func step_velocity(current: Vector2, input_vector: Vector2, delta: float, speed_multiplier: float = 1.0) -> Vector2:
+	var target := desired_velocity(input_vector, speed_multiplier)
 	var rate := acceleration if input_vector.length() > 0.01 else friction
 	return current.move_toward(target, rate * delta)
 
@@ -247,6 +258,49 @@ func is_dodging() -> bool:
 	return _dodge_timer > 0.0
 
 
+# --- 상태이상 (계약 #51) ---
+
+func apply_status_effect(effect_id: StringName, duration: float, params: Dictionary = {}) -> void:
+	_ensure_status_effects().call("apply_effect", effect_id, duration, params)
+
+
+func tick_status_effects(delta: float) -> void:
+	_ensure_status_effects().call("tick", delta, self)
+
+
+func has_status_effect(effect_id: StringName) -> bool:
+	return bool(_ensure_status_effects().call("has_effect", effect_id))
+
+
+func clear_status_effect(effect_id: StringName) -> void:
+	_ensure_status_effects().call("clear_effect", effect_id)
+
+
+func clear_negative_status_effects() -> void:
+	_ensure_status_effects().call("clear_negative_effects")
+
+
+func get_status_speed_multiplier() -> float:
+	return float(_ensure_status_effects().call("get_speed_multiplier"))
+
+
+func is_status_movement_blocked() -> bool:
+	return bool(_ensure_status_effects().call("blocks_movement"))
+
+
+func is_status_action_blocked() -> bool:
+	return bool(_ensure_status_effects().call("blocks_actions"))
+
+
+func _ensure_status_effects() -> Node:
+	if _status_effects != null and is_instance_valid(_status_effects):
+		return _status_effects
+	_status_effects = StatusEffectController.new()
+	_status_effects.name = "StatusEffects"
+	add_child(_status_effects)
+	return _status_effects
+
+
 # --- 입력 I/O (단위 테스트 제외) ---
 
 ## 이동 입력: 터치 조이스틱 우선, 없거나 0이면 키보드.
@@ -304,7 +358,11 @@ func is_special_pressed() -> bool:
 
 
 func try_start_special_skill(input_vector: Vector2 = Vector2.ZERO) -> bool:
+	if is_status_action_blocked():
+		return false
 	if special_skill_id != &"emergency_dodge":
+		return false
+	if is_status_movement_blocked():
 		return false
 	if not can_use_special_skill(special_skill_uses_remaining, _special_cooldown_timer, is_dodging()):
 		return false
@@ -331,6 +389,11 @@ func _process_special_skill(delta: float, move_input: Vector2) -> void:
 	var previous_cooldown := _special_cooldown_timer
 	_special_cooldown_timer = step_special_cooldown(_special_cooldown_timer, delta)
 	var pressed := is_special_pressed()
+	if is_status_action_blocked():
+		_was_special_pressed = pressed
+		if not is_equal_approx(previous_cooldown, _special_cooldown_timer):
+			_broadcast_special_skill_state()
+		return
 	if pressed and not _was_special_pressed:
 		try_start_special_skill(move_input)
 	_was_special_pressed = pressed
@@ -431,6 +494,8 @@ func _process_attack(delta: float) -> void:
 	_swing_timer = maxf(0.0, _swing_timer - delta)
 	if _swing_timer <= 0.0 and _swing_visual != null:
 		_swing_visual.visible = false
+	if is_status_action_blocked():
+		return
 	if _attack_timer > 0.0 or not is_firing():
 		return
 	var dir := aim_direction()
