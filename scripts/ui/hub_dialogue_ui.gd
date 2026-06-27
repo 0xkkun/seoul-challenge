@@ -47,10 +47,14 @@ const AWAKENED_BAT_ICON: Texture2D = preload("res://assets/ui/icons/seoul_challe
 const UNLOCK_REVEAL_DURATION := 0.36
 const UNLOCK_START_SCALE := Vector2(0.82, 0.82)
 const UNLOCK_DIM_BASE := 0.28
-const UNLOCK_DIM_HERO := 0.58
+const UNLOCK_DIM_HERO := 0.72
 const UNLOCK_ICON_SIZE := Vector2(32.0, 32.0)
-const UNLOCK_HERO_ICON_SIZE := Vector2(52.0, 52.0)
-const UNLOCK_GLOW_SIZE := Vector2(300.0, 300.0)
+const UNLOCK_HERO_ICON_SIZE := Vector2(112.0, 112.0)
+# hero(각성) 보상은 데이브 더 다이버식 — 박스 없이 아이템을 주인공으로 화면 중앙에.
+const UNLOCK_HERO_POPUP_HALF := Vector2(160.0, 130.0)
+const UNLOCK_HERO_POPUP_CENTER_OFFSET := Vector2(0.0, -30.0)
+const UNLOCK_HERO_GLOW_BIAS := Vector2(0.0, -34.0)
+const UNLOCK_GLOW_SIZE := Vector2(360.0, 360.0)
 const UNLOCK_GLOW_COLOR := Color(1.0, 0.84, 0.42, 0.9)
 const UNLOCK_SPARKLE_COLOR := Color(1.0, 0.88, 0.5, 1.0)
 
@@ -299,6 +303,7 @@ func show_unlock(title: String, subtitle: String, items: Array[Dictionary], hero
 	for item: Dictionary in items:
 		_unlock_items.append(item.duplicate(true))
 	_render_unlock_items()
+	_apply_unlock_chrome(hero)
 	_unlock_continue_hint.text = CONTINUE_HINT_TOUCH
 	_play_unlock_reveal(hero)
 
@@ -450,6 +455,19 @@ func _render_choices() -> void:
 func _render_unlock_items() -> void:
 	_clear_children(_unlock_item_grid)
 	for item: Dictionary in _unlock_items:
+		var item_texture := item.get("texture", null) as Texture2D
+		if bool(item.get("hero", false)) and item_texture != null:
+			# 데이브 더 다이버식: 박스 없이 큰 아이콘만 중앙에. 이름은 팝업 타이틀이 맡는다.
+			var hero_icon := TextureRect.new()
+			hero_icon.texture = item_texture
+			hero_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+			hero_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+			hero_icon.custom_minimum_size = UNLOCK_HERO_ICON_SIZE
+			hero_icon.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+			_unlock_item_grid.add_child(hero_icon)
+			_unlock_hero_icon = hero_icon
+			continue
+
 		var item_panel := PanelContainer.new()
 		item_panel.custom_minimum_size = Vector2(140.0, 56.0)
 		item_panel.add_theme_stylebox_override("panel", _make_panel_style(Color(1.0, 0.96, 0.83), Color(0.07, 0.08, 0.1), 2))
@@ -458,17 +476,13 @@ func _render_unlock_items() -> void:
 		row.add_theme_constant_override("separation", 8)
 		item_panel.add_child(row)
 
-		var is_hero_item := bool(item.get("hero", false))
-		var item_texture := item.get("texture", null) as Texture2D
 		if item_texture != null:
 			var icon_rect := TextureRect.new()
 			icon_rect.texture = item_texture
 			icon_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 			icon_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-			icon_rect.custom_minimum_size = UNLOCK_HERO_ICON_SIZE if is_hero_item else UNLOCK_ICON_SIZE
+			icon_rect.custom_minimum_size = UNLOCK_ICON_SIZE
 			row.add_child(icon_rect)
-			if is_hero_item:
-				_unlock_hero_icon = icon_rect
 		else:
 			var icon := ColorRect.new()
 			icon.custom_minimum_size = Vector2(28.0, 28.0)
@@ -523,6 +537,45 @@ func _show_awakened_bat_unlock() -> void:
 	], true)
 
 
+func _apply_unlock_chrome(hero: bool) -> void:
+	if not hero:
+		return
+	var title_row := _unlock_title_label.get_parent()
+	var stack := title_row.get_parent()
+	# 데이브 더 다이버식: 박스 제거 + [큰 아이콘] → [이름] → [설명] → [힌트] 세로 중앙 정렬.
+	_unlock_popup.add_theme_stylebox_override("panel", StyleBoxEmpty.new())
+	_unlock_popup.offset_left = -UNLOCK_HERO_POPUP_HALF.x
+	_unlock_popup.offset_right = UNLOCK_HERO_POPUP_HALF.x
+	_unlock_popup.offset_top = -UNLOCK_HERO_POPUP_HALF.y + UNLOCK_HERO_POPUP_CENTER_OFFSET.y
+	_unlock_popup.offset_bottom = UNLOCK_HERO_POPUP_HALF.y + UNLOCK_HERO_POPUP_CENTER_OFFSET.y
+
+	if stack is VBoxContainer:
+		stack.alignment = BoxContainer.ALIGNMENT_CENTER
+		stack.add_theme_constant_override("separation", 8)
+		stack.move_child(_unlock_item_grid, 0)
+	_unlock_item_grid.columns = 1
+
+	if title_row is HBoxContainer:
+		title_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	_unlock_title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_unlock_title_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_unlock_title_label.add_theme_color_override("font_color", DungeonUiTheme.COLOR_GOLD)
+	_unlock_title_label.add_theme_font_size_override("font_size", 22)
+
+	# 설명을 이름 아래 별도 행으로 옮겨 중앙 정렬한다.
+	if _unlock_subtitle_label.get_parent() == title_row:
+		title_row.remove_child(_unlock_subtitle_label)
+		stack.add_child(_unlock_subtitle_label)
+	stack.move_child(_unlock_subtitle_label, stack.get_children().find(title_row) + 1)
+	_unlock_subtitle_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_unlock_subtitle_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_unlock_subtitle_label.add_theme_color_override("font_color", Color(0.86, 0.80, 0.62))
+	_unlock_subtitle_label.add_theme_font_size_override("font_size", 13)
+
+	_unlock_continue_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_unlock_continue_hint.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+
+
 func _play_unlock_reveal(hero: bool) -> void:
 	if _unlock_reveal_tween != null and _unlock_reveal_tween.is_valid():
 		_unlock_reveal_tween.kill()
@@ -534,7 +587,7 @@ func _play_unlock_reveal(hero: bool) -> void:
 		_unlock_dimmer.color.a = 0.0
 
 	# 팝업은 살짝 작게 시작해 오버슈트하며 튀어나온다("따란!").
-	_unlock_popup.pivot_offset = UNLOCK_POPUP_SIZE * 0.5
+	_unlock_popup.pivot_offset = UNLOCK_HERO_POPUP_HALF if hero else UNLOCK_POPUP_SIZE * 0.5
 	_unlock_popup.scale = UNLOCK_START_SCALE
 	_unlock_popup.modulate.a = 0.0
 
@@ -560,14 +613,15 @@ func _play_unlock_reveal(hero: bool) -> void:
 
 
 func _layout_hero_effects() -> void:
-	var popup_center := _unlock_overlay.size * 0.5 + UNLOCK_POPUP_CENTER_OFFSET
+	# 글로우/스파클은 큰 아이콘 뒤(팝업 중앙에서 살짝 위)를 기준으로 둔다.
+	var center := _unlock_overlay.size * 0.5 + UNLOCK_HERO_POPUP_CENTER_OFFSET + UNLOCK_HERO_GLOW_BIAS
 	var glow := _ensure_unlock_glow()
 	glow.size = UNLOCK_GLOW_SIZE
-	glow.position = popup_center - UNLOCK_GLOW_SIZE * 0.5
+	glow.position = center - UNLOCK_GLOW_SIZE * 0.5
 	glow.visible = true
 	glow.modulate.a = 0.0
 	var sparkles := _ensure_unlock_sparkles()
-	sparkles.position = popup_center
+	sparkles.position = center
 	sparkles.visible = true
 
 
