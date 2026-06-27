@@ -232,15 +232,107 @@ func test_bat_dash_power_attack_knocks_back_farther_than_normal_bat() -> void:
 	power_player.free()
 
 
-func test_player_scene_includes_hidden_power_impact_effect() -> void:
+func test_player_scene_includes_hidden_bat_swing_effect() -> void:
 	var player := (load("res://scenes/player/player.tscn") as PackedScene).instantiate()
 	add_child(player)
-	var impact := player.get_node_or_null("PowerImpact") as Polygon2D
+	var impact := player.get_node_or_null("BatSwingImpact") as Node2D
 
-	_runner.assert_not_null(impact, "player scene includes dash power impact effect")
+	_runner.assert_not_null(impact, "player scene includes bat swing slash effect root")
+	if impact != null:
+		_runner.assert_false(impact.visible, "bat swing effect starts hidden")
+		var slash_back := impact.get_node_or_null("BatSlashBack") as Line2D
+		var slash_front := impact.get_node_or_null("BatSlashFront") as Line2D
+		var slash_echo := impact.get_node_or_null("BatSlashEcho") as Line2D
+		_runner.assert_not_null(slash_back, "bat swing has a broad blue trail")
+		_runner.assert_not_null(slash_front, "bat swing has a bright crescent edge")
+		_runner.assert_not_null(slash_echo, "bat swing has a trailing afterimage")
+
+
+func test_bat_swing_show_builds_reference_style_crescent_arc() -> void:
+	var player := (load("res://scenes/player/player.tscn") as PackedScene).instantiate()
+	add_child(player)
+	var impact := player.get_node_or_null("BatSwingImpact") as Node2D
+	_runner.assert_not_null(impact, "player scene includes bat swing effect root")
+	if impact == null:
+		return
+
+	player._show_bat_swing_effect(Vector2.RIGHT, 100.0, 2.2)
+
+	var slash_front := impact.get_node_or_null("BatSlashFront") as Line2D
+	var slash_echo := impact.get_node_or_null("BatSlashEcho") as Line2D
+	_runner.assert_true(impact.visible, "showing bat swing reveals the effect root")
+	_runner.assert_not_null(slash_front, "bat swing uses a bright crescent stroke")
+	_runner.assert_not_null(slash_echo, "bat swing uses a fading afterimage")
+	if slash_front != null:
+		_runner.assert_true(slash_front.points.size() >= 12, "bat slash is a curved crescent")
+		_runner.assert_true(slash_front.width >= 7.0, "bat slash is thick enough to read on mobile")
+	if slash_echo != null:
+		_runner.assert_true(slash_echo.points.size() >= 8, "bat echo is also curved")
+	if slash_front != null and slash_echo != null:
+		_runner.assert_true(slash_echo.default_color.a < slash_front.default_color.a, "bat echo reads as a trailing afterimage")
+
+
+func test_player_scene_includes_layered_power_impact_effect() -> void:
+	var player := (load("res://scenes/player/player.tscn") as PackedScene).instantiate()
+	add_child(player)
+	var impact := player.get_node_or_null("PowerImpact") as Node2D
+
+	_runner.assert_not_null(impact, "player scene includes dash power impact effect root")
 	if impact != null:
 		_runner.assert_false(impact.visible, "power impact starts hidden")
-		_runner.assert_true(impact.color.a > 0.5, "power impact is brighter than the regular swing")
+		_runner.assert_false(impact is Polygon2D, "power impact is not a single recolored wedge")
+		var slash_back := impact.get_node_or_null("ImpactSlashBack") as Line2D
+		var slash_front := impact.get_node_or_null("ImpactSlashFront") as Line2D
+		var ring := impact.get_node_or_null("ImpactRing") as Line2D
+		var sparks := impact.get_node_or_null("ImpactSparks") as Node2D
+		_runner.assert_not_null(slash_back, "power impact has a broad slash trail")
+		_runner.assert_not_null(slash_front, "power impact has a bright slash edge")
+		_runner.assert_not_null(ring, "power impact has an expanding impact ring")
+		_runner.assert_not_null(sparks, "power impact has spark children")
+		if sparks != null:
+			_runner.assert_true(sparks.get_child_count() >= 5, "power impact has multiple spark strokes")
+
+
+func test_power_impact_show_builds_slash_ring_and_spark_geometry() -> void:
+	var player := (load("res://scenes/player/player.tscn") as PackedScene).instantiate()
+	add_child(player)
+	var impact := player.get_node_or_null("PowerImpact") as Node2D
+	_runner.assert_not_null(impact, "player scene includes power impact root")
+	if impact == null:
+		return
+
+	player._show_power_impact(Vector2.RIGHT, 80.0, 1.6)
+
+	var slash_front := impact.get_node_or_null("ImpactSlashFront") as Line2D
+	var ring := impact.get_node_or_null("ImpactRing") as Line2D
+	var sparks := impact.get_node_or_null("ImpactSparks") as Node2D
+	_runner.assert_true(impact.visible, "showing a power impact reveals the effect root")
+	_runner.assert_not_null(slash_front, "showing a power impact uses a slash stroke")
+	_runner.assert_not_null(ring, "showing a power impact uses an impact ring")
+	_runner.assert_not_null(sparks, "showing a power impact uses sparks")
+	if slash_front != null:
+		_runner.assert_true(slash_front.points.size() >= 10, "slash stroke is an arc, not a static triangle")
+	if ring != null:
+		_runner.assert_true(ring.points.size() >= 16, "impact ring is a multi-point expanding shape")
+	if sparks != null and sparks.get_child_count() > 0:
+		var spark := sparks.get_child(0) as Line2D
+		_runner.assert_not_null(spark, "spark child is a line stroke")
+		if spark != null:
+			_runner.assert_eq(spark.points.size(), 2, "spark stroke has start and end points")
+			_runner.assert_true(spark.points[1].length() > spark.points[0].length(), "spark shoots outward from impact center")
+
+
+func test_power_slash_points_follow_attack_arc() -> void:
+	var player = PlayerScript.new()
+	_runner.assert_true(player.has_method("build_power_slash_points"), "player exposes pure slash geometry helper")
+	if not player.has_method("build_power_slash_points"):
+		player.free()
+		return
+	var points: PackedVector2Array = player.build_power_slash_points(Vector2.RIGHT, 80.0, 1.4, 0.86, 1.02, 8)
+	_runner.assert_eq(points.size(), 9, "segments create inclusive arc points")
+	_runner.assert_true(points[0].x > 0.0 and points[points.size() - 1].x > 0.0, "slash points stay in front of the player")
+	_runner.assert_true(absf(points[0].y) > absf(points[4].y), "slash starts at the upper arc edge and crosses the center")
+	player.free()
 
 
 func _has_property(node: Object, property_name: String) -> bool:

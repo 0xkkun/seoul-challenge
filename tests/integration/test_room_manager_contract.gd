@@ -251,6 +251,10 @@ func test_session_root_mounts_room_manager() -> void:
 
 func test_session_root_finish_requires_final_room_clear_on_branching_map() -> void:
 	var packed := load("res://scenes/session/session_root.tscn") as PackedScene
+	GameManager.start_session({
+		"source": "seeded_branching_finish_test",
+		SceneTransition.RUN_CONFIG_LAYOUT_SEED: 40,
+	})
 	var session := packed.instantiate()
 	add_child(session)
 
@@ -259,6 +263,7 @@ func test_session_root_finish_requires_final_room_clear_on_branching_map() -> vo
 	var branch_tip := _non_final_leaf_room(manager.layout)
 	_runner.assert_not_null(branch_tip, "generated layout has a non-final branch tip")
 	if branch_tip == null:
+		GameManager.reset_session()
 		return
 	var path := _path_between(manager.layout, manager.current_room_id, branch_tip.room_id)
 	_runner.assert_true(path.size() > 1, "branch tip is reachable from current room")
@@ -269,6 +274,7 @@ func test_session_root_finish_requires_final_room_clear_on_branching_map() -> vo
 
 	var result: Dictionary = session.finish_session()
 	_runner.assert_false(result["completed"], "cleared non-final branch tip does not complete the run")
+	GameManager.reset_session()
 
 
 func _resolve_current_room(manager: RoomManager, actor: Node2D) -> void:
