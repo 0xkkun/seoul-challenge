@@ -80,6 +80,18 @@ func test_currency_change_does_not_vibrate() -> void:
 	_runner.assert_eq(HapticManager.test_log, [], "재화 변화는 진동하지 않음")
 
 
+func test_combat_feedback_melee_hit_maps_to_light_haptic() -> void:
+	_at(1000)
+	EventBus.emit_combat_feedback({"kind": &"melee_hit", "intensity": 5.0})
+	_runner.assert_eq(HapticManager.test_log, [L_LIGHT], "근접 타격 피드백은 화면 흔들림과 함께 LIGHT 진동")
+
+
+func test_combat_feedback_deflect_maps_to_strong_haptic() -> void:
+	_at(1000)
+	EventBus.emit_combat_feedback({"kind": &"deflect", "intensity": 5.0})
+	_runner.assert_eq(HapticManager.test_log, [L_STRONG], "패링/반사는 STRONG 진동")
+
+
 # --- 과진동 방지 ---
 
 func test_global_floor_suppresses_rapid_back_to_back() -> void:

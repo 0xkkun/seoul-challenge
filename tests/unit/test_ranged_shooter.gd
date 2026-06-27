@@ -54,6 +54,24 @@ func test_movement_bounds_clamp_like_player() -> void:
 	_runner.assert_eq(e.global_position, Vector2(20.0, -10.0), "원거리 적은 경계 밖에서 경계 안으로 보정된다")
 
 
+func test_bounds_block_retreat_velocity_at_room_edge() -> void:
+	var e = RangedShooterScene.instantiate()
+	add_child(e)
+	var bounds := Rect2(Vector2(-20.0, -10.0), Vector2(40.0, 20.0))
+	e.call("set_movement_bounds", bounds)
+
+	_runner.assert_true(e.has_method("clamp_velocity_to_movement_bounds"), "원거리 적은 경계 밖으로 향하는 이동 의도를 사전에 막는다")
+	if not e.has_method("clamp_velocity_to_movement_bounds"):
+		e.free()
+		return
+
+	var blocked: Vector2 = e.call("clamp_velocity_to_movement_bounds", Vector2(-20.0, 0.0), Vector2(-60.0, 0.0), 0.1)
+	var allowed: Vector2 = e.call("clamp_velocity_to_movement_bounds", Vector2(-20.0, 0.0), Vector2(60.0, 0.0), 0.1)
+
+	_runner.assert_eq(blocked.x, 0.0, "왼쪽 경계에서 더 밖으로 도망가는 카이팅 속도는 제거된다")
+	_runner.assert_true(allowed.x > 0.0, "경계 안쪽으로 되돌아오는 속도는 유지된다")
+
+
 func test_aim_points_toward_target() -> void:
 	var e = RangedShooterScene.instantiate()
 	var d: Vector2 = e.aim_direction(Vector2.ZERO, Vector2(0.0, 10.0))

@@ -65,6 +65,7 @@ func _physics_process(delta: float) -> void:
 			range_deadzone,
 			move_speed * get_status_speed_multiplier()
 		)
+		velocity = clamp_velocity_to_movement_bounds(global_position, velocity, delta)
 	move_and_slide()
 	clamp_to_movement_bounds()
 	_update_animation()
@@ -151,6 +152,22 @@ func clamp_position_to_bounds(position: Vector2, bounds: Rect2) -> Vector2:
 		clampf(position.x, bounds.position.x, bounds.end.x),
 		clampf(position.y, bounds.position.y, bounds.end.y)
 	)
+
+
+func clamp_velocity_to_movement_bounds(position: Vector2, next_velocity: Vector2, delta: float) -> Vector2:
+	if not _movement_bounds_enabled or delta <= 0.0:
+		return next_velocity
+	var projected := position + next_velocity * delta
+	var clamped_velocity := next_velocity
+	if projected.x < _movement_bounds.position.x and next_velocity.x < 0.0:
+		clamped_velocity.x = 0.0
+	elif projected.x > _movement_bounds.end.x and next_velocity.x > 0.0:
+		clamped_velocity.x = 0.0
+	if projected.y < _movement_bounds.position.y and next_velocity.y < 0.0:
+		clamped_velocity.y = 0.0
+	elif projected.y > _movement_bounds.end.y and next_velocity.y > 0.0:
+		clamped_velocity.y = 0.0
+	return clamped_velocity
 
 
 # --- 피격 반응 (계약 #136) ---

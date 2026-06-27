@@ -60,6 +60,8 @@ func _ready() -> void:
 		EventBus.student_rescued.connect(_on_student_rescued)
 		EventBus.session_started.connect(_on_session_started)
 		EventBus.settings_changed.connect(_on_settings_changed)
+		if not EventBus.combat_feedback.is_connected(_on_combat_feedback):
+			EventBus.combat_feedback.connect(_on_combat_feedback)
 
 
 # --- Tier2/3 공개 API (호출부에서 직접 호출) ---
@@ -119,6 +121,15 @@ func _on_session_started(_config: Dictionary) -> void:
 
 func _on_settings_changed(settings: Dictionary) -> void:
 	_enabled = bool(settings.get("haptic_enabled", true))
+
+
+func _on_combat_feedback(payload: Dictionary) -> void:
+	var kind := StringName(payload.get("kind", &""))
+	match kind:
+		&"melee_hit":
+			on_enemy_hit()
+		&"deflect", &"parry", &"dash_parry":
+			on_deflect()
 
 
 # --- 내부 ---

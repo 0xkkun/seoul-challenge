@@ -75,6 +75,7 @@ func parry_dash(_direction: Vector2 = Vector2.ZERO) -> bool:
 	_dash_timer = parried_recover_time
 	_dash_hit_targets.clear()
 	velocity = Vector2.ZERO
+	HapticManager.on_deflect()
 	return true
 
 
