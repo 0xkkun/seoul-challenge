@@ -2,6 +2,8 @@ extends Node
 
 const WOLF_SCENE_PATH := "res://scenes/enemies/wolf.tscn"
 const COMBAT_ROOM_SCENE_PATH := "res://scenes/interactables/combat_room.tscn"
+const PlayerScript := preload("res://scripts/player/player.gd")
+const PlayerScene := preload("res://scenes/player/player.tscn")
 const L_STRONG := 2
 
 var _runner: Node
@@ -37,6 +39,55 @@ func test_wolf_scene_uses_5_move_and_6_attack_frames() -> void:
 	_runner.assert_eq(frames.get_frame_count(&"attack"), 6, "wolf attack sheet is split into six 144px frames")
 	_runner.assert_true(frames.get_animation_loop(&"move"), "wolf movement loops")
 	_runner.assert_false(frames.get_animation_loop(&"attack"), "wolf attack does not loop")
+
+
+func test_wolf_takes_three_default_bat_hits() -> void:
+	_runner.assert_true(ResourceLoader.exists(WOLF_SCENE_PATH), "wolf dash enemy scene exists")
+	if not ResourceLoader.exists(WOLF_SCENE_PATH):
+		return
+
+	var player := PlayerScript.new()
+	var enemy := (load(WOLF_SCENE_PATH) as PackedScene).instantiate()
+	add_child(player)
+	add_child(enemy)
+
+	_runner.assert_true(enemy.max_hp > player.bat_damage * 2, "wolf should survive two default bat hits")
+	_runner.assert_true(enemy.max_hp <= player.bat_damage * 3, "wolf should die by the third default bat hit")
+
+
+func test_wolf_contact_range_starts_before_body_overlap() -> void:
+	_runner.assert_true(ResourceLoader.exists(WOLF_SCENE_PATH), "wolf dash enemy scene exists")
+	if not ResourceLoader.exists(WOLF_SCENE_PATH):
+		return
+
+	var enemy := (load(WOLF_SCENE_PATH) as PackedScene).instantiate()
+	var player := PlayerScene.instantiate()
+
+	var enemy_collision := enemy.get_node_or_null("Collision") as CollisionShape2D
+	var player_collision := player.get_node_or_null("Collision") as CollisionShape2D
+	_runner.assert_not_null(enemy_collision, "wolf has a collision shape")
+	_runner.assert_not_null(player_collision, "player has a collision shape")
+	if enemy_collision == null or player_collision == null:
+		enemy.free()
+		player.free()
+		return
+
+	var enemy_shape := enemy_collision.shape as CircleShape2D
+	var player_shape := player_collision.shape as CircleShape2D
+	_runner.assert_not_null(enemy_shape, "wolf collision shape is circular")
+	_runner.assert_not_null(player_shape, "player collision shape is circular")
+	if enemy_shape == null or player_shape == null:
+		enemy.free()
+		player.free()
+		return
+
+	var body_touch_distance := enemy_shape.radius + player_shape.radius
+	_runner.assert_true(
+		enemy.contact_range >= body_touch_distance + 16.0,
+		"wolf dash hit range should start before collision bodies overlap"
+	)
+	enemy.free()
+	player.free()
 
 
 func test_wolf_dash_state_machine_prepares_charges_and_recovers() -> void:

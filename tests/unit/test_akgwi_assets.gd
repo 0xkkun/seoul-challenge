@@ -3,6 +3,7 @@ extends Node
 const AKGWI_SCENE_PATH := "res://scenes/enemies/akgwi.tscn"
 const COMBAT_ROOM_SCENE_PATH := "res://scenes/interactables/combat_room.tscn"
 const PlayerScript := preload("res://scripts/player/player.gd")
+const PlayerScene := preload("res://scenes/player/player.tscn")
 
 var _runner: Node
 
@@ -75,6 +76,41 @@ func test_akgwi_takes_three_default_bat_hits() -> void:
 
 	_runner.assert_true(enemy.max_hp > player.bat_damage * 2, "akgwi should survive two default bat hits")
 	_runner.assert_true(enemy.max_hp <= player.bat_damage * 3, "akgwi should die by the third default bat hit")
+
+
+func test_akgwi_contact_range_starts_before_body_overlap() -> void:
+	_runner.assert_true(ResourceLoader.exists(AKGWI_SCENE_PATH), "akgwi melee enemy scene exists")
+	if not ResourceLoader.exists(AKGWI_SCENE_PATH):
+		return
+
+	var enemy := (load(AKGWI_SCENE_PATH) as PackedScene).instantiate()
+	var player := PlayerScene.instantiate()
+
+	var enemy_collision := enemy.get_node_or_null("Collision") as CollisionShape2D
+	var player_collision := player.get_node_or_null("Collision") as CollisionShape2D
+	_runner.assert_not_null(enemy_collision, "akgwi has a collision shape")
+	_runner.assert_not_null(player_collision, "player has a collision shape")
+	if enemy_collision == null or player_collision == null:
+		enemy.free()
+		player.free()
+		return
+
+	var enemy_shape := enemy_collision.shape as CircleShape2D
+	var player_shape := player_collision.shape as CircleShape2D
+	_runner.assert_not_null(enemy_shape, "akgwi collision shape is circular")
+	_runner.assert_not_null(player_shape, "player collision shape is circular")
+	if enemy_shape == null or player_shape == null:
+		enemy.free()
+		player.free()
+		return
+
+	var body_touch_distance := enemy_shape.radius + player_shape.radius
+	_runner.assert_true(
+		enemy.contact_range >= body_touch_distance + 16.0,
+		"akgwi attack range should start before collision bodies overlap"
+	)
+	enemy.free()
+	player.free()
 
 
 func test_akgwi_sprite_flips_with_horizontal_movement_and_holds_when_idle() -> void:

@@ -9,10 +9,10 @@ const FACING_DEADZONE := 0.01
 
 signal defeated(enemy)
 
-@export var max_hp: int = 4
+@export var max_hp: int = 5
 @export var move_speed: float = 108.0
 @export var contact_damage: int = 1
-@export var contact_range: float = 34.0
+@export var contact_range: float = 52.0
 @export var dash_trigger_range: float = 118.0
 @export var dash_speed: float = 292.0
 @export var dash_windup_time: float = 0.24
