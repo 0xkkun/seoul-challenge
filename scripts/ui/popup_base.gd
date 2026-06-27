@@ -10,13 +10,15 @@ extends CanvasLayer
 ##     _setup_popup($Root/Backdrop, $Root/Panel)
 ## and override `_on_popup_cancel()` to choose what Esc/Back does.
 
-const DungeonTheme := preload("res://scripts/ui/dungeon_ui_theme.gd")
-
 ## Shared dim color behind every popup (previously copy-pasted per scene).
 const SCRIM_COLOR := Color(0.0156863, 0.0156863, 0.0235294, 0.68)
 
-const PANEL_BORDER_WIDTH := 2
-const DEFAULT_PANEL_MARGIN := Vector2(24.0, 20.0)
+## Framed-panel palette, matched to the pixel buttons (gold frame on dark navy) so
+## popups read as the same UI family without the button texture's edge ornaments.
+const PANEL_BG_COLOR := Color(0.094, 0.121, 0.18, 0.98)
+const PANEL_BORDER_COLOR := Color(0.83, 0.66, 0.27, 1.0)
+const PANEL_BORDER_WIDTH := 3
+const DEFAULT_PANEL_MARGIN := Vector2(30.0, 24.0)
 
 var _popup_backdrop: ColorRect
 var _popup_panel: PanelContainer
@@ -28,7 +30,6 @@ var _popup_panel: PanelContainer
 func _setup_popup(
 		backdrop: ColorRect,
 		panel: PanelContainer,
-		border_color: Color = DungeonTheme.COLOR_CYAN,
 		margin: Vector2 = DEFAULT_PANEL_MARGIN) -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	visible = false
@@ -38,22 +39,18 @@ func _setup_popup(
 		_popup_backdrop.color = SCRIM_COLOR
 		if not _popup_backdrop.gui_input.is_connected(_on_backdrop_gui_input):
 			_popup_backdrop.gui_input.connect(_on_backdrop_gui_input)
-	apply_panel_style(_popup_panel, border_color, margin)
+	apply_panel_style(_popup_panel, margin)
 
 
-## Apply the standard framed-panel stylebox. Static so embedded overlays that are
-## not full PopupBase instances (e.g. in-scene reward panels) can reuse it too.
-static func apply_panel_style(
-		panel: PanelContainer,
-		border_color: Color = DungeonTheme.COLOR_CYAN,
-		margin: Vector2 = DEFAULT_PANEL_MARGIN) -> void:
+## Frame a popup panel with a gold border on dark navy, matched to the pixel button
+## palette so popups read as the same UI family. Static so embedded overlays that are
+## not full PopupBase instances can reuse it too.
+static func apply_panel_style(panel: PanelContainer, margin: Vector2 = DEFAULT_PANEL_MARGIN) -> void:
 	if panel == null:
 		return
 	panel.add_theme_stylebox_override(
 		"panel",
-		DungeonTheme.panel_style(
-			DungeonTheme.COLOR_PANEL, border_color, PANEL_BORDER_WIDTH, margin.x, margin.y
-		)
+		DungeonUiTheme.panel_style(PANEL_BG_COLOR, PANEL_BORDER_COLOR, PANEL_BORDER_WIDTH, margin.x, margin.y)
 	)
 
 
