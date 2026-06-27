@@ -302,6 +302,51 @@ func test_reward_choice_open_starts_slide_fade_animation() -> void:
 	_runner.assert_true((card_scales[0] as Vector2).x < 1.0, "reward card starts slightly smaller for pop-in")
 
 
+func test_reward_choice_cards_keep_ornament_height_fixed() -> void:
+	_ui.show_reward_choices(&"combat_1", [
+		{
+			"item_id": &"dokkaebi_fire",
+			"display_name": "도깨비불",
+			"effect": "근접 공격 속도 +19% / 투척 속도 +19%",
+		},
+		{
+			"item_id": &"shadow_knot",
+			"display_name": "그림자 매듭",
+			"effect": "회피 무적 +0.25초",
+		},
+		{
+			"item_id": &"breathing_room",
+			"display_name": "숨 고르기",
+			"effect": "다음 전투방부터 방 클리어 시 체력 +1",
+		},
+	])
+
+	var snapshot: Dictionary = _ui.get_reward_choice_snapshot()
+	_runner.assert_true(snapshot.has("choice_card_heights"), "reward snapshot exposes card heights")
+	_runner.assert_true(snapshot.has("choice_card_ornament_heights"), "reward snapshot exposes fixed ornament heights")
+	_runner.assert_true(snapshot.has("choice_card_content_expands"), "reward snapshot exposes which layer takes vertical stretch")
+	_runner.assert_true(snapshot.has("choice_card_background_texture_paths"), "reward snapshot exposes stretchable card background style")
+	_runner.assert_true(snapshot.has("choice_card_ornament_texture_paths"), "reward snapshot exposes fixed ornament texture")
+	if not snapshot.has("choice_card_heights") or not snapshot.has("choice_card_ornament_heights") or not snapshot.has("choice_card_content_expands") or not snapshot.has("choice_card_background_texture_paths") or not snapshot.has("choice_card_ornament_texture_paths"):
+		return
+	var card_heights := snapshot["choice_card_heights"] as Array
+	var ornament_heights := snapshot["choice_card_ornament_heights"] as Array
+	var content_expands := snapshot["choice_card_content_expands"] as Array
+	var background_paths := snapshot["choice_card_background_texture_paths"] as Array
+	var ornament_paths := snapshot["choice_card_ornament_texture_paths"] as Array
+	_runner.assert_eq(card_heights.size(), 3, "reward snapshot tracks every card height")
+	_runner.assert_eq(ornament_heights.size(), 3, "reward snapshot tracks every ornament height")
+	_runner.assert_eq(content_expands.size(), 3, "reward snapshot tracks every content stack")
+	if card_heights.size() == 3 and ornament_heights.size() == 3 and content_expands.size() == 3:
+		_runner.assert_eq(float(card_heights[0]), 146.0, "reward card keeps the mobile landscape card height")
+		_runner.assert_eq(float(ornament_heights[0]), 49.0, "flower ornament keeps the source art height")
+		_runner.assert_true(float(ornament_heights[0]) < float(card_heights[0]) * 0.5, "ornament does not stretch to fill the whole card")
+		_runner.assert_true(bool(content_expands[0]), "card text/content layer takes the vertical slack")
+	if background_paths.size() == 3 and ornament_paths.size() == 3:
+		_runner.assert_eq(String(background_paths[0]), "", "stretchable card background does not use the flower button texture")
+		_runner.assert_eq(String(ornament_paths[0]), PixelButtonStyle.NORMAL_TEXTURE_PATH, "fixed ornament layer uses the existing flower button art")
+
+
 func test_summary_hides_unlock_records_for_mvp_result_layout() -> void:
 	_ui.show_summary({
 		"completed": true,
