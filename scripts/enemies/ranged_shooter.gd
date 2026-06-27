@@ -226,8 +226,9 @@ func tick_fire(delta: float, origin: Vector2, target_position: Vector2) -> bool:
 	if not is_ready_to_fire(_fire_timer):
 		return false
 	_fire_timer = fire_interval
-	_play_attack_animation()
-	fired.emit(origin, aim_direction(origin, target_position))
+	var direction := aim_direction(origin, target_position)
+	_play_attack_animation(direction)
+	fired.emit(origin, direction)
 	return true
 
 
@@ -268,24 +269,29 @@ func _spawn_bullet(origin: Vector2, direction: Vector2) -> void:
 func _update_animation() -> void:
 	if _sprite == null or _sprite.sprite_frames == null:
 		return
-	_update_sprite_facing()
 	if _sprite.animation == attack_animation and _sprite.is_playing():
 		return
+	_update_sprite_facing()
 	if _sprite.sprite_frames.has_animation(move_animation) and _sprite.animation != move_animation:
 		_sprite.play(move_animation)
 
 
-func _play_attack_animation() -> void:
+func _play_attack_animation(facing_direction: Vector2 = Vector2.ZERO) -> void:
 	if _sprite == null or _sprite.sprite_frames == null:
 		return
+	_set_sprite_facing_from_direction(facing_direction)
 	if _sprite.sprite_frames.has_animation(attack_animation):
 		_sprite.play(attack_animation)
 
 
 func _update_sprite_facing() -> void:
-	if velocity.x < -FACING_DEADZONE:
+	_set_sprite_facing_from_direction(velocity)
+
+
+func _set_sprite_facing_from_direction(direction: Vector2) -> void:
+	if direction.x < -FACING_DEADZONE:
 		_sprite.flip_h = true
-	elif velocity.x > FACING_DEADZONE:
+	elif direction.x > FACING_DEADZONE:
 		_sprite.flip_h = false
 
 

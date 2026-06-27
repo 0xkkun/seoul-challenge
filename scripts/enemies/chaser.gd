@@ -217,7 +217,7 @@ func _try_contact(target: Node2D) -> void:
 		return
 	if global_position.distance_to(target.global_position) > contact_range:
 		return
-	_play_attack_animation()
+	_play_attack_animation(target.global_position - global_position)
 	if target.has_method("take_damage"):
 		target.call("take_damage", contact_damage)
 	_contact_timer = contact_cooldown
@@ -226,24 +226,29 @@ func _try_contact(target: Node2D) -> void:
 func _update_animation() -> void:
 	if _sprite == null or _sprite.sprite_frames == null:
 		return
-	_update_sprite_facing()
 	if _sprite.animation == attack_animation and _sprite.is_playing():
 		return
+	_update_sprite_facing()
 	if _sprite.sprite_frames.has_animation(move_animation) and _sprite.animation != move_animation:
 		_sprite.play(move_animation)
 
 
-func _play_attack_animation() -> void:
+func _play_attack_animation(facing_direction: Vector2 = Vector2.ZERO) -> void:
 	if _sprite == null or _sprite.sprite_frames == null:
 		return
+	_set_sprite_facing_from_direction(facing_direction)
 	if _sprite.sprite_frames.has_animation(attack_animation):
 		_sprite.play(attack_animation)
 
 
 func _update_sprite_facing() -> void:
-	if velocity.x < -FACING_DEADZONE:
+	_set_sprite_facing_from_direction(velocity)
+
+
+func _set_sprite_facing_from_direction(direction: Vector2) -> void:
+	if direction.x < -FACING_DEADZONE:
 		_sprite.flip_h = true
-	elif velocity.x > FACING_DEADZONE:
+	elif direction.x > FACING_DEADZONE:
 		_sprite.flip_h = false
 
 
