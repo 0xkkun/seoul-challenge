@@ -43,6 +43,12 @@ const QUIT_GAME_MESSAGE := "게임을 종료할까요?"
 @export var dialogue_portrait_texture: Texture2D
 @export var dialogue_portrait_frame := 1
 @export var ambient_student_idle_fps := 4.0
+@export var ambient_label_proximity_radius := 280.0
+@export var ambient_crowd_base_cooldown := 4.0
+@export var ambient_crowd_min_cooldown := 2.2
+@export var ambient_label_min_seconds := 1.8
+@export var ambient_label_per_char_seconds := 0.08
+@export var ambient_label_fade_seconds := 0.2
 @export var room_transition_fade_time := 0.18
 @export var room_transition_spawn_inset := 320.0
 @export var outer_edge_scene_transition_enabled := true
@@ -60,6 +66,10 @@ const QUIT_GAME_MESSAGE := "게임을 종료할까요?"
 @onready var _talk_target_sprite: Sprite2D = %TalkTargetSprite
 @onready var _right_student3_sprite: Sprite2D = %RightStudent3Sprite
 @onready var _right_crowd_sprite: Sprite2D = %RightCrowdSprite
+@onready var _right_student3: Node2D = %RightStudent3
+@onready var _right_crowd: Node2D = %RightCrowd
+@onready var _right_student3_label: Label = %RightStudent3Label
+@onready var _right_crowd_label: Label = %RightCrowdLabel
 @onready var _day_character_root: Node2D = %DayCharacterRoot
 @onready var _character_sprite: Sprite2D = %CharacterSprite
 @onready var _interaction_prompt: Label = %InteractionPrompt
@@ -79,6 +89,10 @@ var _idle_elapsed := 0.0
 var _talk_target_elapsed := 0.0
 var _ambient_student_elapsed := 0.0
 var _ambient_student_sprites: Array[Sprite2D] = []
+var _ambient_rng := RandomNumberGenerator.new()
+var _crowd_label_elapsed := 0.0
+var _student3_label_shown_for_entry := false
+var _ambient_tier := DaySchoolRumors.TIER_FIRST_VISIT
 var _character_base_position := Vector2.ZERO
 var _walk_texture: Texture2D = null
 var _walk_hframes := 0
@@ -97,6 +111,8 @@ func _ready() -> void:
 	_disable_combat_output()
 	_hide_player_default_visuals()
 	_ambient_student_sprites = [_right_student3_sprite, _right_crowd_sprite]
+	_ambient_rng.randomize()
+	_hide_ambient_labels()
 	_apply_nearest_texture_filter()
 	_apply_school_character_visual_treatment()
 	_fit_character_to_asset_scale()
@@ -142,6 +158,7 @@ func _process(delta: float) -> void:
 	_sync_camera()
 	_update_interaction_prompt()
 	_process_dialogue_input()
+	_update_ambient_rumor_labels(delta)
 
 
 func get_reference_viewport_size() -> Vector2:
@@ -545,6 +562,7 @@ func _apply_room_state() -> void:
 	if _current_room_id != ROOM_LEFT:
 		close_dialogue()
 	_sync_talk_target_visibility()
+	_reset_ambient_rumor_state()
 
 
 func _sync_talk_target_visibility() -> void:
@@ -686,6 +704,108 @@ func _update_ambient_school_character_sprites(delta: float) -> void:
 		var sprite := _ambient_student_sprites[index]
 		var frame_count := _get_sprite_frame_count(sprite)
 		sprite.frame = int(_ambient_student_elapsed * ambient_student_idle_fps + index * 2) % frame_count
+
+
+## people3 근접 라벨(진입당 1회) + people4 군중 웅성거림(E2 진행도 스케일 쿨다운).
+## 자유 이동 경로에서만 호출 — 대화/전환/모달 중엔 호출되지 않으므로 자연히 일시정지.
+func _update_ambient_rumor_labels(delta: float) -> void:
+	if _current_room_id != ROOM_RIGHT:
+		return
+	if _right_student3 != null and not _student3_label_shown_for_entry and _is_player_near(_right_student3, ambient_label_proximity_radius):
+		var lines := DaySchoolRumors.pick_lines(DaySchoolRumors.SPEAKER_PEOPLE3, _ambient_tier, _rumor_context())
+		if not lines.is_empty():
+			var entry: Dictionary = lines[_ambient_rng.randi_range(0, lines.size() - 1)]
+			_show_ambient_label(_right_student3_label, String(entry.get("text", "")))
+			_student3_label_shown_for_entry = true
+	_crowd_label_elapsed += delta
+	if _crowd_label_elapsed >= _crowd_label_cooldown():
+		_crowd_label_elapsed = 0.0
+		var fragment := DaySchoolRumors.pick_crowd_fragment(_ambient_tier, _ambient_rng, _rumor_context())
+		if not fragment.is_empty():
+			_show_ambient_label(_right_crowd_label, String(fragment.get("text", "")))
+
+
+## E2: 진행도가 오를수록 군중 웅성거림 쿨다운 단축(분위기 고조). 상한 클램프.
+func _crowd_label_cooldown() -> float:
+	var progression := get_node_or_null(^"/root/ProgressionSystem")
+	var progressed := 0.0
+	if progression != null:
+		if progression.is_friend_purified(DaySchoolRumors.FRIEND_BASEBALL_CAPTAIN):
+			progressed += 1.0
+		if progression.is_weapon_unlocked(DaySchoolRumors.WEAPON_AWAKENED_BAT):
+			progressed += 1.0
+	var t := clampf(progressed / 2.0, 0.0, 1.0)
+	return lerpf(ambient_crowd_base_cooldown, ambient_crowd_min_cooldown, t)
+
+
+func _is_player_near(node: Node2D, radius: float) -> bool:
+	return absf(_player.global_position.x - node.global_position.x) <= radius
+
+
+func _show_ambient_label(label: Label, text: String) -> void:
+	if label == null or text.strip_edges() == "":
+		return
+	label.text = text
+	# 콘텐츠 폭에 맞춰 머리 위 중앙 정렬 (pill이 텍스트를 감싸도록)
+	var width := label.get_minimum_size().x
+	label.offset_left = -width * 0.5
+	label.offset_right = width * 0.5
+	label.visible = true
+	label.modulate.a = 0.0
+	var hold := ambient_label_min_seconds + float(text.length()) * ambient_label_per_char_seconds
+	var tween := create_tween()
+	tween.tween_property(label, ^"modulate:a", 1.0, ambient_label_fade_seconds)
+	tween.tween_interval(hold)
+	tween.tween_property(label, ^"modulate:a", 0.0, ambient_label_fade_seconds)
+	tween.tween_callback(func() -> void:
+		if is_instance_valid(label):
+			label.visible = false
+	)
+
+
+func _hide_ambient_labels() -> void:
+	for label: Label in [_right_student3_label, _right_crowd_label]:
+		if label != null:
+			label.visible = false
+			label.modulate.a = 0.0
+
+
+func _reset_ambient_rumor_state() -> void:
+	if _current_room_id == ROOM_RIGHT:
+		_student3_label_shown_for_entry = false
+		_crowd_label_elapsed = 0.0
+		_ambient_tier = _current_rumor_tier()
+	else:
+		_hide_ambient_labels()
+
+
+# ── 테스트 훅 ──
+func get_ambient_tier() -> StringName:
+	return _ambient_tier
+
+
+func get_student3_rumor_label_text() -> String:
+	return _right_student3_label.text if _right_student3_label != null else ""
+
+
+func get_crowd_rumor_label_text() -> String:
+	return _right_crowd_label.text if _right_crowd_label != null else ""
+
+
+func debug_show_student3_rumor() -> String:
+	var lines := DaySchoolRumors.pick_lines(DaySchoolRumors.SPEAKER_PEOPLE3, _ambient_tier, _rumor_context())
+	if lines.is_empty():
+		return ""
+	_show_ambient_label(_right_student3_label, String(lines[0].get("text", "")))
+	return get_student3_rumor_label_text()
+
+
+func debug_rotate_crowd_rumor() -> String:
+	var fragment := DaySchoolRumors.pick_crowd_fragment(_ambient_tier, _ambient_rng, _rumor_context())
+	if fragment.is_empty():
+		return ""
+	_show_ambient_label(_right_crowd_label, String(fragment.get("text", "")))
+	return get_crowd_rumor_label_text()
 
 
 func _sync_camera() -> void:
