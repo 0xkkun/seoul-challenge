@@ -115,6 +115,7 @@ func test_touch_controls_exposes_skill_button() -> void:
 	add_child(touch)
 
 	_runner.assert_true(touch.has_method("is_skill_pressed"), "touch controls expose skill input")
+	_runner.assert_true(touch.has_signal("skill_pressed"), "touch controls expose an immediate skill press signal")
 	_runner.assert_true(touch.has_method("get_control_category"), "touch controls expose an input control category")
 	if touch.has_method("get_control_category"):
 		_runner.assert_eq(touch.get_control_category(), "combat", "touch controls default to combat controls")
@@ -142,6 +143,24 @@ func test_touch_controls_exposes_skill_button() -> void:
 		_runner.assert_eq(slots[0]["state"], &"filled", "first stored dash is filled")
 		_runner.assert_eq(slots[1]["state"], &"filled", "second stored dash is filled")
 		_runner.assert_eq(slots[2]["state"], &"charging", "spent dash slot shows recharge progress")
+
+
+func test_touch_controls_emit_immediate_skill_press_on_touch_down() -> void:
+	var touch := TouchControlsScene.instantiate()
+	add_child(touch)
+	var skill_button := touch.get_node_or_null("SkillButton") as Control
+	_runner.assert_not_null(skill_button, "touch controls mount skill button")
+	_runner.assert_true(touch.has_signal("skill_pressed"), "touch controls relay skill press events")
+	if skill_button == null or not touch.has_signal("skill_pressed"):
+		return
+
+	var presses := []
+	touch.connect("skill_pressed", func() -> void: presses.append(true))
+
+	skill_button.call("_input", _screen_touch(41, skill_button.get_global_rect().get_center(), true))
+
+	_runner.assert_eq(presses.size(), 1, "touch down on the skill button emits an immediate press signal")
+	_runner.assert_true(touch.is_skill_pressed(), "skill remains held for polling after the immediate signal")
 
 
 func test_touch_controls_can_release_combat_inputs_for_modal_open() -> void:
