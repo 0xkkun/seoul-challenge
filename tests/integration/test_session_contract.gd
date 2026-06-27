@@ -629,6 +629,34 @@ func test_session_result_tracks_baseball_friend_purification_unlocks() -> void:
 	session.queue_free()
 
 
+func test_boss_spawn_switches_to_boss_battle_bgm() -> void:
+	var packed := load("res://scenes/session/session_root.tscn") as PackedScene
+	var session := packed.instantiate()
+	add_child(session)
+
+	var manager := session.get_node("%RoomManager") as RoomManager
+	var final_room_def := _first_room_of_type(manager.layout, RoomLayout.TYPE_FINAL)
+	_runner.assert_not_null(final_room_def, "session run layout includes a final room")
+	if final_room_def == null:
+		session.queue_free()
+		return
+
+	_runner.assert_eq(
+		AudioManager.get_current_bgm(),
+		AudioManager.NIGHT_RUN_SUSPENSE_BGM,
+		"run plays the suspense BGM before reaching the boss room"
+	)
+
+	_runner.assert_true(manager.enter_room(final_room_def.room_id), "test enters generated boss room")
+	_runner.assert_eq(
+		AudioManager.get_current_bgm(),
+		AudioManager.BOSS_BATTLE_BGM,
+		"entering the boss room spawns the boss and switches to the boss battle BGM"
+	)
+
+	session.queue_free()
+
+
 func test_boss_victory_result_keeps_baseball_friend_unlocks() -> void:
 	var packed := load("res://scenes/session/session_root.tscn") as PackedScene
 	var session := packed.instantiate()
