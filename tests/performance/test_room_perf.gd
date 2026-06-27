@@ -95,7 +95,7 @@ func test_room_manager_runtime_walks_fixed_route() -> void:
 	manager.configure(layout, container, actor)
 
 	_runner.assert_true(manager.start_layout(), "runtime starts room manager")
-	for expected_room_id: StringName in [&"combat_1", &"treasure_1", &"combat_2", &"shop_1", &"event_1", &"friend_1", &"final_1"]:
+	for expected_room_id: StringName in [&"combat_1", &"treasure_1", &"combat_2", &"friend_1", &"final_1"]:
 		_runner.assert_true(manager.request_next_room(), "runtime advances to %s" % expected_room_id)
 		_runner.assert_eq(manager.current_room_id, expected_room_id)
 		_resolve_current_room(manager, actor)

@@ -182,29 +182,17 @@ func test_baseball_onboarding_friend_purification_finishes_run_and_sets_reward_f
 	session.queue_free()
 
 
-func test_session_interaction_scope_reaches_current_shop_room() -> void:
+func test_session_generated_layout_omits_disabled_shop_and_event_rooms() -> void:
 	var packed := load("res://scenes/session/session_root.tscn") as PackedScene
 	var session := packed.instantiate()
 	add_child(session)
 
 	var manager := session.get_node("%RoomManager") as RoomManager
-	var actor := session.get_node("%Player") as Node2D
-	var shop_room_def := _first_room_of_type(manager.layout, RoomLayout.TYPE_SHOP)
-	_runner.assert_not_null(shop_room_def, "session run layout includes shop room")
-	if shop_room_def == null:
+	_runner.assert_not_null(manager.layout, "session creates a generated layout")
+	if manager.layout == null:
 		return
-	_runner.assert_true(manager.enter_room(shop_room_def.room_id), "test enters shop room directly")
-	_runner.assert_true(manager.current_room.has_method("get_offer_position"), "shop room exposes offer position")
-	if not manager.current_room.has_method("get_offer_position"):
-		return
-	actor.global_position = manager.current_room.call("get_offer_position", &"bat")
-	EventBus.emit_currency_changed({"kind": "ingame", "amount": 6})
-
-	session.trigger_sample_interaction()
-
-	_runner.assert_eq(CurrencySystem.get_ingame(), 2, "session interaction can purchase from current shop room")
-	_runner.assert_true(actor.call("has_bat"), "session shop interaction equips purchased item")
-	_runner.assert_eq(actor.call("current_weapon_name"), "금 간 나무 배트", "session shop interaction shows cracked bat label")
+	_runner.assert_eq(_first_room_of_type(manager.layout, RoomLayout.TYPE_SHOP), null, "generated session layout does not expose shop rooms")
+	_runner.assert_eq(_first_room_of_type(manager.layout, RoomLayout.TYPE_EVENT), null, "generated session layout does not expose event/info rooms")
 
 	session.queue_free()
 

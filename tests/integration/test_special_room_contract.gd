@@ -258,10 +258,8 @@ func test_minimap_data_marks_current_visible_and_boss_hidden() -> void:
 		&"combat_1": true,
 		&"treasure_1": true,
 		&"combat_2": true,
-		&"shop_1": true,
-		&"event_1": true,
 	}
-	var revealed_data: Dictionary = MinimapDataScript.build_from_layout(layout, &"event_1", cleared)
+	var revealed_data: Dictionary = MinimapDataScript.build_from_layout(layout, &"friend_1", cleared)
 	var revealed_boss := _find_room(revealed_data["rooms"], &"final_1")
 	var friend_room := _find_room(revealed_data["rooms"], &"friend_1")
 	_runner.assert_false(friend_room.is_empty(), "minimap data includes friend room")
