@@ -12,10 +12,20 @@ func _set_runner(runner: Node) -> void:
 
 
 func after_each() -> void:
+	AudioManager.reset()
 	SceneTransition.clear_pending_day_corridor_context()
 	for child: Node in get_children():
 		remove_child(child)
 		child.free()
+
+
+func test_day_corridor_starts_school_hallway_bgm() -> void:
+	AudioManager.reset()
+	var scene := DayCorridorScene.instantiate()
+	add_child(scene)
+
+	_runner.assert_eq(AudioManager.get_current_bgm(), AudioManager.SCHOOL_HALLWAY_BGM, "day corridor starts the school hallway BGM")
+	_runner.assert_eq(AudioManager.get_current_bgm_path(), "res://assets/audio/bgm/school_hallway_bgm.ogg", "day corridor uses the hallway BGM stream")
 
 
 func test_day_corridor_scene_uses_mobile_landscape_plate() -> void:
