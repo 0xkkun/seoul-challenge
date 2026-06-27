@@ -35,6 +35,20 @@ func test_room_clear_reward_pool_excludes_damage_talisman() -> void:
 	_runner.assert_true(reward_item_ids.size() >= 6, "room clear rewards expose a richer augment pool")
 
 
+func test_room_clear_rewards_exclude_throwing_effects() -> void:
+	var catalog := _load_catalog()
+	if catalog == null:
+		return
+	var reward_item_ids: Array[StringName] = catalog.call("reward_item_ids")
+
+	for item_id: StringName in reward_item_ids:
+		var item_def: Dictionary = catalog.call("get_item_def", item_id)
+		var modifiers: Dictionary = item_def.get("modifiers", {})
+		var effect_text := String(catalog.call("get_effect_text", item_id))
+		_runner.assert_false(modifiers.has("fire_cooldown_mult"), "room clear reward %s does not modify removed throwing cadence" % String(item_id))
+		_runner.assert_false(effect_text.contains("투척"), "room clear reward %s does not mention throwing" % String(item_id))
+
+
 func test_compose_modifiers_stacks_damage_speed_and_health() -> void:
 	var catalog := _load_catalog()
 	if catalog == null:
@@ -68,7 +82,7 @@ func test_apply_modifiers_to_stats_changes_combat_numbers() -> void:
 	_runner.assert_eq(stats["bat_damage"], 3, "damage modifier changes bat damage")
 	_runner.assert_true(float(stats["move_speed"]) > float(base_stats["move_speed"]), "speed modifier changes movement")
 	_runner.assert_true(float(stats["attack_cooldown"]) < float(base_stats["attack_cooldown"]), "tempo modifier speeds melee swings")
-	_runner.assert_true(float(stats["fire_cooldown"]) < float(base_stats["fire_cooldown"]), "tempo modifier speeds ranged throws")
+	_runner.assert_true(is_equal_approx(float(stats["fire_cooldown"]), float(base_stats["fire_cooldown"])), "tempo modifier no longer changes removed throwing cadence")
 	_runner.assert_true(float(stats["bat_knockback"]) > float(base_stats["bat_knockback"]), "full swing modifier changes bat knockback")
 	_runner.assert_true(float(stats["dodge_invuln_time"]) > float(base_stats["dodge_invuln_time"]), "shadow knot modifier extends dodge invulnerability")
 
@@ -79,7 +93,7 @@ func test_effect_text_describes_visible_stat_changes() -> void:
 		return
 
 	_runner.assert_eq(catalog.call("get_effect_text", &"gung_talisman"), "근접 피해 +1 / 배트 피해 +1", "damage reward explains both attack stats")
-	_runner.assert_eq(catalog.call("get_effect_text", &"dokkaebi_fire"), "근접 공격 속도 +19% / 투척 속도 +19%", "tempo reward explains speed gain in player-facing terms")
+	_runner.assert_eq(catalog.call("get_effect_text", &"dokkaebi_fire"), "근접 공격 속도 +19%", "tempo reward explains melee speed gain in player-facing terms")
 	_runner.assert_eq(catalog.call("get_effect_text", &"wind_step"), "이동 속도 +15%", "speed reward explains movement stat")
 	_runner.assert_eq(catalog.call("get_effect_text", &"moon_guard"), "최대 체력 +1", "health reward explains health stat")
 	_runner.assert_eq(catalog.call("get_effect_text", &"nurse_bandage"), "체력 회복 +2", "health recovery reward explains current health restore")
