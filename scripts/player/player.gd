@@ -66,6 +66,7 @@ var _attack_movement_commit_timer: float = 0.0
 var _swing_timer: float = 0.0
 var _is_attacking: bool = false   ## 공격 모션 재생 중(애니 끝날 때까지 walk/idle 억제)
 var _special_cooldown_timer: float = 0.0
+var _special_recharge_timer: float = 0.0
 var _dodge_timer: float = 0.0
 var _dodge_direction: Vector2 = Vector2.ZERO
 var _dash_power_attack_timer: float = 0.0
@@ -260,6 +261,34 @@ func consume_special_use(uses_remaining: int) -> int:
 	return maxi(0, uses_remaining - 1)
 
 
+func step_special_recharge(
+	uses_remaining: int,
+	max_uses: int,
+	recharge_remaining: float,
+	recharge_time: float,
+	delta: float
+) -> Dictionary:
+	var safe_max := maxi(0, max_uses)
+	var uses := clampi(uses_remaining, 0, safe_max)
+	if safe_max <= 0 or uses >= safe_max:
+		return {"uses_remaining": uses, "recharge_remaining": 0.0}
+
+	var safe_recharge_time := maxf(0.0, recharge_time)
+	if safe_recharge_time <= 0.0:
+		return {"uses_remaining": safe_max, "recharge_remaining": 0.0}
+
+	var timer := maxf(0.0, recharge_remaining)
+	if timer <= 0.0:
+		timer = safe_recharge_time
+	timer = maxf(0.0, timer - maxf(0.0, delta))
+	if timer > 0.0:
+		return {"uses_remaining": uses, "recharge_remaining": timer}
+
+	uses = mini(safe_max, uses + 1)
+	timer = safe_recharge_time if uses < safe_max else 0.0
+	return {"uses_remaining": uses, "recharge_remaining": timer}
+
+
 func choose_dodge_direction(move_input: Vector2, facing: Vector2) -> Vector2:
 	if move_input.length() > 0.01:
 		return move_input.normalized()
@@ -333,9 +362,12 @@ func reset_run_modifiers(restore_health := false) -> void:
 	if restore_health:
 		_health = max_health
 		special_skill_uses_remaining = special_skill_max_uses
+		_special_recharge_timer = 0.0
 	else:
 		_health = mini(_health, max_health)
 		special_skill_uses_remaining = mini(special_skill_uses_remaining, special_skill_max_uses)
+		if special_skill_uses_remaining >= special_skill_max_uses:
+			_special_recharge_timer = 0.0
 	if previous_health != _health or previous_max_health != max_health:
 		_broadcast_health()
 	_broadcast_special_skill_state()
@@ -399,6 +431,10 @@ func _get_hit_visual() -> CanvasItem:
 
 func get_special_cooldown_remaining() -> float:
 	return _special_cooldown_timer
+
+
+func get_special_recharge_remaining() -> float:
+	return _special_recharge_timer
 
 
 func is_dodging() -> bool:
@@ -524,6 +560,7 @@ func try_start_special_skill(input_vector: Vector2 = Vector2.ZERO) -> bool:
 	_invuln_timer = maxf(_invuln_timer, dodge_invuln_time)
 	special_skill_uses_remaining = consume_special_use(special_skill_uses_remaining)
 	_special_cooldown_timer = special_skill_cooldown
+	_start_special_recharge_if_needed()
 	_broadcast_special_skill_state()
 	return true
 
@@ -534,6 +571,7 @@ func equip_special_skill(skill_id: StringName, max_uses: int = 3, cooldown: floa
 	special_skill_uses_remaining = special_skill_max_uses
 	special_skill_cooldown = maxf(0.0, cooldown)
 	_special_cooldown_timer = 0.0
+	_special_recharge_timer = 0.0
 	_dodge_timer = 0.0
 	_dash_power_attack_timer = 0.0
 	_dash_power_attack_consumed = false
@@ -542,27 +580,62 @@ func equip_special_skill(skill_id: StringName, max_uses: int = 3, cooldown: floa
 
 func _process_special_skill(delta: float, move_input: Vector2) -> void:
 	var previous_cooldown := _special_cooldown_timer
+	var previous_recharge := _special_recharge_timer
+	var previous_uses := special_skill_uses_remaining
 	_special_cooldown_timer = step_special_cooldown(_special_cooldown_timer, delta)
+	_step_special_recharge(delta)
 	var pressed := is_special_pressed()
 	if is_status_action_blocked():
 		_was_special_pressed = pressed
-		if not is_equal_approx(previous_cooldown, _special_cooldown_timer):
+		if _special_state_changed(previous_cooldown, previous_recharge, previous_uses):
 			_broadcast_special_skill_state()
 		return
+	var started := false
 	if pressed and not _was_special_pressed:
-		try_start_special_skill(move_input)
+		started = try_start_special_skill(move_input)
 	_was_special_pressed = pressed
-	if not is_equal_approx(previous_cooldown, _special_cooldown_timer):
+	if not started and _special_state_changed(previous_cooldown, previous_recharge, previous_uses):
 		_broadcast_special_skill_state()
 
 
+func _step_special_recharge(delta: float) -> void:
+	var state := step_special_recharge(
+		special_skill_uses_remaining,
+		special_skill_max_uses,
+		_special_recharge_timer,
+		special_skill_cooldown,
+		delta
+	)
+	special_skill_uses_remaining = int(state["uses_remaining"])
+	_special_recharge_timer = float(state["recharge_remaining"])
+
+
+func _start_special_recharge_if_needed() -> void:
+	if special_skill_uses_remaining >= special_skill_max_uses:
+		_special_recharge_timer = 0.0
+	elif _special_recharge_timer <= 0.0:
+		_special_recharge_timer = special_skill_cooldown
+
+
+func _special_state_changed(previous_cooldown: float, previous_recharge: float, previous_uses: int) -> bool:
+	return (
+		not is_equal_approx(previous_cooldown, _special_cooldown_timer)
+		or not is_equal_approx(previous_recharge, _special_recharge_timer)
+		or previous_uses != special_skill_uses_remaining
+	)
+
+
 func _broadcast_special_skill_state() -> void:
+	var displayed_cooldown := _special_cooldown_timer
+	if displayed_cooldown <= 0.0 and special_skill_uses_remaining <= 0:
+		displayed_cooldown = _special_recharge_timer
 	var payload := {
 		"skill_id": special_skill_id,
 		"uses_remaining": special_skill_uses_remaining,
 		"max_uses": special_skill_max_uses,
-		"cooldown_remaining": _special_cooldown_timer,
+		"cooldown_remaining": displayed_cooldown,
 		"cooldown": special_skill_cooldown,
+		"recharge_remaining": _special_recharge_timer,
 		"active": is_dodging(),
 	}
 	special_skill_state_changed.emit(payload.duplicate(true))
@@ -639,6 +712,10 @@ func _apply_run_modifier_stats() -> void:
 		special_skill_uses_remaining += special_skill_max_uses - previous_max_uses
 	elif special_skill_uses_remaining > special_skill_max_uses:
 		special_skill_uses_remaining = special_skill_max_uses
+	if special_skill_uses_remaining >= special_skill_max_uses:
+		_special_recharge_timer = 0.0
+	else:
+		_start_special_recharge_if_needed()
 	if previous_health != _health or previous_max_health != max_health:
 		_broadcast_health()
 	_broadcast_special_skill_state()
