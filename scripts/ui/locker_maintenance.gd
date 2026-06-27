@@ -12,8 +12,13 @@ const MobileSafeArea := preload("res://scripts/ui/mobile_safe_area.gd")
 const FontRoles := preload("res://scripts/ui/ui_font_roles.gd")
 
 const WEAPON_BAT := &"bat"
+const WEAPON_AWAKENED_BAT := &"awakened_bat"
 const STAGE_GYEONGBOKGUNG := &"gyeongbokgung"
 const STAGE_GYEONGBOKGUNG_NAME := "경복궁"
+const BAT_NAME_CRACKED := "금 간 나무 배트"
+const BAT_NAME_AWAKENED := "마지막 시즌의 배트"
+const BAT_DESC_CRACKED := "평범한 야구 방망이다.\n자칫하면 부러질 것 같다."
+const BAT_DESC_AWAKENED := "적의 탄을 배트로 되받아친다.\n마지막 시즌의 기억이 깨어났다."
 
 const ACTION_RETURN := "locker_maintenance.return"
 const ACTION_SELECT_BAT := "locker_maintenance.weapon.bat"
@@ -246,7 +251,7 @@ func _build_weapon_cards() -> void:
 
 	var weapon_name := Label.new()
 	weapon_name.name = "WeaponName"
-	weapon_name.text = "금 간 나무 배트"
+	weapon_name.text = _bat_display_name()
 	weapon_name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	weapon_name.add_theme_font_size_override("font_size", 23)
 	FontRoles.apply_title(weapon_name)
@@ -257,7 +262,7 @@ func _build_weapon_cards() -> void:
 
 	var weapon_desc := Label.new()
 	weapon_desc.name = "WeaponDesc"
-	weapon_desc.text = "평범한 야구 방망이다.\n자칫하면 부러질 것 같다."
+	weapon_desc.text = _bat_description()
 	weapon_desc.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	weapon_desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	weapon_desc.add_theme_font_size_override("font_size", 15)
@@ -574,7 +579,19 @@ func _apply_weapon_card_state() -> void:
 		"normal",
 		_make_weapon_state_style(true)
 	)
-	_weapon_status_label.text = "선택한 장비\n\n금 간 나무 배트\n\n경복궁으로\n바로 이동"
+	_weapon_status_label.text = "선택한 장비\n\n%s\n\n경복궁으로\n바로 이동" % _bat_display_name()
+
+
+func _bat_display_name() -> String:
+	return BAT_NAME_AWAKENED if _is_awakened_bat_unlocked() else BAT_NAME_CRACKED
+
+
+func _bat_description() -> String:
+	return BAT_DESC_AWAKENED if _is_awakened_bat_unlocked() else BAT_DESC_CRACKED
+
+
+func _is_awakened_bat_unlocked() -> bool:
+	return has_node("/root/ProgressionSystem") and ProgressionSystem.is_weapon_unlocked(WEAPON_AWAKENED_BAT)
 
 
 func _make_weapon_state_style(selected: bool) -> StyleBox:
