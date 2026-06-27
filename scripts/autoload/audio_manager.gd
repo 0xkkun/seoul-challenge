@@ -3,6 +3,7 @@ extends Node
 const LOBBY_BGM_DEFAULT := &"lobby_bgm_default"
 const LOBBY_BGM_ALTERNATE := &"lobby_bgm_alternate"
 const SCHOOL_HALLWAY_BGM := &"school_hallway_bgm"
+const NIGHT_RUN_SUSPENSE_BGM := &"night_run_suspense_bgm"
 const SCHOOL_BELL_TRANSITION_FRONT := &"school_bell_transition_front"
 const SCHOOL_BELL_TRANSITION_BACK := &"school_bell_transition_back"
 const UI_BUTTON_PRESS := &"ui_button_press"
@@ -16,12 +17,14 @@ const _BGM_STREAM_PATHS := {
 	LOBBY_BGM_DEFAULT: "res://assets/audio/bgm/lobby_bgm_default.ogg",
 	LOBBY_BGM_ALTERNATE: "res://assets/audio/bgm/lobby_bgm_alternate.ogg",
 	SCHOOL_HALLWAY_BGM: "res://assets/audio/bgm/school_hallway_bgm.ogg",
+	NIGHT_RUN_SUSPENSE_BGM: "res://assets/audio/bgm/night_run_suspense_bgm.ogg",
 }
-# BGM ids that use the fade-out → silent gap → fade-in loop (short lobby loops with an
-# audible seam). Others (e.g. SCHOOL_HALLWAY_BGM) keep a seamless engine loop.
+# BGM ids that use the fade-out → silent gap → fade-in loop so repeat listens
+# breathe instead of hard-looping. Others (e.g. SCHOOL_HALLWAY_BGM) keep a seamless engine loop.
 const _FADE_LOOP_BGM_IDS: Array[StringName] = [
 	LOBBY_BGM_DEFAULT,
 	LOBBY_BGM_ALTERNATE,
+	NIGHT_RUN_SUSPENSE_BGM,
 ]
 const _SFX_STREAM_PATHS := {
 	SCHOOL_BELL_TRANSITION_FRONT: "res://assets/audio/sfx/school_bell_transition_front.wav",
