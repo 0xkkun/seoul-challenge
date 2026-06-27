@@ -654,10 +654,10 @@ func test_player_scene_includes_hidden_attack_dust_effect() -> void:
 	var source_sheet := load("res://assets/effects/attack_reverse_dust.png") as Texture2D
 
 	_runner.assert_not_null(player_sprite, "player scene includes the main sprite")
-	_runner.assert_not_null(source_sheet, "attack dust keeps the approved downloaded source sheet")
+	_runner.assert_not_null(source_sheet, "attack dust keeps the rebuilt 17-frame runtime sheet")
 	if source_sheet != null:
-		_runner.assert_eq(source_sheet.get_width(), 22080, "attack dust source sheet keeps the downloaded 23-column width")
-		_runner.assert_eq(source_sheet.get_height(), 1440, "attack dust source sheet keeps the downloaded source height")
+		_runner.assert_eq(source_sheet.get_width(), 816, "attack dust source sheet has seventeen 48px frames")
+		_runner.assert_eq(source_sheet.get_height(), 72, "attack dust source sheet keeps the runtime VFX height")
 	_runner.assert_not_null(dust_root, "player scene includes attack dust effect root")
 	if dust_root != null:
 		_runner.assert_false(dust_root.visible, "attack dust starts hidden")
@@ -680,7 +680,18 @@ func test_player_scene_includes_hidden_attack_dust_effect() -> void:
 					var first_image := first_frame.get_image()
 					_runner.assert_not_null(first_image, "attack dust texture exposes image data for validation")
 					if first_image != null:
-						_runner.assert_true(_count_visible_color_steps(first_image) >= 2, "attack dust runtime frame is baked from the visible source art")
+						_runner.assert_true(_count_visible_color_steps(first_image) >= 4, "attack dust first frame has enough pixel-color detail")
+				var middle_frame := dust_sprite.sprite_frames.get_frame_texture(&"burst", 8)
+				_runner.assert_not_null(middle_frame, "attack dust has a middle texture frame")
+				if middle_frame != null:
+					var middle_image := middle_frame.get_image()
+					_runner.assert_not_null(middle_image, "attack dust middle texture exposes image data")
+					if middle_image != null:
+						var middle_rect := middle_image.get_used_rect()
+						_runner.assert_true(_count_visible_color_steps(middle_image) >= 8, "attack dust middle frame preserves multiple color and alpha steps")
+						_runner.assert_true(_count_visible_alpha_steps(middle_image) >= 4, "attack dust middle frame uses translucent fade steps")
+						_runner.assert_true(middle_rect.size.x >= 24, "attack dust middle frame reads as a plume instead of a broken shard")
+						_runner.assert_true(middle_rect.size.y >= 18, "attack dust middle frame keeps enough vertical body to read in motion")
 
 
 func test_moving_attack_shows_dust_behind_facing() -> void:
@@ -784,3 +795,13 @@ func _count_visible_color_steps(image: Image) -> int:
 			if pixel.a > 0.01:
 				visible_colors[pixel.to_html(true)] = true
 	return visible_colors.size()
+
+
+func _count_visible_alpha_steps(image: Image) -> int:
+	var alpha_steps := {}
+	for y in range(image.get_height()):
+		for x in range(image.get_width()):
+			var pixel := image.get_pixel(x, y)
+			if pixel.a > 0.01:
+				alpha_steps[snappedf(pixel.a, 0.01)] = true
+	return alpha_steps.size()
