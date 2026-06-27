@@ -39,7 +39,7 @@ unique_name_in_owner = true
 
 [node name="SampleInteractable" parent="InteractableLayer" instance=ExtResource("3_interactable")]
 unique_name_in_owner = true
-position = Vector2(-772, 0)
+position = Vector2(-680, 0)
 
 [node name="PooledObjectLayer" type="Node2D" parent="."]
 unique_name_in_owner = true

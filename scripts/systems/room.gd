@@ -196,14 +196,14 @@ func _build_perimeter_walls() -> void:
 	var wall_layer := _resolve_wall_layer()
 	_wall_segments.clear()
 
-	var half := RoomPalette.ROOM_HALF_SIZE
+	var room_bounds := RoomPalette.get_room_bounds()
 	var thickness: float = RoomPalette.WALL_THICKNESS
 	var gap_length := RoomPalette.DOOR_SIZE.x + RoomPalette.WALL_DOOR_GAP_PADDING * 2.0
 
-	_add_horizontal_walls(wall_layer, "North", -half.y - thickness * 0.5, door_dirs.has(&"N"), gap_length)
-	_add_horizontal_walls(wall_layer, "South", half.y + thickness * 0.5, door_dirs.has(&"S"), gap_length)
-	_add_vertical_walls(wall_layer, "West", -half.x - thickness * 0.5, door_dirs.has(&"W"), gap_length)
-	_add_vertical_walls(wall_layer, "East", half.x + thickness * 0.5, door_dirs.has(&"E"), gap_length)
+	_add_horizontal_walls(wall_layer, "North", room_bounds.position.y - thickness * 0.5, room_bounds, door_dirs.has(&"N"), gap_length)
+	_add_horizontal_walls(wall_layer, "South", room_bounds.end.y + thickness * 0.5, room_bounds, door_dirs.has(&"S"), gap_length)
+	_add_vertical_walls(wall_layer, "West", room_bounds.position.x - thickness * 0.5, room_bounds, door_dirs.has(&"W"), gap_length)
+	_add_vertical_walls(wall_layer, "East", room_bounds.end.x + thickness * 0.5, room_bounds, door_dirs.has(&"E"), gap_length)
 
 
 func _resolve_wall_layer() -> Node2D:
@@ -216,47 +216,55 @@ func _resolve_wall_layer() -> Node2D:
 	return layer
 
 
-func _add_horizontal_walls(layer: Node2D, side_name: String, y: float, has_gap: bool, gap_length: float) -> void:
-	var half := RoomPalette.ROOM_HALF_SIZE
+func _add_horizontal_walls(layer: Node2D, side_name: String, y: float, room_bounds: Rect2, has_gap: bool, gap_length: float) -> void:
 	var thickness: float = RoomPalette.WALL_THICKNESS
+	var center_x := room_bounds.position.x + room_bounds.size.x * 0.5
 	if not has_gap:
-		_add_wall_segment(layer, "%sWall" % side_name, Vector2(0.0, y), Vector2(RoomPalette.ROOM_SIZE.x, thickness))
+		_add_wall_segment(layer, "%sWall" % side_name, Vector2(center_x, y), Vector2(room_bounds.size.x, thickness))
 		return
 
-	var segment_width := maxf(0.0, half.x - gap_length * 0.5)
+	var gap_center_x := 0.0
+	var gap_left := gap_center_x - gap_length * 0.5
+	var gap_right := gap_center_x + gap_length * 0.5
+	var left_width := maxf(0.0, gap_left - room_bounds.position.x)
+	var right_width := maxf(0.0, room_bounds.end.x - gap_right)
 	_add_wall_segment(
 		layer,
 		"%sWallLeft" % side_name,
-		Vector2(-half.x + segment_width * 0.5, y),
-		Vector2(segment_width, thickness)
+		Vector2(room_bounds.position.x + left_width * 0.5, y),
+		Vector2(left_width, thickness)
 	)
 	_add_wall_segment(
 		layer,
 		"%sWallRight" % side_name,
-		Vector2(gap_length * 0.5 + segment_width * 0.5, y),
-		Vector2(segment_width, thickness)
+		Vector2(gap_right + right_width * 0.5, y),
+		Vector2(right_width, thickness)
 	)
 
 
-func _add_vertical_walls(layer: Node2D, side_name: String, x: float, has_gap: bool, gap_length: float) -> void:
-	var half := RoomPalette.ROOM_HALF_SIZE
+func _add_vertical_walls(layer: Node2D, side_name: String, x: float, room_bounds: Rect2, has_gap: bool, gap_length: float) -> void:
 	var thickness: float = RoomPalette.WALL_THICKNESS
+	var center_y := room_bounds.position.y + room_bounds.size.y * 0.5
 	if not has_gap:
-		_add_wall_segment(layer, "%sWall" % side_name, Vector2(x, 0.0), Vector2(thickness, RoomPalette.ROOM_SIZE.y))
+		_add_wall_segment(layer, "%sWall" % side_name, Vector2(x, center_y), Vector2(thickness, room_bounds.size.y))
 		return
 
-	var segment_height := maxf(0.0, half.y - gap_length * 0.5)
+	var gap_center_y := 0.0
+	var gap_top := gap_center_y - gap_length * 0.5
+	var gap_bottom := gap_center_y + gap_length * 0.5
+	var top_height := maxf(0.0, gap_top - room_bounds.position.y)
+	var bottom_height := maxf(0.0, room_bounds.end.y - gap_bottom)
 	_add_wall_segment(
 		layer,
 		"%sWallTop" % side_name,
-		Vector2(x, -half.y + segment_height * 0.5),
-		Vector2(thickness, segment_height)
+		Vector2(x, room_bounds.position.y + top_height * 0.5),
+		Vector2(thickness, top_height)
 	)
 	_add_wall_segment(
 		layer,
 		"%sWallBottom" % side_name,
-		Vector2(x, gap_length * 0.5 + segment_height * 0.5),
-		Vector2(thickness, segment_height)
+		Vector2(x, gap_bottom + bottom_height * 0.5),
+		Vector2(thickness, bottom_height)
 	)
 
 
@@ -275,17 +283,6 @@ func _add_wall_segment(layer: Node2D, segment_name: String, segment_position: Ve
 	rectangle.size = segment_size
 	shape.shape = rectangle
 	body.add_child(shape)
-
-	var visual := Polygon2D.new()
-	visual.name = "WallVisual"
-	visual.color = RoomPalette.WALL_COLOR
-	visual.polygon = PackedVector2Array([
-		Vector2(-segment_size.x * 0.5, -segment_size.y * 0.5),
-		Vector2(segment_size.x * 0.5, -segment_size.y * 0.5),
-		Vector2(segment_size.x * 0.5, segment_size.y * 0.5),
-		Vector2(-segment_size.x * 0.5, segment_size.y * 0.5),
-	])
-	body.add_child(visual)
 
 	layer.add_child(body)
 	_wall_segments.append(body)

@@ -351,7 +351,9 @@ func test_room_change_configures_player_bounds_and_clears_motion() -> void:
 		return
 	_runner.assert_true(actor.call("has_movement_bounds"), "시작 방 진입 시 플레이어 이동 경계가 설정된다")
 	var start_bounds: Rect2 = actor.call("get_movement_bounds")
-	_runner.assert_eq(start_bounds.size, RoomPalette.ROOM_SIZE, "플레이어 이동 경계는 방 바닥 크기를 따른다")
+	var play_bounds := RoomPalette.get_room_bounds()
+	_runner.assert_eq(start_bounds.position, manager.current_room.global_position + play_bounds.position, "플레이어 이동 경계는 실제 플레이 가능 영역에서 시작한다")
+	_runner.assert_eq(start_bounds.size, play_bounds.size, "플레이어 이동 경계는 실제 플레이 가능 영역 크기를 따른다")
 
 	var connected_room_id := _first_connected_room_id(manager.layout, manager.current_room_id)
 	_runner.assert_true(connected_room_id != &"", "테스트용 다음 방이 존재한다")
@@ -363,10 +365,10 @@ func test_room_change_configures_player_bounds_and_clears_motion() -> void:
 	_runner.assert_true(manager.enter_room(connected_room_id), "테스트가 다음 방으로 직접 진입한다")
 	_runner.assert_eq(actor.velocity, Vector2.ZERO, "방 전환 뒤 남은 X축 속도를 초기화한다")
 	var next_bounds: Rect2 = actor.call("get_movement_bounds")
-	_runner.assert_eq(next_bounds.position, manager.current_room.global_position - RoomPalette.ROOM_HALF_SIZE, "이동 경계는 현재 방 전역 위치에 맞춰 갱신된다")
-	_runner.assert_eq(next_bounds.size, RoomPalette.ROOM_SIZE, "다음 방 이동 경계도 방 바닥 크기를 따른다")
+	_runner.assert_eq(next_bounds.position, manager.current_room.global_position + play_bounds.position, "이동 경계는 현재 방 전역 위치에 맞춰 갱신된다")
+	_runner.assert_eq(next_bounds.size, play_bounds.size, "다음 방 이동 경계도 실제 플레이 가능 영역 크기를 따른다")
 	var local_spawn := actor.global_position - manager.current_room.global_position
-	_runner.assert_true(local_spawn.x >= -RoomPalette.ROOM_HALF_SIZE.x and local_spawn.x <= RoomPalette.ROOM_HALF_SIZE.x, "방 전환 후 플레이어는 X축 바닥 경계 안에 배치된다")
+	_runner.assert_true(local_spawn.x >= play_bounds.position.x and local_spawn.x <= play_bounds.end.x, "방 전환 후 플레이어는 X축 플레이 경계 안에 배치된다")
 
 	session.queue_free()
 
@@ -431,6 +433,8 @@ func test_room_base_lifecycle_opens_door_and_requests_transition() -> void:
 
 	_runner.assert_not_null(exit_door, "base room exposes exit door")
 	_runner.assert_not_null(portal_visual, "base room door builds a portal visual")
+	if portal_visual != null:
+		_runner.assert_not_null(portal_visual.get_node_or_null("PortalColumn"), "base room portal uses the vertical light-gate visual")
 	_runner.assert_not_null(door_rectangle, "base room door configures collision shape")
 	_runner.assert_eq(floor.size, RoomPalette.ROOM_SIZE, "room floor uses palette size")
 	_runner.assert_eq(floor.color, RoomPalette.START_ROOM_FLOOR_COLOR, "room floor uses palette color")

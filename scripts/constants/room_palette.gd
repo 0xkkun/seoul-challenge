@@ -2,6 +2,11 @@ extends RefCounted
 
 const ROOM_SIZE := Vector2(1920.0, 640.0)
 const ROOM_HALF_SIZE := Vector2(960.0, 320.0)
+const PLAY_LEFT := -820.0
+const PLAY_TOP := -150.0
+const PLAY_RIGHT := 820.0
+const PLAY_BOTTOM := 300.0
+const PLAY_BOUNDS := Rect2(Vector2(PLAY_LEFT, PLAY_TOP), Vector2(PLAY_RIGHT - PLAY_LEFT, PLAY_BOTTOM - PLAY_TOP))
 const DOOR_SIZE := Vector2(36.0, 16.0)
 const DOOR_TRIGGER_SIZE := Vector2(32.0, 28.0)
 const WALL_THICKNESS := 16.0
@@ -20,14 +25,14 @@ const DOOR_OPEN_COLOR := Color(0.298039, 0.686275, 0.313725, 1.0)
 const STUDENT_MARKER_COLOR := Color(0.164706, 0.631373, 0.596078, 1.0)
 const WALL_COLOR := Color(0.188235, 0.188235, 0.215686, 1.0)
 
-const NORTH_DOOR_POSITION := Vector2(0.0, -320.0)
-const SOUTH_DOOR_POSITION := Vector2(0.0, 320.0)
-const EAST_DOOR_POSITION := Vector2(960.0, 0.0)
-const WEST_DOOR_POSITION := Vector2(-960.0, 0.0)
+const NORTH_DOOR_POSITION := Vector2(0.0, PLAY_TOP)
+const SOUTH_DOOR_POSITION := Vector2(0.0, PLAY_BOTTOM)
+const EAST_DOOR_POSITION := Vector2(PLAY_RIGHT, 0.0)
+const WEST_DOOR_POSITION := Vector2(PLAY_LEFT, 0.0)
 
 
 static func get_room_bounds() -> Rect2:
-	return Rect2(-ROOM_HALF_SIZE, ROOM_SIZE)
+	return PLAY_BOUNDS
 
 
 static func get_wall_bounds() -> Rect2:

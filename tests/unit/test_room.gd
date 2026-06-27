@@ -103,8 +103,13 @@ func test_room_builds_perimeter_walls_with_gap_for_authored_door() -> void:
 		return
 	var wall_segments: Array = room.call("get_wall_segments")
 	var north_door := room.get_door(&"N")
+	var room_bounds := RoomPalette.get_room_bounds()
+	var north_wall := room.get_node("Walls/NorthWallLeft") as StaticBody2D
 
 	_runner.assert_eq(wall_segments.size(), 5, "single north door splits only the north wall")
+	_runner.assert_eq(north_wall.position.y, room_bounds.position.y - RoomPalette.WALL_THICKNESS * 0.5, "north wall follows the locked gate lower edge")
+	for wall: StaticBody2D in wall_segments:
+		_runner.assert_true(wall.get_node_or_null("WallVisual") == null, "generated walls keep collision but hide debug borders")
 	_runner.assert_true(north_door.has_method("is_blocking_body_enabled"), "door exposes locked blocker state")
 	if not north_door.has_method("is_blocking_body_enabled"):
 		return
@@ -140,8 +145,14 @@ func test_room_palette_exposes_play_area_and_camera_limits() -> void:
 	var camera_limits: Dictionary = RoomPalette.get_camera_limits()
 	var expected_wall_margin := Vector2(RoomPalette.WALL_THICKNESS, RoomPalette.WALL_THICKNESS)
 
-	_runner.assert_eq(room_bounds.position, -RoomPalette.ROOM_HALF_SIZE, "room bounds start at the authored play-area corner")
-	_runner.assert_eq(room_bounds.size, RoomPalette.ROOM_SIZE, "room bounds keep the authored maximum play-area size")
+	_runner.assert_eq(room_bounds, RoomPalette.PLAY_BOUNDS, "movement bounds use the authored playable courtyard, not the full background crop")
+	_runner.assert_true(room_bounds.position.x > -RoomPalette.ROOM_HALF_SIZE.x, "left edge stops at the haetae side of the map")
+	_runner.assert_true(room_bounds.end.x < RoomPalette.ROOM_HALF_SIZE.x, "right edge stops at the haetae side of the map")
+	_runner.assert_true(room_bounds.position.y > -RoomPalette.ROOM_HALF_SIZE.y, "top edge stops below the locked palace door")
+	_runner.assert_true(room_bounds.size.x > 960.0, "playable courtyard remains wider than one landscape viewport")
+	_runner.assert_eq(RoomPalette.NORTH_DOOR_POSITION, Vector2(0.0, room_bounds.position.y), "north portal sits under the locked door")
+	_runner.assert_eq(RoomPalette.EAST_DOOR_POSITION, Vector2(room_bounds.end.x, 0.0), "east portal sits on the right haetae boundary")
+	_runner.assert_eq(RoomPalette.WEST_DOOR_POSITION, Vector2(room_bounds.position.x, 0.0), "west portal sits on the left haetae boundary")
 	_runner.assert_eq(wall_bounds.position, room_bounds.position - expected_wall_margin, "wall bounds include perimeter thickness outside the room")
 	_runner.assert_eq(wall_bounds.size, room_bounds.size + expected_wall_margin * 2.0, "wall bounds wrap the full room perimeter")
 	_runner.assert_eq(camera_limits["left"], int(floor(wall_bounds.position.x)), "camera left limit matches wall-inclusive bounds")
