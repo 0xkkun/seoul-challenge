@@ -155,6 +155,12 @@ func test_combat_clear_requires_reward_choice_before_room_transition() -> void:
 	_runner.assert_true(get_tree().paused, "reward choice pauses room transition input")
 	var snapshot: Dictionary = session_ui.call("get_reward_choice_snapshot")
 	_runner.assert_eq((snapshot["choice_ids"] as Array).size(), 3, "reward choice offers three roguelike options")
+	_runner.assert_true(snapshot.has("choice_effects"), "reward snapshot exposes concrete stat effects")
+	if not snapshot.has("choice_effects"):
+		session.queue_free()
+		return
+	_runner.assert_eq((snapshot["choice_effects"] as Array).size(), 3, "reward choices expose concrete stat effects")
+	_runner.assert_true(String((snapshot["choice_effects"] as Array)[0]) != "", "first reward has a readable stat effect")
 	var chosen_item := (snapshot["choice_ids"] as Array)[0] as StringName
 	_runner.assert_true(session_ui.call("select_reward_choice", chosen_item), "player can choose one reward")
 

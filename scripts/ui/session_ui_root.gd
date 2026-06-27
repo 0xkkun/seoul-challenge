@@ -183,15 +183,18 @@ func get_reward_choice_ids() -> Array[StringName]:
 func get_reward_choice_snapshot() -> Dictionary:
 	var texts: Array[String] = []
 	var flavors: Array[String] = []
+	var effects: Array[String] = []
 	for choice: Dictionary in _reward_choice_models:
 		texts.append(String(choice.get("display_name", "")))
 		flavors.append(String(choice.get("flavor", "")))
+		effects.append(String(choice.get("effect", "")))
 	return {
 		"visible": is_reward_choice_visible(),
 		"room_id": _reward_choice_room_id,
 		"choice_ids": get_reward_choice_ids(),
 		"choice_texts": texts,
 		"choice_flavors": flavors,
+		"choice_effects": effects,
 	}
 
 
@@ -282,18 +285,28 @@ func _render_reward_choices() -> void:
 		var item_id := StringName(choice.get("item_id", &""))
 		var display_name := String(choice.get("display_name", String(item_id)))
 		var flavor := String(choice.get("flavor", ""))
+		var effect := String(choice.get("effect", ""))
 		var button := Button.new()
 		button.name = "RewardChoice%sButton" % _node_suffix_for_reward_id(item_id)
-		button.text = "%s\n%s" % [display_name, flavor] if flavor != "" else display_name
+		button.text = _reward_choice_button_text(display_name, flavor, effect)
 		button.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		button.custom_minimum_size = Vector2(228.0, 118.0)
+		button.custom_minimum_size = Vector2(228.0, 138.0)
 		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		button.add_theme_font_size_override("font_size", 22)
+		button.add_theme_font_size_override("font_size", 20)
 		button.set_meta("test_id", "session.reward_choice.%s" % String(item_id))
 		button.set_meta("uat_action", "session.reward_choice.%s" % String(item_id))
 		button.pressed.connect(_on_reward_choice_pressed.bind(item_id))
-		PixelButtonStyle.apply(button, PixelButtonStyle.VARIANT_PRIMARY, Vector2(228.0, 118.0))
+		PixelButtonStyle.apply(button, PixelButtonStyle.VARIANT_PRIMARY, Vector2(228.0, 138.0))
 		_reward_choice_row.add_child(button)
+
+
+func _reward_choice_button_text(display_name: String, flavor: String, effect: String) -> String:
+	var parts: Array[String] = [display_name]
+	if flavor != "":
+		parts.append(flavor)
+	if effect != "":
+		parts.append("스탯: %s" % effect)
+	return "\n".join(parts)
 
 
 func _node_suffix_for_reward_id(item_id: StringName) -> String:

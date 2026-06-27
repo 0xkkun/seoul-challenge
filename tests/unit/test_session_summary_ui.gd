@@ -158,16 +158,19 @@ func test_reward_choices_render_three_actions_and_emit_selected_id() -> void:
 			"item_id": &"gung_talisman",
 			"display_name": "궁 부적",
 			"flavor": "붉은 궁 부적이 주먹과 배트에 힘을 싣는다.",
+			"effect": "근접 피해 +1 / 배트 피해 +1",
 		},
 		{
 			"item_id": &"dokkaebi_fire",
 			"display_name": "도깨비불",
 			"flavor": "푸른 불씨가 공격 박자를 앞당긴다.",
+			"effect": "근접 공격 간격 -16% / 투척 간격 -16%",
 		},
 		{
 			"item_id": &"wind_step",
 			"display_name": "바람 매듭",
 			"flavor": "매듭이 풀리며 발끝이 가벼워진다.",
+			"effect": "이동 속도 +15%",
 		},
 	])
 
@@ -177,6 +180,11 @@ func test_reward_choices_render_three_actions_and_emit_selected_id() -> void:
 	_runner.assert_eq(snapshot["choice_ids"], [&"gung_talisman", &"dokkaebi_fire", &"wind_step"], "reward choices keep stable item order")
 	_runner.assert_eq(snapshot["choice_texts"][0], "궁 부적", "reward button uses display name")
 	_runner.assert_true(snapshot["choice_flavors"][1].contains("공격 박자"), "reward flavor is available for scan")
+	_runner.assert_true(snapshot.has("choice_effects"), "reward snapshot exposes concrete stat effects")
+	if not snapshot.has("choice_effects"):
+		return
+	_runner.assert_eq(snapshot["choice_effects"][0], "근접 피해 +1 / 배트 피해 +1", "reward card exposes concrete stat effect")
+	_runner.assert_true(snapshot["choice_effects"][1].contains("간격 -16%"), "tempo reward exposes concrete cooldown effect")
 
 	_runner.assert_true(_ui.select_reward_choice(&"dokkaebi_fire"), "reward choice can be selected by id")
 	_runner.assert_eq(selected_ids, [&"dokkaebi_fire"], "selection emits item id once")
