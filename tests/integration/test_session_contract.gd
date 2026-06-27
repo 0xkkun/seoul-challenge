@@ -239,8 +239,19 @@ func test_combat_clear_requires_reward_choice_before_room_transition() -> void:
 	_defeat_all_combat_waves(manager.current_room)
 
 	_runner.assert_true(manager.is_current_room_cleared(), "combat room is cleared")
-	_runner.assert_true(session_ui.call("is_reward_choice_visible"), "combat clear opens reward choice overlay")
+	_runner.assert_false(session_ui.call("is_reward_choice_visible"), "combat clear waits before showing reward choice cards")
+	_runner.assert_false(get_tree().paused, "reward delay lets death cleanup and fade finish before pausing")
+	_runner.assert_true(touch_controls.visible, "reward delay keeps combat controls visible until cards appear")
+	_runner.assert_true(touch_controls.call("get_move") != Vector2.ZERO, "reward delay does not release held joystick until cards appear")
+	_runner.assert_true(session.has_method("flush_pending_reward_choice_for_tests"), "session exposes deterministic reward delay flush")
+	if not session.has_method("flush_pending_reward_choice_for_tests"):
+		session.queue_free()
+		return
+	_runner.assert_true(session.call("flush_pending_reward_choice_for_tests"), "test flushes the pending reward delay")
+
+	_runner.assert_true(session_ui.call("is_reward_choice_visible"), "reward delay opens reward choice cards")
 	_runner.assert_true(get_tree().paused, "reward choice pauses room transition input")
+	_runner.assert_false(touch_controls.visible, "reward choice hides paused combat controls behind the cards")
 	_runner.assert_eq(touch_controls.call("get_move"), Vector2.ZERO, "reward choice opening releases held joystick movement")
 	_runner.assert_false(touch_controls.call("is_attack_pressed"), "reward choice opening releases held attack input")
 	var snapshot: Dictionary = session_ui.call("get_reward_choice_snapshot")
@@ -256,7 +267,56 @@ func test_combat_clear_requires_reward_choice_before_room_transition() -> void:
 
 	_runner.assert_false(session_ui.call("is_reward_choice_visible"), "reward choice closes after selection")
 	_runner.assert_false(get_tree().paused, "selection resumes the run")
+	_runner.assert_true(touch_controls.visible, "selection restores combat controls")
 	_runner.assert_true((actor.call("get_run_modifier_ids") as Array).has(chosen_item), "chosen reward applies to player run modifiers")
+
+	session.queue_free()
+
+
+func test_combat_reward_delay_waits_for_pause_modal_to_close() -> void:
+	GameManager.start_session({
+		"source": "reward_pause_modal_test",
+		SceneTransition.RUN_CONFIG_LAYOUT_SEED: 40,
+	})
+	var packed := load("res://scenes/session/session_root.tscn") as PackedScene
+	var session := packed.instantiate()
+	add_child(session)
+
+	var manager := session.get_node("%RoomManager") as RoomManager
+	var session_ui: CanvasLayer = session.get_node("%SessionUIRoot")
+	var modal := session.get_node("%ConfirmModal")
+	var combat_room_def := _first_room_of_type(manager.layout, RoomLayout.TYPE_COMBAT)
+	_runner.assert_not_null(combat_room_def, "session run layout includes combat room")
+	if combat_room_def == null:
+		session.queue_free()
+		return
+	_runner.assert_true(manager.enter_room(combat_room_def.room_id), "test enters combat reward room")
+
+	_defeat_all_combat_waves(manager.current_room)
+	_runner.assert_true(manager.is_current_room_cleared(), "combat room is cleared")
+	_runner.assert_false(session_ui.call("is_reward_choice_visible"), "combat clear starts with delayed reward hidden")
+
+	session._on_pause_requested()
+	_runner.assert_true(modal.is_open(), "pause request opens confirm modal during reward delay")
+	_runner.assert_true(get_tree().paused, "pause modal pauses gameplay during reward delay")
+	_runner.assert_true(session.has_method("flush_pending_reward_choice_for_tests"), "session exposes deterministic reward delay flush")
+	if not session.has_method("flush_pending_reward_choice_for_tests"):
+		session.queue_free()
+		return
+	_runner.assert_false(session.call("flush_pending_reward_choice_for_tests"), "reward delay does not open cards while pause modal is open")
+	_runner.assert_false(session_ui.call("is_reward_choice_visible"), "reward choices stay hidden under pause modal")
+	_runner.assert_true(modal.is_open(), "pause modal remains the active modal")
+	_runner.assert_true(get_tree().paused, "tree remains paused only by the pause modal")
+
+	session._on_resume_requested()
+	_runner.assert_false(modal.is_open(), "continue closes the pause modal")
+	_runner.assert_false(get_tree().paused, "continue resumes gameplay before reward cards open")
+	_runner.assert_true(session.call("flush_pending_reward_choice_for_tests"), "pending reward opens after gameplay resumes")
+	_runner.assert_true(session_ui.call("is_reward_choice_visible"), "reward cards open after pause modal closes")
+	var snapshot: Dictionary = session_ui.call("get_reward_choice_snapshot")
+	var chosen_item := (snapshot["choice_ids"] as Array)[0] as StringName
+	_runner.assert_true(session_ui.call("select_reward_choice", chosen_item), "player can resolve reward after pause modal")
+	_runner.assert_false(get_tree().paused, "reward selection resumes gameplay instead of restoring stale pause")
 
 	session.queue_free()
 
@@ -271,6 +331,7 @@ func test_combat_reward_modal_wins_over_exit_door_open_transition() -> void:
 	add_child(session)
 
 	var manager := session.get_node("%RoomManager") as RoomManager
+	var actor := session.get_node("%Player") as Node2D
 	var session_ui: CanvasLayer = session.get_node("%SessionUIRoot")
 	var combat_room_def := _first_room_of_type(manager.layout, RoomLayout.TYPE_COMBAT)
 	_runner.assert_not_null(combat_room_def, "session run layout includes combat room")
@@ -286,22 +347,30 @@ func test_combat_reward_modal_wins_over_exit_door_open_transition() -> void:
 	if exit_door == null:
 		session.queue_free()
 		return
-	var transition_attempts := 0
-	var on_exit_opened := func(_door_dir: StringName, state: int) -> void:
-		if state == RoomDoor.DoorState.OPEN:
-			if exit_door.request_transition():
-				transition_attempts += 1
-
-	exit_door.state_changed.connect(on_exit_opened)
 	for enemy: Node in manager.current_room.call("get_active_enemies"):
 		if enemy.has_method("take_damage"):
 			enemy.call("take_damage", 99)
 
-	_runner.assert_true(session_ui.call("is_reward_choice_visible"), "combat clear opens reward before exit transition can steal the room")
+	_runner.assert_false(session_ui.call("is_reward_choice_visible"), "combat clear waits before reward cards appear")
+	_runner.assert_false(get_tree().paused, "reward delay does not freeze death cleanup")
+	actor.global_position = exit_door.global_position
+	_runner.assert_true(exit_door.check_transition_for_actor(actor), "standing on the exit can attempt transition during reward delay")
+	_runner.assert_eq(manager.current_room_id, combat_room_id, "pending reward delay ignores the consumed overlap transition")
+	_runner.assert_true(exit_door.request_transition(), "open exit can request transition during reward delay")
+	_runner.assert_eq(manager.current_room_id, combat_room_id, "pending reward delay keeps player in the cleared combat room")
+	_runner.assert_true(session.has_method("flush_pending_reward_choice_for_tests"), "session exposes deterministic reward delay flush")
+	if not session.has_method("flush_pending_reward_choice_for_tests"):
+		session.queue_free()
+		return
+	_runner.assert_true(session.call("flush_pending_reward_choice_for_tests"), "test flushes the pending reward delay")
+	_runner.assert_true(session_ui.call("is_reward_choice_visible"), "reward delay opens reward before exit transition can steal the room")
 	_runner.assert_eq(manager.current_room_id, combat_room_id, "reward pause keeps player in the cleared combat room")
-	_runner.assert_eq(transition_attempts, 0, "exit door transition is blocked while reward modal pauses")
+	var snapshot: Dictionary = session_ui.call("get_reward_choice_snapshot")
+	var chosen_item := (snapshot["choice_ids"] as Array)[0] as StringName
+	_runner.assert_true(session_ui.call("select_reward_choice", chosen_item), "player can resolve the pending reward")
+	_runner.assert_true(exit_door.check_transition_for_actor(actor), "reward resolution resets the consumed exit overlap")
+	_runner.assert_true(manager.current_room_id != combat_room_id, "player standing on the exit transitions after reward selection")
 
-	exit_door.state_changed.disconnect(on_exit_opened)
 	session.queue_free()
 
 

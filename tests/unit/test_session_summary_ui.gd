@@ -228,6 +228,16 @@ func test_reward_choices_render_three_actions_and_emit_selected_id() -> void:
 		return
 	_runner.assert_eq(snapshot["choice_effects"][0], "근접 피해 +1 / 배트 피해 +1", "reward card exposes concrete stat effect")
 	_runner.assert_true(snapshot["choice_effects"][1].contains("간격 -16%"), "tempo reward exposes concrete cooldown effect")
+	_runner.assert_true(snapshot.has("visible_card_count"), "reward snapshot exposes rendered card count")
+	_runner.assert_true(snapshot.has("has_backdrop"), "reward snapshot exposes backdrop contract")
+	_runner.assert_true(snapshot.has("has_outer_panel"), "reward snapshot exposes outer panel contract")
+	_runner.assert_true(snapshot.has("has_title"), "reward snapshot exposes title contract")
+	if not snapshot.has("visible_card_count") or not snapshot.has("has_backdrop") or not snapshot.has("has_outer_panel") or not snapshot.has("has_title"):
+		return
+	_runner.assert_eq(snapshot["visible_card_count"], 3, "reward choice renders only the three visible cards")
+	_runner.assert_false(snapshot["has_backdrop"], "reward choice removes the dark outer backdrop")
+	_runner.assert_false(snapshot["has_outer_panel"], "reward choice removes the framed outer panel")
+	_runner.assert_false(snapshot["has_title"], "reward choice removes the wrapper title so only cards remain")
 
 	_runner.assert_true(_ui.select_reward_choice(&"dokkaebi_fire"), "reward choice can be selected by id")
 	_runner.assert_eq(selected_ids, [&"dokkaebi_fire"], "selection emits item id once")
@@ -252,10 +262,19 @@ func test_reward_choice_open_starts_slide_fade_animation() -> void:
 	var snapshot: Dictionary = _ui.call("get_reward_choice_animation_snapshot")
 	_runner.assert_true(snapshot["visible"], "reward overlay is visible before animation completes")
 	_runner.assert_eq(snapshot["overlay_process_mode"], Node.PROCESS_MODE_ALWAYS, "reward overlay can animate while gameplay is paused")
-	_runner.assert_eq(snapshot["dim_alpha"], 0.0, "backdrop starts transparent for fade-in")
-	_runner.assert_eq(snapshot["panel_alpha"], 0.0, "reward panel starts transparent for fade-in")
-	_runner.assert_true(float(snapshot["panel_offset_top"]) > float(snapshot["target_offset_top"]), "reward panel starts below its target position")
-	_runner.assert_true(float(snapshot["panel_offset_bottom"]) > float(snapshot["target_offset_bottom"]), "reward panel keeps height while starting lower")
+	_runner.assert_true(snapshot.has("has_backdrop"), "reward animation snapshot exposes backdrop contract")
+	_runner.assert_true(snapshot.has("has_outer_panel"), "reward animation snapshot exposes outer panel contract")
+	_runner.assert_true(snapshot.has("card_alphas"), "reward animation snapshot exposes card alpha values")
+	_runner.assert_true(snapshot.has("card_scales"), "reward animation snapshot exposes card scale values")
+	if not snapshot.has("has_backdrop") or not snapshot.has("has_outer_panel") or not snapshot.has("card_alphas") or not snapshot.has("card_scales"):
+		return
+	_runner.assert_false(snapshot["has_backdrop"], "reward animation has no backdrop layer")
+	_runner.assert_false(snapshot["has_outer_panel"], "reward animation has no outer panel frame")
+	var card_alphas: Array = snapshot["card_alphas"]
+	var card_scales: Array = snapshot["card_scales"]
+	_runner.assert_eq(card_alphas.size(), 1, "animation tracks the rendered reward card")
+	_runner.assert_eq(card_alphas[0], 0.0, "reward card starts transparent for fade-in")
+	_runner.assert_true((card_scales[0] as Vector2).x < 1.0, "reward card starts slightly smaller for pop-in")
 
 
 func test_summary_renders_baseball_unlocks_when_present() -> void:
