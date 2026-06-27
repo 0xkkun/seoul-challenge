@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bv32csjfmnqw0"
-path="res://.godot/imported/day_friend.png-c79c4bae437e36f4d4b09614053555cf.ctex"
+uid="uid://ddgdi5to455o8"
+path="res://.godot/imported/people1.png-db3a82fd88b0d21ededeefb0438534d8.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/characters/school/day_friend.png"
-dest_files=["res://.godot/imported/day_friend.png-c79c4bae437e36f4d4b09614053555cf.ctex"]
+source_file="res://assets/characters/school/people1.png"
+dest_files=["res://.godot/imported/people1.png-db3a82fd88b0d21ededeefb0438534d8.ctex"]
 
 [params]
 

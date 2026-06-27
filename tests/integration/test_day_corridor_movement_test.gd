@@ -28,12 +28,22 @@ func test_day_corridor_scene_uses_mobile_landscape_plate() -> void:
 	_runner.assert_eq(viewport_size, Vector2(960.0, 540.0), "dev scene targets mobile landscape reference")
 	_runner.assert_eq(bounds.size, Vector2(2172.0, 720.0), "one school corridor plate forms the active room")
 	_runner.assert_true(bounds.size.x > viewport_size.x * 2.0, "active room is wider than one landscape screen")
-	_runner.assert_eq(scene.get_floor_y(), 616.0, "player is pinned to the corridor floor line")
+	_runner.assert_eq(scene.get_floor_y(), 628.0, "player is pinned lower to reduce bottom padding")
 	_runner.assert_true(is_equal_approx(scene.get_reference_visible_world_size().y, bounds.size.y), "camera shows the full corridor plate height")
 	_runner.assert_true(is_equal_approx(scene.get_background_asset_scale(), 1.0), "final background is authored at runtime scale")
 	_runner.assert_true(is_equal_approx(scene.get_character_asset_scale(), 2.0), "student sprite is scaled up for corridor readability")
 	_runner.assert_true(scene.are_runtime_sprites_nearest_filtered(), "runtime sprites use nearest filtering")
-	_runner.assert_eq(scene.get_talk_target_texture_path(), "res://assets/characters/school/day_friend.png", "talk target uses the school friend sprite")
+	_runner.assert_eq(scene.get_talk_target_texture_path(), "res://assets/characters/school/people2.png", "talk target uses the selected school friend sprite")
+	_runner.assert_eq(scene.get_school_character_texture_paths(), [
+		"res://assets/characters/school/people1.png",
+		"res://assets/characters/school/people2.png",
+		"res://assets/characters/school/people3.png",
+		"res://assets/characters/school/people4.png",
+	], "school corridor wires all four people assets")
+	_runner.assert_eq(scene.get_left_school_character_count(), 2, "left corridor balances two school characters")
+	_runner.assert_eq(scene.get_right_school_character_count(), 2, "right corridor balances two school character sprites")
+	_runner.assert_true(scene.is_left_school_character_group_visible(), "left school character group starts visible")
+	_runner.assert_false(scene.is_right_school_character_group_visible(), "right school character group starts hidden")
 	_runner.assert_true(scene.is_talk_target_visible(), "left room starts with the talk target visible")
 	_runner.assert_eq(scene.get_background_game_tint(), Color(0.94, 0.92, 0.88, 1), "day corridor uses an in-game background tint")
 	_runner.assert_true(is_equal_approx(scene.get_background_wash_alpha(), 0.06), "day corridor applies a light focus wash before dialogue")
@@ -169,6 +179,8 @@ func test_day_corridor_internal_edges_fade_between_corridor_rooms() -> void:
 	_runner.assert_eq(scene.get_current_room_id(), &"right", "transition lands on right room")
 	_runner.assert_false(left_bg.visible, "left background hides after transition")
 	_runner.assert_true(right_bg.visible, "right background shows after transition")
+	_runner.assert_false(scene.is_left_school_character_group_visible(), "left school characters hide after transition")
+	_runner.assert_true(scene.is_right_school_character_group_visible(), "right school characters show after transition")
 	_runner.assert_true(player.global_position.x < 520.0, "right room starts near its left entry")
 	_runner.assert_true(sprite.flip_h, "right room entry faces back toward the connection")
 
@@ -176,6 +188,8 @@ func test_day_corridor_internal_edges_fade_between_corridor_rooms() -> void:
 	player.velocity.x = -80.0
 	_runner.assert_true(scene.update_room_transition_request(), "right room left edge transitions to left room")
 	_runner.assert_eq(scene.get_current_room_id(), &"left", "transition lands back on left room")
+	_runner.assert_true(scene.is_left_school_character_group_visible(), "left school characters restore after transition back")
+	_runner.assert_false(scene.is_right_school_character_group_visible(), "right school characters hide after transition back")
 	_runner.assert_true(player.global_position.x > scene.get_player_right_bound() - 520.0, "left room starts near its right entry")
 	_runner.assert_false(sprite.flip_h, "left room entry faces back toward the connection")
 
@@ -228,6 +242,8 @@ func test_day_corridor_return_context_restores_room_and_spawn() -> void:
 	var player: CharacterBody2D = scene.get_node("%Player")
 
 	_runner.assert_eq(scene.get_current_room_id(), &"right", "return context restores the right corridor room")
+	_runner.assert_false(scene.is_left_school_character_group_visible(), "return context hides left school characters in the right room")
+	_runner.assert_true(scene.is_right_school_character_group_visible(), "return context shows right school characters in the right room")
 	_runner.assert_true(player.global_position.x < scene.get_player_right_bound(), "return context spawns inside the right outer edge")
 	_runner.assert_true(player.global_position.x > scene.get_player_right_bound() - 520.0, "return context keeps the player near the right edge")
 	_runner.assert_true(SceneTransition.get_pending_day_corridor_context().is_empty(), "return context is consumed after restore")
@@ -247,14 +263,16 @@ func test_day_corridor_dialogue_signal_updates_state() -> void:
 	_runner.assert_eq(scene.get_objective_text(), "목표: 복도 끝 사물함에서 기억 무기를 정비하자", "objective advances after the first memory beat")
 	_runner.assert_true(scene.is_dialogue_ui_visible(), "dialogue trigger opens the hub dialogue UI")
 	_runner.assert_false(scene.is_touch_controls_visible(), "touch controls hide while the dialogue bar is open")
-	_runner.assert_false(scene.is_talk_target_visible(), "world talk target hides while its portrait is focused")
+	_runner.assert_true(scene.is_talk_target_visible(), "world talk target remains visible behind the dialogue focus")
 	_runner.assert_false(scene.get_node("%TalkButtonLabel").visible, "talk button helper label hides behind dialogue UI")
 	_runner.assert_true(scene.get_node("%HubDialogueUi").is_dialogue_overlay_visible(), "dialogue UI dims the corridor behind it")
 	_runner.assert_false(scene.get_node("%HubDialogueUi").is_dialogue_overlay_modal(), "dialogue overlay does not block the choice button")
 	_runner.assert_false(scene.get_node("%HubDialogueUi").is_stage_row_visible(), "day corridor dialogue hides abstract stage labels")
 	_runner.assert_true(scene.get_node("%HubDialogueUi").is_portrait_sprite_visible(), "dialogue UI shows the talk target sprite portrait")
-	_runner.assert_eq(scene.get_node("%HubDialogueUi").get_portrait_frame_count(), 8, "dialogue portrait plays the eight-frame sprite sheet")
-	_runner.assert_eq(scene.get_node("%HubDialogueUi").get_portrait_texture_path(), "res://assets/characters/school/day_friend.png", "dialogue portrait uses the same sprite asset")
+	_runner.assert_eq(scene.get_node("%HubDialogueUi").get_portrait_frame_count(), 8, "dialogue portrait uses the eight-frame sprite sheet")
+	_runner.assert_eq(scene.get_node("%HubDialogueUi").get_portrait_texture_path(), "res://assets/characters/school/people2.png", "dialogue portrait uses the same sprite asset")
+	_runner.assert_eq(scene.get_node("%HubDialogueUi").get_portrait_frame(), 1, "dialogue portrait stays on the open-eye frame")
+	_runner.assert_false(scene.get_node("%HubDialogueUi").is_portrait_animating(), "dialogue portrait does not blink while talking")
 	_runner.assert_eq(scene.get_active_dialogue_line_index(), 0, "first trigger starts at the first dialogue line")
 	_runner.assert_eq(scene.get_active_dialogue_text(), "낮엔 뛰지 말고, 얘기부터 하자.", "dialogue text is rendered without duplicating the speaker name")
 	_runner.assert_eq(scene.get_active_dialogue_memory_text(), "기억: 창밖으로 밀려드는 낮빛", "memory text is rendered through HubDialogueUi")
@@ -295,7 +313,7 @@ func test_day_corridor_dialogue_choices_advance_and_close_ui() -> void:
 	add_child(scene)
 
 	scene.trigger_dialogue()
-	_runner.assert_false(scene.is_talk_target_visible(), "open dialogue hides the world talk target")
+	_runner.assert_true(scene.is_talk_target_visible(), "open dialogue keeps the world talk target visible")
 
 	_runner.assert_true(UiTestHarness.press_by_uat_action(scene, "day_corridor.dialogue.next"), "harness presses next by action id")
 	_runner.assert_eq(scene.get_dialogue_count(), 2, "next choice advances the dialogue counter")
