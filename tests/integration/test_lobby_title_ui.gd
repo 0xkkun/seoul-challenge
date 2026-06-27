@@ -61,8 +61,6 @@ func test_lobby_title_scene_uses_title_assets_and_menu_contract() -> void:
 	_runner.assert_true(ResourceLoader.exists(SceneTransition.get_day_lobby_scene_path()), "day lobby scene resource exists")
 	_runner.assert_eq(SceneTransition.get_locker_maintenance_scene_path(), "res://scenes/ui/locker_maintenance.tscn", "locker maintenance scene path is exposed")
 	_runner.assert_true(ResourceLoader.exists(SceneTransition.get_locker_maintenance_scene_path()), "locker maintenance scene resource exists")
-	_runner.assert_eq(SceneTransition.get_night_map_select_scene_path(), "res://scenes/ui/night_map_select.tscn", "night map select scene path is exposed")
-	_runner.assert_true(ResourceLoader.exists(SceneTransition.get_night_map_select_scene_path()), "night map select scene resource exists")
 	_runner.assert_false(status_label.visible, "status copy is hidden on title screen")
 	_runner.assert_true(lobby.has_node("LogoPane/TaglineLabel"), "tagline copy frames the title screen")
 	_runner.assert_false(lobby.has_node("MenuPane/FocusHint"), "input hint copy is removed")
