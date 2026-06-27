@@ -21,6 +21,8 @@ var _contact_timer: float = 0.0
 var _dead: bool = false
 var _hit_reaction: Node = null
 var _status_effects: Node = null
+var _movement_bounds := Rect2()
+var _movement_bounds_enabled := false
 
 
 func _ready() -> void:
@@ -40,14 +42,17 @@ func _physics_process(delta: float) -> void:
 	if is_status_action_blocked():
 		velocity = Vector2.ZERO
 		move_and_slide()
+		clamp_to_movement_bounds()
 		return
 	if is_status_movement_blocked():
 		velocity = Vector2.ZERO
 		move_and_slide()
+		clamp_to_movement_bounds()
 		_try_contact(target)
 		return
 	velocity = chase_velocity(global_position, target.global_position, move_speed * get_status_speed_multiplier())
 	move_and_slide()
+	clamp_to_movement_bounds()
 	_try_contact(target)
 
 
@@ -61,6 +66,47 @@ func chase_velocity(from: Vector2, to: Vector2, speed: float) -> Vector2:
 
 func is_dead(hp: int) -> bool:
 	return hp <= 0
+
+
+func set_movement_bounds(bounds: Rect2) -> void:
+	_movement_bounds = bounds
+	_movement_bounds_enabled = bounds.size.x > 0.0 and bounds.size.y > 0.0
+	clamp_to_movement_bounds()
+
+
+func clear_movement_bounds() -> void:
+	_movement_bounds = Rect2()
+	_movement_bounds_enabled = false
+
+
+func has_movement_bounds() -> bool:
+	return _movement_bounds_enabled
+
+
+func get_movement_bounds() -> Rect2:
+	return _movement_bounds
+
+
+func clamp_to_movement_bounds() -> bool:
+	if not _movement_bounds_enabled:
+		return false
+	var before := global_position
+	var clamped := clamp_position_to_bounds(before, _movement_bounds)
+	global_position = clamped
+	if not is_equal_approx(before.x, clamped.x):
+		velocity.x = 0.0
+	if not is_equal_approx(before.y, clamped.y):
+		velocity.y = 0.0
+	return not before.is_equal_approx(clamped)
+
+
+func clamp_position_to_bounds(position: Vector2, bounds: Rect2) -> Vector2:
+	if bounds.size.x <= 0.0 or bounds.size.y <= 0.0:
+		return position
+	return Vector2(
+		clampf(position.x, bounds.position.x, bounds.end.x),
+		clampf(position.y, bounds.position.y, bounds.end.y)
+	)
 
 
 # --- 피격 반응 (계약 #136) ---

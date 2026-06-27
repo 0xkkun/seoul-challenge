@@ -434,7 +434,12 @@ func test_room_base_lifecycle_opens_door_and_requests_transition() -> void:
 	_runner.assert_not_null(exit_door, "base room exposes exit door")
 	_runner.assert_not_null(portal_visual, "base room door builds a portal visual")
 	if portal_visual != null:
-		_runner.assert_not_null(portal_visual.get_node_or_null("PortalColumn"), "base room portal uses the vertical light-gate visual")
+		var portal_sprite := portal_visual.get_node_or_null("PortalSprite") as Sprite2D
+		_runner.assert_not_null(portal_sprite, "base room portal uses the 5-frame sprite sheet visual")
+		if portal_sprite != null:
+			_runner.assert_eq(portal_sprite.hframes, 5, "base room portal has five horizontal frames")
+			_runner.assert_eq(portal_sprite.texture.resource_path, "res://assets/effects/portal.png", "base room portal uses the supplied sprite sheet")
+		_runner.assert_true(portal_visual.get_node_or_null("PortalColumn") == null, "base room portal does not keep the old light-gate visual")
 	_runner.assert_not_null(door_rectangle, "base room door configures collision shape")
 	_runner.assert_eq(floor.size, RoomPalette.ROOM_SIZE, "room floor uses palette size")
 	_runner.assert_eq(floor.color, RoomPalette.START_ROOM_FLOOR_COLOR, "room floor uses palette color")

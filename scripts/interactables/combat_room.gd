@@ -137,7 +137,9 @@ func _spawn_enemy_group(
 		_apply_enemy_variant(enemy, elite_variant)
 		_enemy_layer.add_child(enemy)
 		enemy.name = "%s%d" % [name_prefix, index + 1]
-		(enemy as Node2D).position = RoomPalette.ROOM_HALF_SIZE * spawn_factors[index % spawn_factors.size()]
+		(enemy as Node2D).position = _spawn_position_for_factor(spawn_factors[index % spawn_factors.size()])
+		if enemy.has_method("set_movement_bounds"):
+			enemy.call("set_movement_bounds", _enemy_movement_bounds())
 		_connect_enemy(enemy)
 		_active_enemies.append(enemy)
 
@@ -199,6 +201,16 @@ func _resolve_enemy_layer() -> Node2D:
 	layer.name = "Enemies"
 	add_child(layer)
 	return layer
+
+
+func _spawn_position_for_factor(spawn_factor: Vector2) -> Vector2:
+	var room_bounds := RoomPalette.get_room_bounds()
+	return room_bounds.position + room_bounds.size * 0.5 + room_bounds.size * 0.5 * spawn_factor
+
+
+func _enemy_movement_bounds() -> Rect2:
+	var room_bounds := RoomPalette.get_room_bounds()
+	return Rect2(global_position + room_bounds.position, room_bounds.size)
 
 
 func _config_count(config: Dictionary, key: String, fallback: int) -> int:
