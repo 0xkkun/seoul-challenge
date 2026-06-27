@@ -30,7 +30,7 @@ const PLATES: Array[String] = [
 	"res://assets/backgrounds/night_intro/night_intro_4.png",
 ]
 
-## 각 비트: 플레이트 + 자막 줄들. 각 줄은 {text, audio?(나레이션 음성)} 형태.
+## 각 비트: 플레이트 + 전환음 + 자막 줄들. 각 줄은 {text, audio?(나레이션 음성)} 형태.
 ## 음성이 있는 줄은 자막이 뜰 때 해당 클립을 재생하고, 다음 줄로 넘어가면
 ## 새 클립으로 교체된다.
 const BEATS: Array[Dictionary] = [
@@ -38,15 +38,15 @@ const BEATS: Array[Dictionary] = [
 		{"text": "도시가 잠들면,", "audio": "res://assets/audio/night_intro/vo_beat1_1.wav"},
 		{"text": "어둠 속에서 무언가 깨어난다.", "audio": "res://assets/audio/night_intro/vo_beat1_2.wav"},
 	]},
-	{"plate": 1, "lines": [
+	{"plate": 1, "sfx": &"night_intro_transition_ab", "lines": [
 		{"text": "나는 매일 밤, 그 아래로 내려간다.", "audio": "res://assets/audio/night_intro/vo_beat2_1.wav"},
 		{"text": "아무도 모르는 길을 따라.", "audio": "res://assets/audio/night_intro/vo_beat2_2.wav", "pre": 0.5},
 	]},
-	{"plate": 2, "sfx": &"night_intro_transition_c", "lines": [
+	{"plate": 2, "sfx": &"night_intro_transition_bc", "lines": [
 		{"text": "오늘 밤은…", "audio": "res://assets/audio/night_intro/vo_beat3_1.wav", "pre": 0.6},
 		{"text": "돌아오지 못할지도 모른다.", "audio": "res://assets/audio/night_intro/vo_beat3_2.wav"},
 	]},
-	{"plate": 3, "sfx": &"night_intro_transition", "lines": [
+	{"plate": 3, "sfx": &"night_intro_transition_cd", "lines": [
 		{"text": "그래도 나는 멈추지 않는다.", "audio": "res://assets/audio/night_intro/vo_beat4_1.wav", "pre": 0.8},
 		{"text": "밤이 시작된다.", "audio": "res://assets/audio/night_intro/vo_beat4_2.wav"},
 	]},
@@ -62,6 +62,7 @@ var _advance_requested := false
 var _skip := false
 var _finished := false
 var _started := false
+var _current_transition_sfx_id: StringName = &""
 
 
 func _init() -> void:
@@ -105,7 +106,7 @@ func play() -> void:
 		if _skip:
 			break
 		var beat: Dictionary = BEATS[i]
-		# 전환음 id(C·D)가 있으면 등장 직전에 깐다. 효과음이 먼저 깔리고,
+		# 전환음 id가 있으면 등장 직전에 깐다. 효과음이 먼저 깔리고,
 		# 플레이트가 떠오른 뒤(첫 줄 pre 만큼 더 기다린 뒤) 나레이션이 이어진다.
 		var sfx_id := StringName(beat.get("sfx", &""))
 		if sfx_id != &"":
@@ -144,6 +145,7 @@ func skip() -> void:
 		return
 	_skip = true
 	_advance_requested = true
+	_stop_transition_sfx()
 	if not _started:
 		_finish()
 
@@ -281,11 +283,22 @@ func _show_plate(plate_index: int, target_alpha: float) -> void:
 	await tween.finished
 
 
-## 시네마틱 전환음. AudioManager(영속 재생)로 틀어 씬 전환 후 밤 세션까지
-## 자연스럽게 이어지게 한다. C·D 비트가 서로 다른 클립을 쓴다.
+## 시네마틱 전환음. 긴 트레일러 클립이라 다음 비트가 시작되면 직전 전환음을
+## 끊고 새 전환음으로 교체해 AB/BC/CD 베드가 겹치지 않게 한다.
 func _play_transition_sfx(sfx_id: StringName) -> void:
 	if has_node("/root/AudioManager"):
+		if _current_transition_sfx_id != &"" and _current_transition_sfx_id != sfx_id:
+			AudioManager.stop_sfx(_current_transition_sfx_id)
+		_current_transition_sfx_id = sfx_id
 		AudioManager.play_sfx(sfx_id)
+
+
+func _stop_transition_sfx() -> void:
+	if _current_transition_sfx_id == &"":
+		return
+	if has_node("/root/AudioManager"):
+		AudioManager.stop_sfx(_current_transition_sfx_id)
+	_current_transition_sfx_id = &""
 
 
 ## 마지막 비트: 자막이 사라지며 경복궁이 가득 드러나고, 잠시 머문 뒤 암전한다.

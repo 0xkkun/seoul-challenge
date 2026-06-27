@@ -6,6 +6,9 @@ const SCHOOL_HALLWAY_BGM := &"school_hallway_bgm"
 const NIGHT_RUN_SUSPENSE_BGM := &"night_run_suspense_bgm"
 const SCHOOL_BELL_TRANSITION_FRONT := &"school_bell_transition_front"
 const SCHOOL_BELL_TRANSITION_BACK := &"school_bell_transition_back"
+const SCHOOL_SCENE_PAGE_FLIP := &"school_scene_page_flip"
+const QUEST_REWARD_LEVEL_UP := &"quest_reward_level_up"
+const RUN_VICTORY := &"run_victory"
 const UI_BUTTON_PRESS := &"ui_button_press"
 const BAT_SWING := &"bat_swing"
 const BAT_HIT := &"bat_hit"
@@ -13,7 +16,11 @@ const BOSS_ATTACK := &"boss_attack"
 const WOLF_ATTACK := &"wolf_attack"
 const KUMIHO_FIREBALL := &"kumiho_fireball"
 const CORRIDOR_FOOTSTEP := &"corridor_footstep"
+const GYEONGBOKGUNG_FOOTSTEP := &"gyeongbokgung_footstep"
 const DASH_WIND := &"dash_wind"
+const NIGHT_INTRO_TRANSITION_AB := &"night_intro_transition_ab"
+const NIGHT_INTRO_TRANSITION_BC := &"night_intro_transition_bc"
+const NIGHT_INTRO_TRANSITION_CD := &"night_intro_transition_cd"
 const NIGHT_INTRO_TRANSITION := &"night_intro_transition"
 const NIGHT_INTRO_TRANSITION_C := &"night_intro_transition_c"
 const SESSION_TRANSITION_SFX_IDS: Array[StringName] = [
@@ -37,6 +44,9 @@ const _FADE_LOOP_BGM_IDS: Array[StringName] = [
 const _SFX_STREAM_PATHS := {
 	SCHOOL_BELL_TRANSITION_FRONT: "res://assets/audio/sfx/school_bell_transition_front.wav",
 	SCHOOL_BELL_TRANSITION_BACK: "res://assets/audio/sfx/school_bell_transition_back.wav",
+	SCHOOL_SCENE_PAGE_FLIP: "res://assets/audio/sfx/school_scene_page_flip.mp3",
+	QUEST_REWARD_LEVEL_UP: "res://assets/audio/sfx/quest_reward_level_up.mp3",
+	RUN_VICTORY: "res://assets/audio/sfx/run_victory.mp3",
 	UI_BUTTON_PRESS: "res://assets/audio/sfx/ui_button_press.mp3",
 	BAT_SWING: "res://assets/audio/sfx/bat_swing.mp3",
 	BAT_HIT: "res://assets/audio/sfx/bat_hit.wav",
@@ -44,7 +54,11 @@ const _SFX_STREAM_PATHS := {
 	WOLF_ATTACK: "res://assets/audio/sfx/wolf_attack.wav",
 	KUMIHO_FIREBALL: "res://assets/audio/sfx/kumiho_fireball.mp3",
 	CORRIDOR_FOOTSTEP: "res://assets/audio/sfx/corridor_footstep.wav",
+	GYEONGBOKGUNG_FOOTSTEP: "res://assets/audio/sfx/gyeongbokgung_footstep.mp3",
 	DASH_WIND: "res://assets/audio/sfx/dash_wind.wav",
+	NIGHT_INTRO_TRANSITION_AB: "res://assets/audio/sfx/night_intro_transition_ab.mp3",
+	NIGHT_INTRO_TRANSITION_BC: "res://assets/audio/sfx/night_intro_transition_bc.mp3",
+	NIGHT_INTRO_TRANSITION_CD: "res://assets/audio/sfx/night_intro_transition_cd.mp3",
 	NIGHT_INTRO_TRANSITION: "res://assets/audio/sfx/night_intro_transition.mp3",
 	NIGHT_INTRO_TRANSITION_C: "res://assets/audio/sfx/night_intro_transition_c.mp3",
 }
@@ -58,6 +72,7 @@ const BGM_GAP_SEC := 3.0
 const BGM_DUCK_DB := -20.0
 
 var _played_sfx: Array[StringName] = []
+var _stopped_sfx: Array[StringName] = []
 var _current_bgm: StringName = &""
 var _current_bgm_path := ""
 var _bgm_player: AudioStreamPlayer
@@ -96,10 +111,23 @@ func play_sfx(id: StringName) -> void:
 	player.name = "SfxPlayer"
 	player.stream = stream
 	player.volume_db = -2.0
+	player.set_meta("sfx_id", id)
 	add_child(player)
 	_sfx_players.append(player)
 	player.finished.connect(_on_sfx_player_finished.bind(player), CONNECT_ONE_SHOT)
 	player.play()
+
+
+func stop_sfx(id: StringName) -> void:
+	if id == &"":
+		return
+	_stopped_sfx.append(id)
+	for player: AudioStreamPlayer in _sfx_players.duplicate():
+		if not is_instance_valid(player):
+			_sfx_players.erase(player)
+			continue
+		if StringName(player.get_meta("sfx_id", &"")) == id:
+			_stop_sfx_player(player)
 
 
 func play_random_session_transition_sfx() -> StringName:
@@ -253,8 +281,13 @@ func get_played_sfx() -> Array[StringName]:
 	return _played_sfx.duplicate()
 
 
+func get_stopped_sfx() -> Array[StringName]:
+	return _stopped_sfx.duplicate()
+
+
 func reset() -> void:
 	_played_sfx.clear()
+	_stopped_sfx.clear()
 	_clear_sfx_players()
 	stop_bgm()
 
@@ -286,10 +319,16 @@ func _on_sfx_player_finished(player: AudioStreamPlayer) -> void:
 
 func _clear_sfx_players() -> void:
 	for player: AudioStreamPlayer in _sfx_players.duplicate():
-		if is_instance_valid(player):
-			player.stop()
-			player.queue_free()
+		_stop_sfx_player(player)
 	_sfx_players.clear()
+
+
+func _stop_sfx_player(player: AudioStreamPlayer) -> void:
+	_sfx_players.erase(player)
+	if not is_instance_valid(player):
+		return
+	player.stop()
+	player.queue_free()
 
 
 func _on_settings_changed(settings: Dictionary) -> void:

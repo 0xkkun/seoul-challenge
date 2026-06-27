@@ -326,6 +326,7 @@ func finish_session(overrides: Dictionary = {}) -> Dictionary:
 	_clear_pending_reward_choice()
 	var result := _build_session_result(overrides)
 	GameManager.finish_session(result)
+	_play_run_victory_sfx()
 	session_ui_root.show_summary(result)
 	return result
 
@@ -364,6 +365,11 @@ func _show_death_summary(result: Dictionary) -> void:
 	get_tree().paused = true
 	session_ui_root.set_status("쓰러짐")
 	session_ui_root.show_summary(result)
+
+
+func _play_run_victory_sfx() -> void:
+	if has_node("/root/AudioManager"):
+		AudioManager.play_sfx(AudioManager.RUN_VICTORY)
 
 
 func is_exit_confirm_visible() -> bool:

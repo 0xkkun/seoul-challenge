@@ -76,6 +76,10 @@ signal run_modifiers_changed(payload: Dictionary)
 @export var dodge_speed: float = 520.0
 @export var dodge_invuln_time: float = 0.24
 @export var touch_controls_path: NodePath  ## 비우면 키보드 폴백
+@export var movement_footstep_sfx_id: StringName = &"gyeongbokgung_footstep"
+@export var movement_footstep_stride_distance: float = 112.0
+@export var movement_footstep_min_speed: float = 40.0
+@export var movement_footstep_min_interval: float = 0.18
 
 var _attack_timer: float = 0.0
 var _attack_movement_commit_timer: float = 0.0
@@ -105,6 +109,8 @@ var _status_effects: Node = null
 var _bat_swing_tween: Tween = null
 var _power_impact_tween: Tween = null
 var _dash_dust_tween: Tween = null
+var _movement_footstep_distance := 0.0
+var _movement_footstep_cooldown := 0.0
 
 @onready var _swing_visual: Node2D = get_node_or_null(^"MeleeSwing")
 @onready var _bat_swing_visual: Node2D = get_node_or_null(^"BatSwingImpact")
@@ -168,8 +174,10 @@ func _physics_process(delta: float) -> void:
 				_attack_movement_commit_timer
 			)
 		)
+	var previous_position := global_position
 	move_and_slide()
 	clamp_to_movement_bounds()
+	_update_movement_footstep(delta, previous_position.distance_to(global_position), move.length() > 0.1)
 	_process_attack(delta, move)
 	_update_animation(move)
 
@@ -257,6 +265,7 @@ func reset_motion() -> void:
 	_dodge_timer = 0.0
 	_dash_animation_timer = 0.0
 	_dodge_direction = Vector2.ZERO
+	_reset_movement_footstep()
 
 
 ## 이동 입력이 있으면 그 방향으로 facing 갱신, 없으면 마지막 facing 유지.
@@ -748,6 +757,7 @@ func _on_session_started(_config: Dictionary) -> void:
 
 func _on_session_finished(_result: Dictionary) -> void:
 	reset_run_modifiers(false)
+	_reset_movement_footstep()
 
 
 func _on_unlock_changed(payload: Dictionary) -> void:
@@ -1069,6 +1079,45 @@ func _play_bat_hit_sfx() -> void:
 func _play_dash_wind_sfx() -> void:
 	if has_node("/root/AudioManager"):
 		AudioManager.play_sfx(AudioManager.DASH_WIND)
+
+
+func _update_movement_footstep(delta: float, travel_distance: float = -1.0, movement_input_active := true) -> void:
+	if not _can_play_movement_footstep():
+		_reset_movement_footstep()
+		return
+	_movement_footstep_cooldown = maxf(0.0, _movement_footstep_cooldown - maxf(0.0, delta))
+	if movement_footstep_sfx_id == &"" or _dodge_timer > 0.0:
+		_reset_movement_footstep()
+		return
+	if not movement_input_active:
+		_movement_footstep_distance = 0.0
+		return
+	var safe_delta := maxf(0.001, delta)
+	var actual_distance := travel_distance if travel_distance >= 0.0 else velocity.length() * safe_delta
+	if actual_distance <= 0.0 or actual_distance / safe_delta < movement_footstep_min_speed:
+		_movement_footstep_distance = 0.0
+		return
+	_movement_footstep_distance += actual_distance
+	var stride_distance := maxf(1.0, movement_footstep_stride_distance)
+	if _movement_footstep_distance < stride_distance or _movement_footstep_cooldown > 0.0:
+		return
+	_movement_footstep_distance = fmod(_movement_footstep_distance, stride_distance)
+	_movement_footstep_cooldown = maxf(0.0, movement_footstep_min_interval)
+	_play_movement_footstep_sfx()
+
+
+func _play_movement_footstep_sfx() -> void:
+	if has_node("/root/AudioManager"):
+		AudioManager.play_sfx(movement_footstep_sfx_id)
+
+
+func _can_play_movement_footstep() -> bool:
+	return not has_node("/root/GameManager") or GameManager.is_session_active()
+
+
+func _reset_movement_footstep() -> void:
+	_movement_footstep_distance = 0.0
+	_movement_footstep_cooldown = 0.0
 
 
 ## 휘두르기 시각 표시 — 실제 사거리(rng)·각(arc)으로 부채꼴을 그려 타격 범위와 일치시킨다.

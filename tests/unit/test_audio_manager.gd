@@ -80,17 +80,64 @@ func test_kumiho_fireball_sfx_is_registered() -> void:
 
 func test_movement_sfx_are_registered() -> void:
 	var footstep_path := AudioManager.get_sfx_stream_path(&"corridor_footstep")
+	var gyeongbokgung_footstep_path := AudioManager.get_sfx_stream_path(&"gyeongbokgung_footstep")
 	var dash_path := AudioManager.get_sfx_stream_path(&"dash_wind")
 
 	_runner.assert_true(AudioManager.has_sfx(&"corridor_footstep"), "corridor footstep SFX is registered")
-	_runner.assert_eq(footstep_path, "res://assets/audio/sfx/corridor_footstep.wav", "corridor footstep SFX path is stable")
+	_runner.assert_eq(footstep_path, "res://assets/audio/sfx/corridor_footstep.wav", "school corridor keeps its existing footstep SFX path")
 	_runner.assert_true(ResourceLoader.exists(footstep_path), "corridor footstep SFX resource exists")
 	_runner.assert_not_null(load(footstep_path) as AudioStreamWAV, "corridor footstep SFX loads as WAV")
+
+	_runner.assert_true(AudioManager.has_sfx(&"gyeongbokgung_footstep"), "Gyeongbokgung footstep SFX is registered")
+	_runner.assert_eq(gyeongbokgung_footstep_path, "res://assets/audio/sfx/gyeongbokgung_footstep.mp3", "Gyeongbokgung footstep SFX path is stable")
+	_runner.assert_true(ResourceLoader.exists(gyeongbokgung_footstep_path), "Gyeongbokgung footstep SFX resource exists")
+	var gyeongbokgung_stream := load(gyeongbokgung_footstep_path) as AudioStreamMP3
+	_runner.assert_not_null(gyeongbokgung_stream, "Gyeongbokgung footstep SFX loads as MP3")
+	if gyeongbokgung_stream != null:
+		_runner.assert_true(gyeongbokgung_stream.get_length() <= 0.35, "Gyeongbokgung footstep SFX is a short single step")
 
 	_runner.assert_true(AudioManager.has_sfx(&"dash_wind"), "dash wind SFX is registered")
 	_runner.assert_eq(dash_path, "res://assets/audio/sfx/dash_wind.wav", "dash wind SFX path is stable")
 	_runner.assert_true(ResourceLoader.exists(dash_path), "dash wind SFX resource exists")
 	_runner.assert_not_null(load(dash_path) as AudioStreamWAV, "dash wind SFX loads as WAV")
+
+
+func test_school_reward_and_victory_sfx_are_registered() -> void:
+	var expected_paths := {
+		AudioManager.SCHOOL_SCENE_PAGE_FLIP: "res://assets/audio/sfx/school_scene_page_flip.mp3",
+		AudioManager.QUEST_REWARD_LEVEL_UP: "res://assets/audio/sfx/quest_reward_level_up.mp3",
+		AudioManager.RUN_VICTORY: "res://assets/audio/sfx/run_victory.mp3",
+	}
+
+	for sfx_id: StringName in expected_paths.keys():
+		var stream_path := String(expected_paths[sfx_id])
+		_runner.assert_true(AudioManager.has_sfx(sfx_id), "%s SFX is registered" % sfx_id)
+		_runner.assert_eq(AudioManager.get_sfx_stream_path(sfx_id), stream_path, "%s SFX path is stable" % sfx_id)
+		_runner.assert_true(ResourceLoader.exists(stream_path), "%s audio resource exists" % sfx_id)
+		_runner.assert_not_null(load(stream_path) as AudioStreamMP3, "%s SFX loads as MP3" % sfx_id)
+
+
+func test_night_intro_trailer_transition_sfx_are_registered() -> void:
+	var expected_paths := {
+		AudioManager.NIGHT_INTRO_TRANSITION_AB: "res://assets/audio/sfx/night_intro_transition_ab.mp3",
+		AudioManager.NIGHT_INTRO_TRANSITION_BC: "res://assets/audio/sfx/night_intro_transition_bc.mp3",
+		AudioManager.NIGHT_INTRO_TRANSITION_CD: "res://assets/audio/sfx/night_intro_transition_cd.mp3",
+	}
+
+	for sfx_id: StringName in expected_paths.keys():
+		var stream_path := String(expected_paths[sfx_id])
+		_runner.assert_true(AudioManager.has_sfx(sfx_id), "%s trailer transition SFX is registered" % sfx_id)
+		_runner.assert_eq(AudioManager.get_sfx_stream_path(sfx_id), stream_path, "%s trailer transition SFX path is stable" % sfx_id)
+		_runner.assert_true(ResourceLoader.exists(stream_path), "%s trailer transition SFX resource exists" % sfx_id)
+		_runner.assert_not_null(load(stream_path) as AudioStreamMP3, "%s trailer transition SFX loads as MP3" % sfx_id)
+
+
+func test_stop_sfx_records_target_for_headless_contract() -> void:
+	AudioManager.play_sfx(AudioManager.NIGHT_INTRO_TRANSITION_AB)
+	AudioManager.stop_sfx(AudioManager.NIGHT_INTRO_TRANSITION_AB)
+
+	_runner.assert_eq(AudioManager.get_played_sfx(), [AudioManager.NIGHT_INTRO_TRANSITION_AB], "SFX playback remains recorded")
+	_runner.assert_eq(AudioManager.get_stopped_sfx(), [AudioManager.NIGHT_INTRO_TRANSITION_AB], "targeted SFX stop is recorded")
 
 
 func test_dash_wind_sfx_has_immediate_audible_attack() -> void:
@@ -153,6 +200,16 @@ func test_scene_transition_school_bell_helper_uses_transition_variants() -> void
 	_runner.assert_true(
 		AudioManager.get_session_transition_sfx_ids().has(played_sfx[0]),
 		"scene transition helper uses a registered school bell variant"
+	)
+
+
+func test_scene_transition_school_scene_helper_uses_page_flip() -> void:
+	SceneTransition._play_school_scene_transition_sfx()
+
+	_runner.assert_eq(
+		AudioManager.get_played_sfx(),
+		[AudioManager.SCHOOL_SCENE_PAGE_FLIP],
+		"school scene transition helper plays the page flip SFX"
 	)
 
 
