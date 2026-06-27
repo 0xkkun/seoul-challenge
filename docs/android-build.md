@@ -24,7 +24,7 @@ All paths below are machine-specific (macOS / Homebrew examples) and stay
 - **Editor Settings → Export → Android** — set `java_sdk_path`,
   `android_sdk_path`, `debug_keystore`, `debug_keystore_pass`.
 - The repo already ships an **`Android`** preset in `export_presets.cfg`
-  (arm64-v8a, package `com.oxkkun.seoulchallenge`, debug keystore left empty so
+  (arm64-v8a, package `com.oxkkun.afterschool.debug`, debug keystore left empty so
   it falls back to the editor setting above).
 
 ## Build
@@ -32,7 +32,7 @@ All paths below are machine-specific (macOS / Homebrew examples) and stay
 ```bash
 GODOT=godot   # or the absolute path to the Godot 4.6.3 binary
 mkdir -p build/android   # build/ is gitignored
-"$GODOT" --headless --path . --export-debug "Android" build/android/seoul-challenge.apk
+"$GODOT" --headless --path . --export-debug "Android" build/android/afterschool.debug.apk
 ```
 
 A successful run prints `Signed` and writes the `.apk`.
@@ -41,8 +41,8 @@ A successful run prints `Signed` and writes the `.apk`.
 
 ```bash
 ADB="$HOME/Library/Android/sdk/platform-tools/adb"
-"$ADB" install -r build/android/seoul-challenge.apk
-"$ADB" shell monkey -p com.oxkkun.seoulchallenge -c android.intent.category.LAUNCHER 1
+"$ADB" install -r build/android/afterschool.debug.apk
+"$ADB" shell monkey -p com.oxkkun.afterschool.debug -c android.intent.category.LAUNCHER 1
 "$ADB" exec-out screencap -p > shot.png   # eyeball the frame
 ```
 
