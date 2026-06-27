@@ -1,6 +1,7 @@
 extends Node
 
 const PlayerScript := preload("res://scripts/player/player.gd")
+const TouchControlsScene := preload("res://scenes/ui/touch_controls.tscn")
 const PLAYER_DASH_SHEET_PATH := "res://assets/sprites/player/player_dash.png"
 const PLAYER_DASH_SHEET_SHA256 := "5a4e69b5b9d2ec461aa2f2ab7e78077fda3fd7c21d96a194c84e573e8c15b199"
 
@@ -371,6 +372,41 @@ func test_start_dodge_plays_dash_wind_sfx_once() -> void:
 	_runner.assert_eq(AudioManager.get_played_sfx(), [&"dash_wind"], "blocked duplicate dodge does not replay SFX")
 
 
+func test_touch_skill_press_starts_dash_feedback_before_physics_poll() -> void:
+	AudioManager.reset()
+	var touch := TouchControlsScene.instantiate()
+	add_child(touch)
+	var player := (load("res://scenes/player/player.tscn") as PackedScene).instantiate()
+	player.touch_controls_path = NodePath("../TouchControls")
+	add_child(player)
+	player.special_skill_max_uses = 1
+	player.special_skill_uses_remaining = 1
+
+	var skill_button := touch.get_node_or_null("SkillButton") as Control
+	_runner.assert_not_null(skill_button, "touch controls mount skill button")
+	if skill_button == null:
+		return
+
+	skill_button.call("_input", _screen_touch(42, skill_button.get_global_rect().get_center(), true))
+
+	var sprite := player.get_node_or_null("Sprite") as AnimatedSprite2D
+	var dust_root := player.get_node_or_null("DashDust") as Node2D
+	var dust_sprite := dust_root.get_node_or_null("DustSprite") as Sprite2D if dust_root != null else null
+	_runner.assert_true(player.is_dodging(), "touch skill press starts dodge before the next physics poll")
+	_runner.assert_eq(AudioManager.get_played_sfx(), [&"dash_wind"], "touch skill press immediately plays dash wind SFX")
+	_runner.assert_not_null(sprite, "player scene includes animated character sprite")
+	if sprite != null:
+		_runner.assert_eq(sprite.animation, &"dash", "touch skill press immediately starts dash animation")
+		_runner.assert_eq(sprite.frame, 0, "touch skill press starts dash animation from the first frame")
+	_runner.assert_not_null(dust_root, "player scene includes dash dust root")
+	if dust_root != null:
+		_runner.assert_true(dust_root.visible, "touch skill press immediately reveals dash dust")
+	_runner.assert_not_null(dust_sprite, "dash dust root has a sprite")
+	if dust_sprite != null:
+		_runner.assert_true(dust_sprite.visible, "touch skill press immediately reveals dash dust sprite")
+		_runner.assert_eq(dust_sprite.frame, 0, "touch skill press starts dash dust from the first frame")
+
+
 func test_stored_dodge_charge_can_chain_before_recharge_cooldown_finishes() -> void:
 	var player = PlayerScript.new()
 	add_child(player)
@@ -457,3 +493,11 @@ func test_start_dodge_opens_dash_power_attack_window() -> void:
 	_runner.assert_true(player.try_start_special_skill(Vector2.RIGHT), "ready dodge starts")
 
 	_runner.assert_true(player.get_dash_power_attack_remaining() >= 0.15, "dodge opens post-dodge power attack grace")
+
+
+func _screen_touch(index: int, position: Vector2, pressed: bool) -> InputEventScreenTouch:
+	var event := InputEventScreenTouch.new()
+	event.index = index
+	event.position = position
+	event.pressed = pressed
+	return event

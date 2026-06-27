@@ -1,5 +1,7 @@
 extends Control
 
+signal skill_pressed
+
 const OUTER_RING_ALPHA := 0.34
 const OUTER_RING_PRESSED_ALPHA := 0.46
 const OUTER_RING_DISABLED_ALPHA := 0.20
@@ -114,6 +116,7 @@ func _on_touch(index: int, pos: Vector2, pressed: bool) -> void:
 	if pressed:
 		if _active_index == -1 and get_global_rect().has_point(pos):
 			_active_index = index
+			skill_pressed.emit()
 			queue_redraw()
 	elif index == _active_index:
 		_active_index = -1

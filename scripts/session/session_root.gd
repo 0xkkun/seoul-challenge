@@ -22,6 +22,7 @@ const QUIT_GAME_MESSAGE := "게임을 종료할까요?"
 const LEGACY_REMOVED_WEAPON_ID := &"baseball"
 const WEAPON_BAT := &"bat"
 const COMBAT_FEEDBACK_RECOVER_TIME := 0.10
+const COMBAT_FEEDBACK_SHAKE_STEP_TIME := 0.035
 const COMBAT_FEEDBACK_MAX_OFFSET := 7.0
 const ROOM_ENTRY_SPAWN_INSET := Vector2(140.0, 96.0)
 const TOP_LEFT_HUD_GAP := 8.0
@@ -441,8 +442,9 @@ func _on_combat_feedback(payload: Dictionary) -> void:
 	if raw_direction is Vector2:
 		direction = raw_direction
 	var intensity := float(payload.get("intensity", 2.0))
-	player_camera.offset = camera_feedback_offset(direction, intensity)
-	_start_camera_feedback_recover()
+	var offsets := camera_feedback_shake_offsets(direction, intensity)
+	player_camera.offset = offsets[0]
+	_start_camera_feedback_recover(offsets)
 
 
 func _on_room_cleared_for_reward(payload: Dictionary) -> void:
@@ -648,18 +650,43 @@ func camera_feedback_offset(direction: Vector2, intensity: float) -> Vector2:
 	return -safe_direction * amount
 
 
-func _start_camera_feedback_recover() -> void:
+func camera_feedback_shake_offsets(direction: Vector2, intensity: float) -> Array:
+	var first := camera_feedback_offset(direction, intensity)
+	if first.length() <= 0.001:
+		return [Vector2.ZERO]
+	var amount := first.length()
+	var safe_direction := direction.normalized() if direction.length() > 0.001 else Vector2.RIGHT
+	var tangent := Vector2(-safe_direction.y, safe_direction.x)
+	return [
+		first,
+		safe_direction * amount * 0.55 + tangent * amount * 0.20,
+		-safe_direction * amount * 0.30,
+		Vector2.ZERO,
+	]
+
+
+func _start_camera_feedback_recover(offsets: Array = []) -> void:
 	if not is_inside_tree() or player_camera == null:
 		return
 	if _camera_feedback_tween != null and _camera_feedback_tween.is_valid():
 		_camera_feedback_tween.kill()
 	_camera_feedback_tween = create_tween()
-	_camera_feedback_tween.tween_property(
-		player_camera,
-		"offset",
-		Vector2.ZERO,
-		COMBAT_FEEDBACK_RECOVER_TIME
-	).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	if offsets.size() <= 1:
+		_camera_feedback_tween.tween_property(
+			player_camera,
+			"offset",
+			Vector2.ZERO,
+			COMBAT_FEEDBACK_RECOVER_TIME
+		).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+		return
+	for index in range(1, offsets.size()):
+		var duration := COMBAT_FEEDBACK_RECOVER_TIME if index == offsets.size() - 1 else COMBAT_FEEDBACK_SHAKE_STEP_TIME
+		_camera_feedback_tween.tween_property(
+			player_camera,
+			"offset",
+			offsets[index],
+			duration
+		).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 
 
 func _on_friend_purified(payload: Dictionary) -> void:

@@ -847,6 +847,32 @@ func test_session_camera_reacts_to_combat_feedback() -> void:
 	session.queue_free()
 
 
+func test_session_camera_feedback_uses_visible_shake_sequence() -> void:
+	var packed := load("res://scenes/session/session_root.tscn") as PackedScene
+	var session := packed.instantiate()
+	add_child(session)
+
+	_runner.assert_true(session.has_method("camera_feedback_shake_offsets"), "session exposes testable camera shake offsets")
+	if not session.has_method("camera_feedback_shake_offsets"):
+		session.queue_free()
+		return
+
+	var offsets: Array = session.call("camera_feedback_shake_offsets", Vector2.RIGHT, 5.5)
+	_runner.assert_true(offsets.size() >= 4, "camera feedback uses multiple shake samples before settling")
+	if offsets.size() >= 4:
+		var first := offsets[0] as Vector2
+		var second := offsets[1] as Vector2
+		var third := offsets[2] as Vector2
+		var last := offsets[offsets.size() - 1] as Vector2
+		_runner.assert_true(first.length() > 0.0, "first shake sample kicks the camera immediately")
+		_runner.assert_true(second.length() > 0.0, "second shake sample keeps the hit readable")
+		_runner.assert_true(signf(first.x) != signf(second.x), "shake alternates direction instead of a single fade")
+		_runner.assert_true(third.length() < first.length(), "later shake samples decay")
+		_runner.assert_eq(last, Vector2.ZERO, "shake sequence settles back to zero")
+
+	session.queue_free()
+
+
 func test_session_result_actions_unpause_and_preserve_retry_config() -> void:
 	GameManager.start_session({
 		"source": "session_result_test",

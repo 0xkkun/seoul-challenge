@@ -125,6 +125,7 @@ func _ready() -> void:
 	_refresh_bat_awakened_from_progression()
 	if not touch_controls_path.is_empty():
 		_touch = get_node_or_null(touch_controls_path)
+		_connect_touch_skill_events()
 	# HUD·죽음 컨트롤러가 연결된 뒤 초기 체력을 알리도록 지연 발신.
 	_broadcast_health.call_deferred()
 	_broadcast_special_skill_state.call_deferred()
@@ -573,6 +574,19 @@ func _keyboard_vector() -> Vector2:
 	if stick.length() >= stick_deadzone:
 		v += stick
 	return v
+
+
+func _connect_touch_skill_events() -> void:
+	if _touch == null or not _touch.has_signal("skill_pressed"):
+		return
+	var callback := Callable(self, "_on_touch_skill_pressed")
+	if not _touch.is_connected("skill_pressed", callback):
+		_touch.connect("skill_pressed", callback)
+
+
+func _on_touch_skill_pressed() -> void:
+	if try_start_special_skill(read_input_vector()):
+		_was_special_pressed = true
 
 
 ## 조준 = 우측 공격버튼 드래그 방향이 있으면 그쪽, 없으면 바라보는(이동) 방향.
