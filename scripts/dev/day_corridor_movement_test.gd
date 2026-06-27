@@ -41,7 +41,9 @@ const QUIT_GAME_MESSAGE := "게임을 종료할까요?"
 @export var character_asset_scale := 2.0
 @export var character_walk_fps := 8.0
 @export var character_idle_fps := 1.6
-@export var character_idle_frames: PackedInt32Array = PackedInt32Array([0, 1, 0, 7])
+## 멈춤 상태 전용 idle 시트(없으면 걷기 시트 프레임으로 폴백).
+@export var character_idle_texture: Texture2D
+@export var character_idle_frames: PackedInt32Array = PackedInt32Array([0, 1, 2, 3, 4, 5, 6])
 @export var character_idle_bob_px := 2.0
 @export var room_transition_fade_time := 0.18
 @export var room_transition_spawn_inset := 320.0
@@ -70,6 +72,8 @@ var _was_dialogue_pressed := false
 var _walk_elapsed := 0.0
 var _idle_elapsed := 0.0
 var _character_base_position := Vector2.ZERO
+var _walk_texture: Texture2D = null
+var _walk_hframes := 0
 var _faces_left := false
 var _current_room_id := ROOM_LEFT
 var _is_room_transitioning := false
@@ -361,10 +365,32 @@ func _apply_nearest_texture_filter() -> void:
 
 
 func _fit_character_to_asset_scale() -> void:
+	if _walk_texture == null:
+		_walk_texture = _character_sprite.texture
+		_walk_hframes = _character_sprite.hframes
 	if character_asset_scale > 0.0:
 		_character_sprite.scale = Vector2(character_asset_scale, character_asset_scale)
 		_character_sprite.position.y = -_get_character_frame_size().y * character_asset_scale * 0.5
 	_character_base_position = _character_sprite.position
+
+
+## 멈춤 시 idle 시트로 텍스처 스왑(정사각 프레임 가정 → hframes = 너비/높이).
+func _use_idle_sheet() -> void:
+	if character_idle_texture == null or _character_sprite.texture == character_idle_texture:
+		return
+	_character_sprite.texture = character_idle_texture
+	var height := character_idle_texture.get_height()
+	_character_sprite.hframes = maxi(1, int(round(character_idle_texture.get_width() / float(height)))) if height > 0 else 1
+	_character_sprite.vframes = 1
+
+
+## 이동 시 걷기 시트로 복귀.
+func _use_walk_sheet() -> void:
+	if _walk_texture == null or _character_sprite.texture == _walk_texture:
+		return
+	_character_sprite.texture = _walk_texture
+	_character_sprite.hframes = maxi(1, _walk_hframes)
+	_character_sprite.vframes = 1
 
 
 func _apply_room_state() -> void:
@@ -483,11 +509,13 @@ func _update_character_sprite(delta: float) -> void:
 	if absf(velocity_x) <= 1.0:
 		_walk_elapsed = 0.0
 		_idle_elapsed += delta
+		_use_idle_sheet()
 		_character_sprite.frame = _get_character_idle_frame()
 		_character_sprite.position.y = _character_base_position.y + _get_character_idle_bob_offset()
 		return
 
 	_idle_elapsed = 0.0
+	_use_walk_sheet()
 	_character_sprite.position = _character_base_position
 	_walk_elapsed += delta
 	_character_sprite.frame = int(_walk_elapsed * character_walk_fps) % _get_character_frame_count()
