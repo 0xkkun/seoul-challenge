@@ -240,7 +240,7 @@ func test_shop_room_rejects_purchase_without_enough_ingame_currency() -> void:
 	_runner.assert_false(room.call("is_offer_sold", &"bat"), "failed purchase does not mark offer sold")
 
 
-func test_minimap_data_marks_current_visible_and_boss_hidden() -> void:
+func test_minimap_data_marks_current_visible_and_boss_unlocked() -> void:
 	var layout := load("res://resources/layouts/gyeongbokgung.tres") as RoomLayout
 	var data: Dictionary = MinimapDataScript.build_from_layout(layout, &"combat_1", {})
 	var current_room := _find_room(data["rooms"], &"combat_1")
@@ -250,8 +250,8 @@ func test_minimap_data_marks_current_visible_and_boss_hidden() -> void:
 	_runner.assert_true(current_room["current"], "current room is marked")
 	_runner.assert_true(current_room["visible"], "current room is visible")
 	_runner.assert_eq(boss_room["minimap_type"], &"boss", "final room is exposed as boss type")
-	_runner.assert_true(boss_room["hidden"], "boss room keeps hidden flag")
-	_runner.assert_false(boss_room["visible"], "boss room starts hidden on minimap")
+	_runner.assert_false(boss_room["hidden"], "boss room does not keep a hidden gate flag")
+	_runner.assert_true(boss_room["visible"], "boss room is not hidden by layout data")
 
 	var cleared := {
 		&"start": true,
@@ -266,12 +266,12 @@ func test_minimap_data_marks_current_visible_and_boss_hidden() -> void:
 	if friend_room.is_empty():
 		return
 	_runner.assert_eq(friend_room["minimap_type"], &"friend", "friend room is exposed as friend type")
-	_runner.assert_false(revealed_boss["visible"], "boss stays hidden until friend room clears")
+	_runner.assert_true(revealed_boss["visible"], "boss does not wait for friend room clear in layout data")
 
 	cleared[&"friend_1"] = true
 	revealed_data = MinimapDataScript.build_from_layout(layout, &"friend_1", cleared)
 	revealed_boss = _find_room(revealed_data["rooms"], &"final_1")
-	_runner.assert_true(revealed_boss["visible"], "layout reveal rules can expose boss room data later")
+	_runner.assert_true(revealed_boss["visible"], "boss room data stays visible after friend room clears")
 
 
 func test_minimap_data_keeps_treasure_and_shop_visible() -> void:

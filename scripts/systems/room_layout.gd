@@ -169,10 +169,6 @@ func validate_layout() -> PackedStringArray:
 	if not allow_short_story_layout and type_counts[TYPE_FINAL] != 1:
 		errors.append("layout must contain exactly one final room")
 
-	for room_def: RoomDef in room_defs:
-		if room_def != null and room_def.room_type == TYPE_FINAL and not room_def.hidden:
-			errors.append("final room must start hidden")
-
 	return errors
 
 

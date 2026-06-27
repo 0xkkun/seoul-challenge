@@ -68,7 +68,6 @@ room_type = &"final"
 scene_path = "res://scenes/interactables/boss_room.tscn"
 connections = Array[StringName]([&"friend_1"])
 grid_pos = Vector2i(5, 0)
-hidden = true
 
 [resource]
 script = ExtResource("1_layout")

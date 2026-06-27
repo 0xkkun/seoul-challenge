@@ -38,16 +38,17 @@ func test_gyeongbokgung_layout_validates_fixed_route() -> void:
 
 	var cleared := {}
 	var initially_visible := layout.get_visible_room_defs(cleared)
-	_runner.assert_eq(initially_visible.size(), 5, "hidden final room is not visible at start")
+	_runner.assert_eq(initially_visible.size(), 6, "final room is visible without a clear gate")
+	_runner.assert_false(layout.get_room(&"final_1").hidden, "final room is not hidden")
 
 	for room_id: StringName in [&"start", &"combat_1", &"treasure_1", &"combat_2", &"friend_1"]:
 		cleared[room_id] = true
 
-	_runner.assert_true(layout.is_room_visible(&"final_1", cleared), "final room is revealed after required rooms clear")
+	_runner.assert_true(layout.is_room_visible(&"final_1"), "final room is visible before required rooms clear")
 	_runner.assert_eq(layout.get_next_room_id(&"combat_1", {&"start": true, &"combat_1": true}), &"treasure_1", "route must pass treasure room")
 	_runner.assert_eq(layout.get_next_room_id(&"treasure_1", {&"start": true, &"combat_1": true, &"treasure_1": true}), &"combat_2", "treasure room leads to second combat")
 	_runner.assert_eq(layout.get_next_room_id(&"combat_2", {&"start": true, &"combat_1": true, &"treasure_1": true, &"combat_2": true}), &"friend_1", "second combat leads to friend room")
-	_runner.assert_eq(layout.get_next_room_id(&"friend_1", cleared), &"final_1", "friend room leads to final")
+	_runner.assert_eq(layout.get_next_room_id(&"friend_1", {&"friend_1": true}, &"final_1"), &"final_1", "discovered final room is enterable without unrelated clears")
 
 
 func test_gyeongbokgung_combat_rooms_apply_distinct_encounter_configs() -> void:
@@ -132,7 +133,7 @@ func test_room_manager_runs_layout_with_interactive_rooms() -> void:
 	_runner.assert_true(manager.start_layout(), "manager starts fixed layout")
 	_runner.assert_eq(manager.current_room_id, &"start")
 	_runner.assert_true(manager.has_cleared_room(&"start"), "start clears on entry")
-	_runner.assert_eq(manager.get_visible_room_defs().size(), 5, "hidden final room starts hidden")
+	_runner.assert_eq(manager.get_visible_room_defs().size(), 6, "final room starts visible in layout data")
 
 	for expected_room_id: StringName in [&"combat_1", &"treasure_1", &"combat_2", &"friend_1"]:
 		_runner.assert_true(manager.request_next_room(), "manager advances to %s" % expected_room_id)
@@ -140,7 +141,7 @@ func test_room_manager_runs_layout_with_interactive_rooms() -> void:
 		_resolve_current_room(manager, actor)
 		_runner.assert_true(manager.has_cleared_room(expected_room_id), "%s clears after its room objective" % expected_room_id)
 
-	_runner.assert_eq(manager.get_visible_room_defs().size(), 6, "final room is visible after required rooms clear")
+	_runner.assert_eq(manager.get_visible_room_defs().size(), 6, "final room remains visible after required rooms clear")
 	_runner.assert_true(manager.request_next_room(), "manager advances to final room")
 	_runner.assert_eq(manager.current_room_id, &"final_1")
 	_resolve_current_room(manager, actor)
@@ -220,7 +221,7 @@ func test_session_root_mounts_room_manager() -> void:
 	_runner.assert_not_null(manager, "session root owns room manager")
 	_runner.assert_eq(manager.current_room_id, &"start", "session starts run layout")
 	_runner.assert_eq(manager.layout.room_defs.size(), 15, "session uses the branching run map room count")
-	_runner.assert_true(manager.layout.required_clears_for_hidden_reveal > 0, "session run map uses explicit boss reveal threshold")
+	_runner.assert_eq(manager.layout.required_clears_for_hidden_reveal, 0, "session run map has no boss reveal threshold")
 	_runner.assert_eq(_first_room_of_type(manager.layout, RoomLayout.TYPE_SHOP), null, "session run map does not expose unfinished shop rooms")
 	_runner.assert_eq(_first_room_of_type(manager.layout, RoomLayout.TYPE_EVENT), null, "session run map does not expose unfinished event/info rooms")
 	_runner.assert_true(_junction_count(manager.layout) >= 2, "session run map has multiple branching junctions")
