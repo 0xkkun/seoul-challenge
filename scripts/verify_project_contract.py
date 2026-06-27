@@ -12,6 +12,7 @@ EXPECTED_AUTOLOADS = {
     "SceneTransition": "res://scripts/autoload/scene_transition.gd",
     "SaveManager": "res://scripts/autoload/save_manager.gd",
     "CurrencySystem": "res://scripts/autoload/currency_system.gd",
+    "ProgressionSystem": "res://scripts/autoload/progression_system.gd",
     "Settings": "res://scripts/autoload/settings.gd",
     "AudioManager": "res://scripts/autoload/audio_manager.gd",
     "PoolManager": "res://scripts/autoload/pool_manager.gd",

@@ -12,6 +12,7 @@ const COMBAT_ROOM_SCENE_PATH := "res://scenes/interactables/combat_room.tscn"
 const EVENT_ROOM_SCENE_PATH := "res://scenes/interactables/rescue_room.tscn"
 const TREASURE_ROOM_SCENE_PATH := "res://scenes/interactables/treasure_room.tscn"
 const SHOP_ROOM_SCENE_PATH := "res://scenes/interactables/shop_room.tscn"
+const FRIEND_ROOM_SCENE_PATH := "res://scenes/interactables/friend_room.tscn"
 const FINAL_ROOM_SCENE_PATH := "res://scenes/interactables/boss_room.tscn"
 const ABANDON_RUN_MESSAGE := "런을 포기할까요? 이번 밤 보상은 사라지고 영구 재화는 유지됩니다"
 const QUIT_GAME_MESSAGE := "게임을 종료할까요?"
@@ -42,6 +43,8 @@ var _handoff_session_on_exit := false
 var _active_boss: Node = null
 var _minimap_full := false
 var _paused_before_exit_modal := false
+var _friend_ids: Array[StringName] = []
+var _unlocks: Array[StringName] = []
 
 
 func _ready() -> void:
@@ -55,6 +58,7 @@ func _ready() -> void:
 	_configure_player_camera()
 	death_return_controller.death_result_builder_callable = Callable(self, "_build_death_result")
 	death_return_controller.game_over_callable = Callable(self, "_show_death_summary")
+	_connect_progression_events()
 	room_manager.room_changed.connect(_on_room_changed)
 	room_manager.configure(_build_run_layout(), room_layer, actor)
 	room_manager.start_layout()
@@ -76,6 +80,7 @@ func _apply_render_layers() -> void:
 
 
 func _exit_tree() -> void:
+	_disconnect_progression_events()
 	if has_node("/root/PoolManager"):
 		PoolManager.clear_all()
 	if not _handoff_session_on_exit and has_node("/root/GameManager") and GameManager.is_session_active():
@@ -104,6 +109,7 @@ func _build_run_layout() -> RoomLayout:
 	generator.event_scene_path = EVENT_ROOM_SCENE_PATH
 	generator.treasure_scene_path = TREASURE_ROOM_SCENE_PATH
 	generator.shop_scene_path = SHOP_ROOM_SCENE_PATH
+	generator.friend_scene_path = FRIEND_ROOM_SCENE_PATH
 	generator.final_scene_path = FINAL_ROOM_SCENE_PATH
 	return generator.generate(RUN_LAYOUT_SEED, {"room_count": RUN_LAYOUT_ROOM_COUNT})
 
@@ -141,7 +147,9 @@ func _build_session_result(overrides: Dictionary = {}) -> Dictionary:
 		"rooms_cleared": rooms_cleared,
 		"memory_reward": rooms_cleared,
 		"students_rescued": 0,
-		"friends_purified": 0,
+		"friends_purified": _friend_ids.size(),
+		"friend_ids": _friend_ids.duplicate(),
+		"unlocks": _build_result_unlocks(),
 	}
 	if not overrides.is_empty():
 		result.merge(overrides, true)
@@ -176,6 +184,59 @@ func _on_interaction_triggered(_source: Node, _target: Node) -> void:
 	session_ui_root.set_interaction_count(completed_interactions)
 	EventBus.emit_interaction_completed({"count": completed_interactions})
 	spawn_sample_marker()
+
+
+func _connect_progression_events() -> void:
+	if not has_node("/root/EventBus"):
+		return
+	var friend_callback := Callable(self, "_on_friend_purified")
+	if not EventBus.friend_purified.is_connected(friend_callback):
+		EventBus.friend_purified.connect(friend_callback)
+	var unlock_callback := Callable(self, "_on_unlock_changed")
+	if EventBus.has_signal(&"unlock_changed") and not EventBus.unlock_changed.is_connected(unlock_callback):
+		EventBus.unlock_changed.connect(unlock_callback)
+
+
+func _disconnect_progression_events() -> void:
+	if not has_node("/root/EventBus"):
+		return
+	var friend_callback := Callable(self, "_on_friend_purified")
+	if EventBus.friend_purified.is_connected(friend_callback):
+		EventBus.friend_purified.disconnect(friend_callback)
+	var unlock_callback := Callable(self, "_on_unlock_changed")
+	if EventBus.has_signal(&"unlock_changed") and EventBus.unlock_changed.is_connected(unlock_callback):
+		EventBus.unlock_changed.disconnect(unlock_callback)
+
+
+func _on_friend_purified(payload: Dictionary) -> void:
+	var friend_id := StringName(payload.get("friend_id", &""))
+	if friend_id == &"" or _friend_ids.has(friend_id):
+		return
+	_friend_ids.append(friend_id)
+
+
+func _on_unlock_changed(payload: Dictionary) -> void:
+	for unlock: Variant in payload.get("unlocks", []):
+		_add_result_unlock(StringName(unlock))
+
+
+func _build_result_unlocks() -> Array[StringName]:
+	var result := _unlocks.duplicate()
+	if _friend_ids.has(&"baseball_captain"):
+		_add_unlock_to(result, &"baseball_stage_3")
+		if has_node("/root/ProgressionSystem") and ProgressionSystem.is_weapon_unlocked(&"awakened_bat"):
+			_add_unlock_to(result, &"awakened_bat")
+	return result
+
+
+func _add_result_unlock(unlock_id: StringName) -> void:
+	_add_unlock_to(_unlocks, unlock_id)
+
+
+func _add_unlock_to(target: Array[StringName], unlock_id: StringName) -> void:
+	if unlock_id == &"" or target.has(unlock_id):
+		return
+	target.append(unlock_id)
 
 
 func _on_pause_requested() -> void:

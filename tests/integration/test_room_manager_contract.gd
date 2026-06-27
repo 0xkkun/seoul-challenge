@@ -220,6 +220,10 @@ func test_session_root_mounts_room_manager() -> void:
 	_runner.assert_eq(treasure_defs.size(), 1, "session run map includes one treasure room")
 	if treasure_defs.size() == 1:
 		_runner.assert_eq(treasure_defs[0].scene_path, "res://scenes/interactables/treasure_room.tscn", "session treasure room uses treasure scene")
+	var friend_defs := _room_defs_of_type(manager.layout, RoomLayout.TYPE_FRIEND)
+	_runner.assert_eq(friend_defs.size(), 1, "session run map includes one friend room")
+	if friend_defs.size() == 1:
+		_runner.assert_eq(friend_defs[0].scene_path, "res://scenes/interactables/friend_room.tscn", "session friend room uses friend scene")
 	_runner.assert_eq(manager.current_room.get_parent(), room_layer, "room manager mounts rooms under room layer")
 	_runner.assert_true(manager.has_cleared_room(&"start"), "start room clears")
 	_runner.assert_true(session.advance_room(), "session can advance through room manager")

@@ -166,11 +166,13 @@ func _assert_layout_invariants(layout: RoomLayout, expected_count: int) -> void:
 		RoomLayout.TYPE_START: 0,
 		RoomLayout.TYPE_COMBAT: 0,
 		RoomLayout.TYPE_EVENT: 0,
+		RoomLayout.TYPE_FRIEND: 0,
 		RoomLayout.TYPE_FINAL: 0,
 		RoomLayout.TYPE_TREASURE: 0,
 		RoomLayout.TYPE_SHOP: 0,
 	}
 	var final_rooms: Array[RoomDef] = []
+	var friend_rooms: Array[RoomDef] = []
 	var shop_rooms: Array[RoomDef] = []
 
 	for room_def: RoomDef in layout.room_defs:
@@ -180,6 +182,8 @@ func _assert_layout_invariants(layout: RoomLayout, expected_count: int) -> void:
 			type_counts[room_def.room_type] += 1
 		if room_def.room_type == RoomLayout.TYPE_FINAL:
 			final_rooms.append(room_def)
+		if room_def.room_type == RoomLayout.TYPE_FRIEND:
+			friend_rooms.append(room_def)
 		if room_def.room_type == RoomLayout.TYPE_SHOP:
 			shop_rooms.append(room_def)
 
@@ -188,14 +192,20 @@ func _assert_layout_invariants(layout: RoomLayout, expected_count: int) -> void:
 
 	_runner.assert_eq(type_counts[RoomLayout.TYPE_START], 1, "one start room")
 	_runner.assert_true(type_counts[RoomLayout.TYPE_COMBAT] >= 2, "at least two combat rooms")
-	_runner.assert_eq(type_counts[RoomLayout.TYPE_COMBAT], expected_count - 5, "remaining generated rooms are combat")
+	_runner.assert_eq(type_counts[RoomLayout.TYPE_COMBAT], expected_count - 6, "remaining generated rooms are combat")
 	_runner.assert_eq(type_counts[RoomLayout.TYPE_EVENT], 1, "one event room")
+	_runner.assert_eq(type_counts[RoomLayout.TYPE_FRIEND], 1, "one friend room")
 	_runner.assert_eq(type_counts[RoomLayout.TYPE_TREASURE], 1, "one treasure room")
 	_runner.assert_eq(type_counts[RoomLayout.TYPE_SHOP], 1, "one shop room")
 	_runner.assert_eq(type_counts[RoomLayout.TYPE_FINAL], 1, "one final room")
 	_runner.assert_eq(final_rooms.size(), 1, "final room exists")
 	if final_rooms.size() == 1:
 		_runner.assert_true(final_rooms[0].hidden, "final room is hidden")
+	_runner.assert_eq(friend_rooms.size(), 1, "friend room exists")
+	if final_rooms.size() == 1 and friend_rooms.size() == 1:
+		_runner.assert_true(final_rooms[0].connections.has(friend_rooms[0].room_id), "final room is reached through friend room")
+		_runner.assert_true(friend_rooms[0].connections.has(final_rooms[0].room_id), "friend room leads to final room")
+		_runner.assert_true(friend_rooms[0].scene_path != "", "friend room has a scene path")
 	_runner.assert_eq(shop_rooms.size(), 1, "shop room exists")
 	if shop_rooms.size() == 1:
 		_runner.assert_false(shop_rooms[0].hidden, "shop room is visible from run start")
