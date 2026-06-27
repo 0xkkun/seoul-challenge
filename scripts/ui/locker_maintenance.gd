@@ -19,7 +19,7 @@ const ACTION_SELECT_BAT := "locker_maintenance.weapon.bat"
 const ACTION_CYCLE_WEAPON := "locker_maintenance.weapon.cycle"
 const ACTION_OPEN_MAP := "locker_maintenance.map"
 const ACTION_UPGRADE_PREFIX := "locker_maintenance.upgrade."
-const BASEBALL_BAT_ICON_PATH := "res://assets/ui/icons/tailbound/baseball_bat.png"
+const BASEBALL_BAT_ICON_PATH := "res://assets/ui/icons/seoul_challenge/baseball_bat.png"
 
 @export var scene_transition_enabled := true
 
@@ -405,9 +405,10 @@ func _make_weapon_card(node_name: String, text: String, relative_rect: Rect2, ac
 	card.anchor_right = relative_rect.position.x + relative_rect.size.x
 	card.anchor_bottom = relative_rect.position.y + relative_rect.size.y
 	card.text = text
-	card.icon = load(BASEBALL_BAT_ICON_PATH)
-	card.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	card.expand_icon = false
+	if action == ACTION_SELECT_BASEBALL:
+		card.icon = load(BASEBALL_BAT_ICON_PATH)
+		card.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		card.expand_icon = false
 	card.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	card.alignment = HORIZONTAL_ALIGNMENT_CENTER
 	card.focus_mode = Control.FOCUS_NONE

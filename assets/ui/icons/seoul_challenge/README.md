@@ -1,4 +1,4 @@
-# Tailbound UI icons
+# Seoul Challenge UI icons
 
 Project-local UI icons used by Seoul Challenge runtime screens.
 
