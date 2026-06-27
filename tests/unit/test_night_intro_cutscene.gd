@@ -45,6 +45,18 @@ func test_intro_narration_clips_are_importable() -> void:
 	_runner.assert_true(clip_count >= 7, "narration covers the voiced lines")
 
 
+func test_second_beat_uses_trailer_transition_sfx() -> void:
+	var beat: Dictionary = NightIntroCutsceneScript.BEATS[1]
+	var lines: Array = beat["lines"]
+	var sfx_id := StringName(beat.get("sfx", &""))
+	var sfx_path := AudioManager.get_sfx_stream_path(sfx_id)
+
+	_runner.assert_eq(String(lines[0]["text"]), "나는 매일 밤, 그 아래로 내려간다.", "second beat starts with the nightly descent line")
+	_runner.assert_eq(sfx_id, AudioManager.NIGHT_INTRO_TRANSITION, "A-to-B trailer transition uses the trailer SFX")
+	_runner.assert_true(AudioManager.has_sfx(sfx_id), "A-to-B trailer transition SFX is registered")
+	_runner.assert_true(ResourceLoader.exists(sfx_path), "A-to-B trailer transition SFX resource exists")
+
+
 func test_skip_finishes_immediately_before_playing() -> void:
 	var intro := NightIntroCutsceneScript.new()
 	var finished_count := [0]

@@ -30,7 +30,7 @@ const PLATES: Array[String] = [
 	"res://assets/backgrounds/night_intro/night_intro_4.png",
 ]
 
-## 각 비트: 플레이트 + 자막 줄들. 각 줄은 {text, audio?(나레이션 음성)} 형태.
+## 각 비트: 플레이트 + 전환음 + 자막 줄들. 각 줄은 {text, audio?(나레이션 음성)} 형태.
 ## 음성이 있는 줄은 자막이 뜰 때 해당 클립을 재생하고, 다음 줄로 넘어가면
 ## 새 클립으로 교체된다.
 const BEATS: Array[Dictionary] = [
@@ -38,7 +38,7 @@ const BEATS: Array[Dictionary] = [
 		{"text": "도시가 잠들면,", "audio": "res://assets/audio/night_intro/vo_beat1_1.wav"},
 		{"text": "어둠 속에서 무언가 깨어난다.", "audio": "res://assets/audio/night_intro/vo_beat1_2.wav"},
 	]},
-	{"plate": 1, "lines": [
+	{"plate": 1, "sfx": &"night_intro_transition", "lines": [
 		{"text": "나는 매일 밤, 그 아래로 내려간다.", "audio": "res://assets/audio/night_intro/vo_beat2_1.wav"},
 		{"text": "아무도 모르는 길을 따라.", "audio": "res://assets/audio/night_intro/vo_beat2_2.wav", "pre": 0.5},
 	]},
@@ -105,7 +105,7 @@ func play() -> void:
 		if _skip:
 			break
 		var beat: Dictionary = BEATS[i]
-		# 전환음 id(C·D)가 있으면 등장 직전에 깐다. 효과음이 먼저 깔리고,
+		# 전환음 id가 있으면 등장 직전에 깐다. 효과음이 먼저 깔리고,
 		# 플레이트가 떠오른 뒤(첫 줄 pre 만큼 더 기다린 뒤) 나레이션이 이어진다.
 		var sfx_id := StringName(beat.get("sfx", &""))
 		if sfx_id != &"":
