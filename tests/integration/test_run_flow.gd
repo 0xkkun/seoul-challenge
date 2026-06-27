@@ -146,9 +146,7 @@ func _resolve_current_room(controller: RunController, actor: Node2D) -> void:
 	if controller.room_manager != null and controller.room_manager.is_current_room_cleared():
 		return
 	if room.has_method("get_active_enemies"):
-		for enemy: Node in room.call("get_active_enemies"):
-			if enemy.has_method("take_damage"):
-				enemy.call("take_damage", 99)
+		_defeat_all_combat_waves(room)
 	elif room.has_method("get_active_students"):
 		for student: Node in room.call("get_active_students"):
 			if student.has_method("rescue"):
@@ -161,3 +159,17 @@ func _resolve_current_room(controller: RunController, actor: Node2D) -> void:
 				friend.emit_signal("purified", friend)
 	elif room.has_method("complete_boss_encounter"):
 		room.call("complete_boss_encounter")
+
+
+func _defeat_all_combat_waves(room: Node) -> void:
+	var guard := 0
+	while room.has_method("get_active_enemies") and room.has_method("is_cleared") and not room.call("is_cleared"):
+		var enemies: Array = room.call("get_active_enemies")
+		if enemies.is_empty():
+			return
+		for enemy: Node in enemies:
+			if enemy.has_method("take_damage"):
+				enemy.call("take_damage", 99)
+		guard += 1
+		if guard > 8:
+			return

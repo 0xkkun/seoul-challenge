@@ -83,6 +83,10 @@ func test_gyeongbokgung_combat_rooms_apply_distinct_encounter_configs() -> void:
 	var second_config := second_config_value as Dictionary
 	_runner.assert_true(first_config.size() > 0, "first combat room has authored encounter config")
 	_runner.assert_true(second_config.size() > 0, "second combat room has authored encounter config")
+	_runner.assert_eq(_encounter_total(first_config), 4, "first authored combat room starts at the early encounter budget")
+	_runner.assert_eq(_encounter_total(second_config), 9, "second authored combat room reaches late encounter budget")
+	_runner.assert_eq(int(first_config.get("wave_count", 0)), 1, "first authored combat room uses one wave")
+	_runner.assert_eq(int(second_config.get("wave_count", 0)), 3, "second authored combat room uses three waves")
 	_runner.assert_true(_encounter_total(second_config) > _encounter_total(first_config), "second combat room is configured stronger")
 
 	_runner.assert_true(manager.start_layout(), "manager starts fixed layout")
@@ -290,9 +294,7 @@ func _resolve_current_room(manager: RoomManager, actor: Node2D) -> void:
 	if room == null or manager.is_current_room_cleared():
 		return
 	if room.has_method("get_active_enemies"):
-		for enemy: Node in room.call("get_active_enemies"):
-			if enemy.has_method("take_damage"):
-				enemy.call("take_damage", 99)
+		_defeat_all_combat_waves(room)
 	elif room.has_method("get_active_students"):
 		for student: Node in room.call("get_active_students"):
 			if student.has_method("rescue"):
@@ -314,6 +316,20 @@ func _encounter_total(config: Dictionary) -> int:
 		+ int(config.get("elite_chaser_count", 0))
 		+ int(config.get("elite_ranged_count", 0))
 	)
+
+
+func _defeat_all_combat_waves(room: Node) -> void:
+	var guard := 0
+	while room.has_method("get_active_enemies") and room.has_method("is_cleared") and not room.call("is_cleared"):
+		var enemies: Array = room.call("get_active_enemies")
+		if enemies.is_empty():
+			return
+		for enemy: Node in enemies:
+			if enemy.has_method("take_damage"):
+				enemy.call("take_damage", 99)
+		guard += 1
+		if guard > 8:
+			return
 
 
 func _assert_grid_connections_are_adjacent(layout: RoomLayout) -> void:

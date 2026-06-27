@@ -37,13 +37,11 @@ func test_combat_room_spawns_enemies_and_clears_after_defeats() -> void:
 	_runner.assert_not_null(east_door, "combat room has an east exit")
 	if east_door == null:
 		return
-	_runner.assert_eq(room.call("get_remaining_enemy_count"), 3, "combat room spawns chasers and a ranged shooter")
+	_runner.assert_eq(room.call("get_remaining_enemy_count"), 4, "combat room starts with four enemies")
 	_runner.assert_false(room.call("is_cleared"), "combat room waits for enemy defeats")
 	_runner.assert_true(east_door.is_locked(), "combat room door stays locked while enemies remain")
 
-	for enemy: Node in room.call("get_active_enemies"):
-		if enemy.has_method("take_damage"):
-			enemy.call("take_damage", 99)
+	_defeat_active_enemies(room)
 
 	_runner.assert_true(room.call("is_cleared"), "combat room clears after every enemy is defeated")
 	_runner.assert_true(east_door.is_open(), "combat clear opens exits")
@@ -99,6 +97,7 @@ func test_combat_room_applies_room_config_and_elite_variants() -> void:
 		"ranged_count": 1,
 		"elite_chaser_count": 1,
 		"elite_ranged_count": 1,
+		"wave_count": 1,
 	})
 	add_child(room)
 
@@ -109,6 +108,7 @@ func test_combat_room_applies_room_config_and_elite_variants() -> void:
 	_runner.assert_eq(summary["ranged_count"], 1, "config keeps normal ranged count")
 	_runner.assert_eq(summary["elite_chaser_count"], 1, "config keeps elite chaser count")
 	_runner.assert_eq(summary["elite_ranged_count"], 1, "config keeps elite ranged count")
+	_runner.assert_eq(summary["wave_count"], 1, "summary includes configured wave count")
 	_runner.assert_eq(summary["total_count"], 4, "summary includes all configured enemies")
 	_runner.assert_eq(room.call("get_remaining_enemy_count"), 4, "room spawns every configured enemy")
 
@@ -135,12 +135,42 @@ func test_combat_room_emits_ingame_rewards_for_enemy_defeats_and_clear() -> void
 	add_child(room)
 
 	room.enter()
-	for enemy: Node in room.call("get_active_enemies"):
-		if enemy.has_method("take_damage"):
-			enemy.call("take_damage", 99)
+	_defeat_active_enemies(room)
 
 	_runner.assert_true(room.call("is_cleared"), "combat room clears after reward source defeats")
-	_runner.assert_eq(CurrencySystem.get_ingame(), 6, "three enemy defeats plus combat clear reward ingame currency")
+	_runner.assert_eq(CurrencySystem.get_ingame(), 7, "four enemy defeats plus combat clear reward ingame currency")
+
+
+func test_combat_room_spawns_later_waves_before_clear() -> void:
+	var room := _instantiate_combat_room()
+	if room == null:
+		return
+	room.call("apply_room_config", {
+		"chaser_count": 4,
+		"ranged_count": 2,
+		"elite_chaser_count": 0,
+		"elite_ranged_count": 0,
+		"wave_count": 2,
+	})
+	add_child(room)
+
+	room.enter()
+
+	var summary: Dictionary = room.call("get_encounter_summary")
+	_runner.assert_eq(summary["total_count"], 6, "wave encounter budget includes all enemies")
+	_runner.assert_eq(summary["wave_count"], 2, "wave encounter keeps authored wave count")
+	_runner.assert_eq(room.call("get_remaining_enemy_count"), 3, "first wave spawns half of the encounter")
+
+	_defeat_active_enemies(room)
+
+	_runner.assert_false(room.call("is_cleared"), "combat waits for the next wave before clearing")
+	_runner.assert_eq(room.call("get_remaining_enemy_count"), 3, "second wave spawns when the first wave is defeated")
+
+	_defeat_active_enemies(room)
+
+	_runner.assert_true(room.call("is_cleared"), "combat clears after the final wave")
+	_runner.assert_eq(room.call("get_remaining_enemy_count"), 0, "final wave leaves no active enemies")
+	_runner.assert_eq(CurrencySystem.get_ingame(), 9, "six enemy defeats plus combat clear reward ingame currency")
 
 
 func test_combat_room_ignores_duplicate_defeat_reward_for_same_enemy() -> void:
@@ -181,3 +211,9 @@ func _instantiate_combat_room() -> Node:
 	_runner.assert_true(room.has_method("get_remaining_enemy_count"), "combat room exposes remaining enemy count")
 	_runner.assert_true(room.has_method("get_alive_count"), "combat room keeps legacy alive count alias")
 	return room
+
+
+func _defeat_active_enemies(room: Node) -> void:
+	for enemy: Node in room.call("get_active_enemies"):
+		if enemy.has_method("take_damage"):
+			enemy.call("take_damage", 99)
