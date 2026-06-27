@@ -16,9 +16,11 @@ const DANGER_NORMAL_TEXTURE_PATH := "res://assets/ui/buttons/lobby/lobby_button_
 const DANGER_PRESSED_TEXTURE_PATH := "res://assets/ui/buttons/lobby/lobby_button_danger_pressed.png"
 
 
-static func apply(button: Button, variant: StringName = VARIANT_PRIMARY, minimum_size: Vector2 = Vector2.ZERO) -> void:
+static func apply(button: Button, variant: StringName = VARIANT_PRIMARY, minimum_size: Vector2 = Vector2.ZERO, with_sfx: bool = true) -> void:
 	if button == null:
 		return
+	if with_sfx:
+		attach_press_sfx(button)
 	if minimum_size != Vector2.ZERO:
 		button.custom_minimum_size = Vector2(
 			maxf(button.custom_minimum_size.x, minimum_size.x),
@@ -34,6 +36,25 @@ static func apply(button: Button, variant: StringName = VARIANT_PRIMARY, minimum
 	button.add_theme_color_override("font_focus_color", _font_hover_color(variant))
 	button.add_theme_color_override("font_pressed_color", _font_pressed_color(variant))
 	button.add_theme_color_override("font_disabled_color", _font_disabled_color(variant))
+
+
+## Connects the shared UI button-press SFX to a button's `pressed` signal.
+## Safe to call multiple times — the connection is deduplicated.
+static func attach_press_sfx(button: Button) -> void:
+	if button == null:
+		return
+	var press_cb := Callable(PixelButtonStyle, "_play_press_sfx")
+	if not button.pressed.is_connected(press_cb):
+		button.pressed.connect(press_cb)
+
+
+static func _play_press_sfx() -> void:
+	var loop := Engine.get_main_loop() as SceneTree
+	if loop == null:
+		return
+	var audio := loop.root.get_node_or_null(^"AudioManager")
+	if audio != null and audio.has_method(&"play_sfx"):
+		audio.play_sfx(AudioManager.UI_BUTTON_PRESS)
 
 
 static func normal_texture_path(variant: StringName) -> String:

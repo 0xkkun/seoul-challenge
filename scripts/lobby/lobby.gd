@@ -23,11 +23,13 @@ func _ready() -> void:
 	start_button.set_meta("uat_action", "lobby.start")
 	start_button.pressed.connect(_on_start_pressed)
 	start_button.focus_mode = Control.FOCUS_NONE
+	PixelButtonStyle.attach_press_sfx(start_button)
 	settings_button.set_meta("test_id", "lobby.settings_button")
 	settings_button.set_meta("uat_action", "lobby.settings")
 	settings_button.pressed.connect(_on_settings_pressed)
 	settings_button.disabled = false
 	settings_button.focus_mode = Control.FOCUS_NONE
+	PixelButtonStyle.attach_press_sfx(settings_button)
 	status_label.text = ""
 	status_label.visible = false
 

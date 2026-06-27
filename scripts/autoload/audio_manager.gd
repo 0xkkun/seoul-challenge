@@ -4,6 +4,7 @@ const LOBBY_BGM_DEFAULT := &"lobby_bgm_default"
 const LOBBY_BGM_ALTERNATE := &"lobby_bgm_alternate"
 const SCHOOL_BELL_TRANSITION_FRONT := &"school_bell_transition_front"
 const SCHOOL_BELL_TRANSITION_BACK := &"school_bell_transition_back"
+const UI_BUTTON_PRESS := &"ui_button_press"
 const SESSION_TRANSITION_SFX_IDS: Array[StringName] = [
 	SCHOOL_BELL_TRANSITION_FRONT,
 	SCHOOL_BELL_TRANSITION_BACK,
@@ -16,6 +17,7 @@ const _BGM_STREAM_PATHS := {
 const _SFX_STREAM_PATHS := {
 	SCHOOL_BELL_TRANSITION_FRONT: "res://assets/audio/sfx/school_bell_transition_front.wav",
 	SCHOOL_BELL_TRANSITION_BACK: "res://assets/audio/sfx/school_bell_transition_back.wav",
+	UI_BUTTON_PRESS: "res://assets/audio/sfx/ui_button_press.mp3",
 }
 
 var _played_sfx: Array[StringName] = []
@@ -39,6 +41,11 @@ func play_sfx(id: StringName) -> void:
 	_played_sfx.append(id)
 	var stream_path := get_sfx_stream_path(id)
 	if stream_path == "":
+		return
+	# Skip real playback when there is no audio output (headless CI/tests). The
+	# play is still recorded above; spawning a player here would leak its stream
+	# because the dummy audio server never releases in-flight playbacks at exit.
+	if DisplayServer.get_name() == "headless":
 		return
 	var stream := load(stream_path) as AudioStream
 	if stream == null:

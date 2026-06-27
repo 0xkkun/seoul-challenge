@@ -297,6 +297,7 @@ func _render_choices() -> void:
 			_apply_continue_hint_style(button)
 		else:
 			_apply_button_style(button, bool(choice.get("emphasized", false)))
+			PixelButtonStyle.attach_press_sfx(button)
 		_choice_row.add_child(button)
 
 
