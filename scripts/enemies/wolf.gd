@@ -325,6 +325,7 @@ func _start_dash() -> void:
 	_dash_state = &"dash"
 	_dash_timer = dash_duration
 	_dash_hit_targets.clear()
+	AudioManager.play_sfx(AudioManager.WOLF_ATTACK)
 	_play_attack_animation(_dash_direction)
 
 

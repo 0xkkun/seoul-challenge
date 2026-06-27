@@ -26,6 +26,14 @@ func _set_runner(runner: Node) -> void:
 	_runner = runner
 
 
+func before_each() -> void:
+	AudioManager.reset()
+
+
+func after_each() -> void:
+	AudioManager.reset()
+
+
 func test_wolf_png_sources_match_latest_download_assets() -> void:
 	_runner.assert_eq(
 		FileAccess.get_sha256(WOLF_MOVE_SHEET_PATH),
@@ -171,6 +179,21 @@ func test_wolf_dash_direction_locks_during_windup() -> void:
 	_runner.assert_eq(enemy.call("get_dash_state"), &"dash", "wolf enters dash after windup")
 	_runner.assert_true(dash_velocity.x > 0.0, "wolf keeps the windup direction instead of reacquiring the dashed player")
 	_runner.assert_true(absf(dash_velocity.y) < 0.001, "wolf dash direction stays locked through windup")
+
+
+func test_wolf_dash_start_plays_attack_sfx_once() -> void:
+	_runner.assert_true(ResourceLoader.exists(WOLF_SCENE_PATH), "wolf dash enemy scene exists")
+	if not ResourceLoader.exists(WOLF_SCENE_PATH):
+		return
+
+	var enemy := (load(WOLF_SCENE_PATH) as PackedScene).instantiate()
+	add_child(enemy)
+
+	enemy.call("tick_dash_ai", 0.1, Vector2.ZERO, Vector2.RIGHT * enemy.dash_trigger_range)
+	_runner.assert_eq(AudioManager.get_played_sfx(), [], "wolf windup does not play the attack SFX before the dash starts")
+	enemy.call("tick_dash_ai", enemy.dash_windup_time, Vector2.ZERO, Vector2.RIGHT * enemy.dash_trigger_range)
+
+	_runner.assert_eq(AudioManager.get_played_sfx(), [&"wolf_attack"], "wolf dash start plays the wolf attack SFX once")
 
 
 func test_wolf_dash_hit_applies_damage_once_per_dash() -> void:

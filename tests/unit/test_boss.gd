@@ -17,6 +17,14 @@ func _set_runner(runner: Node) -> void:
 	_runner = runner
 
 
+func before_each() -> void:
+	AudioManager.reset()
+
+
+func after_each() -> void:
+	AudioManager.reset()
+
+
 func test_charge_points_toward_target() -> void:
 	var b = BossScene.instantiate()
 	var v: Vector2 = b.charge_velocity(Vector2.ZERO, Vector2(10.0, 0.0), 100.0)
@@ -109,6 +117,22 @@ func test_weak_attack_is_melee_swing_not_projectile_burst() -> void:
 	target.queue_free()
 
 
+func test_weak_attack_plays_boss_attack_sfx_once() -> void:
+	var b = BossScene.instantiate()
+	var target := DamageTarget.new()
+	add_child(b)
+	add_child(target)
+	b.global_position = Vector2.ZERO
+	target.global_position = Vector2.RIGHT * 80.0
+
+	b.set("_pattern_index", 1)
+	b.call("_begin_pattern", target)
+
+	_runner.assert_eq(AudioManager.get_played_sfx(), [&"boss_attack"], "보스 약공격 시작 시 보스 공격 SFX를 1회 재생한다")
+	b.queue_free()
+	target.queue_free()
+
+
 func test_strong_attack_hits_before_body_overlap() -> void:
 	var b = BossScene.instantiate()
 	var target := DamageTarget.new()
@@ -129,6 +153,26 @@ func test_strong_attack_hits_before_body_overlap() -> void:
 	b.call("_tick_strong_attack_hit", target, 0.02)
 	_runner.assert_true(target.damage_taken >= b.contact_damage, "보스 강공격은 몸통 접촉 전 스윙 범위에서 피해를 준다")
 	_runner.assert_true(target.global_position.distance_to(b.global_position) > b.contact_range, "테스트 대상은 기존 접촉 판정보다 멀리 있다")
+	b.queue_free()
+	target.queue_free()
+
+
+func test_strong_attack_plays_boss_attack_sfx_before_hit_frame() -> void:
+	var b = BossScene.instantiate()
+	var target := DamageTarget.new()
+	add_child(b)
+	add_child(target)
+	b.target_group = &"boss_timing_test_player"
+	target.add_to_group(&"boss_timing_test_player")
+	b.charge_speed = 0.0
+	b.global_position = Vector2.ZERO
+	target.global_position = Vector2.RIGHT * 120.0
+
+	b.set("_pattern_index", 0)
+	b.call("_begin_pattern", target)
+
+	_runner.assert_eq(AudioManager.get_played_sfx(), [&"boss_attack"], "보스 강공격 시작 시 보스 공격 SFX를 1회 재생한다")
+	_runner.assert_eq(target.damage_taken, 0, "강공격 사운드는 임팩트 프레임 전 피해 판정을 앞당기지 않는다")
 	b.queue_free()
 	target.queue_free()
 

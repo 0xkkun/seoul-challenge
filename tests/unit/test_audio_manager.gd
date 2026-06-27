@@ -48,6 +48,36 @@ func test_bat_hit_sfx_is_registered() -> void:
 	_runner.assert_not_null(stream, "bat hit SFX loads as WAV")
 
 
+func test_boss_attack_sfx_is_registered() -> void:
+	var stream_path := AudioManager.get_sfx_stream_path(&"boss_attack")
+
+	_runner.assert_true(AudioManager.has_sfx(&"boss_attack"), "boss attack SFX is registered")
+	_runner.assert_eq(stream_path, "res://assets/audio/sfx/boss_attack.mp3", "boss attack SFX path is stable")
+	_runner.assert_true(ResourceLoader.exists(stream_path), "boss attack SFX resource exists")
+	var stream := load(stream_path) as AudioStreamMP3
+	_runner.assert_not_null(stream, "boss attack SFX loads as MP3")
+
+
+func test_wolf_attack_sfx_is_registered() -> void:
+	var stream_path := AudioManager.get_sfx_stream_path(&"wolf_attack")
+
+	_runner.assert_true(AudioManager.has_sfx(&"wolf_attack"), "wolf attack SFX is registered")
+	_runner.assert_eq(stream_path, "res://assets/audio/sfx/wolf_attack.wav", "wolf attack SFX path is stable")
+	_runner.assert_true(ResourceLoader.exists(stream_path), "wolf attack SFX resource exists")
+	var stream := load(stream_path) as AudioStreamWAV
+	_runner.assert_not_null(stream, "wolf attack SFX loads as WAV")
+
+
+func test_kumiho_fireball_sfx_is_registered() -> void:
+	var stream_path := AudioManager.get_sfx_stream_path(&"kumiho_fireball")
+
+	_runner.assert_true(AudioManager.has_sfx(&"kumiho_fireball"), "kumiho fireball SFX is registered")
+	_runner.assert_eq(stream_path, "res://assets/audio/sfx/kumiho_fireball.mp3", "kumiho fireball SFX path is stable")
+	_runner.assert_true(ResourceLoader.exists(stream_path), "kumiho fireball SFX resource exists")
+	var stream := load(stream_path) as AudioStreamMP3
+	_runner.assert_not_null(stream, "kumiho fireball SFX loads as MP3")
+
+
 func test_movement_sfx_are_registered() -> void:
 	var footstep_path := AudioManager.get_sfx_stream_path(&"corridor_footstep")
 	var gyeongbokgung_footstep_path := AudioManager.get_sfx_stream_path(&"gyeongbokgung_footstep")

@@ -24,6 +24,7 @@ const FACING_DEADZONE := 0.01
 @export var hit_invuln_time: float = 0.12     ## 피격 직후 중복 피해 방지/플래시 시간
 @export var target_group: StringName = &"player"
 @export var projectile_scene: PackedScene = ENEMY_BULLET
+@export var attack_sfx_id: StringName = &""
 @export var move_animation: StringName = &"move"
 @export var attack_animation: StringName = &"attack"
 @export var health_bar_width: float = 36.0
@@ -290,6 +291,7 @@ func tick_fire(delta: float, origin: Vector2, target_position: Vector2) -> bool:
 	_fire_timer = fire_interval
 	var direction := aim_direction(origin, target_position)
 	_play_attack_animation(direction)
+	_play_attack_sfx()
 	fired.emit(origin, direction)
 	return true
 
@@ -359,6 +361,12 @@ func _play_attack_animation(facing_direction: Vector2 = Vector2.ZERO) -> void:
 	_set_sprite_facing_from_direction(facing_direction)
 	if _sprite.sprite_frames.has_animation(attack_animation):
 		_sprite.play(attack_animation)
+
+
+func _play_attack_sfx() -> void:
+	if attack_sfx_id == &"":
+		return
+	AudioManager.play_sfx(attack_sfx_id)
 
 
 func _update_sprite_facing() -> void:

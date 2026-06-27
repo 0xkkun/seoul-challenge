@@ -201,9 +201,11 @@ func _begin_pattern(target: Node2D) -> void:
 		_strong_attack_hit_resolved = false
 		_phase = Phase.CHARGE
 		_phase_timer = charge_time
+		AudioManager.play_sfx(AudioManager.BOSS_ATTACK)
 		_play_attack_animation(strong_attack_animation, _charge_dir)
 	else:
 		var aim := _aim_to(target)
+		AudioManager.play_sfx(AudioManager.BOSS_ATTACK)
 		_play_attack_animation(attack_animation, aim)
 		_try_swing_attack(target, aim, weak_attack_range, weak_attack_arc)
 		_phase = Phase.SWING

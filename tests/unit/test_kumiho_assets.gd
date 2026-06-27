@@ -12,6 +12,14 @@ func _set_runner(runner: Node) -> void:
 	_runner = runner
 
 
+func before_each() -> void:
+	AudioManager.reset()
+
+
+func after_each() -> void:
+	AudioManager.reset()
+
+
 func test_kumiho_scene_uses_5_move_and_6_attack_frames() -> void:
 	_runner.assert_true(ResourceLoader.exists(KUMIHO_SCENE_PATH), "kumiho ranged enemy scene exists")
 	if not ResourceLoader.exists(KUMIHO_SCENE_PATH):
@@ -75,6 +83,20 @@ func test_kumiho_fires_fireball_and_plays_attack_animation() -> void:
 	_runner.assert_not_null(sprite, "kumiho sprite remains mounted after firing")
 	if sprite != null:
 		_runner.assert_eq(sprite.animation, &"attack", "kumiho switches to attack animation when firing")
+
+
+func test_kumiho_fireball_attack_plays_sfx_once() -> void:
+	_runner.assert_true(ResourceLoader.exists(KUMIHO_SCENE_PATH), "kumiho ranged enemy scene exists")
+	if not ResourceLoader.exists(KUMIHO_SCENE_PATH):
+		return
+
+	var enemy := (load(KUMIHO_SCENE_PATH) as PackedScene).instantiate()
+	add_child(enemy)
+
+	var fired: bool = bool(enemy.tick_fire(enemy.fire_interval, Vector2.ZERO, Vector2.RIGHT))
+
+	_runner.assert_true(fired, "kumiho fires after its interval")
+	_runner.assert_eq(AudioManager.get_played_sfx(), [&"kumiho_fireball"], "kumiho fireball attack plays the fireball SFX once")
 
 
 func test_kumiho_takes_two_default_bat_hits() -> void:
