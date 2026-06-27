@@ -67,6 +67,16 @@ func test_strong_attack_hit_ready_waits_for_animation_contact_frame() -> void:
 	b.free()
 
 
+func test_boss_pattern_damage_defaults_make_slow_attacks_threatening() -> void:
+	var b = BossScene.instantiate()
+	_runner.assert_eq(b.contact_damage, 1, "보스 몸통 접촉 피해는 잡몹 수준으로 유지한다")
+	_runner.assert_eq(b.weak_attack_damage, 2, "보스 약공격은 잡몹 접촉보다 아프다")
+	_runner.assert_eq(b.strong_attack_damage, 3, "보스 강공격은 약공격보다 아프다")
+	_runner.assert_true(b.recover_time <= 0.85, "보스 회복 시간은 느슨한 기존 1초보다 짧다")
+	_runner.assert_eq(b.telegraph_time, 0.6, "보스 텔레그래프 시간은 읽을 수 있게 유지한다")
+	b.free()
+
+
 func test_dies_at_zero_hp() -> void:
 	var b = BossScene.instantiate()
 	add_child(b)  # _ready → _hp = max_hp
@@ -111,8 +121,52 @@ func test_weak_attack_is_melee_swing_not_projectile_burst() -> void:
 	b.set("_pattern_index", 1)
 	b.call("_begin_pattern", target)
 
-	_runner.assert_eq(target.damage_taken, b.contact_damage, "보스 약공격은 전방 근접 스윙으로 피해를 준다")
+	_runner.assert_eq(target.damage_taken, b.weak_attack_damage, "보스 약공격은 전방 근접 스윙 피해를 준다")
 	_runner.assert_eq(get_child_count(), child_count_before, "보스 약공격은 원거리 투사체를 생성하지 않는다")
+	b.queue_free()
+	target.queue_free()
+
+
+func test_boss_contact_damage_stays_lighter_than_pattern_hits() -> void:
+	var b = BossScene.instantiate()
+	var target := DamageTarget.new()
+	add_child(b)
+	add_child(target)
+	b.global_position = Vector2.ZERO
+	target.global_position = Vector2.RIGHT * 12.0
+
+	b.call("_try_contact", target)
+
+	_runner.assert_eq(target.damage_taken, b.contact_damage, "보스 몸통 접촉은 패턴 피해와 분리된 낮은 피해를 유지한다")
+	_runner.assert_true(b.contact_damage < b.weak_attack_damage, "약공격은 몸통 접촉보다 더 위협적이다")
+	b.queue_free()
+	target.queue_free()
+
+
+func test_weak_attack_emits_boss_hit_camera_feedback() -> void:
+	var b = BossScene.instantiate()
+	var target := DamageTarget.new()
+	var events: Array[Dictionary] = []
+	var callback := func(payload: Dictionary) -> void:
+		events.append(payload)
+	EventBus.combat_feedback.connect(callback)
+	add_child(b)
+	add_child(target)
+	b.global_position = Vector2.ZERO
+	target.global_position = Vector2.RIGHT * 80.0
+
+	b.set("_pattern_index", 1)
+	b.call("_begin_pattern", target)
+
+	EventBus.combat_feedback.disconnect(callback)
+	_runner.assert_eq(events.size(), 1, "보스 약공격 피격은 카메라 피드백 이벤트를 발신한다")
+	if events.size() == 1:
+		var payload := events[0]
+		_runner.assert_eq(payload.get("kind", &""), &"boss_hit", "보스 피격 피드백 kind를 사용한다")
+		_runner.assert_eq(payload.get("attack", &""), &"weak_attack", "약공격 피드백 종류를 구분한다")
+		_runner.assert_eq(int(payload.get("damage", 0)), b.weak_attack_damage, "피드백 payload에 약공격 피해량을 싣는다")
+		_runner.assert_eq(float(payload.get("intensity", 0.0)), b.weak_attack_feedback_intensity, "약공격 카메라 피드백 강도를 싣는다")
+		_runner.assert_eq(payload.get("direction", Vector2.ZERO), Vector2.RIGHT, "약공격 피드백은 피격 방향을 싣는다")
 	b.queue_free()
 	target.queue_free()
 
@@ -179,8 +233,45 @@ func test_strong_attack_hits_before_body_overlap() -> void:
 	b.call("_tick_strong_attack_hit", target, (float(b.strong_attack_hit_frame) / b.strong_attack_animation_fps) - 0.01)
 	_runner.assert_eq(target.damage_taken, 0, "보스 강공격은 방망이가 내려오기 전까지 피해를 주지 않는다")
 	b.call("_tick_strong_attack_hit", target, 0.02)
-	_runner.assert_true(target.damage_taken >= b.contact_damage, "보스 강공격은 몸통 접촉 전 스윙 범위에서 피해를 준다")
+	_runner.assert_eq(target.damage_taken, b.strong_attack_damage, "보스 강공격은 몸통 접촉 전 강공격 피해를 준다")
 	_runner.assert_true(target.global_position.distance_to(b.global_position) > b.contact_range, "테스트 대상은 기존 접촉 판정보다 멀리 있다")
+	b.queue_free()
+	target.queue_free()
+
+
+func test_strong_attack_emits_stronger_boss_hit_camera_feedback_on_contact_frame() -> void:
+	var b = BossScene.instantiate()
+	var target := DamageTarget.new()
+	var events: Array[Dictionary] = []
+	var callback := func(payload: Dictionary) -> void:
+		events.append(payload)
+	EventBus.combat_feedback.connect(callback)
+	add_child(b)
+	add_child(target)
+	b.target_group = &"boss_timing_test_player"
+	target.add_to_group(&"boss_timing_test_player")
+	b.charge_speed = 0.0
+	b.global_position = Vector2.ZERO
+	target.global_position = Vector2.RIGHT * 120.0
+
+	b.set("_pattern_index", 0)
+	b.call("_begin_pattern", target)
+	b.call("_tick_strong_attack_hit", target, float(b.strong_attack_hit_frame) / b.strong_attack_animation_fps)
+
+	EventBus.combat_feedback.disconnect(callback)
+	_runner.assert_eq(target.damage_taken, b.strong_attack_damage, "강공격 임팩트 프레임은 강공격 피해를 준다")
+	_runner.assert_eq(events.size(), 1, "보스 강공격 피격은 카메라 피드백 이벤트를 발신한다")
+	if events.size() == 1:
+		var payload := events[0]
+		_runner.assert_eq(payload.get("kind", &""), &"boss_hit", "보스 피격 피드백 kind를 사용한다")
+		_runner.assert_eq(payload.get("attack", &""), &"strong_attack", "강공격 피드백 종류를 구분한다")
+		_runner.assert_eq(int(payload.get("damage", 0)), b.strong_attack_damage, "피드백 payload에 강공격 피해량을 싣는다")
+		_runner.assert_eq(float(payload.get("intensity", 0.0)), b.strong_attack_feedback_intensity, "강공격 카메라 피드백 강도를 싣는다")
+		_runner.assert_true(
+			float(payload.get("intensity", 0.0)) > b.weak_attack_feedback_intensity,
+			"강공격 카메라 피드백은 약공격보다 강하다"
+		)
+		_runner.assert_eq(payload.get("direction", Vector2.ZERO), Vector2.RIGHT, "강공격 피드백은 돌진 방향을 싣는다")
 	b.queue_free()
 	target.queue_free()
 
