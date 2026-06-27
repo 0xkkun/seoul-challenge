@@ -12,10 +12,13 @@ const MetaUpgradeCatalog = preload("res://scripts/items/meta_upgrade_catalog.gd"
 const SLASH_FRAME_WIDTH := 64.0
 const BAT_SLASH_VISUAL_SCALE := 1.18
 const POWER_SLASH_VISUAL_SCALE := 1.35
+const WEAPON_NAME_BARE_HANDS := "맨손"
+const WEAPON_NAME_CRACKED_BAT := "금 간 알루미늄 배트"
+const WEAPON_NAME_AWAKENED_BAT := "마지막 시즌의 배트"
 
 ## 발사 순간의 발사 지점(global)과 방향. #10 정화탄이 이 시그널을 받아 스폰한다.
 signal fired(muzzle_position: Vector2, direction: Vector2)
-## 무기 변경 — 맨손 → 야구배트 등. UI 표시용.
+## 무기 변경 — 맨손 → 금 간 배트/각성 배트 등. UI 표시용.
 signal weapon_changed(weapon_name: String)
 ## 특수 스킬 상태 변경 — HUD 표시용.
 signal special_skill_state_changed(payload: Dictionary)
@@ -72,7 +75,7 @@ var _dodge_direction: Vector2 = Vector2.ZERO
 var _dash_power_attack_timer: float = 0.0
 var _dash_power_attack_consumed: bool = false
 var _was_special_pressed := false
-var _has_bat: bool = false   ## 야구배트 장착 여부(맵 클리어 보상). 기본 맨손.
+var _has_bat: bool = false   ## 배트 장착 여부(맵 클리어 보상). 기본 맨손.
 var _bat_awakened: bool = false
 var _facing: Vector2 = Vector2.DOWN
 var _health: int = 0
@@ -1033,7 +1036,7 @@ func _build_swing_polygon(dir: Vector2, rng: float, arc: float) -> PackedVector2
 	return pts
 
 
-## 야구배트 장착(맵 클리어 보상). 통합 단계에서 보상 지급 시 호출.
+## 배트 장착(맵 클리어 보상). 통합 단계에서 보상 지급 시 호출.
 func equip_bat() -> void:
 	ranged_enabled = false
 	_refresh_bat_awakened_from_progression()
@@ -1044,21 +1047,31 @@ func equip_bat() -> void:
 
 
 func set_bat_awakened(is_awakened: bool) -> void:
+	if _bat_awakened == is_awakened:
+		return
 	_bat_awakened = is_awakened
+	if _has_bat:
+		weapon_changed.emit(current_weapon_name())
 
 
 func is_bat_awakened() -> bool:
 	return _bat_awakened
 
 
+func has_bat() -> bool:
+	return _has_bat
+
+
 ## 현재 무기 이름(UI용).
 func current_weapon_name() -> String:
-	return "야구배트" if _has_bat else "맨손"
+	if not _has_bat:
+		return WEAPON_NAME_BARE_HANDS
+	return WEAPON_NAME_AWAKENED_BAT if _bat_awakened else WEAPON_NAME_CRACKED_BAT
 
 
 func _refresh_bat_awakened_from_progression() -> void:
 	if is_inside_tree() and has_node("/root/ProgressionSystem"):
-		_bat_awakened = ProgressionSystem.is_weapon_unlocked(&"awakened_bat")
+		set_bat_awakened(ProgressionSystem.is_weapon_unlocked(&"awakened_bat"))
 
 
 ## 앞쪽 부채꼴 안의 적 투사체(enemy_projectile)를 swing 방향으로 되받아친다(deflect). (배트 전용)

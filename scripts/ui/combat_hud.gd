@@ -84,7 +84,12 @@ func get_skill_text() -> String:
 
 
 func set_weapon_state(weapon_id: StringName) -> void:
-	_weapon_slot.text = "기억 무기: %s" % _weapon_display_name(weapon_id)
+	set_weapon_name(_weapon_display_name(weapon_id))
+
+
+func set_weapon_name(display_name: String) -> void:
+	var weapon_name := display_name.strip_edges()
+	_weapon_slot.text = "기억 무기: %s" % (weapon_name if weapon_name != "" else "미정")
 
 
 func get_weapon_text() -> String:
@@ -148,6 +153,6 @@ func _weapon_display_name(weapon_id: StringName) -> String:
 		&"baseball":
 			return "낡은 야구공"
 		&"bat":
-			return "금 간 배트"
+			return "금 간 알루미늄 배트"
 		_:
 			return "미정"

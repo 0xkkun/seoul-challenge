@@ -76,7 +76,17 @@ func test_weapon_state_renders_player_facing_memory_weapon() -> void:
 	_runner.assert_eq(_hud.get_weapon_text(), "기억 무기: 낡은 야구공", "HUD names the selected memory weapon")
 
 	_hud.set_weapon_state(&"bat")
-	_runner.assert_eq(_hud.get_weapon_text(), "기억 무기: 금 간 배트", "HUD updates weapon display")
+	_runner.assert_eq(_hud.get_weapon_text(), "기억 무기: 금 간 알루미늄 배트", "HUD updates weapon display")
+
+
+func test_weapon_name_renders_awakened_bat_display_name() -> void:
+	_runner.assert_true(_hud.has_method("set_weapon_name"), "HUD can accept player-facing weapon names")
+	if not _hud.has_method("set_weapon_name"):
+		return
+
+	_hud.call("set_weapon_name", "마지막 시즌의 배트")
+
+	_runner.assert_eq(_hud.get_weapon_text(), "기억 무기: 마지막 시즌의 배트", "HUD shows awakened bat display name")
 
 
 func test_skill_state_event_updates_skill_slot() -> void:
