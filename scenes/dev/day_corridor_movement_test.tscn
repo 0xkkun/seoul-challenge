@@ -93,6 +93,7 @@ position_smoothing_speed = 8.0
 
 [node name="TouchControls" parent="." instance=ExtResource("5_touch")]
 unique_name_in_owner = true
+control_category = "day_dialogue"
 
 [node name="HubDialogueUi" parent="." instance=ExtResource("8_dialogue")]
 unique_name_in_owner = true
