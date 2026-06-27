@@ -1,5 +1,7 @@
 extends Node
 
+const RoomPalette = preload("res://scripts/constants/room_palette.gd")
+
 var _runner: Node
 
 
@@ -232,7 +234,11 @@ func test_session_root_mounts_room_manager() -> void:
 	_runner.assert_not_null(session.get_node_or_null("%CombatHud"), "session mounts combat HUD")
 	_runner.assert_not_null(session.get_node_or_null("%TouchControls"), "session mounts touch controls")
 	_runner.assert_not_null(session.get_node_or_null("%DeathReturnController"), "session mounts death return controller")
-	_runner.assert_not_null(session.get_node_or_null("%PlayerCamera"), "session mounts player camera")
+	var player_camera := session.get_node_or_null("%PlayerCamera") as Camera2D
+	_runner.assert_not_null(player_camera, "session mounts player camera")
+	if player_camera != null:
+		_runner.assert_eq(player_camera.zoom, Vector2.ONE, "session camera uses native mobile viewport scale for corridor scrolling")
+		_runner.assert_true(RoomPalette.ROOM_SIZE.x > float(ProjectSettings.get_setting("display/window/size/viewport_width")), "room is wider than one mobile viewport")
 	_runner.assert_eq(entered_payloads.size(), 2, "room enter events fire for mounted rooms")
 
 	EventBus.room_entered.disconnect(on_room_entered)

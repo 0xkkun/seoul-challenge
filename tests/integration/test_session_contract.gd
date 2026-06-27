@@ -337,10 +337,12 @@ func test_room_base_lifecycle_opens_door_and_requests_transition() -> void:
 	var exit_door := room.get_door(&"E")
 	var floor := room.get_node("Floor") as ColorRect
 	var door_visual := exit_door.get_node("DoorVisual") as ColorRect
+	var portal_visual := exit_door.get_node_or_null("PortalVisual") as Node2D
 	var door_shape := exit_door.get_node("TransitionArea/CollisionShape2D") as CollisionShape2D
 	var door_rectangle := door_shape.shape as RectangleShape2D
 
 	_runner.assert_not_null(exit_door, "base room exposes exit door")
+	_runner.assert_not_null(portal_visual, "base room door builds a portal visual")
 	_runner.assert_not_null(door_rectangle, "base room door configures collision shape")
 	_runner.assert_eq(floor.size, RoomPalette.ROOM_SIZE, "room floor uses palette size")
 	_runner.assert_eq(floor.color, RoomPalette.START_ROOM_FLOOR_COLOR, "room floor uses palette color")
@@ -349,6 +351,8 @@ func test_room_base_lifecycle_opens_door_and_requests_transition() -> void:
 	_runner.assert_eq(door_rectangle.size, RoomPalette.DOOR_TRIGGER_SIZE, "door trigger uses palette size")
 	_runner.assert_true(exit_door.is_locked(), "door starts locked")
 	_runner.assert_eq(door_visual.color, RoomPalette.DOOR_LOCKED_COLOR, "door starts with locked palette color")
+	if portal_visual != null:
+		_runner.assert_false(portal_visual.visible, "locked door hides portal visual")
 	room.configure_actor(actor)
 	actor.global_position = exit_door.global_position
 	_runner.assert_eq(room.check_actor_transitions(), 0, "locked door ignores actor overlap")
@@ -361,7 +365,9 @@ func test_room_base_lifecycle_opens_door_and_requests_transition() -> void:
 	_runner.assert_eq(entered_payloads.size(), 1, "room entered event emitted")
 	_runner.assert_eq(cleared_payloads.size(), 1, "room cleared event emitted")
 	_runner.assert_true(exit_door.is_open(), "door opens after clear")
-	_runner.assert_eq(door_visual.color, RoomPalette.DOOR_OPEN_COLOR, "open door uses palette color")
+	_runner.assert_true(door_visual.color.a < 0.01, "open door hides flat door rectangle")
+	if portal_visual != null:
+		_runner.assert_true(portal_visual.visible, "open door shows portal visual")
 
 	if entered_payloads.size() == 1:
 		_runner.assert_eq(entered_payloads[0]["room_id"], &"room_base", "entered payload has room id")
