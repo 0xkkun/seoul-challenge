@@ -43,6 +43,7 @@ signal enemy_count_changed(remaining_count: int)
 @export_range(0, 6, 1) var elite_contact_damage_bonus := 1
 @export_range(0, 99, 1) var enemy_defeat_ingame_reward := 1
 @export_range(0, 99, 1) var combat_clear_ingame_reward := 3
+@export_range(0.0, 2.0, 0.05) var spawn_fade_time := 0.35
 
 var _combat_started := false
 var _combat_resolved := false
@@ -172,11 +173,7 @@ func _spawn_next_wave() -> void:
 		enemy_count_changed.emit(_active_enemies.size())
 		return
 
-	var remaining_waves := maxi(1, wave_count - _waves_spawned)
-	var batch_size := maxi(1, int(ceil(float(_pending_spawn_entries.size()) / float(remaining_waves))))
-	for _index: int in range(batch_size):
-		if _pending_spawn_entries.is_empty():
-			break
+	while not _pending_spawn_entries.is_empty():
 		var entry: Dictionary = _pending_spawn_entries.pop_front()
 		_spawn_enemy_entry(entry)
 	_waves_spawned += 1
@@ -236,6 +233,8 @@ func _spawn_enemy_instance(
 	(enemy as Node2D).position = _spawn_position_for_factor(spawn_factors[sequence % spawn_factors.size()])
 	if enemy.has_method("set_movement_bounds"):
 		enemy.call("set_movement_bounds", _enemy_movement_bounds())
+	if enemy.has_method("start_spawn_fade"):
+		enemy.call("start_spawn_fade", spawn_fade_time)
 	_connect_enemy(enemy)
 	_active_enemies.append(enemy)
 
