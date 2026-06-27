@@ -60,7 +60,7 @@ signal run_modifiers_changed(payload: Dictionary)
 @export var dash_dust_visual_height: float = 42.0
 @export var dash_dust_back_offset: float = 30.0
 @export var dash_dust_foot_offset: float = 52.0
-@export var dash_animation_visual_time: float = 0.22
+@export var dash_animation_visual_time: float = 0.5
 @export var dash_power_attack_grace_time: float = 0.15  ## 대시 직후 강화 근접 공격 입력 허용 시간(s)
 @export_range(0, 9, 1) var dash_power_attack_damage_bonus := 1
 @export var dash_power_attack_range_multiplier: float = 1.15
@@ -612,8 +612,9 @@ func try_start_special_skill(input_vector: Vector2 = Vector2.ZERO) -> bool:
 		return false
 	_dodge_direction = choose_dodge_direction(input_vector, _facing)
 	_dodge_timer = dodge_duration
-	_dash_animation_timer = dash_animation_duration(dodge_duration, dash_animation_visual_time)
-	_dash_power_attack_timer = dodge_duration + dash_power_attack_grace_time
+	var visual_duration := dash_animation_duration(dodge_duration, dash_animation_visual_time)
+	_dash_animation_timer = visual_duration
+	_dash_power_attack_timer = maxf(dodge_duration + dash_power_attack_grace_time, visual_duration)
 	_dash_power_attack_consumed = false
 	_invuln_timer = maxf(_invuln_timer, dodge_invuln_time)
 	special_skill_uses_remaining = consume_special_use(special_skill_uses_remaining)
@@ -849,6 +850,7 @@ func _process_attack(delta: float, move_input: Vector2 = Vector2.ZERO) -> void:
 
 ## 공격 모션 재생(비반복). animation_finished 에서 _is_attacking 을 해제한다.
 func _play_attack_anim(dir: Vector2) -> void:
+	_dash_animation_timer = 0.0
 	if _sprite == null:
 		return
 	# 공격 시 조준 방향으로 캐릭터를 돌린다(뒤로 때리면 뒤돌아봄).
