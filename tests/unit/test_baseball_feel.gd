@@ -4,6 +4,7 @@ extends Node
 const PlayerScript := preload("res://scripts/player/player.gd")
 const BulletScene := preload("res://scenes/projectiles/purify_bullet.tscn")
 const LauncherScript := preload("res://scripts/player/projectile_launcher.gd")
+const REMOVED_BASEBALL_NAME := "낡은" + "야구공"
 
 var _runner: Node
 
@@ -34,9 +35,10 @@ func test_spin_advances_rotation() -> void:
 	b.free()
 
 
-func test_weapon_identity_is_baseball() -> void:
+func test_launcher_identity_is_not_a_memory_weapon() -> void:
 	var l = LauncherScript.new()
 	var info: Dictionary = l.weapon_info()
-	_runner.assert_eq(info.get("name"), "낡은 야구공")
+	_runner.assert_eq(info.get("name"), "정화탄")
+	_runner.assert_false(String(info.get("name")).contains(REMOVED_BASEBALL_NAME), "removed baseball memory weapon is not exposed as weapon identity")
 	_runner.assert_true(String(info.get("flavor")).length() > 0, "기억 플레이버 텍스트 존재")
 	l.free()

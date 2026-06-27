@@ -94,7 +94,7 @@ Behavior:
   - `아이템을 얻었다`
   - `STAGE 2 보상`
 - Show item cards:
-  - `낡은 야구공`
+  - `기억 조각`
   - `금 간 나무 배트`
 
 The popup is a reward confirmation layer. It should be more prominent than the

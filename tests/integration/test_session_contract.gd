@@ -410,7 +410,7 @@ func test_session_player_refreshes_awakened_bat_after_baseball_friend_purified()
 	session.queue_free()
 
 
-func test_session_root_applies_baseball_weapon_config() -> void:
+func test_session_root_ignores_removed_baseball_weapon_config() -> void:
 	GameManager.start_session({
 		"source": "night_map_select",
 		SceneTransition.RUN_CONFIG_SELECTED_WEAPON_ID: &"baseball",
@@ -421,7 +421,9 @@ func test_session_root_applies_baseball_weapon_config() -> void:
 	add_child(session)
 	var actor: Node = session.get_node("%Player")
 
-	_runner.assert_true(bool(actor.get("ranged_enabled")), "baseball locker selection enables ranged baseball")
+	_runner.assert_false(bool(actor.get("ranged_enabled")), "removed baseball config does not enable ranged play")
+	_runner.assert_true(bool(actor.call("has_bat")), "removed baseball config falls back to the story-backed bat")
+	_runner.assert_eq(actor.call("current_weapon_name"), "금 간 나무 배트", "fallback weapon is the regular bat")
 
 	session.queue_free()
 
