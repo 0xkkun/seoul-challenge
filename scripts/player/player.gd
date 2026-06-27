@@ -9,6 +9,9 @@ const MapItemCatalog = preload("res://scripts/items/map_item_catalog.gd")
 const HitReactionController = preload("res://scripts/combat/hit_reaction_controller.gd")
 const StatusEffectController = preload("res://scripts/combat/status_effect_controller.gd")
 const MetaUpgradeCatalog = preload("res://scripts/items/meta_upgrade_catalog.gd")
+const SLASH_FRAME_WIDTH := 64.0
+const BAT_SLASH_VISUAL_SCALE := 1.18
+const POWER_SLASH_VISUAL_SCALE := 1.35
 
 ## 발사 순간의 발사 지점(global)과 방향. #10 정화탄이 이 시그널을 받아 스폰한다.
 signal fired(muzzle_position: Vector2, direction: Vector2)
@@ -42,7 +45,6 @@ signal run_modifiers_changed(payload: Dictionary)
 @export var swing_visual_time: float = 0.12  ## 휘두르기 시각 표시 시간 (s)
 @export var bat_swing_visual_time: float = 0.16  ## 배트 초승달 슬래시 표시 시간(s)
 @export var power_impact_visual_time: float = 0.18  ## 강공격 이펙트 재생 시간(s)
-@export_range(4, 8, 1) var power_impact_spark_count := 6
 @export var dash_power_attack_grace_time: float = 0.15  ## 대시 직후 강화 근접 공격 입력 허용 시간(s)
 @export_range(0, 9, 1) var dash_power_attack_damage_bonus := 1
 @export var dash_power_attack_range_multiplier: float = 1.15
@@ -789,33 +791,18 @@ func _hide_swing() -> void:
 		_swing_visual.visible = false
 
 
-func _show_bat_swing_effect(dir: Vector2, rng: float, arc: float) -> void:
+func _show_bat_swing_effect(dir: Vector2, rng: float, _arc: float) -> void:
 	if _bat_swing_visual == null:
 		return
-	var slash_back := _bat_swing_visual.get_node_or_null(^"BatSlashBack") as Line2D
-	var slash_front := _bat_swing_visual.get_node_or_null(^"BatSlashFront") as Line2D
-	var slash_echo := _bat_swing_visual.get_node_or_null(^"BatSlashEcho") as Line2D
-	if slash_back != null:
-		slash_back.points = build_power_slash_points(dir, rng, arc * 0.9, 0.56, 1.02, 16)
-		slash_back.width = maxf(13.0, rng * 0.16)
-		slash_back.default_color = Color(0.24, 0.62, 1.0, 0.46)
-	if slash_echo != null:
-		slash_echo.points = build_power_slash_points(dir, rng, arc * 0.78, 0.48, 0.86, 12)
-		slash_echo.width = maxf(8.0, rng * 0.09)
-		slash_echo.default_color = Color(0.38, 0.76, 1.0, 0.34)
-	if slash_front != null:
-		slash_front.points = build_power_slash_points(dir, rng, arc * 0.84, 0.62, 1.1, 18)
-		slash_front.width = maxf(7.0, rng * 0.07)
-		slash_front.default_color = Color(0.9, 0.98, 1.0, 0.96)
-	_bat_swing_visual.rotation = 0.0
-	_bat_swing_visual.scale = Vector2(0.94, 0.94)
-	_bat_swing_visual.modulate = Color.WHITE
-	_bat_swing_visual.visible = true
+	var slash_sprite := _bat_swing_visual.get_node_or_null(^"SlashSprite") as Sprite2D
+	if slash_sprite == null:
+		return
+	_configure_slash_effect(_bat_swing_visual, slash_sprite, dir, rng, BAT_SLASH_VISUAL_SCALE)
 	if is_inside_tree():
-		_start_bat_swing_tween()
+		_start_bat_swing_tween(slash_sprite)
 
 
-func _start_bat_swing_tween() -> void:
+func _start_bat_swing_tween(slash_sprite: Sprite2D) -> void:
 	if _bat_swing_visual == null:
 		return
 	if _bat_swing_tween != null and _bat_swing_tween.is_valid():
@@ -823,17 +810,18 @@ func _start_bat_swing_tween() -> void:
 	_bat_swing_tween = create_tween()
 	_bat_swing_tween.set_parallel(true)
 	_bat_swing_tween.tween_property(
-		_bat_swing_visual,
-		"scale",
-		Vector2(1.08, 1.08),
+		slash_sprite,
+		"frame",
+		maxi(0, slash_sprite.hframes - 1),
 		bat_swing_visual_time
-	).set_trans(Tween.TRANS_QUART).set_ease(Tween.EASE_OUT)
+	).set_trans(Tween.TRANS_LINEAR).set_ease(Tween.EASE_IN_OUT)
 	_bat_swing_tween.tween_property(
 		_bat_swing_visual,
 		"modulate:a",
 		0.0,
-		bat_swing_visual_time
-	).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
+		bat_swing_visual_time * 0.35
+	).set_delay(bat_swing_visual_time * 0.65).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
+	_bat_swing_tween.set_parallel(false)
 	_bat_swing_tween.finished.connect(_hide_bat_swing)
 
 
@@ -843,138 +831,69 @@ func _hide_bat_swing() -> void:
 	_bat_swing_visual.visible = false
 	_bat_swing_visual.modulate = Color.WHITE
 	_bat_swing_visual.scale = Vector2.ONE
+	_bat_swing_visual.rotation = 0.0
+	_bat_swing_visual.position = Vector2.ZERO
+	var slash_sprite := _bat_swing_visual.get_node_or_null(^"SlashSprite") as Sprite2D
+	if slash_sprite != null:
+		slash_sprite.visible = false
+		slash_sprite.frame = 0
+		slash_sprite.scale = Vector2.ONE
+		slash_sprite.modulate = Color.WHITE
 
 
-func _show_power_impact(dir: Vector2, rng: float, arc: float) -> void:
+func _show_power_impact(dir: Vector2, rng: float, _arc: float) -> void:
 	if _power_impact_visual == null:
 		return
-	var slash_back := _power_impact_visual.get_node_or_null(^"ImpactSlashBack") as Line2D
-	var slash_front := _power_impact_visual.get_node_or_null(^"ImpactSlashFront") as Line2D
-	var ring := _power_impact_visual.get_node_or_null(^"ImpactRing") as Line2D
-	var sparks := _power_impact_visual.get_node_or_null(^"ImpactSparks") as Node2D
-	if slash_back != null:
-		slash_back.points = build_power_slash_points(dir, rng, arc, 0.72, 1.08, 14)
-		slash_back.width = maxf(12.0, rng * 0.18)
-		slash_back.default_color = Color(1.0, 0.28, 0.08, 0.48)
-	if slash_front != null:
-		slash_front.points = build_power_slash_points(dir, rng, arc * 0.86, 0.82, 1.02, 16)
-		slash_front.width = maxf(5.0, rng * 0.07)
-		slash_front.default_color = Color(1.0, 0.96, 0.62, 0.98)
-	if ring != null:
-		ring.points = _build_power_impact_ring_points(dir, rng)
-		ring.width = maxf(3.0, rng * 0.045)
-		ring.default_color = Color(1.0, 0.82, 0.22, 0.72)
-		ring.scale = Vector2(0.45, 0.45)
-		ring.modulate = Color.WHITE
-	if sparks != null:
-		_configure_power_sparks(sparks, dir, rng, arc)
-	_power_impact_visual.rotation = 0.0
-	_power_impact_visual.scale = Vector2(0.9, 0.9)
-	_power_impact_visual.modulate = Color.WHITE
-	_power_impact_visual.visible = true
+	var slash_sprite := _power_impact_visual.get_node_or_null(^"SlashSprite") as Sprite2D
+	if slash_sprite == null:
+		return
+	_configure_slash_effect(_power_impact_visual, slash_sprite, dir, rng, POWER_SLASH_VISUAL_SCALE)
 	if is_inside_tree():
-		_start_power_impact_tween(ring, sparks)
+		_start_power_impact_tween(slash_sprite)
 
 
-func build_power_slash_points(
-	dir: Vector2,
-	rng: float,
-	arc: float,
-	inner_radius_factor: float,
-	outer_radius_factor: float,
-	segments: int
-) -> PackedVector2Array:
+func _configure_slash_effect(root: Node2D, slash_sprite: Sprite2D, dir: Vector2, rng: float, visual_scale: float) -> void:
+	var state := build_slash_effect_state(dir, rng, SLASH_FRAME_WIDTH, visual_scale)
+	root.position = state["position"] as Vector2
+	root.rotation = float(state["rotation"])
+	root.scale = Vector2.ONE
+	root.modulate = Color.WHITE
+	root.visible = true
+	slash_sprite.visible = true
+	slash_sprite.frame = 0
+	slash_sprite.scale = state["scale"] as Vector2
+	slash_sprite.modulate = Color.WHITE
+
+
+func build_slash_effect_state(dir: Vector2, rng: float, frame_width: float, visual_scale: float) -> Dictionary:
 	var safe_dir := dir.normalized() if dir.length() > 0.001 else Vector2.RIGHT
-	var pts := PackedVector2Array()
-	var base := safe_dir.angle()
-	var half := arc * 0.5
-	var segment_count := maxi(1, segments)
-	for i in range(segment_count + 1):
-		var t := float(i) / float(segment_count)
-		var a := base - half + arc * t
-		var middle_weight := sin(t * PI)
-		var radius := rng * lerpf(inner_radius_factor, outer_radius_factor, middle_weight)
-		var p := Vector2(cos(a), sin(a)) * radius
-		p.y *= swing_vertical_factor
-		pts.append(p)
-	return pts
+	var safe_frame_width := maxf(1.0, frame_width)
+	var scale_value := maxf(0.1, (rng / safe_frame_width) * visual_scale)
+	return {
+		"position": safe_dir * rng * 0.52,
+		"rotation": safe_dir.angle(),
+		"scale": Vector2(scale_value, scale_value),
+	}
 
 
-func _build_power_impact_ring_points(dir: Vector2, rng: float) -> PackedVector2Array:
-	var safe_dir := dir.normalized() if dir.length() > 0.001 else Vector2.RIGHT
-	var center := safe_dir * rng * 0.58
-	var pts := PackedVector2Array()
-	var segments := 20
-	var radius_x := rng * 0.22
-	var radius_y := rng * 0.14 * swing_vertical_factor
-	for i in range(segments):
-		var a := TAU * (float(i) / float(segments))
-		pts.append(center + Vector2(cos(a) * radius_x, sin(a) * radius_y))
-	return pts
-
-
-func _configure_power_sparks(sparks: Node2D, dir: Vector2, rng: float, arc: float) -> void:
-	var count := mini(power_impact_spark_count, sparks.get_child_count())
-	for i in range(sparks.get_child_count()):
-		var spark := sparks.get_child(i) as Line2D
-		if spark == null:
-			continue
-		spark.visible = i < count
-		if not spark.visible:
-			continue
-		spark.points = _build_power_spark_points(dir, rng, arc, i, count)
-		spark.width = 3.0 if i < 4 else 2.0
-		spark.modulate = Color.WHITE
-		spark.default_color = Color(1.0, 0.9, 0.32, 0.95) if i < 4 else Color(1.0, 0.68, 0.16, 0.82)
-
-
-func _build_power_spark_points(dir: Vector2, rng: float, arc: float, index: int, count: int) -> PackedVector2Array:
-	var safe_dir := dir.normalized() if dir.length() > 0.001 else Vector2.RIGHT
-	var safe_count := maxi(1, count)
-	var t := (float(index) + 0.5) / float(safe_count)
-	var angle_offset := -arc * 0.56 + arc * 1.12 * t
-	var a := safe_dir.angle() + angle_offset
-	var start_radius := rng * (0.34 + 0.03 * float(index % 2))
-	var end_radius := rng * (0.74 + 0.06 * float(index % 3))
-	var start := Vector2(cos(a), sin(a)) * start_radius
-	var end := Vector2(cos(a), sin(a)) * end_radius
-	start.y *= swing_vertical_factor
-	end.y *= swing_vertical_factor
-	return PackedVector2Array([start, end])
-
-
-func _start_power_impact_tween(ring: Line2D, sparks: Node2D) -> void:
+func _start_power_impact_tween(slash_sprite: Sprite2D) -> void:
 	if _power_impact_tween != null and _power_impact_tween.is_valid():
 		_power_impact_tween.kill()
 	_power_impact_tween = create_tween()
 	_power_impact_tween.set_parallel(true)
 	_power_impact_tween.tween_property(
-		_power_impact_visual,
-		"scale",
-		Vector2(1.12, 1.12),
+		slash_sprite,
+		"frame",
+		maxi(0, slash_sprite.hframes - 1),
 		power_impact_visual_time
-	).set_trans(Tween.TRANS_QUART).set_ease(Tween.EASE_OUT)
+	).set_trans(Tween.TRANS_LINEAR).set_ease(Tween.EASE_IN_OUT)
 	_power_impact_tween.tween_property(
 		_power_impact_visual,
 		"modulate:a",
 		0.0,
-		power_impact_visual_time
-	).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
-	if ring != null:
-		_power_impact_tween.tween_property(
-			ring,
-			"scale",
-			Vector2(1.55, 1.55),
-			power_impact_visual_time
-		).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-	if sparks != null:
-		sparks.scale = Vector2(0.72, 0.72)
-		_power_impact_tween.tween_property(
-			sparks,
-			"scale",
-			Vector2(1.16, 1.16),
-			power_impact_visual_time
-		).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+		power_impact_visual_time * 0.35
+	).set_delay(power_impact_visual_time * 0.65).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
+	_power_impact_tween.set_parallel(false)
 	_power_impact_tween.finished.connect(_hide_power_impact)
 
 
@@ -984,6 +903,14 @@ func _hide_power_impact() -> void:
 	_power_impact_visual.visible = false
 	_power_impact_visual.modulate = Color.WHITE
 	_power_impact_visual.scale = Vector2.ONE
+	_power_impact_visual.rotation = 0.0
+	_power_impact_visual.position = Vector2.ZERO
+	var slash_sprite := _power_impact_visual.get_node_or_null(^"SlashSprite") as Sprite2D
+	if slash_sprite != null:
+		slash_sprite.visible = false
+		slash_sprite.frame = 0
+		slash_sprite.scale = Vector2.ONE
+		slash_sprite.modulate = Color.WHITE
 
 
 ## 타격 부채꼴 폴리곤 — dir 기준 ±arc/2, 반지름 rng 의 팬을 월드 정렬로 만들고
