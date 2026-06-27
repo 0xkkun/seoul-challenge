@@ -10,7 +10,7 @@ const HitReactionController = preload("res://scripts/combat/hit_reaction_control
 const StatusEffectController = preload("res://scripts/combat/status_effect_controller.gd")
 const MetaUpgradeCatalog = preload("res://scripts/items/meta_upgrade_catalog.gd")
 const SLASH_FRAME_WIDTH := 64.0
-const ATTACK_DUST_FRAME_SIZE := Vector2(48.0, 72.0)
+const ATTACK_DUST_FRAME_SIZE := Vector2(960.0, 1440.0)
 const BAT_SLASH_VISUAL_SCALE := 1.18
 const POWER_SLASH_VISUAL_SCALE := 1.35
 const WEAPON_NAME_BARE_HANDS := "맨손"
@@ -50,7 +50,7 @@ signal run_modifiers_changed(payload: Dictionary)
 @export var swing_visual_time: float = 0.12  ## 휘두르기 시각 표시 시간 (s)
 @export var bat_swing_visual_time: float = 0.16  ## 배트 초승달 슬래시 표시 시간(s)
 @export var power_impact_visual_time: float = 0.18  ## 강공격 이펙트 재생 시간(s)
-@export var attack_dust_visual_height: float = 72.0  ## 사전 축소된 먼지 프레임의 발밑 표시 높이(px)
+@export var attack_dust_visual_height: float = 72.0  ## 큰 원본 먼지 프레임을 발밑 크기로 축소
 @export var attack_dust_back_offset: float = 26.0  ## 바라보는 방향의 반대쪽 발밑 거리(px)
 @export var attack_dust_foot_offset: float = 16.0  ## 캐릭터 중심에서 발밑으로 내리는 오프셋(px)
 @export var attack_dust_move_threshold: float = 0.1
