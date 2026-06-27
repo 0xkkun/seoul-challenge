@@ -9,6 +9,7 @@ const DungeonTheme := preload("res://scripts/ui/dungeon_ui_theme.gd")
 const PixelButton := preload("res://scripts/ui/pixel_button_style.gd")
 const MetaUpgradeCatalog := preload("res://scripts/items/meta_upgrade_catalog.gd")
 const MobileSafeArea := preload("res://scripts/ui/mobile_safe_area.gd")
+const FontRoles := preload("res://scripts/ui/ui_font_roles.gd")
 
 const WEAPON_BAT := &"bat"
 
@@ -149,6 +150,7 @@ func _build_title() -> void:
 	title.anchor_bottom = 0.13
 	title.text = "사물함 정비"
 	title.add_theme_font_size_override("font_size", 40)
+	FontRoles.apply_title(title)
 	title.add_theme_color_override("font_color", DungeonTheme.COLOR_GOLD)
 	add_child(title)
 
@@ -160,6 +162,7 @@ func _build_title() -> void:
 	subtitle.anchor_bottom = 0.22
 	subtitle.text = "밤의 경복궁에 들어가기 전, 가져갈 기억을 고른다."
 	subtitle.add_theme_font_size_override("font_size", 18)
+	FontRoles.apply_body(subtitle)
 	subtitle.add_theme_color_override("font_color", DungeonTheme.COLOR_MUTED_TEXT)
 	add_child(subtitle)
 
@@ -171,6 +174,7 @@ func _build_title() -> void:
 	section.anchor_bottom = 0.31
 	section.text = "기억 무기"
 	section.add_theme_font_size_override("font_size", 24)
+	FontRoles.apply_title(section)
 	section.add_theme_color_override("font_color", Color(0.86, 0.80, 0.62, 1.0))
 	add_child(section)
 
@@ -203,6 +207,7 @@ func _build_weapon_cards() -> void:
 	_weapon_status_label.name = "WeaponStatusLabel"
 	_weapon_status_label.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_weapon_status_label.add_theme_font_size_override("font_size", 18)
+	FontRoles.apply_pixel(_weapon_status_label)
 	_weapon_status_label.add_theme_color_override("font_color", DungeonTheme.COLOR_TEXT)
 	_weapon_status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_weapon_status_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -236,6 +241,7 @@ func _build_upgrade_panel() -> void:
 	var title := Label.new()
 	title.text = "혼 조각 강화"
 	title.add_theme_font_size_override("font_size", 24)
+	FontRoles.apply_title(title)
 	title.add_theme_color_override("font_color", Color(0.86, 0.80, 0.62, 1.0))
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -244,6 +250,7 @@ func _build_upgrade_panel() -> void:
 	_upgrade_balance_label = Label.new()
 	_upgrade_balance_label.name = "UpgradeBalanceLabel"
 	_upgrade_balance_label.add_theme_font_size_override("font_size", 20)
+	FontRoles.apply_pixel(_upgrade_balance_label)
 	_upgrade_balance_label.add_theme_color_override("font_color", DungeonTheme.COLOR_GOLD)
 	_upgrade_balance_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	header.add_child(_upgrade_balance_label)
@@ -264,6 +271,7 @@ func _make_upgrade_row(id: StringName) -> Control:
 	var name_label := Label.new()
 	name_label.text = MetaUpgradeCatalog.display_name(id)
 	name_label.add_theme_font_size_override("font_size", 17)
+	FontRoles.apply_pixel(name_label)
 	name_label.add_theme_color_override("font_color", DungeonTheme.COLOR_TEXT)
 	name_label.custom_minimum_size = Vector2(48.0, 0.0)
 	name_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -275,6 +283,7 @@ func _make_upgrade_row(id: StringName) -> Control:
 	pips.scroll_active = false
 	pips.autowrap_mode = TextServer.AUTOWRAP_OFF
 	pips.add_theme_font_size_override("normal_font_size", 18)
+	FontRoles.apply_pixel(pips)
 	pips.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	pips.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	row.add_child(pips)
@@ -282,6 +291,7 @@ func _make_upgrade_row(id: StringName) -> Control:
 
 	var cost_label := Label.new()
 	cost_label.add_theme_font_size_override("font_size", 17)
+	FontRoles.apply_pixel(cost_label)
 	cost_label.add_theme_color_override("font_color", DungeonTheme.COLOR_GOLD)
 	cost_label.custom_minimum_size = Vector2(56.0, 0.0)
 	cost_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
@@ -295,6 +305,7 @@ func _make_upgrade_row(id: StringName) -> Control:
 	button.text = "강화"
 	button.focus_mode = Control.FOCUS_NONE
 	PixelButton.apply(button, PixelButton.VARIANT_SECONDARY, Vector2(72.0, 44.0))
+	FontRoles.apply_pixel(button)
 	_set_button_meta(button, "upgrade_%s" % id, action)
 	button.pressed.connect(_on_upgrade_pressed.bind(id))
 	row.add_child(button)
@@ -402,6 +413,7 @@ func _make_weapon_card(node_name: String, text: String, relative_rect: Rect2, ac
 	card.alignment = HORIZONTAL_ALIGNMENT_CENTER
 	card.focus_mode = Control.FOCUS_NONE
 	card.add_theme_font_size_override("font_size", 17)
+	FontRoles.apply_pixel(card)
 	card.add_theme_color_override("font_color", DungeonTheme.COLOR_TEXT)
 	card.add_theme_color_override("font_hover_color", DungeonTheme.COLOR_TEXT)
 	card.add_theme_color_override("font_pressed_color", DungeonTheme.COLOR_GOLD)
@@ -432,6 +444,7 @@ func _make_action_button(node_name: String, text: String, relative_rect: Rect2, 
 	button.focus_mode = Control.FOCUS_NONE
 	var variant := PixelButton.VARIANT_PRIMARY if action == ACTION_OPEN_MAP else PixelButton.VARIANT_SECONDARY
 	PixelButton.apply(button, variant, Vector2(0.0, 64.0))
+	FontRoles.apply_pixel(button)
 	_set_button_meta(button, action.replace(".", "_"), action)
 	return button
 

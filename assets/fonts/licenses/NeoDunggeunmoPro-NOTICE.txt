@@ -1,0 +1,23 @@
+NeoDunggeunmo Pro
+=================
+
+Bundled file:
+- ../NeoDunggeunmoPro-Regular.ttf
+
+Project source:
+- Copied from ../../../../tailbound-godot/assets/fonts/NeoDunggeunmoPro-Regular.ttf
+
+Upstream sources:
+- https://neodgm.dalgona.dev/neodgm_pro.html
+- https://github.com/neodgm/neodgm-pro
+
+Copyright notice:
+- Copyright (c) 2022, Eunbin Jeong (Dalgona.) <project-neodgm@dalgona.dev>
+- Reserved Font Name: NeoDunggeunmo Pro
+
+License:
+- SIL Open Font License, Version 1.1
+- SPDX-License-Identifier: OFL-1.1
+- Full license text: https://openfontlicense.org/open-font-license-official-text/
+
+Keep this notice with any redistribution of the bundled font file.

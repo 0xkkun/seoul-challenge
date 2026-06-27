@@ -20,6 +20,7 @@ const BACKDROP_ALPHA := 0.4
 ## 마지막 리빌: 자막이 사라지며 플레이트가 풀로 차오르고, 잠시 머문 뒤 암전.
 const REVEAL_RISE_SECONDS := 1.1
 const REVEAL_HOLD_SECONDS := 1.6
+const FontRoles := preload("res://scripts/ui/ui_font_roles.gd")
 
 ## 플레이트 순서는 확정 스토리보드 기준: B → A → C → D.
 const PLATES: Array[String] = [
@@ -188,6 +189,7 @@ func _build_ui() -> void:
 	_subtitle.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	_subtitle.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_subtitle.add_theme_font_size_override("font_size", 40)
+	FontRoles.apply_title(_subtitle)
 	_subtitle.add_theme_color_override("font_color", Color(0.96, 0.97, 1.0))
 	_subtitle.add_theme_color_override("font_outline_color", Color(0.0, 0.0, 0.0, 1.0))
 	_subtitle.add_theme_constant_override("outline_size", 10)
@@ -206,6 +208,7 @@ func _build_ui() -> void:
 	_hint.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	_hint.text = "탭해서 계속"
 	_hint.add_theme_font_size_override("font_size", 15)
+	FontRoles.apply_pixel(_hint)
 	_hint.add_theme_color_override("font_color", Color(0.78, 0.80, 0.86, 0.55))
 	_hint.add_theme_color_override("font_outline_color", Color(0.0, 0.0, 0.0, 0.8))
 	_hint.add_theme_constant_override("outline_size", 3)
@@ -229,6 +232,7 @@ func _build_ui() -> void:
 	_skip_button.focus_mode = Control.FOCUS_NONE
 	_skip_button.mouse_filter = Control.MOUSE_FILTER_STOP
 	_skip_button.add_theme_font_size_override("font_size", 16)
+	FontRoles.apply_pixel(_skip_button)
 	_skip_button.add_theme_color_override("font_color", Color(0.82, 0.84, 0.90, 0.85))
 	_skip_button.add_theme_color_override("font_hover_color", Color(1.0, 1.0, 1.0, 1.0))
 	_skip_button.add_theme_color_override("font_pressed_color", Color(0.70, 0.72, 0.78, 1.0))

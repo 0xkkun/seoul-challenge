@@ -7,6 +7,7 @@ signal stage_selected(stage_id: StringName)
 const DungeonTheme := preload("res://scripts/ui/dungeon_ui_theme.gd")
 const PixelButton := preload("res://scripts/ui/pixel_button_style.gd")
 const MobileSafeArea := preload("res://scripts/ui/mobile_safe_area.gd")
+const FontRoles := preload("res://scripts/ui/ui_font_roles.gd")
 
 const STAGE_GYEONGBOKGUNG := &"gyeongbokgung"
 const ACTION_RETURN := "night_map_select.return"
@@ -58,6 +59,7 @@ func _build_ui() -> void:
 	title.anchor_bottom = 0.14
 	title.text = "밤 지도"
 	title.add_theme_font_size_override("font_size", 40)
+	FontRoles.apply_title(title)
 	title.add_theme_color_override("font_color", DungeonTheme.COLOR_GOLD)
 	add_child(title)
 
@@ -69,6 +71,7 @@ func _build_ui() -> void:
 	subtitle.anchor_bottom = 0.20
 	subtitle.text = "정비한 장비로 오늘 밤 향할 길을 고른다."
 	subtitle.add_theme_font_size_override("font_size", 18)
+	FontRoles.apply_body(subtitle)
 	subtitle.add_theme_color_override("font_color", DungeonTheme.COLOR_MUTED_TEXT)
 	add_child(subtitle)
 
@@ -88,6 +91,7 @@ func _build_ui() -> void:
 	_route_label.name = "MapLabel"
 	_route_label.text = "학교 정비실  ─  광화문 봉인문  ─  경복궁\n\n아직 잠김: 창덕궁 · 덕수궁 · 종묘\n\n오늘 밤은 경복궁으로만 갈 수 있다."
 	_route_label.add_theme_font_size_override("font_size", 24)
+	FontRoles.apply_body(_route_label)
 	_route_label.add_theme_color_override("font_color", DungeonTheme.COLOR_TEXT)
 	_route_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_route_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -110,6 +114,7 @@ func _build_ui() -> void:
 	destination.name = "DestinationLabel"
 	destination.text = "선택한 곳\n밤의 경복궁\n\n시간  밤\n위험도  보통\n장비  기억 무기\n목표  친구 정화 · 탈출"
 	destination.add_theme_font_size_override("font_size", 22)
+	FontRoles.apply_body(destination)
 	destination.add_theme_color_override("font_color", DungeonTheme.COLOR_TEXT)
 	destination.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	destination.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -143,6 +148,7 @@ func _make_action_button(node_name: String, text: String, relative_rect: Rect2, 
 	var variant := PixelButton.VARIANT_PRIMARY if action == ACTION_SELECT_GYEONGBOKGUNG else PixelButton.VARIANT_SECONDARY
 	var with_press_sfx := action != ACTION_SELECT_GYEONGBOKGUNG
 	PixelButton.apply(button, variant, Vector2(0.0, 64.0), with_press_sfx)
+	FontRoles.apply_pixel(button)
 	button.set_meta("test_id", action.replace(".", "_"))
 	button.set_meta("uat_action", action)
 	return button

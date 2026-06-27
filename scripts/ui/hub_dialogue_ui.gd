@@ -40,6 +40,7 @@ const BASEBALL_CAPTAIN := &"baseball_captain"
 const BASEBALL_STAGE_3 := &"baseball_stage_3"
 const AWAKENED_BAT := &"awakened_bat"
 const MobileSafeArea := preload("res://scripts/ui/mobile_safe_area.gd")
+const FontRoles := preload("res://scripts/ui/ui_font_roles.gd")
 
 @onready var _dialogue_dimmer: ColorRect = %DialogueDimmer
 @onready var _portrait_panel: ColorRect = %PortraitPanel
@@ -389,6 +390,7 @@ func _render_stages() -> void:
 		label.custom_minimum_size = Vector2(124.0, 34.0)
 		label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		label.add_theme_font_size_override("font_size", 9)
+		FontRoles.apply_pixel(label)
 		label.add_theme_color_override("font_color", _stage_text_color(state))
 		label.add_theme_stylebox_override("normal", _make_panel_style(_stage_color(state), Color(0.35, 0.39, 0.48), 2))
 		_stage_row.add_child(label)
@@ -441,6 +443,7 @@ func _render_unlock_items() -> void:
 		label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		label.add_theme_color_override("font_color", Color(0.08, 0.08, 0.1))
 		label.add_theme_font_size_override("font_size", 12)
+		FontRoles.apply_pixel(label)
 		label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		row.add_child(label)
 
@@ -500,19 +503,25 @@ func _apply_static_styles() -> void:
 	_dialogue_top_rule.color = PANEL_BORDER_COLOR
 	_name_label.add_theme_color_override("font_color", NAMEPLATE_TEXT_COLOR)
 	_name_label.add_theme_font_size_override("font_size", 16)
+	FontRoles.apply_title(_name_label)
 	_name_label.add_theme_stylebox_override("normal", _make_panel_style(NAMEPLATE_COLOR, Color(0.07, 0.08, 0.1), 2))
 	_dialogue_label.add_theme_color_override("default_color", Color.WHITE)
 	_dialogue_label.add_theme_font_size_override("normal_font_size", 18)
+	FontRoles.apply_body(_dialogue_label)
 	_memory_label.add_theme_color_override("font_color", MEMORY_TEXT_COLOR)
 	_memory_label.add_theme_font_size_override("font_size", 13)
+	FontRoles.apply_body(_memory_label)
 	_choice_row.add_theme_constant_override("separation", 8)
 	_choice_row.alignment = BoxContainer.ALIGNMENT_END
 	_stage_row.add_theme_constant_override("separation", 4)
 	_unlock_popup.add_theme_stylebox_override("panel", _make_panel_style(UNLOCK_COLOR, UNLOCK_BORDER_COLOR, 4))
 	_unlock_title_label.add_theme_color_override("font_color", Color(0.08, 0.08, 0.1))
 	_unlock_title_label.add_theme_font_size_override("font_size", 17)
+	FontRoles.apply_title(_unlock_title_label)
 	_unlock_subtitle_label.add_theme_color_override("font_color", Color(0.42, 0.29, 0.1))
 	_unlock_subtitle_label.add_theme_font_size_override("font_size", 11)
+	FontRoles.apply_body(_unlock_subtitle_label)
+	FontRoles.apply_pixel(_unlock_continue_hint)
 
 
 func _apply_button_style(button: Button, emphasized: bool) -> void:
@@ -520,6 +529,7 @@ func _apply_button_style(button: Button, emphasized: bool) -> void:
 	var text_color := NAMEPLATE_TEXT_COLOR if emphasized else Color(0.95, 0.94, 0.87)
 	button.add_theme_color_override("font_color", text_color)
 	button.add_theme_font_size_override("font_size", 14)
+	FontRoles.apply_pixel(button)
 	button.add_theme_stylebox_override("normal", _make_panel_style(fill, Color(0.45, 0.5, 0.59), 2))
 	button.add_theme_stylebox_override("hover", _make_panel_style(fill.lightened(0.08), Color(0.64, 0.69, 0.78), 2))
 	button.add_theme_stylebox_override("pressed", _make_panel_style(fill.darkened(0.08), Color(0.07, 0.08, 0.1), 2))
@@ -531,6 +541,7 @@ func _apply_continue_hint_style(button: Button) -> void:
 	button.add_theme_color_override("font_hover_color", MEMORY_TEXT_COLOR)
 	button.add_theme_color_override("font_pressed_color", MEMORY_TEXT_COLOR)
 	button.add_theme_font_size_override("font_size", 13)
+	FontRoles.apply_pixel(button)
 	button.add_theme_stylebox_override("normal", StyleBoxEmpty.new())
 	button.add_theme_stylebox_override("hover", StyleBoxEmpty.new())
 	button.add_theme_stylebox_override("pressed", StyleBoxEmpty.new())
