@@ -188,6 +188,45 @@ func test_wolf_dash_hit_is_blocked_while_stunned() -> void:
 	_runner.assert_eq(target.damage_taken, 0, "stunned wolf dash cannot damage the player")
 
 
+func test_wolf_spawn_fade_blocks_dash_damage_and_restores_visual() -> void:
+	_runner.assert_true(ResourceLoader.exists(WOLF_SCENE_PATH), "wolf dash enemy scene exists")
+	if not ResourceLoader.exists(WOLF_SCENE_PATH):
+		return
+
+	var enemy := (load(WOLF_SCENE_PATH) as PackedScene).instantiate()
+	var target := DamageTarget.new()
+	add_child(enemy)
+	add_child(target)
+	enemy.global_position = Vector2.ZERO
+	target.global_position = Vector2.RIGHT * 8.0
+	var sprite := enemy.get_node_or_null("Sprite") as CanvasItem
+	_runner.assert_not_null(sprite, "wolf has a fadeable visual")
+	if sprite == null:
+		return
+	var base_modulate := sprite.modulate
+
+	_runner.assert_true(enemy.has_method("start_spawn_fade"), "wolf exposes spawn fade API")
+	_runner.assert_true(enemy.has_method("is_spawn_protected"), "wolf exposes spawn protection state")
+	_runner.assert_true(enemy.has_method("tick_spawn_fade"), "wolf exposes spawn fade tick API")
+	if not enemy.has_method("start_spawn_fade") or not enemy.has_method("is_spawn_protected") or not enemy.has_method("tick_spawn_fade"):
+		return
+
+	enemy.call("tick_dash_ai", 0.1, enemy.global_position, target.global_position)
+	enemy.call("tick_dash_ai", enemy.dash_windup_time, enemy.global_position, target.global_position)
+	_runner.assert_eq(enemy.call("get_dash_state"), &"dash", "test setup puts wolf in active dash")
+
+	enemy.call("start_spawn_fade", 0.2)
+	enemy.call("_try_dash_hit", target)
+	_runner.assert_eq(target.damage_taken, 0, "spawning wolf dash cannot damage the player")
+	_runner.assert_true(sprite.modulate.a < base_modulate.a, "spawn fade starts transparent")
+
+	enemy.call("tick_spawn_fade", 0.25)
+	_runner.assert_false(enemy.call("is_spawn_protected"), "spawn protection ends after fade")
+	_runner.assert_eq(sprite.modulate, base_modulate, "spawn fade restores the original wolf visual")
+	enemy.call("_try_dash_hit", target)
+	_runner.assert_eq(target.damage_taken, enemy.contact_damage, "wolf dash damage works after spawn protection")
+
+
 func test_wolf_dash_can_be_parried_into_recovery() -> void:
 	_runner.assert_true(ResourceLoader.exists(WOLF_SCENE_PATH), "wolf dash enemy scene exists")
 	if not ResourceLoader.exists(WOLF_SCENE_PATH):
