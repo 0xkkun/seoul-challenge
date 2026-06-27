@@ -38,7 +38,7 @@ func test_open_renders_message_and_yes_callback() -> void:
 	var panel := _modal.get_node("Root/Panel") as PanelContainer
 	_runner.assert_not_null(yes_button, "yes exposes test id")
 	_runner.assert_not_null(no_button, "no exposes test id")
-	_assert_dungeon_panel_style(panel.get_theme_stylebox("panel"), "confirm modal")
+	_assert_popup_panel_style(panel.get_theme_stylebox("panel"), "confirm modal")
 	_assert_pixel_button_style(yes_button, PixelButtonStyle.VARIANT_PRIMARY, "yes")
 	_assert_pixel_button_style(no_button, PixelButtonStyle.VARIANT_SECONDARY, "no")
 
@@ -75,13 +75,14 @@ func _assert_pixel_button_style(button: Button, variant: StringName, label: Stri
 	_assert_pixel_button_texture(button.get_theme_stylebox("disabled"), PixelButtonStyle.normal_texture_path(variant), "%s disabled" % label)
 
 
-func _assert_dungeon_panel_style(style: StyleBox, message: String) -> void:
+func _assert_popup_panel_style(style: StyleBox, message: String) -> void:
 	var flat_style := style as StyleBoxFlat
-	_runner.assert_not_null(flat_style, "%s uses dungeon panel style" % message)
+	_runner.assert_not_null(flat_style, "%s uses the shared popup panel frame" % message)
 	if flat_style == null:
 		return
 	_runner.assert_eq(flat_style.corner_radius_top_left, 0, "%s keeps square pixel corners" % message)
-	_runner.assert_eq(flat_style.get_border_width(SIDE_LEFT), 2, "%s keeps a thin pixel border" % message)
+	_runner.assert_eq(flat_style.get_border_width(SIDE_LEFT), PopupBase.PANEL_BORDER_WIDTH, "%s uses the popup gold frame width" % message)
+	_runner.assert_eq(flat_style.border_color, PopupBase.PANEL_BORDER_COLOR, "%s uses the popup gold frame color" % message)
 
 
 func _assert_pixel_button_texture(style: StyleBox, texture_path: String, message: String) -> void:
