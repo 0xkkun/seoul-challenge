@@ -27,6 +27,7 @@ const OBJECTIVE_REENTER_GYEONGBOKGUNG := "목표: 복도 끝 사물함에서 배
 const OBJECTIVE_BOSS_RESULT_REPORT := "목표: 야구부 주장에게 도깨비왕의 결말을 전하자"
 const OBJECTIVE_BOSS_RESULT_ACKNOWLEDGED := "목표: 친구의 행방은 아직 미궁 속이다"
 const RUN_NAVIGATION_ARROW_TEXT := ">>>"
+const BOSS_REPORT_ARROW_TEXT := "<<<"
 const RETURN_TO_LOBBY_MESSAGE := "로비로 돌아갈까요? 진행 상황은 자동으로 저장됩니다."
 const QUIT_GAME_MESSAGE := "게임을 종료할까요?"
 const BASEBALL_CAPTAIN_DISPLAY_NAME := "야구부 주장"
@@ -102,6 +103,7 @@ const BOSS_RESULT_REPORT_LINES := [
 @onready var _talk_target: Node2D = %TalkTarget
 @onready var _talk_target_sprite: Sprite2D = %TalkTargetSprite
 @onready var _talk_target_callout_label: Label = %TalkTargetCalloutLabel
+@onready var _boss_report_arrow_label: Label = %BossReportArrowLabel
 @onready var _right_student3_sprite: Sprite2D = %RightStudent3Sprite
 @onready var _right_crowd_sprite: Sprite2D = %RightCrowdSprite
 @onready var _right_student3: Node2D = %RightStudent3
@@ -137,6 +139,7 @@ var _crowd_label_elapsed := 0.0
 var _student3_label_shown_for_entry := false
 var _ambient_tier := DaySchoolRumors.TIER_FIRST_VISIT
 var _run_navigation_arrow_tween: Tween
+var _boss_report_arrow_tween: Tween
 var _character_base_position := Vector2.ZERO
 var _walk_texture: Texture2D = null
 var _walk_hframes := 0
@@ -168,7 +171,7 @@ func _ready() -> void:
 	_hub_dialogue_ui.set_stage_row_visible(false)
 	_hub_dialogue_ui.choice_selected.connect(_on_hub_dialogue_choice_selected)
 	_update_objective_label()
-	_update_run_navigation_arrow()
+	_update_navigation_arrows()
 	_interaction_prompt.visible = false
 	_update_talk_target_callout()
 	_apply_ui_automation_metadata()
@@ -382,6 +385,15 @@ func is_run_navigation_arrow_glow_active() -> bool:
 		and _gyeongbokgung_run_arrow_label.visible
 		and _run_navigation_arrow_tween != null
 		and _run_navigation_arrow_tween.is_valid()
+	)
+
+
+func is_boss_report_arrow_glow_active() -> bool:
+	return (
+		_boss_report_arrow_label != null
+		and _boss_report_arrow_label.visible
+		and _boss_report_arrow_tween != null
+		and _boss_report_arrow_tween.is_valid()
 	)
 
 
@@ -736,7 +748,7 @@ func _request_locker_maintenance(edge_id: StringName) -> void:
 		return
 	_is_maintenance_requested = true
 	_last_maintenance_edge = edge_id
-	_update_run_navigation_arrow()
+	_update_navigation_arrows()
 	_player.velocity = Vector2.ZERO
 	SceneTransition.set_pending_day_corridor_context({
 		SceneTransition.DAY_CORRIDOR_CONTEXT_ROOM_ID: _current_room_id,
@@ -1099,7 +1111,7 @@ func _open_dialogue_ui() -> void:
 	_update_character_sprite(0.0)
 	_sync_talk_target_visibility()
 	_update_talk_target_callout()
-	_update_run_navigation_arrow()
+	_update_navigation_arrows()
 
 
 func _show_dialogue_line(line_index: int) -> void:
@@ -1182,7 +1194,7 @@ func _try_complete_baseball_lobby_quest() -> bool:
 			_hub_dialogue_ui.unlock_hidden.disconnect(_on_quest_unlock_hidden)
 		return false
 	_update_interaction_prompt()
-	_update_run_navigation_arrow()
+	_update_navigation_arrows()
 	return true
 
 
@@ -1221,7 +1233,12 @@ func _update_objective_label() -> void:
 	elif _has_claimed_baseball_reward():
 		objective_text = OBJECTIVE_REENTER_GYEONGBOKGUNG
 	_objective_label.text = objective_text
+	_update_navigation_arrows()
+
+
+func _update_navigation_arrows() -> void:
 	_update_run_navigation_arrow()
+	_update_boss_report_arrow()
 
 
 func _update_run_navigation_arrow() -> void:
@@ -1231,52 +1248,76 @@ func _update_run_navigation_arrow() -> void:
 	var should_show := _should_show_run_navigation_arrow()
 	_gyeongbokgung_run_arrow_label.visible = should_show
 	if should_show:
-		_start_run_navigation_arrow_glow()
+		_run_navigation_arrow_tween = _start_navigation_arrow_glow(_gyeongbokgung_run_arrow_label, _run_navigation_arrow_tween)
 	else:
 		_stop_run_navigation_arrow_glow()
 
 
-func _start_run_navigation_arrow_glow() -> void:
-	if _run_navigation_arrow_tween != null and _run_navigation_arrow_tween.is_valid():
+func _update_boss_report_arrow() -> void:
+	if _boss_report_arrow_label == null:
 		return
-	_gyeongbokgung_run_arrow_label.pivot_offset = _gyeongbokgung_run_arrow_label.size * 0.5
-	_gyeongbokgung_run_arrow_label.scale = Vector2.ONE
-	_gyeongbokgung_run_arrow_label.modulate = Color.WHITE
-	_run_navigation_arrow_tween = create_tween()
-	_run_navigation_arrow_tween.set_loops()
-	_run_navigation_arrow_tween.tween_property(
-		_gyeongbokgung_run_arrow_label,
+	_boss_report_arrow_label.text = BOSS_REPORT_ARROW_TEXT
+	var should_show := _should_show_boss_report_arrow()
+	_boss_report_arrow_label.visible = should_show
+	if should_show:
+		_boss_report_arrow_tween = _start_navigation_arrow_glow(_boss_report_arrow_label, _boss_report_arrow_tween)
+	else:
+		_stop_boss_report_arrow_glow()
+
+
+func _start_navigation_arrow_glow(label: Label, current_tween: Tween) -> Tween:
+	if label == null:
+		return current_tween
+	if current_tween != null and current_tween.is_valid():
+		return current_tween
+	label.pivot_offset = label.size * 0.5
+	label.scale = Vector2.ONE
+	label.modulate = Color.WHITE
+	var tween := create_tween()
+	tween.set_loops()
+	tween.tween_property(
+		label,
 		"scale",
 		Vector2(1.08, 1.08),
 		0.55
 	).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-	_run_navigation_arrow_tween.parallel().tween_property(
-		_gyeongbokgung_run_arrow_label,
+	tween.parallel().tween_property(
+		label,
 		"modulate",
 		Color(1.0, 1.0, 1.0, 0.82),
 		0.55
 	).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-	_run_navigation_arrow_tween.tween_property(
-		_gyeongbokgung_run_arrow_label,
+	tween.tween_property(
+		label,
 		"scale",
 		Vector2.ONE,
 		0.55
 	).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-	_run_navigation_arrow_tween.parallel().tween_property(
-		_gyeongbokgung_run_arrow_label,
+	tween.parallel().tween_property(
+		label,
 		"modulate",
 		Color.WHITE,
 		0.55
 	).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	return tween
 
 
 func _stop_run_navigation_arrow_glow() -> void:
-	if _run_navigation_arrow_tween != null and _run_navigation_arrow_tween.is_valid():
-		_run_navigation_arrow_tween.kill()
+	_stop_navigation_arrow_glow(_gyeongbokgung_run_arrow_label, _run_navigation_arrow_tween)
 	_run_navigation_arrow_tween = null
-	if _gyeongbokgung_run_arrow_label != null:
-		_gyeongbokgung_run_arrow_label.scale = Vector2.ONE
-		_gyeongbokgung_run_arrow_label.modulate = Color.WHITE
+
+
+func _stop_boss_report_arrow_glow() -> void:
+	_stop_navigation_arrow_glow(_boss_report_arrow_label, _boss_report_arrow_tween)
+	_boss_report_arrow_tween = null
+
+
+func _stop_navigation_arrow_glow(label: Label, tween: Tween) -> void:
+	if tween != null and tween.is_valid():
+		tween.kill()
+	if label != null:
+		label.scale = Vector2.ONE
+		label.modulate = Color.WHITE
 
 
 func _should_show_run_navigation_arrow() -> bool:
@@ -1293,6 +1334,20 @@ func _should_show_run_navigation_arrow() -> bool:
 	if _confirm_modal != null and _confirm_modal.is_open():
 		return false
 	return not _is_maintenance_requested
+
+
+func _should_show_boss_report_arrow() -> bool:
+	if not _needs_boss_result_report_dialogue():
+		return false
+	if is_dialogue_ui_visible():
+		return false
+	if _hub_dialogue_ui != null and _hub_dialogue_ui.is_unlock_visible():
+		return false
+	if _confirm_modal != null and _confirm_modal.is_open():
+		return false
+	if _is_maintenance_requested:
+		return false
+	return _talk_target != null and _talk_target.visible
 
 
 func _needs_baseball_reward_dialogue() -> bool:
@@ -1384,9 +1439,9 @@ func _request_return_to_lobby() -> void:
 	_confirm_modal.open(
 		RETURN_TO_LOBBY_MESSAGE,
 		Callable(self, "_return_to_lobby"),
-		Callable(self, "_update_run_navigation_arrow")
+		Callable(self, "_update_navigation_arrows")
 	)
-	_update_run_navigation_arrow()
+	_update_navigation_arrows()
 
 
 func _return_to_lobby() -> void:
@@ -1403,9 +1458,9 @@ func _request_quit_game() -> void:
 	_confirm_modal.open(
 		QUIT_GAME_MESSAGE,
 		Callable(self, "_quit_game"),
-		Callable(self, "_update_run_navigation_arrow")
+		Callable(self, "_update_navigation_arrows")
 	)
-	_update_run_navigation_arrow()
+	_update_navigation_arrows()
 
 
 func _quit_game() -> void:

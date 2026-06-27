@@ -420,6 +420,19 @@ func test_day_corridor_boss_resolved_prompts_report_to_captain_and_hides_run_arr
 	_runner.assert_not_null(arrow_label, "day corridor exposes the Gyeongbokgung run navigation arrow")
 	if arrow_label != null:
 		_runner.assert_false(arrow_label.visible, "boss clear return hides the Gyeongbokgung re-entry arrow")
+	var captain_arrow := scene.get_node_or_null("%BossReportArrowLabel") as Label
+	_runner.assert_not_null(captain_arrow, "boss clear return exposes a captain report navigation arrow")
+	if captain_arrow != null:
+		_runner.assert_true(captain_arrow.visible, "boss clear return guides the player toward the captain")
+		_runner.assert_eq(captain_arrow.text, "<<<", "captain report arrow points left toward the captain")
+		var talk_target := scene.get_node("%TalkTarget") as Node2D
+		_runner.assert_true(captain_arrow.global_position.x > talk_target.global_position.x, "captain report arrow sits right of the captain so its left arrows point at him")
+		var glow_color := captain_arrow.get_theme_color("font_shadow_color")
+		_runner.assert_true(glow_color.r > 0.8 and glow_color.g > 0.55 and glow_color.b < 0.35, "captain report arrow uses the same warm glow")
+		_runner.assert_true(captain_arrow.get_theme_constant("shadow_outline_size") >= 16, "captain report arrow has a broad glow halo")
+		_runner.assert_true(scene.has_method("is_boss_report_arrow_glow_active"), "scene exposes boss report arrow glow animation state")
+		if scene.has_method("is_boss_report_arrow_glow_active"):
+			_runner.assert_true(scene.call("is_boss_report_arrow_glow_active"), "captain report arrow glow pulse runs while visible")
 	var callout_label := scene.get_node_or_null("%TalkTargetCalloutLabel") as Label
 	_runner.assert_not_null(callout_label, "baseball captain callout exists")
 	if callout_label != null:
@@ -438,6 +451,8 @@ func test_day_corridor_boss_resolved_prompts_report_to_captain_and_hides_run_arr
 	_runner.assert_eq(scene.get_objective_text(), "목표: 친구의 행방은 아직 미궁 속이다", "post-boss report keeps the open ending state")
 	if arrow_label != null:
 		_runner.assert_false(arrow_label.visible, "acknowledged boss result still keeps the re-entry arrow hidden")
+	if captain_arrow != null:
+		_runner.assert_false(captain_arrow.visible, "acknowledged boss result hides the captain report arrow")
 
 
 func test_day_corridor_boss_report_persists_after_later_run_until_acknowledged() -> void:
