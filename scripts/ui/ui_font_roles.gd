@@ -12,6 +12,13 @@ const BODY_FONT_PATH := "res://assets/fonts/RIDIBatang.otf"
 const PIXEL_FONT: FontFile = preload("res://assets/fonts/NeoDunggeunmoPro-Regular.ttf")
 const TITLE_FONT: FontFile = preload("res://assets/fonts/ChosunCentennial.ttf")
 const BODY_FONT: FontFile = preload("res://assets/fonts/RIDIBatang.otf")
+const RICH_TEXT_FONT_KEYS: Array[StringName] = [
+	&"normal_font",
+	&"bold_font",
+	&"italics_font",
+	&"bold_italics_font",
+	&"mono_font",
+]
 
 
 static func apply_pixel(control: Control) -> void:
@@ -40,6 +47,7 @@ static func _apply_font(control: Control, font: FontFile) -> void:
 	if control == null:
 		return
 	if control is RichTextLabel:
-		control.add_theme_font_override("normal_font", font)
-	else:
-		control.add_theme_font_override("font", font)
+		for font_key: StringName in RICH_TEXT_FONT_KEYS:
+			control.add_theme_font_override(font_key, font)
+		return
+	control.add_theme_font_override("font", font)

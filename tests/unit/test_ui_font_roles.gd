@@ -59,6 +59,7 @@ func test_role_helper_applies_label_and_rich_text_fonts() -> void:
 
 	_assert_font(label, &"font", UiFontRolesScript.TITLE_FONT_PATH, "Label title role uses ChosunCentennial")
 	_assert_font(rich, &"normal_font", UiFontRolesScript.BODY_FONT_PATH, "RichTextLabel body role uses RIDIBatang")
+	_assert_rich_text_fonts(rich, UiFontRolesScript.BODY_FONT_PATH, "RichTextLabel BBCode fonts use RIDIBatang")
 	_runner.assert_eq(UiFontRolesScript.role_font_path(UiFontRolesScript.ROLE_PIXEL), UiFontRolesScript.PIXEL_FONT_PATH, "pixel role path is stable")
 	_runner.assert_eq(UiFontRolesScript.role_font_path(UiFontRolesScript.ROLE_TITLE), UiFontRolesScript.TITLE_FONT_PATH, "title role path is stable")
 	_runner.assert_eq(UiFontRolesScript.role_font_path(UiFontRolesScript.ROLE_BODY), UiFontRolesScript.BODY_FONT_PATH, "body role path is stable")
@@ -88,6 +89,7 @@ func test_hub_dialogue_uses_title_body_and_pixel_roles() -> void:
 
 	_assert_font(ui.get_node("%NameLabel") as Control, &"font", UiFontRolesScript.TITLE_FONT_PATH, "speaker name uses title font")
 	_assert_font(ui.get_node("%DialogueLabel") as Control, &"normal_font", UiFontRolesScript.BODY_FONT_PATH, "dialogue text uses body font")
+	_assert_rich_text_fonts(ui.get_node("%DialogueLabel") as RichTextLabel, UiFontRolesScript.BODY_FONT_PATH, "dialogue BBCode text uses body font")
 	_assert_font(ui.get_node("%MemoryLabel") as Control, &"font", UiFontRolesScript.BODY_FONT_PATH, "memory line uses body font")
 	_assert_font(ui.get_node("%StageRow").get_child(0) as Control, &"font", UiFontRolesScript.PIXEL_FONT_PATH, "stage chip uses pixel font")
 	_assert_font(ui.get_node("%ChoiceRow").get_child(0) as Control, &"font", UiFontRolesScript.PIXEL_FONT_PATH, "dialogue choice uses pixel font")
@@ -153,3 +155,8 @@ func _assert_font(control: Control, font_type: StringName, expected_path: String
 	if font == null:
 		return
 	_runner.assert_eq(font.resource_path, expected_path, message)
+
+
+func _assert_rich_text_fonts(control: RichTextLabel, expected_path: String, message: String) -> void:
+	for font_type: StringName in [&"normal_font", &"bold_font", &"italics_font", &"bold_italics_font", &"mono_font"]:
+		_assert_font(control, font_type, expected_path, "%s %s" % [message, font_type])
