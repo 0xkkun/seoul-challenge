@@ -56,6 +56,7 @@ func test_locker_maintenance_uses_dungeon_ui_loadout_hierarchy() -> void:
 
 	_runner.assert_eq(baseball_card, null, "story-unused baseball memory weapon card is removed")
 	_runner.assert_eq(bat_card.focus_mode, Control.FOCUS_NONE, "weapon slot does not show desktop focus chrome")
+	_runner.assert_eq(screen.get_weapon_card_icon_path(LockerMaintenanceScript.WEAPON_BAT), LockerMaintenanceScript.BAT_ICON_PATH, "locker bat card uses the real bat icon asset")
 	_runner.assert_eq(return_button.text, "↩ 복도", "return CTA uses short icon copy")
 	_runner.assert_eq(map_button.text, "☾ 지도", "map CTA uses short icon copy")
 	_runner.assert_eq(weapon_status.text, "선택된 기억\n\n금 간 나무 배트\n\n지도에서\n경복궁 선택", "selected loadout is summarized beside the slot")

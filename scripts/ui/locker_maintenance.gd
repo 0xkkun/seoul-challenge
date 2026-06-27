@@ -17,6 +17,7 @@ const ACTION_SELECT_BAT := "locker_maintenance.weapon.bat"
 const ACTION_CYCLE_WEAPON := "locker_maintenance.weapon.cycle"
 const ACTION_OPEN_MAP := "locker_maintenance.map"
 const ACTION_UPGRADE_PREFIX := "locker_maintenance.upgrade."
+const BAT_ICON_PATH := "res://assets/ui/icons/seoul_challenge/baseball_bat.png"
 
 @export var scene_transition_enabled := true
 
@@ -45,6 +46,13 @@ func get_selected_weapon_id() -> StringName:
 
 func get_map_entry_count() -> int:
 	return _count_action_entries(self, ACTION_OPEN_MAP)
+
+
+func get_weapon_card_icon_path(weapon_id: StringName) -> String:
+	var card := _bat_card if weapon_id == WEAPON_BAT else null
+	if card == null or card.icon == null:
+		return ""
+	return card.icon.resource_path
 
 
 func select_weapon(weapon_id: StringName) -> void:
@@ -386,6 +394,10 @@ func _make_weapon_card(node_name: String, text: String, relative_rect: Rect2, ac
 	card.anchor_right = relative_rect.position.x + relative_rect.size.x
 	card.anchor_bottom = relative_rect.position.y + relative_rect.size.y
 	card.text = text
+	if action == ACTION_SELECT_BAT:
+		card.icon = load(BAT_ICON_PATH)
+		card.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		card.expand_icon = false
 	card.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	card.alignment = HORIZONTAL_ALIGNMENT_CENTER
 	card.focus_mode = Control.FOCUS_NONE
