@@ -229,8 +229,25 @@ func _on_room_changed(_room_id: StringName, _room_type: StringName) -> void:
 	_play_room_fade()
 	var current_room := room_manager.current_room
 	if current_room != null and actor != null:
-		actor.global_position = current_room.global_position + Vector2(-RoomPalette.ROOM_HALF_SIZE.x + 140.0, 0.0)
+		_configure_actor_for_room(current_room)
 	_connect_boss_room(current_room)
+
+
+func _configure_actor_for_room(room: Node2D) -> void:
+	if actor.has_method("set_movement_bounds"):
+		actor.call("set_movement_bounds", _room_movement_bounds(room))
+	actor.global_position = room.global_position + Vector2(-RoomPalette.ROOM_HALF_SIZE.x + 140.0, 0.0)
+	if actor.has_method("clamp_to_movement_bounds"):
+		actor.call("clamp_to_movement_bounds")
+	if actor.has_method("reset_motion"):
+		actor.call("reset_motion")
+	elif actor is CharacterBody2D:
+		(actor as CharacterBody2D).velocity = Vector2.ZERO
+
+
+func _room_movement_bounds(room: Node2D) -> Rect2:
+	var room_bounds := RoomPalette.get_room_bounds()
+	return Rect2(room.global_position + room_bounds.position, room_bounds.size)
 
 
 func _connect_boss_room(room: Node) -> void:
