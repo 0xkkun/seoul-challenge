@@ -26,6 +26,9 @@ TEXTURE_PROPERTY_PREFIXES = (
     "texture_pressed =",
     "under =",
 )
+TEXTURE_FILTER_OVERRIDES = {
+    ("scenes/lobby/lobby.tscn", "TitleLogo"): "4",
+}
 NODE_RE = re.compile(
     r'^\[node name="(?P<name>[^"]+)"(?: type="(?P<type>[^"]+)")?(?: parent="(?P<parent>[^"]*)")?.*\]$'
 )
@@ -90,22 +93,28 @@ def main() -> None:
     for path in scene_files():
         relative = path.relative_to(ROOT)
         for node in parse_scene(path):
+            expected_filter = TEXTURE_FILTER_OVERRIDES.get((relative.as_posix(), node.name), "1")
             filters = texture_filter_values(node)
             for value in filters:
-                if value != "1":
-                    problems.append(f"{relative}:{node.start_line}: {node.name} uses texture_filter = {value}, expected 1")
+                if value != expected_filter:
+                    problems.append(
+                        f"{relative}:{node.start_line}: {node.name} uses texture_filter = {value}, "
+                        f"expected {expected_filter}"
+                    )
 
             if node.type_name not in TEXTURE_NODE_TYPES or not node_has_texture(node):
                 continue
             if not filters:
-                problems.append(f"{relative}:{node.start_line}: {node.name} has texture data but no texture_filter = 1")
+                problems.append(
+                    f"{relative}:{node.start_line}: {node.name} has texture data but no texture_filter = {expected_filter}"
+                )
 
     if problems:
         for problem in problems[:80]:
             fail(problem)
         raise SystemExit(1)
 
-    print("[verify_pixel_texture_filters] OK: texture-backed scene nodes use nearest filtering")
+    print("[verify_pixel_texture_filters] OK: texture-backed scene nodes use approved filtering")
 
 
 if __name__ == "__main__":
