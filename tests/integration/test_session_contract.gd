@@ -852,7 +852,7 @@ func test_session_root_applies_locker_weapon_config() -> void:
 	var actor: Node = session.get_node("%Player")
 
 	_runner.assert_true(actor.call("has_bat"), "bat locker selection equips the run actor")
-	_runner.assert_eq(actor.call("current_weapon_name"), "마지막 시즌의 배트", "bat locker selection shows cracked bat label")
+	_runner.assert_eq(actor.call("current_weapon_name"), "금 간 나무 배트", "bat locker selection shows cracked bat label")
 	_runner.assert_false(bool(actor.get("ranged_enabled")), "bat locker selection keeps ranged baseball disabled")
 
 	session.queue_free()
@@ -867,8 +867,8 @@ func test_session_player_awakens_bat_on_lobby_quest_not_purify() -> void:
 	var actor: Node = session.get_node("%Player")
 	var combat_hud := session.get_node("%CombatHud") as CanvasLayer
 	actor.call("equip_bat")
-	_runner.assert_eq(actor.call("current_weapon_name"), "마지막 시즌의 배트", "run starts with regular bat")
-	_runner.assert_true(combat_hud.call("get_weapon_text").contains("마지막 시즌의 배트"), "HUD shows regular bat after equip")
+	_runner.assert_eq(actor.call("current_weapon_name"), "금 간 나무 배트", "run starts with regular bat")
+	_runner.assert_true(combat_hud.call("get_weapon_text").contains("금 간 나무 배트"), "HUD shows regular bat after equip")
 	var friend_room_def := _first_room_of_type(manager.layout, RoomLayout.TYPE_FRIEND)
 	_runner.assert_not_null(friend_room_def, "session run layout includes a friend room")
 	if friend_room_def == null:
@@ -884,7 +884,7 @@ func test_session_player_awakens_bat_on_lobby_quest_not_purify() -> void:
 	# #243: 정화만으론 배트가 해금·각성되지 않는다(정화/언락 분리).
 	_runner.assert_false(ProgressionSystem.is_weapon_unlocked(&"awakened_bat"), "purification alone does not unlock awakened bat")
 	_runner.assert_false(actor.call("is_bat_awakened"), "session player stays un-awakened after purify alone")
-	_runner.assert_eq(actor.call("current_weapon_name"), "마지막 시즌의 배트", "player keeps regular bat after purify alone")
+	_runner.assert_eq(actor.call("current_weapon_name"), "금 간 나무 배트", "player keeps regular bat after purify alone")
 
 	# 로비 퀘스트 완료가 강화배트를 해금하고, 같은 런의 플레이어가 unlock_changed 로 각성한다.
 	ProgressionSystem.record_quest_completed(ProgressionSystem.QUEST_BASEBALL_CAPTAIN_LOBBY)
@@ -893,6 +893,25 @@ func test_session_player_awakens_bat_on_lobby_quest_not_purify() -> void:
 	_runner.assert_true(actor.call("is_bat_awakened"), "session player receives the quest unlock event")
 	_runner.assert_eq(actor.call("current_weapon_name"), "마지막 시즌의 배트", "session player shows awakened bat label")
 	_runner.assert_true(combat_hud.call("get_weapon_text").contains("마지막 시즌의 배트"), "HUD updates to awakened bat label")
+
+	session.queue_free()
+
+
+## 이름 경계 = 주장 보상 수령. 능력 각성(로비 퀘) 전이라도 보상만 받으면 이름은 마지막 시즌의 배트.
+func test_session_player_bat_name_flips_on_captain_reward_before_awakening() -> void:
+	var packed := load("res://scenes/session/session_root.tscn") as PackedScene
+	var session := packed.instantiate()
+	add_child(session)
+	var actor: Node = session.get_node("%Player")
+	actor.call("equip_bat")
+
+	# 보상 전(온보딩/3칸 구간): 금 간 나무 배트
+	_runner.assert_eq(actor.call("current_weapon_name"), "금 간 나무 배트", "pre-reward bat is the cracked bat")
+
+	# 주장 보상 수령 → 능력 각성은 아직이지만 이름은 마지막 시즌의 배트로 전환
+	SaveManager.set_flag(SceneTransition.FLAG_BASEBALL_CAPTAIN_REWARD_CLAIMED, true)
+	_runner.assert_false(actor.call("is_bat_awakened"), "captain reward does not awaken the bat power")
+	_runner.assert_eq(actor.call("current_weapon_name"), "마지막 시즌의 배트", "captain reward renames the bat before awakening")
 
 	session.queue_free()
 
@@ -910,7 +929,7 @@ func test_session_root_ignores_removed_baseball_weapon_config() -> void:
 
 	_runner.assert_false(bool(actor.get("ranged_enabled")), "removed baseball config does not enable ranged play")
 	_runner.assert_true(bool(actor.call("has_bat")), "removed baseball config falls back to the story-backed bat")
-	_runner.assert_eq(actor.call("current_weapon_name"), "마지막 시즌의 배트", "fallback weapon is the regular bat")
+	_runner.assert_eq(actor.call("current_weapon_name"), "금 간 나무 배트", "fallback weapon is the regular bat")
 
 	session.queue_free()
 

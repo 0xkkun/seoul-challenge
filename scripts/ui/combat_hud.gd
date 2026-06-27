@@ -216,9 +216,14 @@ func _initial_weapon_id() -> StringName:
 func _weapon_display_name(weapon_id: StringName) -> String:
 	match weapon_id:
 		&"bat":
-			return "마지막 시즌의 배트"
+			# 이름 경계 = 주장 보상 수령. 보상 전(온보딩/3칸) = 금 간 나무 배트.
+			return "마지막 시즌의 배트" if _is_baseball_reward_claimed() else "금 간 나무 배트"
 		_:
 			return "없음"
+
+
+func _is_baseball_reward_claimed() -> bool:
+	return has_node("/root/SaveManager") and SaveManager.get_flag(SceneTransition.FLAG_BASEBALL_CAPTAIN_REWARD_CLAIMED)
 
 
 func _apply_landscape_safe_area() -> void:
