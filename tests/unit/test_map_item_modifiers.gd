@@ -53,6 +53,17 @@ func test_apply_modifiers_to_stats_changes_combat_numbers() -> void:
 	_runner.assert_true(float(stats["fire_cooldown"]) < float(base_stats["fire_cooldown"]), "tempo modifier speeds ranged throws")
 
 
+func test_effect_text_describes_visible_stat_changes() -> void:
+	var catalog := _load_catalog()
+	if catalog == null:
+		return
+
+	_runner.assert_eq(catalog.call("get_effect_text", &"gung_talisman"), "근접 피해 +1 / 배트 피해 +1", "damage reward explains both attack stats")
+	_runner.assert_eq(catalog.call("get_effect_text", &"dokkaebi_fire"), "근접 공격 간격 -16% / 투척 간격 -16%", "tempo reward explains cooldown reduction")
+	_runner.assert_eq(catalog.call("get_effect_text", &"wind_step"), "이동 속도 +15%", "speed reward explains movement stat")
+	_runner.assert_eq(catalog.call("get_effect_text", &"moon_guard"), "최대 체력 +1", "health reward explains health stat")
+
+
 func _load_catalog() -> GDScript:
 	var path := "res://scripts/items/map_item_catalog.gd"
 	_runner.assert_true(ResourceLoader.exists(path), "map item catalog script exists")
@@ -62,7 +73,7 @@ func _load_catalog() -> GDScript:
 	_runner.assert_not_null(script, "map item catalog script exists")
 	if script == null:
 		return null
-	for method_name: String in ["has_item", "item_ids", "get_item_def", "compose_modifiers", "apply_modifiers_to_stats"]:
+	for method_name: String in ["has_item", "item_ids", "get_item_def", "compose_modifiers", "apply_modifiers_to_stats", "get_effect_text"]:
 		_runner.assert_true(script.has_method(method_name), "catalog exposes %s" % method_name)
 		if not script.has_method(method_name):
 			return null

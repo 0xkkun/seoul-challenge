@@ -349,6 +349,7 @@ func _build_reward_choice_models(room_id: StringName) -> Array[Dictionary]:
 			"item_id": item_id,
 			"display_name": MapItemCatalog.get_display_name(item_id),
 			"flavor": MapItemCatalog.get_flavor(item_id),
+			"effect": MapItemCatalog.get_effect_text(item_id),
 		})
 	return models
 

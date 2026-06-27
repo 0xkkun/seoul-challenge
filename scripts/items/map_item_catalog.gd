@@ -45,6 +45,16 @@ const _BASE_MODIFIERS := {
 	"fire_cooldown_mult": 1.0,
 }
 
+const _EFFECT_ORDER := [
+	"melee_damage_add",
+	"bat_damage_add",
+	"max_health_add",
+	"special_skill_uses_add",
+	"move_speed_mult",
+	"attack_cooldown_mult",
+	"fire_cooldown_mult",
+]
+
 
 static func item_ids() -> Array[StringName]:
 	var ids: Array[StringName] = []
@@ -69,6 +79,22 @@ static func get_display_name(item_id: StringName) -> String:
 
 static func get_flavor(item_id: StringName) -> String:
 	return String(get_item_def(item_id).get("flavor", ""))
+
+
+static func get_effect_text(item_id: StringName) -> String:
+	var modifiers: Dictionary = get_item_def(item_id).get("modifiers", {})
+	return effect_text_from_modifiers(modifiers)
+
+
+static func effect_text_from_modifiers(modifiers: Dictionary) -> String:
+	var parts: Array[String] = []
+	for modifier_key: String in _EFFECT_ORDER:
+		if not modifiers.has(modifier_key):
+			continue
+		var text := _modifier_effect_text(modifier_key, modifiers[modifier_key])
+		if text != "":
+			parts.append(text)
+	return " / ".join(parts)
 
 
 static func resolve_item_id(configured_item_id: StringName, room_id: StringName = &"") -> StringName:
@@ -119,3 +145,38 @@ static func merge_modifiers(base: Dictionary, extra: Dictionary) -> Dictionary:
 		else:
 			result[key] = int(result.get(key, 0)) + int(extra[key])
 	return result
+
+
+static func _modifier_effect_text(modifier_key: String, value: Variant) -> String:
+	match modifier_key:
+		"melee_damage_add":
+			return _signed_integer_effect("근접 피해", int(value))
+		"bat_damage_add":
+			return _signed_integer_effect("배트 피해", int(value))
+		"max_health_add":
+			return _signed_integer_effect("최대 체력", int(value))
+		"special_skill_uses_add":
+			return _signed_integer_effect("회피 횟수", int(value))
+		"move_speed_mult":
+			return _signed_multiplier_effect("이동 속도", float(value))
+		"attack_cooldown_mult":
+			return _signed_multiplier_effect("근접 공격 간격", float(value))
+		"fire_cooldown_mult":
+			return _signed_multiplier_effect("투척 간격", float(value))
+	return ""
+
+
+static func _signed_integer_effect(label: String, amount: int) -> String:
+	if amount == 0:
+		return ""
+	if amount > 0:
+		return "%s +%d" % [label, amount]
+	return "%s %d" % [label, amount]
+
+
+static func _signed_multiplier_effect(label: String, multiplier: float) -> String:
+	var percent := roundi((multiplier - 1.0) * 100.0)
+	if percent == 0:
+		return ""
+	var sign := "+" if percent > 0 else "-"
+	return "%s %s%d%%" % [label, sign, absi(percent)]
