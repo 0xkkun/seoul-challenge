@@ -46,6 +46,10 @@ at "PR opened" and do not leave a green, review-clean PR sitting.
    your bug to fix, not a reason to stop.
 3. **Wait for the codex review (1 pass).** If it requests changes, address them,
    push, and re-request review (loop). If it has no change requests, proceed.
+   A `👍` reaction from `codex` on the PR body after a review request counts as
+   the codex pass with no requested changes; when CI is green and there are no
+   outstanding review comments, merge immediately instead of waiting for a
+   formal review object.
 4. **Merge as soon as CI is green AND the review has no outstanding change
    requests:** `gh pr merge <n> --merge --delete-branch`. Merge immediately;
    do not wait for a human unless the PR description explicitly asks for one.
