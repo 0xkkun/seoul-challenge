@@ -338,6 +338,35 @@ func test_day_corridor_onboarding_reward_dialogue_grants_bat_and_clue() -> void:
 	_runner.assert_eq(scene.get_objective_text(), "목표: 복도 끝 사물함에서 배트를 챙기고 경복궁으로 다시 가자", "post-reward objective points to the next MVP run")
 
 
+func test_day_corridor_hides_gyeongbokgung_navigation_before_reward_claimed() -> void:
+	SaveManager.set_flag(SceneTransition.FLAG_ONBOARDING_BASEBALL_COMPLETE, true)
+	SaveManager.set_flag(SceneTransition.FLAG_BASEBALL_CAPTAIN_REWARD_CLAIMED, false)
+	var scene := DayCorridorScene.instantiate()
+	add_child(scene)
+
+	var arrow_label := scene.get_node_or_null("%GyeongbokgungRunArrowLabel") as Label
+	_runner.assert_not_null(arrow_label, "day corridor exposes the Gyeongbokgung run navigation arrow")
+	if arrow_label != null:
+		_runner.assert_false(arrow_label.visible, "Gyeongbokgung navigation stays hidden while captain reward is pending")
+
+
+func test_day_corridor_post_reward_guides_player_to_gyeongbokgung_entry_with_black_arrows() -> void:
+	SaveManager.set_flag(SceneTransition.FLAG_ONBOARDING_BASEBALL_COMPLETE, true)
+	SaveManager.set_flag(SceneTransition.FLAG_BASEBALL_CAPTAIN_REWARD_CLAIMED, true)
+	var scene := DayCorridorScene.instantiate()
+	add_child(scene)
+
+	var arrow_label := scene.get_node_or_null("%GyeongbokgungRunArrowLabel") as Label
+	_runner.assert_not_null(arrow_label, "day corridor exposes the Gyeongbokgung run navigation arrow")
+	if arrow_label != null:
+		_runner.assert_true(arrow_label.visible, "post-reward state shows the Gyeongbokgung run navigation arrow")
+		_runner.assert_eq(arrow_label.text, ">>>", "navigation uses the requested triple arrow")
+		_runner.assert_eq(arrow_label.get_theme_color("font_color"), Color.BLACK, "navigation arrow is black")
+		_runner.assert_true(arrow_label.anchor_left >= 0.85, "navigation arrow sits on the right side of the mobile landscape view")
+		var arrow_right_edge: float = arrow_label.anchor_right * scene.get_reference_viewport_size().x + arrow_label.offset_right
+		_runner.assert_true(arrow_right_edge <= scene.get_reference_viewport_size().x - 60.0, "navigation arrow respects the right phone safe-area inset")
+
+
 func test_day_corridor_onboarding_reward_marks_baseball_captain_as_talk_target() -> void:
 	SaveManager.set_flag(SceneTransition.FLAG_ONBOARDING_BASEBALL_COMPLETE, true)
 	SaveManager.set_flag(SceneTransition.FLAG_BASEBALL_CAPTAIN_REWARD_CLAIMED, false)
