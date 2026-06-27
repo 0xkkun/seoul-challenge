@@ -86,14 +86,15 @@ func _physics_process(delta: float) -> void:
 	tick_status_effects(delta)
 	_invuln_timer = maxf(0.0, _invuln_timer - delta)
 	var move := read_input_vector()
-	if is_status_movement_blocked():
+	var movement_blocked := is_status_movement_blocked()
+	if movement_blocked:
 		move = Vector2.ZERO
 	else:
 		_facing = update_facing(_facing, move)
 	_process_special_skill(delta, move)
-	if is_status_movement_blocked():
+	if movement_blocked:
 		_dodge_timer = maxf(0.0, _dodge_timer - delta)
-		velocity = step_velocity(velocity, Vector2.ZERO, delta)
+		velocity = Vector2.ZERO
 	elif _dodge_timer > 0.0:
 		_dodge_timer = maxf(0.0, _dodge_timer - delta)
 		velocity = dodge_velocity(_dodge_direction, dodge_speed)
@@ -358,6 +359,8 @@ func try_start_special_skill(input_vector: Vector2 = Vector2.ZERO) -> bool:
 	if is_status_action_blocked():
 		return false
 	if special_skill_id != &"emergency_dodge":
+		return false
+	if is_status_movement_blocked():
 		return false
 	if not can_use_special_skill(special_skill_uses_remaining, _special_cooldown_timer, is_dodging()):
 		return false

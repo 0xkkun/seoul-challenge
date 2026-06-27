@@ -38,6 +38,27 @@ func test_player_can_cleanse_negative_status_effects() -> void:
 	player.free()
 
 
+func test_player_root_stops_existing_velocity_immediately() -> void:
+	var player = PlayerScript.new()
+	add_child(player)
+	player.velocity = Vector2.RIGHT * 120.0
+	player.call("apply_status_effect", &"root", 1.0)
+	player.call("_physics_process", 0.016)
+	_runner.assert_true(player.velocity == Vector2.ZERO, "속박은 기존 이동 속도를 즉시 정지한다")
+	player.queue_free()
+
+
+func test_player_root_blocks_dodge_without_spending_charge() -> void:
+	var player = PlayerScript.new()
+	player.special_skill_uses_remaining = 2
+	player.call("apply_status_effect", &"root", 1.0)
+	var started: bool = player.try_start_special_skill(Vector2.RIGHT)
+	_runner.assert_false(started, "속박 중 회피는 시작되지 않는다")
+	_runner.assert_eq(player.special_skill_uses_remaining, 2, "속박 중 회피 충전을 소비하지 않는다")
+	_runner.assert_false(player.is_dodging(), "속박 중 회피 타이머를 열지 않는다")
+	player.free()
+
+
 func test_chaser_status_effects_affect_physics() -> void:
 	var target := Node2D.new()
 	target.add_to_group(&"player")
