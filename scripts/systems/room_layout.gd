@@ -164,8 +164,8 @@ func validate_layout() -> PackedStringArray:
 		errors.append("layout must contain exactly one start room")
 	if not allow_short_story_layout and type_counts[TYPE_COMBAT] < 2:
 		errors.append("layout must contain at least two combat rooms")
-	if not allow_short_story_layout and type_counts[TYPE_EVENT] != 1:
-		errors.append("layout must contain exactly one event room")
+	if not allow_short_story_layout and type_counts[TYPE_EVENT] > 1:
+		errors.append("layout must contain at most one event room")
 	if not allow_short_story_layout and type_counts[TYPE_FINAL] != 1:
 		errors.append("layout must contain exactly one final room")
 

@@ -70,7 +70,7 @@ func test_lobby_title_scene_uses_title_assets_and_menu_contract() -> void:
 	lobby.queue_free()
 
 
-func test_first_night_config_starts_baseball_onboarding_without_bat() -> void:
+func test_first_night_config_starts_baseball_onboarding_with_story_bat() -> void:
 	var packed := load("res://scenes/lobby/lobby.tscn") as PackedScene
 	var lobby := packed.instantiate()
 	add_child(lobby)
@@ -84,7 +84,11 @@ func test_first_night_config_starts_baseball_onboarding_without_bat() -> void:
 		SceneTransition.ONBOARDING_KIND_BASEBALL_CAPTAIN,
 		"first launch starts the baseball captain onboarding run"
 	)
-	_runner.assert_false(config.has(SceneTransition.RUN_CONFIG_SELECTED_WEAPON_ID), "bat is awarded after onboarding, not before it")
+	_runner.assert_eq(
+		config.get(SceneTransition.RUN_CONFIG_SELECTED_WEAPON_ID, &""),
+		&"bat",
+		"first night equips the story bat so the attack sprite is visible immediately"
+	)
 
 	lobby.queue_free()
 

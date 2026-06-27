@@ -208,19 +208,22 @@ func get_reward_choice_ids() -> Array[StringName]:
 
 func get_reward_choice_snapshot() -> Dictionary:
 	var texts: Array[String] = []
-	var flavors: Array[String] = []
 	var effects: Array[String] = []
+	var button_texts: Array[String] = []
 	for choice: Dictionary in _reward_choice_models:
 		texts.append(String(choice.get("display_name", "")))
-		flavors.append(String(choice.get("flavor", "")))
 		effects.append(String(choice.get("effect", "")))
+	if _reward_choice_row != null:
+		for child: Node in _reward_choice_row.get_children():
+			if child is Button:
+				button_texts.append((child as Button).text)
 	return {
 		"visible": is_reward_choice_visible(),
 		"room_id": _reward_choice_room_id,
 		"choice_ids": get_reward_choice_ids(),
 		"choice_texts": texts,
-		"choice_flavors": flavors,
 		"choice_effects": effects,
+		"choice_button_texts": button_texts,
 		"visible_card_count": _reward_choice_cards.size(),
 		"has_backdrop": false,
 		"has_outer_panel": false,
@@ -323,11 +326,10 @@ func _render_reward_choices() -> void:
 	for choice: Dictionary in _reward_choice_models:
 		var item_id := StringName(choice.get("item_id", &""))
 		var display_name := String(choice.get("display_name", String(item_id)))
-		var flavor := String(choice.get("flavor", ""))
 		var effect := String(choice.get("effect", ""))
 		var button := Button.new()
 		button.name = "RewardChoice%sButton" % _node_suffix_for_reward_id(item_id)
-		button.text = _reward_choice_button_text(display_name, flavor, effect)
+		button.text = _reward_choice_button_text(display_name, effect)
 		button.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		button.custom_minimum_size = REWARD_CHOICE_CARD_SIZE
 		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -341,10 +343,8 @@ func _render_reward_choices() -> void:
 		_reward_choice_cards.append(button)
 
 
-func _reward_choice_button_text(display_name: String, flavor: String, effect: String) -> String:
+func _reward_choice_button_text(display_name: String, effect: String) -> String:
 	var parts: Array[String] = [display_name]
-	if flavor != "":
-		parts.append(flavor)
 	if effect != "":
 		parts.append("효과: %s" % effect)
 	return "\n".join(parts)

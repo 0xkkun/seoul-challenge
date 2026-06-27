@@ -222,7 +222,11 @@ func test_reward_choices_render_three_actions_and_emit_selected_id() -> void:
 	_runner.assert_eq(snapshot["room_id"], &"combat_1", "reward choice keeps source room id")
 	_runner.assert_eq(snapshot["choice_ids"], [&"gung_talisman", &"dokkaebi_fire", &"wind_step"], "reward choices keep stable item order")
 	_runner.assert_eq(snapshot["choice_texts"][0], "강타 부적", "reward button uses display name")
-	_runner.assert_true(snapshot["choice_flavors"][1].contains("공격 타이밍"), "reward flavor is available for scan")
+	_runner.assert_false(snapshot.has("choice_flavors"), "reward choice snapshot omits flavor descriptions from the card contract")
+	var button_texts := snapshot.get("choice_button_texts", []) as Array
+	_runner.assert_eq(button_texts.size(), 3, "reward snapshot exposes rendered button copy for every card")
+	if button_texts.size() == 3:
+		_runner.assert_false(String(button_texts[1]).contains("공격 타이밍"), "reward button omits flavor description copy")
 	_runner.assert_true(snapshot.has("choice_effects"), "reward snapshot exposes concrete stat effects")
 	if not snapshot.has("choice_effects"):
 		return

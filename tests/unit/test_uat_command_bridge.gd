@@ -42,6 +42,23 @@ func test_dispatcher_presses_button_by_test_id() -> void:
 	_runner.assert_true(pressed[0], "test id press emits the button signal")
 
 
+func test_dispatcher_routes_button_uat_action_through_root_guard_when_available() -> void:
+	var root := ActionRoot.new()
+	var button := Button.new()
+	var bridge := UatCommandBridge.new()
+	var pressed := [false]
+	add_child(root)
+	root.add_child(button)
+	root.add_child(bridge)
+	button.set_meta("test_id", "dialogue.next_button")
+	button.set_meta("uat_action", "dialogue.next")
+	button.pressed.connect(func() -> void: pressed[0] = true)
+
+	_runner.assert_true(bridge.press_by_uat_action("dialogue.next"), "button uat action routes through the root guard")
+	_runner.assert_eq(root.actions, ["dialogue.next"], "root receives the guarded uat action")
+	_runner.assert_false(pressed[0], "button signal is not emitted before the root guard")
+
+
 func test_dispatcher_rejects_hidden_or_disabled_button_targets() -> void:
 	var root := Control.new()
 	var panel := Control.new()

@@ -115,7 +115,7 @@ func test_day_corridor_routes_touch_attack_to_dialogue_not_combat() -> void:
 	_runner.assert_eq(touch_controls.get_control_category(), "day_dialogue", "day corridor uses the movement/dialogue touch control category")
 	_runner.assert_true(attack_button.visible, "day corridor keeps the touch dialogue button visible")
 	_runner.assert_false(skill_button.visible, "day corridor hides the dodge button")
-	_runner.assert_eq(interaction_prompt.text, "", "world interaction helper does not render the word 대화")
+	_runner.assert_false(interaction_prompt.visible, "world interaction helper starts hidden while out of range")
 	_runner.assert_eq(talk_button_label.text, "", "touch action helper does not render the word 대화")
 	_runner.assert_false(proxy.is_attack_pressed(), "proxy never forwards the touch attack button to player firing")
 	_runner.assert_false(touch_controls.is_skill_pressed(), "day corridor does not expose dodge input through touch controls")
@@ -325,7 +325,8 @@ func test_day_corridor_onboarding_reward_dialogue_grants_bat_and_clue() -> void:
 	_runner.assert_eq(scene.get_dialogue_choice_ids(), [&"next"], "reward dialogue starts with next")
 
 	_runner.assert_true(UiTestHarness.press_by_uat_action(scene, "day_corridor.dialogue.next"), "reward dialogue advances to bat line")
-	_runner.assert_true(scene.get_active_dialogue_text().contains("배트"), "captain gives the bat")
+	_runner.assert_true(scene.get_active_dialogue_text().contains("금 간 나무 배트"), "captain names the cracked wooden bat")
+	_runner.assert_true(scene.perform_uat_action("day_corridor.dialogue.dismiss_unlock"), "bat pickup popup can be dismissed before clue line")
 	_runner.assert_true(UiTestHarness.press_by_uat_action(scene, "day_corridor.dialogue.next"), "reward dialogue advances to clue line")
 	_runner.assert_true(scene.get_active_dialogue_text().contains("도깨비왕"), "captain gives the goblin king clue")
 	_runner.assert_true(scene.get_active_dialogue_text().contains("더 큰"), "captain leaves room for a stronger culprit")
@@ -337,6 +338,68 @@ func test_day_corridor_onboarding_reward_dialogue_grants_bat_and_clue() -> void:
 	_runner.assert_eq(scene.get_objective_text(), "목표: 복도 끝 사물함에서 배트를 챙기고 경복궁으로 다시 가자", "post-reward objective points to the next MVP run")
 
 
+func test_day_corridor_onboarding_reward_marks_baseball_captain_as_talk_target() -> void:
+	SaveManager.set_flag(SceneTransition.FLAG_ONBOARDING_BASEBALL_COMPLETE, true)
+	SaveManager.set_flag(SceneTransition.FLAG_BASEBALL_CAPTAIN_REWARD_CLAIMED, false)
+	var scene := DayCorridorScene.instantiate()
+	add_child(scene)
+
+	var callout_label := scene.get_node_or_null("%TalkTargetCalloutLabel") as Label
+	_runner.assert_not_null(callout_label, "baseball captain has a visible world callout label")
+	if callout_label != null:
+		_runner.assert_true(callout_label.visible, "reward pending callout starts visible over the captain")
+		_runner.assert_true(callout_label.text.contains("!"), "reward pending callout marks the captain as important")
+		_runner.assert_true(callout_label.text.contains("야구부 주장"), "reward pending callout names the captain")
+
+	var player := scene.get_node("%Player") as CharacterBody2D
+	var talk_target := scene.get_node("%TalkTarget") as Node2D
+	player.global_position = talk_target.global_position + Vector2(16.0, 0.0)
+	scene.call("_update_interaction_prompt")
+
+	var interaction_prompt := scene.get_node("%InteractionPrompt") as Label
+	_runner.assert_true(interaction_prompt.visible, "approaching the captain shows an interaction prompt")
+	_runner.assert_true(interaction_prompt.text.contains("야구부 주장"), "interaction prompt names the captain")
+	_runner.assert_true(interaction_prompt.text.contains("말 걸기"), "interaction prompt tells the player they can talk")
+
+
+func test_day_corridor_onboarding_reward_bat_line_shows_cracked_bat_pickup_popup() -> void:
+	SaveManager.set_flag(SceneTransition.FLAG_ONBOARDING_BASEBALL_COMPLETE, true)
+	SaveManager.set_flag(SceneTransition.FLAG_BASEBALL_CAPTAIN_REWARD_CLAIMED, false)
+	var scene := DayCorridorScene.instantiate()
+	add_child(scene)
+
+	scene.trigger_dialogue()
+	_runner.assert_true(UiTestHarness.press_by_uat_action(scene, "day_corridor.dialogue.next"), "reward dialogue advances to bat line")
+
+	var dialogue_ui: Node = scene.get_node("%HubDialogueUi")
+	_runner.assert_true(dialogue_ui.is_unlock_visible(), "bat line shows a pickup popup")
+	_runner.assert_eq(dialogue_ui.get_unlock_items().size(), 1, "bat pickup popup contains one reward item")
+	if dialogue_ui.get_unlock_items().size() == 1:
+		_runner.assert_eq(dialogue_ui.get_unlock_items()[0]["name"], "금 간 나무 배트", "bat pickup popup uses the established regular bat name")
+	_runner.assert_false(scene.perform_uat_action("day_corridor.dialogue.next"), "pickup popup blocks advancing to the clue line")
+
+	_runner.assert_true(scene.perform_uat_action("day_corridor.dialogue.dismiss_unlock"), "pickup popup can be dismissed without coordinates")
+	_runner.assert_false(dialogue_ui.is_unlock_visible(), "pickup popup hides after dismissal")
+	_runner.assert_true(UiTestHarness.press_by_uat_action(scene, "day_corridor.dialogue.next"), "after pickup dismissal the dialogue advances to the clue line")
+	_runner.assert_true(scene.get_active_dialogue_text().contains("도깨비왕"), "clue line remains after pickup popup")
+
+
+func test_day_corridor_onboarding_reward_bridge_blocks_next_behind_bat_pickup_popup() -> void:
+	SaveManager.set_flag(SceneTransition.FLAG_ONBOARDING_BASEBALL_COMPLETE, true)
+	SaveManager.set_flag(SceneTransition.FLAG_BASEBALL_CAPTAIN_REWARD_CLAIMED, false)
+	var scene := DayCorridorScene.instantiate()
+	add_child(scene)
+
+	var bridge: Node = scene.get_node("%UatCommandBridge")
+	var dialogue_ui: Node = scene.get_node("%HubDialogueUi")
+	scene.trigger_dialogue()
+
+	_runner.assert_true(bridge.press_by_uat_action("day_corridor.dialogue.next"), "bridge advances reward dialogue to bat line")
+	_runner.assert_true(dialogue_ui.is_unlock_visible(), "bat pickup popup is visible")
+	_runner.assert_false(bridge.press_by_uat_action("day_corridor.dialogue.next"), "bridge cannot advance behind the pickup popup")
+	_runner.assert_eq(scene.get_active_dialogue_line_index(), 1, "dialogue stays on the bat line while popup is visible")
+
+
 func test_day_corridor_onboarding_reward_dialogue_completes_baseball_lobby_quest() -> void:
 	ProgressionSystem.record_friend_purified(&"baseball_captain")
 	SaveManager.set_flag(SceneTransition.FLAG_ONBOARDING_BASEBALL_COMPLETE, true)
@@ -346,6 +409,7 @@ func test_day_corridor_onboarding_reward_dialogue_completes_baseball_lobby_quest
 
 	scene.trigger_dialogue()
 	_runner.assert_true(UiTestHarness.press_by_uat_action(scene, "day_corridor.dialogue.next"), "reward dialogue advances to bat line")
+	_runner.assert_true(scene.perform_uat_action("day_corridor.dialogue.dismiss_unlock"), "bat pickup popup is dismissed before clue line")
 	_runner.assert_true(UiTestHarness.press_by_uat_action(scene, "day_corridor.dialogue.next"), "reward dialogue advances to clue line")
 	_runner.assert_true(UiTestHarness.press_by_test_id(scene, "day_corridor.dialogue.close_button"), "final reward line triggers quest completion")
 
@@ -370,6 +434,7 @@ func test_day_corridor_onboarding_reward_back_close_completes_baseball_lobby_que
 
 	scene.trigger_dialogue()
 	_runner.assert_true(UiTestHarness.press_by_uat_action(scene, "day_corridor.dialogue.next"), "reward dialogue advances to bat line")
+	_runner.assert_true(scene.perform_uat_action("day_corridor.dialogue.dismiss_unlock"), "bat pickup popup is dismissed before clue line")
 	_runner.assert_true(UiTestHarness.press_by_uat_action(scene, "day_corridor.dialogue.next"), "reward dialogue advances to clue line")
 	scene.call("_handle_back_request")
 

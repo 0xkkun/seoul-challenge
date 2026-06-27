@@ -20,3 +20,19 @@ sprite_frames = ExtResource("2_frames")
 animation = &"move"
 autoplay = "move"
 scale = Vector2(0.82, 0.82)
+
+[node name="HealthBarBg" type="ColorRect" parent="."]
+visible = false
+z_index = 10
+position = Vector2(-20, -67)
+size = Vector2(40, 4)
+color = Color(0, 0, 0, 0.7)
+mouse_filter = 2
+
+[node name="HealthBarFill" type="ColorRect" parent="."]
+visible = false
+z_index = 11
+position = Vector2(-20, -67)
+size = Vector2(40, 4)
+color = Color(0.85, 0.2, 0.15, 1)
+mouse_filter = 2

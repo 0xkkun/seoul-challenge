@@ -12,6 +12,8 @@ func _set_runner(runner: Node) -> void:
 
 
 func before_each() -> void:
+	Settings.reset_defaults()
+	AudioManager.reset()
 	PoolManager.clear_all()
 	GameManager.reset_session()
 	SaveManager.reset_profile()
@@ -21,6 +23,8 @@ func before_each() -> void:
 
 func after_each() -> void:
 	get_tree().paused = false
+	AudioManager.reset()
+	Settings.reset_defaults()
 	PoolManager.clear_all()
 	GameManager.reset_session()
 	SaveManager.reset_profile()
@@ -148,6 +152,87 @@ func test_session_root_uses_three_room_baseball_onboarding_layout() -> void:
 	session.queue_free()
 
 
+func test_generated_session_rooms_never_enter_empty_uncleared_state() -> void:
+	var packed := load("res://scenes/session/session_root.tscn") as PackedScene
+
+	for layout_seed: int in range(50):
+		PoolManager.clear_all()
+		GameManager.reset_session()
+		GameManager.start_session({
+			"source": "empty_room_guard_test",
+			SceneTransition.RUN_CONFIG_LAYOUT_SEED: layout_seed,
+		})
+		var session := packed.instantiate()
+		add_child(session)
+		var manager := session.get_node("%RoomManager") as RoomManager
+
+		for room_def: RoomDef in manager.layout.room_defs:
+			_runner.assert_true(manager.enter_room(room_def.room_id), "seed %d enters %s" % [layout_seed, room_def.room_id])
+			_runner.assert_false(
+				_is_empty_uncleared_room(session, manager),
+				"seed %d %s/%s has no active objective and no open exit" % [layout_seed, room_def.room_id, room_def.room_type]
+			)
+
+		remove_child(session)
+		session.free()
+
+
+func test_west_entry_combat_spawns_objective_in_initial_mobile_view() -> void:
+	GameManager.start_session({
+		"source": "combat_initial_view_test",
+		SceneTransition.RUN_CONFIG_LAYOUT_SEED: 40,
+	})
+	var packed := load("res://scenes/session/session_root.tscn") as PackedScene
+	var session := packed.instantiate()
+	add_child(session)
+
+	var manager := session.get_node("%RoomManager") as RoomManager
+	var actor := session.get_node("%Player") as Node2D
+	var combat_room_def := _first_room_of_type(manager.layout, RoomLayout.TYPE_COMBAT)
+	_runner.assert_not_null(combat_room_def, "session run layout includes combat room")
+	if combat_room_def == null:
+		session.queue_free()
+		return
+
+	_runner.assert_true(manager.enter_room(combat_room_def.room_id, &"W"), "test enters combat room from the west door")
+	var enemies: Array = manager.current_room.call("get_active_enemies")
+	_runner.assert_true(enemies.size() > 0, "combat room spawns enemies")
+	_runner.assert_true(
+		_any_node_in_initial_mobile_view(actor, enemies),
+		"west-entry combat shows at least one enemy in the first mobile viewport"
+	)
+
+	session.queue_free()
+
+
+func test_west_entry_friend_room_spawns_target_in_initial_mobile_view() -> void:
+	GameManager.start_session({
+		"source": "friend_initial_view_test",
+		SceneTransition.RUN_CONFIG_LAYOUT_SEED: 40,
+	})
+	var packed := load("res://scenes/session/session_root.tscn") as PackedScene
+	var session := packed.instantiate()
+	add_child(session)
+
+	var manager := session.get_node("%RoomManager") as RoomManager
+	var actor := session.get_node("%Player") as Node2D
+	var friend_room_def := _first_room_of_type(manager.layout, RoomLayout.TYPE_FRIEND)
+	_runner.assert_not_null(friend_room_def, "session run layout includes friend room")
+	if friend_room_def == null:
+		session.queue_free()
+		return
+
+	_runner.assert_true(manager.enter_room(friend_room_def.room_id, &"W"), "test enters friend room from the west door")
+	var friends: Array = manager.current_room.call("get_active_friends")
+	_runner.assert_eq(friends.size(), 1, "friend room spawns the purification target")
+	_runner.assert_true(
+		_any_node_in_initial_mobile_view(actor, friends),
+		"west-entry friend room shows the purification target in the first mobile viewport"
+	)
+
+	session.queue_free()
+
+
 func test_baseball_onboarding_friend_purification_finishes_run_and_sets_reward_flag() -> void:
 	GameManager.start_session({
 		"source": "intro",
@@ -178,29 +263,17 @@ func test_baseball_onboarding_friend_purification_finishes_run_and_sets_reward_f
 	session.queue_free()
 
 
-func test_session_interaction_scope_reaches_current_shop_room() -> void:
+func test_session_generated_layout_omits_disabled_shop_and_event_rooms() -> void:
 	var packed := load("res://scenes/session/session_root.tscn") as PackedScene
 	var session := packed.instantiate()
 	add_child(session)
 
 	var manager := session.get_node("%RoomManager") as RoomManager
-	var actor := session.get_node("%Player") as Node2D
-	var shop_room_def := _first_room_of_type(manager.layout, RoomLayout.TYPE_SHOP)
-	_runner.assert_not_null(shop_room_def, "session run layout includes shop room")
-	if shop_room_def == null:
+	_runner.assert_not_null(manager.layout, "session creates a generated layout")
+	if manager.layout == null:
 		return
-	_runner.assert_true(manager.enter_room(shop_room_def.room_id), "test enters shop room directly")
-	_runner.assert_true(manager.current_room.has_method("get_offer_position"), "shop room exposes offer position")
-	if not manager.current_room.has_method("get_offer_position"):
-		return
-	actor.global_position = manager.current_room.call("get_offer_position", &"bat")
-	EventBus.emit_currency_changed({"kind": "ingame", "amount": 6})
-
-	session.trigger_sample_interaction()
-
-	_runner.assert_eq(CurrencySystem.get_ingame(), 2, "session interaction can purchase from current shop room")
-	_runner.assert_true(actor.call("has_bat"), "session shop interaction equips purchased item")
-	_runner.assert_eq(actor.call("current_weapon_name"), "금 간 나무 배트", "session shop interaction shows cracked bat label")
+	_runner.assert_eq(_first_room_of_type(manager.layout, RoomLayout.TYPE_SHOP), null, "generated session layout does not expose shop rooms")
+	_runner.assert_eq(_first_room_of_type(manager.layout, RoomLayout.TYPE_EVENT), null, "generated session layout does not expose event/info rooms")
 
 	session.queue_free()
 
@@ -446,6 +519,18 @@ func test_session_root_preserves_existing_config() -> void:
 	add_child(session)
 
 	_runner.assert_eq(GameManager.get_active_config()["source"], "preconfigured")
+
+	session.queue_free()
+
+
+func test_session_root_starts_night_run_suspense_bgm() -> void:
+	var packed := load("res://scenes/session/session_root.tscn") as PackedScene
+	var session := packed.instantiate()
+	add_child(session)
+
+	_runner.assert_eq(AudioManager.get_current_bgm(), AudioManager.NIGHT_RUN_SUSPENSE_BGM, "session root starts the night run suspense BGM")
+	_runner.assert_eq(AudioManager.get_current_bgm_path(), "res://assets/audio/bgm/night_run_suspense_bgm.ogg", "session root uses the night run suspense BGM stream")
+	_runner.assert_true(AudioManager.is_bgm_playing(), "session root leaves the night run BGM active")
 
 	session.queue_free()
 
@@ -929,6 +1014,59 @@ func _first_room_of_type(layout: RoomLayout, room_type: StringName) -> RoomDef:
 		if room_def.room_type == room_type:
 			return room_def
 	return null
+
+
+func _is_empty_uncleared_room(session: Node, manager: RoomManager) -> bool:
+	if manager == null or manager.current_room == null:
+		return true
+	if manager.is_current_room_cleared():
+		return false
+	var room := manager.current_room
+	if _active_count(room, "get_active_enemies") > 0:
+		return false
+	if _active_count(room, "get_active_students") > 0:
+		return false
+	if _active_count(room, "get_active_friends") > 0:
+		return false
+	if room.has_method("has_requested_spawn") and bool(room.call("has_requested_spawn")):
+		var active_boss: Variant = session.get("_active_boss")
+		if active_boss is Node and is_instance_valid(active_boss) and not (active_boss as Node).is_queued_for_deletion():
+			return false
+	return not _has_open_exit(room)
+
+
+func _active_count(room: Node, method_name: String) -> int:
+	if room == null or not room.has_method(method_name):
+		return 0
+	var nodes: Array = room.call(method_name)
+	return nodes.size()
+
+
+func _has_open_exit(room: Node) -> bool:
+	if room == null or not room.has_method("get_doors"):
+		return false
+	for door: RoomDoor in room.call("get_doors"):
+		if door.is_open():
+			return true
+	return false
+
+
+func _any_node_in_initial_mobile_view(actor: Node2D, nodes: Array) -> bool:
+	if actor == null:
+		return false
+	var view := _initial_mobile_view_rect(actor)
+	for node: Node in nodes:
+		if node is Node2D and view.has_point((node as Node2D).global_position):
+			return true
+	return false
+
+
+func _initial_mobile_view_rect(actor: Node2D) -> Rect2:
+	var viewport_size := Vector2(
+		float(ProjectSettings.get_setting("display/window/size/viewport_width")),
+		float(ProjectSettings.get_setting("display/window/size/viewport_height"))
+	)
+	return Rect2(actor.global_position - viewport_size * 0.5, viewport_size)
 
 
 func _defeat_all_combat_waves(room: Node) -> void:

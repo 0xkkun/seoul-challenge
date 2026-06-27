@@ -71,6 +71,7 @@ func _ready() -> void:
 	_apply_render_layers()
 	if not GameManager.is_session_active():
 		GameManager.start_session({"source": "session_root"})
+	AudioManager.play_bgm(AudioManager.NIGHT_RUN_SUSPENSE_BGM)
 	_apply_session_loadout()
 	_connect_player_weapon_events()
 	_sync_combat_hud_health()

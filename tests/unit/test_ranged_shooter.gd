@@ -54,6 +54,24 @@ func test_movement_bounds_clamp_like_player() -> void:
 	_runner.assert_eq(e.global_position, Vector2(20.0, -10.0), "원거리 적은 경계 밖에서 경계 안으로 보정된다")
 
 
+func test_bounds_block_retreat_velocity_at_room_edge() -> void:
+	var e = RangedShooterScene.instantiate()
+	add_child(e)
+	var bounds := Rect2(Vector2(-20.0, -10.0), Vector2(40.0, 20.0))
+	e.call("set_movement_bounds", bounds)
+
+	_runner.assert_true(e.has_method("clamp_velocity_to_movement_bounds"), "원거리 적은 경계 밖으로 향하는 이동 의도를 사전에 막는다")
+	if not e.has_method("clamp_velocity_to_movement_bounds"):
+		e.free()
+		return
+
+	var blocked: Vector2 = e.call("clamp_velocity_to_movement_bounds", Vector2(-20.0, 0.0), Vector2(-60.0, 0.0), 0.1)
+	var allowed: Vector2 = e.call("clamp_velocity_to_movement_bounds", Vector2(-20.0, 0.0), Vector2(60.0, 0.0), 0.1)
+
+	_runner.assert_eq(blocked.x, 0.0, "왼쪽 경계에서 더 밖으로 도망가는 카이팅 속도는 제거된다")
+	_runner.assert_true(allowed.x > 0.0, "경계 안쪽으로 되돌아오는 속도는 유지된다")
+
+
 func test_aim_points_toward_target() -> void:
 	var e = RangedShooterScene.instantiate()
 	var d: Vector2 = e.aim_direction(Vector2.ZERO, Vector2(0.0, 10.0))
@@ -76,6 +94,33 @@ func test_fires_on_interval() -> void:
 	_runner.assert_eq(shots.size(), 1, "fired 1회 방출")
 	_runner.assert_true(shots[0].y > 0.0, "발사 방향이 타겟 향함")
 	e.free()
+
+
+func test_spawn_fade_blocks_fire_and_restores_visual() -> void:
+	var e = RangedShooterScene.instantiate()
+	add_child(e)
+	var shots: Array[Vector2] = []
+	e.fired.connect(func(_origin, dir): shots.append(dir))
+	var visual := e.get_node("Placeholder") as CanvasItem
+	var base_modulate := visual.modulate
+
+	_runner.assert_true(e.has_method("start_spawn_fade"), "원거리 적은 등장 페이드 API를 노출한다")
+	_runner.assert_true(e.has_method("is_spawn_protected"), "원거리 적은 등장 보호 상태를 노출한다")
+	_runner.assert_true(e.has_method("tick_spawn_fade"), "원거리 적은 등장 페이드 tick API를 노출한다")
+	if not e.has_method("start_spawn_fade") or not e.has_method("is_spawn_protected") or not e.has_method("tick_spawn_fade"):
+		return
+
+	e.call("start_spawn_fade", 0.2)
+	var fired_while_spawning: bool = e.tick_fire(e.fire_interval, Vector2.ZERO, Vector2(0.0, 100.0))
+	_runner.assert_false(fired_while_spawning, "등장 중 원거리 적은 발사하지 않는다")
+	_runner.assert_eq(shots.size(), 0, "등장 중 fired 신호 없음")
+	_runner.assert_true(visual.modulate.a < base_modulate.a, "등장 시작 시 시각 요소가 투명해진다")
+
+	e.call("tick_spawn_fade", 0.25)
+	_runner.assert_false(e.call("is_spawn_protected"), "등장 페이드가 끝나면 보호가 해제된다")
+	_runner.assert_eq(visual.modulate, base_modulate, "등장 페이드 종료 후 원래 시각 상태로 복구")
+	var fired_after_spawn: bool = e.tick_fire(e.fire_interval, Vector2.ZERO, Vector2(0.0, 100.0))
+	_runner.assert_true(fired_after_spawn, "보호 종료 후 원거리 적은 정상 발사한다")
 
 
 func test_dies_after_max_hp_damage() -> void:

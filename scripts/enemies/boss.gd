@@ -11,6 +11,7 @@ signal telegraph_started
 
 const HitReactionController = preload("res://scripts/combat/hit_reaction_controller.gd")
 const EnemyDeathFade = preload("res://scripts/combat/enemy_death_fade.gd")
+const EnemyHealthBar = preload("res://scripts/enemies/enemy_health_bar.gd")
 const ENEMY_BULLET := preload("res://scenes/enemies/enemy_bullet.tscn")
 
 enum Phase { RECOVER, TELEGRAPH, CHARGE, BURST }
@@ -28,6 +29,8 @@ enum Phase { RECOVER, TELEGRAPH, CHARGE, BURST }
 @export var contact_cooldown: float = 0.5
 @export var hit_invuln_time: float = 0.12
 @export var target_group: StringName = &"player"
+@export var health_bar_width: float = 64.0
+@export var health_bar_height: float = 5.0
 
 var _hp: int = 0
 var _dead := false
@@ -37,6 +40,7 @@ var _pattern_index: int = 1   ## 다음 패턴 (0=돌진, 1=탄막) — 첫 사�
 var _charge_dir: Vector2 = Vector2.ZERO
 var _contact_timer: float = 0.0
 var _hit_reaction: Node = null
+var _health_bar: RefCounted = null
 
 
 func _ready() -> void:
@@ -45,6 +49,7 @@ func _ready() -> void:
 	add_to_group(&"boss")
 	_phase_timer = recover_time
 	_ensure_hit_reaction()
+	_reset_health_bar()
 
 
 func _physics_process(delta: float) -> void:
@@ -133,7 +138,8 @@ func take_damage(amount: int) -> void:
 	if _dead or is_hit_invulnerable():
 		return
 	HapticManager.on_boss_hit()
-	_hp -= amount
+	_hp = maxi(0, _hp - amount)
+	_update_health_bar()
 	if _hp <= 0:
 		_die()
 	else:
@@ -220,6 +226,36 @@ func _get_visual() -> CanvasItem:
 	if sprite != null:
 		return sprite
 	return get_node_or_null(^"Placeholder") as CanvasItem
+
+
+func _get_health_bar() -> RefCounted:
+	if _health_bar == null:
+		_health_bar = EnemyHealthBar.new()
+		var bg := get_node_or_null(^"HealthBarBg") as ColorRect
+		var fill := get_node_or_null(^"HealthBarFill") as ColorRect
+		_health_bar.call("bind", bg, fill)
+	return _health_bar
+
+
+func _layout_health_bar() -> void:
+	var bar := _get_health_bar()
+	bar.call("configure", health_bar_width, health_bar_height)
+	bar.call("reposition_above_visual", _get_visual())
+
+
+func _reset_health_bar() -> void:
+	_layout_health_bar()
+	_get_health_bar().call("hide_bar")
+
+
+func _update_health_bar() -> void:
+	_layout_health_bar()
+	_get_health_bar().call("update", float(_hp), float(max_hp))
+
+
+func get_health_bar_snapshot() -> Dictionary:
+	_layout_health_bar()
+	return _get_health_bar().call("get_snapshot") as Dictionary
 
 
 func _try_contact(target: Node2D) -> void:
