@@ -311,9 +311,10 @@ func _on_room_changed(_room_id: StringName, _room_type: StringName) -> void:
 
 
 func _configure_actor_for_room(room: Node2D) -> void:
+	var room_bounds := RoomPalette.get_room_bounds()
 	if actor.has_method("set_movement_bounds"):
 		actor.call("set_movement_bounds", _room_movement_bounds(room))
-	actor.global_position = room.global_position + Vector2(-RoomPalette.ROOM_HALF_SIZE.x + 140.0, 0.0)
+	actor.global_position = room.global_position + Vector2(room_bounds.position.x + 140.0, 0.0)
 	if actor.has_method("clamp_to_movement_bounds"):
 		actor.call("clamp_to_movement_bounds")
 	if actor.has_method("reset_motion"):

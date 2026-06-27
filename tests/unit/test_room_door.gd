@@ -62,6 +62,35 @@ func test_open_and_lock_emit_state_changes_once_per_change() -> void:
 	_runner.assert_eq(states, [RoomDoor.DoorState.OPEN, RoomDoor.DoorState.LOCKED], "state signal emits only on changes")
 
 
+func test_open_door_builds_vertical_light_gate_portal() -> void:
+	var door := _create_door(&"E")
+
+	door.open()
+
+	var portal_visual := door.get_node_or_null("PortalVisual") as Node2D
+	_runner.assert_not_null(portal_visual, "open door creates a portal visual")
+	if portal_visual == null:
+		return
+	var portal_column := portal_visual.get_node_or_null("PortalColumn") as Polygon2D
+	var ground_glow := portal_visual.get_node_or_null("PortalGroundGlow") as Polygon2D
+	var streaks := portal_visual.get_node_or_null("PortalStreaks") as Node2D
+
+	_runner.assert_not_null(portal_column, "portal has a vertical light column")
+	_runner.assert_not_null(ground_glow, "portal has a bright ground flare")
+	_runner.assert_not_null(streaks, "portal has falling light streaks")
+	if portal_column == null or ground_glow == null or streaks == null:
+		return
+	var column_bounds := _points_bounds(portal_column.polygon)
+	_runner.assert_true(column_bounds.size.y > column_bounds.size.x * 1.8, "portal column is tall like a gate")
+	_runner.assert_true(streaks.get_child_count() >= 5, "portal uses multiple vertical light streaks")
+	for child: Node in streaks.get_children():
+		var streak := child as Line2D
+		_runner.assert_not_null(streak, "each portal streak is drawn as a line")
+		if streak == null or streak.points.size() < 2:
+			continue
+		_runner.assert_true(absf(streak.points[0].y - streak.points[1].y) > absf(streak.points[0].x - streak.points[1].x), "portal streaks run vertically")
+
+
 func test_transition_request_requires_open_door() -> void:
 	var door := _create_door(&"S")
 	var requests: Array[StringName] = []
@@ -124,3 +153,16 @@ func _create_door(door_dir: StringName) -> RoomDoor:
 
 	add_child(door)
 	return door
+
+
+func _points_bounds(points: PackedVector2Array) -> Rect2:
+	if points.is_empty():
+		return Rect2()
+	var min_point := points[0]
+	var max_point := points[0]
+	for point: Vector2 in points:
+		min_point.x = minf(min_point.x, point.x)
+		min_point.y = minf(min_point.y, point.y)
+		max_point.x = maxf(max_point.x, point.x)
+		max_point.y = maxf(max_point.y, point.y)
+	return Rect2(min_point, max_point - min_point)

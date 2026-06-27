@@ -27,9 +27,10 @@ var _blocker_shape: CollisionShape2D
 var _actor: Node2D
 var _ping_marker: Label
 var _portal_visual: Node2D
-var _portal_core: Polygon2D
-var _portal_ring: Line2D
-var _portal_spark: Line2D
+var _portal_column: Polygon2D
+var _portal_ground_glow: Polygon2D
+var _portal_streaks: Node2D
+var _portal_sparkles: Node2D
 var _was_actor_overlapping := false
 
 
@@ -133,8 +134,20 @@ func _process(_delta: float) -> void:
 	if _portal_visual != null and _portal_visual.visible:
 		var pulse := 1.0 + sin(tick / 180.0) * 0.08
 		_portal_visual.scale = Vector2(pulse, pulse)
-		if _portal_spark != null:
-			_portal_spark.rotation = tick / 720.0
+		if _portal_ground_glow != null:
+			_portal_ground_glow.scale = Vector2(1.0 + sin(tick / 140.0) * 0.08, 1.0)
+		if _portal_streaks != null:
+			var index := 0
+			for child: Node in _portal_streaks.get_children():
+				var streak := child as Line2D
+				if streak == null:
+					continue
+				var alpha := 0.48 + sin(tick / 150.0 + float(index) * 0.9) * 0.24
+				streak.default_color = Color(0.84, 0.94, 1.0, alpha)
+				streak.position.y = sin(tick / 230.0 + float(index)) * 3.0
+				index += 1
+		if _portal_sparkles != null:
+			_portal_sparkles.rotation = sin(tick / 520.0) * 0.06
 
 
 func _apply_state() -> void:
@@ -168,19 +181,17 @@ func _apply_portal_layout() -> void:
 	if _portal_visual == null:
 		return
 	var size := _portal_size_for_door_dir(door_dir)
-	if _portal_core != null:
-		_portal_core.polygon = _ellipse_points(size * 0.42, 20)
-		_portal_core.color = Color(RoomPalette.MINIMAP_PING_COLOR.r, RoomPalette.MINIMAP_PING_COLOR.g, RoomPalette.MINIMAP_PING_COLOR.b, 0.58)
-	if _portal_ring != null:
-		_portal_ring.points = _ellipse_points(size * 0.5, 32)
-		_portal_ring.closed = true
-		_portal_ring.width = 3.0
-		_portal_ring.default_color = Color(0.84, 0.96, 1.0, 0.86)
-	if _portal_spark != null:
-		_portal_spark.points = _portal_spark_points(size * 0.5)
-		_portal_spark.closed = false
-		_portal_spark.width = 2.0
-		_portal_spark.default_color = Color(0.92, 0.78, 1.0, 0.82)
+	if _portal_column != null:
+		_portal_column.polygon = _portal_column_points(size, 12)
+		_portal_column.color = Color(0.66, 0.83, 1.0, 0.28)
+		_portal_column.z_index = 1
+	if _portal_ground_glow != null:
+		_portal_ground_glow.position = Vector2(0.0, size.y * 0.38)
+		_portal_ground_glow.polygon = _ellipse_points(Vector2(size.x * 0.78, size.y * 0.12), 28)
+		_portal_ground_glow.color = Color(0.86, 0.94, 1.0, 0.62)
+		_portal_ground_glow.z_index = 3
+	_apply_portal_streak_layout(size)
+	_apply_portal_sparkle_layout(size)
 	_portal_visual.z_index = 12
 
 
@@ -280,21 +291,31 @@ func _resolve_portal_visual() -> Node2D:
 		portal = Node2D.new()
 		portal.name = "PortalVisual"
 		add_child(portal)
-	_portal_core = portal.get_node_or_null("PortalCore") as Polygon2D
-	if _portal_core == null:
-		_portal_core = Polygon2D.new()
-		_portal_core.name = "PortalCore"
-		portal.add_child(_portal_core)
-	_portal_ring = portal.get_node_or_null("PortalRing") as Line2D
-	if _portal_ring == null:
-		_portal_ring = Line2D.new()
-		_portal_ring.name = "PortalRing"
-		portal.add_child(_portal_ring)
-	_portal_spark = portal.get_node_or_null("PortalSpark") as Line2D
-	if _portal_spark == null:
-		_portal_spark = Line2D.new()
-		_portal_spark.name = "PortalSpark"
-		portal.add_child(_portal_spark)
+	_remove_legacy_portal_child(portal, "PortalCore")
+	_remove_legacy_portal_child(portal, "PortalRing")
+	_remove_legacy_portal_child(portal, "PortalSpark")
+	_portal_column = portal.get_node_or_null("PortalColumn") as Polygon2D
+	if _portal_column == null:
+		_portal_column = Polygon2D.new()
+		_portal_column.name = "PortalColumn"
+		portal.add_child(_portal_column)
+	_portal_streaks = portal.get_node_or_null("PortalStreaks") as Node2D
+	if _portal_streaks == null:
+		_portal_streaks = Node2D.new()
+		_portal_streaks.name = "PortalStreaks"
+		portal.add_child(_portal_streaks)
+	_ensure_line_children(_portal_streaks, "Streak", 7)
+	_portal_ground_glow = portal.get_node_or_null("PortalGroundGlow") as Polygon2D
+	if _portal_ground_glow == null:
+		_portal_ground_glow = Polygon2D.new()
+		_portal_ground_glow.name = "PortalGroundGlow"
+		portal.add_child(_portal_ground_glow)
+	_portal_sparkles = portal.get_node_or_null("PortalSparkles") as Node2D
+	if _portal_sparkles == null:
+		_portal_sparkles = Node2D.new()
+		_portal_sparkles.name = "PortalSparkles"
+		portal.add_child(_portal_sparkles)
+	_ensure_line_children(_portal_sparkles, "Sparkle", 4)
 	return portal
 
 
@@ -317,10 +338,12 @@ func _contains_global_point(global_point: Vector2) -> bool:
 
 func _portal_size_for_door_dir(next_door_dir: StringName) -> Vector2:
 	match next_door_dir:
-		&"E", &"W":
-			return Vector2(24.0, 58.0)
+		&"N":
+			return Vector2(58.0, 124.0)
+		&"S":
+			return Vector2(54.0, 116.0)
 		_:
-			return Vector2(58.0, 24.0)
+			return Vector2(50.0, 108.0)
 
 
 func _ellipse_points(size: Vector2, segment_count: int) -> PackedVector2Array:
@@ -331,13 +354,88 @@ func _ellipse_points(size: Vector2, segment_count: int) -> PackedVector2Array:
 	return points
 
 
-func _portal_spark_points(size: Vector2) -> PackedVector2Array:
-	return PackedVector2Array([
-		Vector2(-size.x * 0.25, -size.y * 0.55),
-		Vector2(size.x * 0.35, -size.y * 0.12),
-		Vector2(-size.x * 0.1, size.y * 0.18),
-		Vector2(size.x * 0.45, size.y * 0.52),
-	])
+func _portal_column_points(size: Vector2, arc_segments: int) -> PackedVector2Array:
+	var points := PackedVector2Array()
+	var half_width := size.x * 0.42
+	var arc_center_y := -size.y * 0.28
+	var arc_height := size.y * 0.24
+	var bottom_y := size.y * 0.38
+	points.append(Vector2(-half_width, bottom_y))
+	points.append(Vector2(half_width, bottom_y))
+	for index: int in range(arc_segments + 1):
+		var angle := PI * float(index) / float(arc_segments)
+		points.append(Vector2(cos(angle) * half_width, arc_center_y - sin(angle) * arc_height))
+	return points
+
+
+func _apply_portal_streak_layout(size: Vector2) -> void:
+	if _portal_streaks == null:
+		return
+	var children := _portal_streaks.get_children()
+	var count := children.size()
+	if count <= 0:
+		return
+	for index: int in range(count):
+		var streak := children[index] as Line2D
+		if streak == null:
+			continue
+		var ratio := 0.0 if count == 1 else float(index) / float(count - 1)
+		var x := lerpf(-size.x * 0.28, size.x * 0.28, ratio)
+		var top_y := -size.y * (0.46 + 0.05 * float(index % 2))
+		var bottom_y := size.y * (0.26 + 0.04 * float((index + 1) % 3))
+		streak.points = PackedVector2Array([
+			Vector2(x, top_y),
+			Vector2(x + sin(float(index) * 1.7) * 2.0, bottom_y),
+		])
+		streak.width = 1.0 + float(index % 3) * 0.4
+		streak.default_color = Color(0.84, 0.94, 1.0, 0.62)
+		streak.z_index = 2
+
+
+func _apply_portal_sparkle_layout(size: Vector2) -> void:
+	if _portal_sparkles == null:
+		return
+	var points := [
+		Vector2(-size.x * 0.52, -size.y * 0.18),
+		Vector2(size.x * 0.48, -size.y * 0.06),
+		Vector2(-size.x * 0.36, size.y * 0.12),
+		Vector2(size.x * 0.38, size.y * 0.24),
+	]
+	var index := 0
+	for child: Node in _portal_sparkles.get_children():
+		var sparkle := child as Line2D
+		if sparkle == null:
+			continue
+		var center: Vector2 = points[index % points.size()]
+		var radius := 2.6 + float(index % 2)
+		sparkle.points = PackedVector2Array([
+			center + Vector2(-radius, 0.0),
+			center + Vector2(radius, 0.0),
+			center,
+			center + Vector2(0.0, -radius),
+			center + Vector2(0.0, radius),
+		])
+		sparkle.width = 1.2
+		sparkle.default_color = Color(0.96, 0.98, 1.0, 0.78)
+		sparkle.z_index = 4
+		index += 1
+
+
+func _ensure_line_children(parent: Node2D, prefix: String, count: int) -> void:
+	for index: int in range(count):
+		var line := parent.get_node_or_null("%s%d" % [prefix, index]) as Line2D
+		if line == null:
+			line = Line2D.new()
+			line.name = "%s%d" % [prefix, index]
+			parent.add_child(line)
+
+
+func _remove_legacy_portal_child(parent: Node, child_name: String) -> void:
+	var child := parent.get_node_or_null(child_name)
+	if child == null:
+		return
+	parent.remove_child(child)
+	child.queue_free()
 
 
 func _ping_arrow_for_door_dir(next_door_dir: StringName) -> String:
