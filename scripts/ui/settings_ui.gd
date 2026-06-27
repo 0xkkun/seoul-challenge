@@ -1,5 +1,5 @@
 class_name SettingsUI
-extends CanvasLayer
+extends PopupBase
 
 const TEST_ID_BGM_TOGGLE := "settings.bgm_toggle"
 const TEST_ID_SFX_TOGGLE := "settings.sfx_toggle"
@@ -22,7 +22,6 @@ const _HAPTIC_ON_ICON := preload("res://assets/ui/icons/settings/haptic.png")
 const _HAPTIC_OFF_ICON := preload("res://assets/ui/icons/settings/haptic_off.png")
 
 @onready var _root: Control = $Root
-@onready var _backdrop: ColorRect = $Root/Backdrop
 @onready var _panel: PanelContainer = $Root/Panel
 @onready var _rows: VBoxContainer = %Rows
 @onready var _close_button: Button = %CloseButton
@@ -36,9 +35,7 @@ signal closed
 
 
 func _ready() -> void:
-	process_mode = Node.PROCESS_MODE_ALWAYS
-	visible = false
-	_backdrop.gui_input.connect(_on_backdrop_gui_input)
+	_setup_popup($Root/Backdrop, $Root/Panel)
 	_close_button.set_meta("test_id", TEST_ID_CLOSE)
 	_close_button.set_meta("uat_action", ACTION_CLOSE)
 	_close_button.pressed.connect(_on_close_pressed)
@@ -118,12 +115,8 @@ func get_toggle_text(key: String) -> String:
 	return button.text
 
 
-func _unhandled_input(event: InputEvent) -> void:
-	if not visible:
-		return
-	if event.is_action_pressed(&"ui_cancel") or _is_escape_key(event):
-		close()
-		get_viewport().set_input_as_handled()
+func _on_popup_cancel() -> void:
+	close()
 
 
 func _build_rows() -> void:
@@ -295,27 +288,9 @@ func get_toggle_icon_path(key: String) -> String:
 	return icon.texture.resource_path
 
 
-func _on_backdrop_gui_input(event: InputEvent) -> void:
-	if _is_press_event(event):
-		get_viewport().set_input_as_handled()
-
-
 func _finish_close() -> void:
 	visible = false
 	_closing = false
 	_root.modulate = Color.WHITE
 	_panel.scale = Vector2.ONE
 	closed.emit()
-
-
-func _is_press_event(event: InputEvent) -> bool:
-	return (
-		event is InputEventMouseButton
-		and (event as InputEventMouseButton).pressed
-		and (event as InputEventMouseButton).button_index == MOUSE_BUTTON_LEFT
-	) or (event is InputEventScreenTouch and (event as InputEventScreenTouch).pressed)
-
-
-func _is_escape_key(event: InputEvent) -> bool:
-	var key_event := event as InputEventKey
-	return key_event != null and key_event.pressed and not key_event.echo and key_event.keycode == KEY_ESCAPE
