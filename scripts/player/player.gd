@@ -32,7 +32,8 @@ signal run_modifiers_changed(payload: Dictionary)
 @export var recoil_strength: float = 55.0  ## 발사 반동(조준 반대 방향 킥) (px/s)
 @export var ranged_enabled: bool = false   ## 원거리(야구공) 무기 — 기본 OFF(처음엔 근접). 언락 시 ON.
 @export var attack_cooldown: float = 0.35  ## 근접 공격 간격 (s)
-@export var attack_move_speed_multiplier: float = 0.78  ## 공격 애니 중 이동 유지 비율
+@export var attack_move_speed_multiplier: float = 0.35  ## 공격 후딜 중 낮은 이동 유지 비율
+@export var attack_movement_commit_time: float = 0.11  ## 공격 시작 이동 커밋 시간(s)
 @export var melee_damage: int = 1          ## 맨손 피해
 @export var melee_range: float = 44.0      ## 맨손 사거리 (px) — 모바일 헛손질 완화
 @export var melee_arc: float = 1.4         ## 맨손 타격 각 (rad)
@@ -61,6 +62,7 @@ signal run_modifiers_changed(payload: Dictionary)
 @export var touch_controls_path: NodePath  ## 비우면 키보드 폴백
 
 var _attack_timer: float = 0.0
+var _attack_movement_commit_timer: float = 0.0
 var _swing_timer: float = 0.0
 var _is_attacking: bool = false   ## 공격 모션 재생 중(애니 끝날 때까지 walk/idle 억제)
 var _special_cooldown_timer: float = 0.0
@@ -115,6 +117,7 @@ func _physics_process(delta: float) -> void:
 	tick_status_effects(delta)
 	tick_hit_reaction(delta)
 	_dash_power_attack_timer = step_dash_power_attack_window(_dash_power_attack_timer, delta)
+	_attack_movement_commit_timer = maxf(0.0, _attack_movement_commit_timer - delta)
 	var move := read_input_vector()
 	var movement_blocked := is_status_movement_blocked()
 	if movement_blocked:
@@ -133,7 +136,11 @@ func _physics_process(delta: float) -> void:
 			velocity,
 			movement_input_for_velocity(move),
 			delta,
-			movement_speed_multiplier(_is_attacking, get_status_speed_multiplier())
+			movement_speed_multiplier(
+				_is_attacking,
+				get_status_speed_multiplier(),
+				_attack_movement_commit_timer
+			)
 		)
 	move_and_slide()
 	clamp_to_movement_bounds()
@@ -164,9 +171,15 @@ func movement_input_for_velocity(input_vector: Vector2) -> Vector2:
 	return adjusted
 
 
-func movement_speed_multiplier(is_attack_animating: bool, status_multiplier: float = 1.0) -> float:
+func movement_speed_multiplier(
+	is_attack_animating: bool,
+	status_multiplier: float = 1.0,
+	attack_commit_remaining: float = 0.0
+) -> float:
 	var multiplier := maxf(0.0, status_multiplier)
 	if is_attack_animating:
+		if attack_commit_remaining > 0.0:
+			return 0.0
 		multiplier *= clampf(attack_move_speed_multiplier, 0.0, 1.0)
 	return multiplier
 
@@ -214,6 +227,7 @@ func clamp_to_movement_bounds() -> bool:
 
 func reset_motion() -> void:
 	velocity = Vector2.ZERO
+	_attack_movement_commit_timer = 0.0
 	_dodge_timer = 0.0
 	_dodge_direction = Vector2.ZERO
 
@@ -678,6 +692,7 @@ func _play_attack_anim(dir: Vector2) -> void:
 	if absf(dir.x) > 0.05:
 		_sprite.flip_h = dir.x < 0.0
 	_is_attacking = true
+	_attack_movement_commit_timer = attack_movement_commit_time
 	_sprite.play(&"attack")
 
 
@@ -698,6 +713,7 @@ func _update_animation(move: Vector2) -> void:
 func _on_sprite_animation_finished() -> void:
 	if _sprite != null and _sprite.animation == &"attack":
 		_is_attacking = false
+		_attack_movement_commit_timer = 0.0
 
 
 ## 근접 휘두르기 — 무기(맨손/배트)에 따라 사거리·각·피해가 다르다. 배트면 넉백 + 적탄 되받아침(deflect).
