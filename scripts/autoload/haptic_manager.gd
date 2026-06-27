@@ -90,7 +90,11 @@ func on_ui_confirm() -> void:
 
 func _on_player_health_changed(payload: Dictionary) -> void:
 	var cur := int(payload.get("current", -1))
-	if _last_health >= 0 and cur < _last_health:
+	var max_health := int(payload.get("max", -1))
+	var can_emit_hurt := cur > 0
+	var first_event_is_hurt := _last_health < 0 and max_health > 0 and cur < max_health
+	var tracked_health_decreased := _last_health >= 0 and cur < _last_health
+	if can_emit_hurt and (first_event_is_hurt or tracked_health_decreased):
 		_try(&"player_hurt", Level.MEDIUM)
 	_last_health = cur
 

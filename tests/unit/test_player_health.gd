@@ -4,12 +4,30 @@ extends Node
 
 const PlayerScript := preload("res://scripts/player/player.gd")
 const PlayerScene := preload("res://scenes/player/player.tscn")
+const L_MEDIUM := 1
 
 var _runner: Node
 
 
 func _set_runner(runner: Node) -> void:
 	_runner = runner
+
+
+func _enable_haptic_test_mode(t: int = 1000) -> void:
+	HapticManager.test_mode = true
+	HapticManager.test_log.clear()
+	HapticManager._enabled = true
+	HapticManager._last_any_ms = -100000
+	HapticManager._last_cat_ms.clear()
+	HapticManager._last_health = -1
+	HapticManager._test_now = t
+
+
+func _restore_haptic_test_mode() -> void:
+	HapticManager.test_mode = false
+	HapticManager.test_log.clear()
+	HapticManager._test_now = -1
+	HapticManager._enabled = bool(Settings.get_value("haptic_enabled", true))
 
 
 func test_damaged_health_clamps_to_zero() -> void:
@@ -67,3 +85,14 @@ func test_emits_player_health_changed_on_damage() -> void:
 	_runner.assert_eq(got["max"], p.max_health, "EventBus 발신: max")
 	_runner.assert_eq(got["current"], p.max_health - 1, "EventBus 발신: current")
 	p.free()
+
+
+func test_take_damage_triggers_player_hurt_haptic() -> void:
+	_enable_haptic_test_mode()
+	var p = PlayerScript.new()
+	add_child(p)
+	p.take_damage(1)
+	var log := HapticManager.test_log.duplicate()
+	p.free()
+	_restore_haptic_test_mode()
+	_runner.assert_eq(log, [L_MEDIUM], "플레이어 피격은 MEDIUM 진동을 울린다")
