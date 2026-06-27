@@ -2,7 +2,7 @@ class_name CombatRoom
 extends Room
 
 const CHASER_SCENE = preload("res://scenes/enemies/chaser.tscn")
-const RANGED_SHOOTER_SCENE = preload("res://scenes/enemies/ranged_shooter.tscn")
+const RANGED_SHOOTER_SCENE = preload("res://scenes/enemies/kumiho.tscn")
 const CHASER_SPAWN_FACTORS: Array[Vector2] = [
 	Vector2(0.15, -0.35),
 	Vector2(0.45, 0.35),
@@ -114,9 +114,9 @@ func get_alive_count() -> int:
 func _spawn_encounter() -> void:
 	_active_enemies.clear()
 	_spawn_enemy_group(chaser_scene, chaser_count, CHASER_SPAWN_FACTORS, "Chaser")
-	_spawn_enemy_group(ranged_scene, ranged_count, RANGED_SPAWN_FACTORS, "RangedShooter")
+	_spawn_enemy_group(ranged_scene, ranged_count, RANGED_SPAWN_FACTORS, "Kumiho")
 	_spawn_enemy_group(chaser_scene, elite_chaser_count, CHASER_SPAWN_FACTORS, "EliteChaser", true)
-	_spawn_enemy_group(ranged_scene, elite_ranged_count, RANGED_SPAWN_FACTORS, "EliteRangedShooter", true)
+	_spawn_enemy_group(ranged_scene, elite_ranged_count, RANGED_SPAWN_FACTORS, "EliteKumiho", true)
 	enemy_count_changed.emit(_active_enemies.size())
 
 
@@ -160,11 +160,13 @@ func _apply_enemy_variant(enemy: Node, elite_variant: bool) -> void:
 	if _has_property(enemy, "fire_interval"):
 		enemy.set("fire_interval", maxf(0.35, float(enemy.get("fire_interval")) * elite_fire_interval_multiplier))
 
-	var placeholder := enemy.get_node_or_null("Placeholder")
-	if placeholder is Polygon2D:
-		(placeholder as Polygon2D).color = ELITE_COLOR
-	elif placeholder is CanvasItem:
-		(placeholder as CanvasItem).modulate = ELITE_COLOR
+	var visual := enemy.get_node_or_null("Placeholder")
+	if visual == null:
+		visual = enemy.get_node_or_null("Sprite")
+	if visual is Polygon2D:
+		(visual as Polygon2D).color = ELITE_COLOR
+	elif visual is CanvasItem:
+		(visual as CanvasItem).modulate = ELITE_COLOR
 
 
 func _connect_enemy(enemy: Node) -> void:
