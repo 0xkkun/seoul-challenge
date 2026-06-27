@@ -15,6 +15,7 @@ def run(*args: str) -> None:
 
 def main() -> None:
     run(sys.executable, "tests/tooling/test_verify_pr_ui_capture.py")
+    run(sys.executable, "tests/tooling/test_verify_script_coverage.py")
     run(sys.executable, "scripts/verify_project_contract.py")
     run(sys.executable, "scripts/verify_import_metadata.py")
     run(sys.executable, "scripts/verify_secret_hygiene.py")

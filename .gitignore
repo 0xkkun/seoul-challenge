@@ -5,6 +5,8 @@ exports/
 test-results/
 *.tmp
 *.log
+__pycache__/
+*.pyc
 
 # Local configuration and secrets.
 config/app.cfg
