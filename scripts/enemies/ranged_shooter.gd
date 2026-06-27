@@ -8,6 +8,7 @@ signal defeated(enemy)
 ## 발사 — origin 에서 direction 으로 발사. 자기 자신이 받아 enemy_bullet 을 스폰한다.
 signal fired(origin: Vector2, direction: Vector2)
 
+const HitReactionController = preload("res://scripts/combat/hit_reaction_controller.gd")
 const StatusEffectController = preload("res://scripts/combat/status_effect_controller.gd")
 const ENEMY_BULLET := preload("res://scenes/enemies/enemy_bullet.tscn")
 
@@ -16,10 +17,12 @@ const ENEMY_BULLET := preload("res://scenes/enemies/enemy_bullet.tscn")
 @export var preferred_range: float = 220.0    ## 유지하려는 사거리 (px)
 @export var range_deadzone: float = 30.0      ## 사거리 데드존 (±, px) — 안이면 정지
 @export var fire_interval: float = 1.4        ## 발사 간격 (s)
+@export var hit_invuln_time: float = 0.12     ## 피격 직후 중복 피해 방지/플래시 시간
 @export var target_group: StringName = &"player"
 
 var _hp: int = 0
 var _fire_timer: float = 0.0
+var _hit_reaction: Node = null
 var _status_effects: Node = null
 
 
@@ -27,11 +30,13 @@ func _ready() -> void:
 	_hp = max_hp
 	_fire_timer = fire_interval
 	add_to_group(&"enemy")
+	_ensure_hit_reaction()
 	_ensure_status_effects()
 	fired.connect(_spawn_bullet)
 
 
 func _physics_process(delta: float) -> void:
+	tick_hit_reaction(delta)
 	tick_status_effects(delta)
 	var target := _find_target()
 	if target == null:
@@ -87,6 +92,32 @@ func is_ready_to_fire(timer: float) -> bool:
 
 func is_dead(hp: int) -> bool:
 	return hp <= 0
+
+
+# --- 피격 반응 (계약 #136) ---
+
+func is_hit_invulnerable() -> bool:
+	return bool(_ensure_hit_reaction().call("is_active"))
+
+
+func tick_hit_reaction(delta: float) -> void:
+	_ensure_hit_reaction().call("tick", delta)
+
+
+func _trigger_hit_reaction() -> void:
+	_ensure_hit_reaction().call("trigger", hit_invuln_time)
+
+
+func _ensure_hit_reaction() -> Node:
+	if _hit_reaction != null and is_instance_valid(_hit_reaction):
+		return _hit_reaction
+	_hit_reaction = HitReactionController.new()
+	_hit_reaction.name = "HitReaction"
+	add_child(_hit_reaction)
+	var visual := get_node_or_null(^"Placeholder") as CanvasItem
+	if visual != null:
+		_hit_reaction.call("bind_visual", visual)
+	return _hit_reaction
 
 
 # --- 상태이상 (계약 #51) ---
@@ -146,10 +177,14 @@ func tick_fire(delta: float, origin: Vector2, target_position: Vector2) -> bool:
 
 ## 정화탄 등이 호출한다(계약). HP 감소 → 0 이하면 처치.
 func take_damage(amount: int) -> void:
+	if is_hit_invulnerable():
+		return
 	HapticManager.on_enemy_hit()
 	_hp -= amount
 	if is_dead(_hp):
 		_die()
+	else:
+		_trigger_hit_reaction()
 
 
 func _die() -> void:

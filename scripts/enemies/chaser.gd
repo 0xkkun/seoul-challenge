@@ -2,6 +2,7 @@ extends CharacterBody2D
 ## #11 잡몹(체이서) — 플레이어 추적, 정화탄 피격(take_damage), 처치 시 defeated 방출, 접촉 데미지.
 ## 추적 수학은 순수 함수로 분리해 단위 테스트한다.
 
+const HitReactionController = preload("res://scripts/combat/hit_reaction_controller.gd")
 const StatusEffectController = preload("res://scripts/combat/status_effect_controller.gd")
 
 ## 처치됨 — RoomManager/전투방이 듣고 방 클리어 카운트에 사용한다(계약 #19).
@@ -12,21 +13,25 @@ signal defeated(enemy)
 @export var contact_damage: int = 1        ## 접촉 시 플레이어 피해
 @export var contact_range: float = 28.0    ## 접촉 판정 거리 (px)
 @export var contact_cooldown: float = 0.6  ## 접촉 데미지 간격 (s)
+@export var hit_invuln_time: float = 0.12  ## 피격 직후 중복 피해 방지/플래시 시간
 @export var target_group: StringName = &"player"
 
 var _hp: int = 0
 var _contact_timer: float = 0.0
 var _dead: bool = false
+var _hit_reaction: Node = null
 var _status_effects: Node = null
 
 
 func _ready() -> void:
 	_hp = max_hp
 	add_to_group(&"enemy")
+	_ensure_hit_reaction()
 	_ensure_status_effects()
 
 
 func _physics_process(delta: float) -> void:
+	tick_hit_reaction(delta)
 	tick_status_effects(delta)
 	_contact_timer = maxf(0.0, _contact_timer - delta)
 	var target := _find_target()
@@ -56,6 +61,32 @@ func chase_velocity(from: Vector2, to: Vector2, speed: float) -> Vector2:
 
 func is_dead(hp: int) -> bool:
 	return hp <= 0
+
+
+# --- 피격 반응 (계약 #136) ---
+
+func is_hit_invulnerable() -> bool:
+	return bool(_ensure_hit_reaction().call("is_active"))
+
+
+func tick_hit_reaction(delta: float) -> void:
+	_ensure_hit_reaction().call("tick", delta)
+
+
+func _trigger_hit_reaction() -> void:
+	_ensure_hit_reaction().call("trigger", hit_invuln_time)
+
+
+func _ensure_hit_reaction() -> Node:
+	if _hit_reaction != null and is_instance_valid(_hit_reaction):
+		return _hit_reaction
+	_hit_reaction = HitReactionController.new()
+	_hit_reaction.name = "HitReaction"
+	add_child(_hit_reaction)
+	var visual := get_node_or_null(^"Placeholder") as CanvasItem
+	if visual != null:
+		_hit_reaction.call("bind_visual", visual)
+	return _hit_reaction
 
 
 # --- 상태이상 (계약 #51) ---
@@ -105,12 +136,14 @@ func _ensure_status_effects() -> Node:
 
 ## 정화탄 등이 호출한다(계약). HP 감소 → 0 이하면 처치.
 func take_damage(amount: int) -> void:
-	if _dead:
+	if _dead or is_hit_invulnerable():
 		return
 	HapticManager.on_enemy_hit()
 	_hp -= amount
 	if is_dead(_hp):
 		_die()
+	else:
+		_trigger_hit_reaction()
 
 
 func _die() -> void:

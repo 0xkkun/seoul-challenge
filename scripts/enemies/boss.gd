@@ -9,6 +9,7 @@ signal defeated(boss)
 ## 패턴 경고 시작 — UI 텔레그래프용.
 signal telegraph_started
 
+const HitReactionController = preload("res://scripts/combat/hit_reaction_controller.gd")
 const ENEMY_BULLET := preload("res://scenes/enemies/enemy_bullet.tscn")
 
 enum Phase { RECOVER, TELEGRAPH, CHARGE, BURST }
@@ -24,6 +25,7 @@ enum Phase { RECOVER, TELEGRAPH, CHARGE, BURST }
 @export var contact_damage: int = 1
 @export var contact_range: float = 34.0
 @export var contact_cooldown: float = 0.5
+@export var hit_invuln_time: float = 0.12
 @export var target_group: StringName = &"player"
 
 var _hp: int = 0
@@ -32,6 +34,7 @@ var _phase_timer: float = 0.0
 var _pattern_index: int = 1   ## 다음 패턴 (0=돌진, 1=탄막) — 첫 사이클은 돌진부터
 var _charge_dir: Vector2 = Vector2.ZERO
 var _contact_timer: float = 0.0
+var _hit_reaction: Node = null
 
 
 func _ready() -> void:
@@ -39,9 +42,11 @@ func _ready() -> void:
 	add_to_group(&"enemy")
 	add_to_group(&"boss")
 	_phase_timer = recover_time
+	_ensure_hit_reaction()
 
 
 func _physics_process(delta: float) -> void:
+	tick_hit_reaction(delta)
 	_phase_timer -= delta
 	_contact_timer = maxf(0.0, _contact_timer - delta)
 	var target := _find_target()
@@ -94,13 +99,43 @@ func burst_directions(aim_dir: Vector2, count: int, spread: float) -> Array:
 	return result
 
 
+# --- 피격 반응 (계약 #136) ---
+
+func is_hit_invulnerable() -> bool:
+	return bool(_ensure_hit_reaction().call("is_active"))
+
+
+func tick_hit_reaction(delta: float) -> void:
+	_ensure_hit_reaction().call("tick", delta)
+
+
+func _trigger_hit_reaction() -> void:
+	_ensure_hit_reaction().call("trigger", hit_invuln_time)
+
+
+func _ensure_hit_reaction() -> Node:
+	if _hit_reaction != null and is_instance_valid(_hit_reaction):
+		return _hit_reaction
+	_hit_reaction = HitReactionController.new()
+	_hit_reaction.name = "HitReaction"
+	add_child(_hit_reaction)
+	var visual := get_node_or_null(^"Placeholder") as CanvasItem
+	if visual != null:
+		_hit_reaction.call("bind_visual", visual)
+	return _hit_reaction
+
+
 # --- 피격/처치 ---
 
 func take_damage(amount: int) -> void:
+	if is_hit_invulnerable():
+		return
 	HapticManager.on_boss_hit()
 	_hp -= amount
 	if _hp <= 0:
 		_die()
+	else:
+		_trigger_hit_reaction()
 
 
 func _die() -> void:

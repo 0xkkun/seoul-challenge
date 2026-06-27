@@ -6,6 +6,7 @@ extends CharacterBody2D
 ## 이동·조준·쿨다운·반동 수학은 순수 함수로 분리해 물리/입력 없이 단위 테스트한다.
 
 const MapItemCatalog = preload("res://scripts/items/map_item_catalog.gd")
+const HitReactionController = preload("res://scripts/combat/hit_reaction_controller.gd")
 const StatusEffectController = preload("res://scripts/combat/status_effect_controller.gd")
 
 ## 발사 순간의 발사 지점(global)과 방향. #10 정화탄이 이 시그널을 받아 스폰한다.
@@ -62,6 +63,7 @@ var _invuln_timer: float = 0.0
 var _touch: Node = null
 var _base_run_stats := {}
 var _run_modifier_ids: Array[StringName] = []
+var _hit_reaction: Node = null
 var _status_effects: Node = null
 
 @onready var _swing_visual: Node2D = get_node_or_null(^"MeleeSwing")
@@ -82,11 +84,12 @@ func _ready() -> void:
 	_broadcast_special_skill_state.call_deferred()
 	if _sprite != null and not _sprite.animation_finished.is_connected(_on_sprite_animation_finished):
 		_sprite.animation_finished.connect(_on_sprite_animation_finished)
+	_ensure_hit_reaction()
 
 
 func _physics_process(delta: float) -> void:
 	tick_status_effects(delta)
-	_invuln_timer = maxf(0.0, _invuln_timer - delta)
+	tick_hit_reaction(delta)
 	var move := read_input_vector()
 	var movement_blocked := is_status_movement_blocked()
 	if movement_blocked:
@@ -238,6 +241,7 @@ func take_damage(amount: int) -> void:
 		return
 	_health = damaged_health(_health, amount)
 	_invuln_timer = invuln_time
+	_trigger_hit_reaction(invuln_time)
 	_broadcast_health()
 
 
@@ -248,6 +252,37 @@ func _broadcast_health() -> void:
 
 func get_invuln_remaining() -> float:
 	return _invuln_timer
+
+
+func is_hit_invulnerable() -> bool:
+	return _invuln_timer > 0.0
+
+
+func tick_hit_reaction(delta: float) -> void:
+	_invuln_timer = maxf(0.0, _invuln_timer - delta)
+	_ensure_hit_reaction().call("tick", delta)
+
+
+func _trigger_hit_reaction(duration: float) -> void:
+	_ensure_hit_reaction().call("trigger", duration)
+
+
+func _ensure_hit_reaction() -> Node:
+	if _hit_reaction != null and is_instance_valid(_hit_reaction):
+		return _hit_reaction
+	_hit_reaction = HitReactionController.new()
+	_hit_reaction.name = "HitReaction"
+	add_child(_hit_reaction)
+	var visual := _get_hit_visual()
+	if visual != null:
+		_hit_reaction.call("bind_visual", visual)
+	return _hit_reaction
+
+
+func _get_hit_visual() -> CanvasItem:
+	if _sprite != null:
+		return _sprite
+	return get_node_or_null(^"Sprite") as CanvasItem
 
 
 func get_special_cooldown_remaining() -> float:

@@ -10,6 +10,8 @@ signal purified(friend)
 ## 기절 진입 — UI(정화 프롬프트) 표시용.
 signal stunned
 
+const HitReactionController = preload("res://scripts/combat/hit_reaction_controller.gd")
+
 enum State { CHASING, STUNNED, PURIFIED }
 
 @export var max_stun: int = 5            ## 기절까지 필요한 누적 피해
@@ -20,6 +22,7 @@ enum State { CHASING, STUNNED, PURIFIED }
 @export var contact_damage: int = 1
 @export var contact_range: float = 30.0
 @export var contact_cooldown: float = 0.7
+@export var hit_invuln_time: float = 0.12
 @export var target_group: StringName = &"player"
 
 var _state: State = State.CHASING
@@ -27,11 +30,13 @@ var _stun_accum: int = 0
 var _stun_timer: float = 0.0
 var _purify_progress: float = 0.0
 var _contact_timer: float = 0.0
+var _hit_reaction: Node = null
 
 
 func _ready() -> void:
 	add_to_group(&"enemy")
 	add_to_group(&"yokai_friend")
+	_ensure_hit_reaction()
 
 
 func is_stunned() -> bool:
@@ -43,6 +48,7 @@ func is_purified() -> bool:
 
 
 func _physics_process(delta: float) -> void:
+	tick_hit_reaction(delta)
 	match _state:
 		State.CHASING:
 			_process_chase(delta)
@@ -65,16 +71,44 @@ func reached_stun_threshold(accum: int, threshold: int) -> bool:
 	return accum >= threshold
 
 
+# --- 피격 반응 (계약 #136) ---
+
+func is_hit_invulnerable() -> bool:
+	return bool(_ensure_hit_reaction().call("is_active"))
+
+
+func tick_hit_reaction(delta: float) -> void:
+	_ensure_hit_reaction().call("tick", delta)
+
+
+func _trigger_hit_reaction() -> void:
+	_ensure_hit_reaction().call("trigger", hit_invuln_time)
+
+
+func _ensure_hit_reaction() -> Node:
+	if _hit_reaction != null and is_instance_valid(_hit_reaction):
+		return _hit_reaction
+	_hit_reaction = HitReactionController.new()
+	_hit_reaction.name = "HitReaction"
+	add_child(_hit_reaction)
+	var visual := get_node_or_null(^"Placeholder") as CanvasItem
+	if visual != null:
+		_hit_reaction.call("bind_visual", visual)
+	return _hit_reaction
+
+
 # --- 피격/기절/정화 (I/O) ---
 
 ## 정화탄 등이 호출(계약). CHASING 중에만 기절 게이지를 채운다.
 func take_damage(amount: int) -> void:
-	if _state != State.CHASING:
+	if _state != State.CHASING or is_hit_invulnerable():
 		return
 	HapticManager.on_enemy_hit()
 	_stun_accum = accumulate_stun(_stun_accum, amount)
 	if reached_stun_threshold(_stun_accum, max_stun):
 		_enter_stunned()
+	else:
+		_trigger_hit_reaction()
 
 
 ## 정화 진행을 delta만큼 누적하고, 완료되면 true. (테스트에서 직접 호출 가능)

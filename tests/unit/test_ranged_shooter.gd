@@ -66,5 +66,25 @@ func test_dies_after_max_hp_damage() -> void:
 	e.defeated.connect(func(_enemy): hit["defeated"] = true)
 	e.take_damage(1)
 	_runner.assert_false(hit["defeated"], "1대로는 안 죽음")
+	e.call("tick_hit_reaction", e.hit_invuln_time + 0.05)
 	e.take_damage(1)
 	_runner.assert_true(hit["defeated"], "max_hp(2)만큼 맞으면 defeated 방출")
+
+
+func test_hit_reaction_blocks_repeat_damage_and_restores_visual() -> void:
+	var e = RangedShooterScene.instantiate()
+	e.max_hp = 2
+	add_child(e)  # _ready → _hp = max_hp
+	var visual := e.get_node("Placeholder") as CanvasItem
+	var base_modulate := visual.modulate
+	var defeated := {"count": 0}
+	e.defeated.connect(func(_enemy): defeated["count"] += 1)
+	e.take_damage(1)
+	_runner.assert_true(e.call("is_hit_invulnerable"), "피격 직후 짧은 무적 상태")
+	_runner.assert_true(visual.modulate != base_modulate, "피격 직후 원거리 적 플래시")
+	e.take_damage(1)
+	_runner.assert_eq(defeated["count"], 0, "무적 중 추가 피해는 무시된다")
+	e.call("tick_hit_reaction", e.hit_invuln_time + 0.05)
+	_runner.assert_eq(visual.modulate, base_modulate, "무적 종료 후 시각 효과 복구")
+	e.take_damage(1)
+	_runner.assert_eq(defeated["count"], 1, "무적 종료 후 피해는 적용된다")
