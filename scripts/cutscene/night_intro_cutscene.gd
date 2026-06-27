@@ -38,7 +38,7 @@ const BEATS: Array[Dictionary] = [
 		{"text": "도시가 잠들면,", "audio": "res://assets/audio/night_intro/vo_beat1_1.wav"},
 		{"text": "어둠 속에서 무언가 깨어난다.", "audio": "res://assets/audio/night_intro/vo_beat1_2.wav"},
 	]},
-	{"plate": 1, "sfx": &"night_intro_transition", "lines": [
+	{"plate": 1, "sfx": &"night_intro_transition_c", "lines": [
 		{"text": "나는 매일 밤, 그 아래로 내려간다.", "audio": "res://assets/audio/night_intro/vo_beat2_1.wav"},
 		{"text": "아무도 모르는 길을 따라.", "audio": "res://assets/audio/night_intro/vo_beat2_2.wav", "pre": 0.5},
 	]},
@@ -46,7 +46,7 @@ const BEATS: Array[Dictionary] = [
 		{"text": "오늘 밤은…", "audio": "res://assets/audio/night_intro/vo_beat3_1.wav", "pre": 0.6},
 		{"text": "돌아오지 못할지도 모른다.", "audio": "res://assets/audio/night_intro/vo_beat3_2.wav"},
 	]},
-	{"plate": 3, "sfx": &"night_intro_transition", "lines": [
+	{"plate": 3, "sfx": &"night_intro_transition_c", "lines": [
 		{"text": "그래도 나는 멈추지 않는다.", "audio": "res://assets/audio/night_intro/vo_beat4_1.wav", "pre": 0.8},
 		{"text": "밤이 시작된다.", "audio": "res://assets/audio/night_intro/vo_beat4_2.wav"},
 	]},
