@@ -3,6 +3,7 @@ extends Room
 
 const CHASER_SCENE = preload("res://scenes/enemies/akgwi.tscn")
 const RANGED_SHOOTER_SCENE = preload("res://scenes/enemies/kumiho.tscn")
+const WOLF_SCENE = preload("res://scenes/enemies/wolf.tscn")
 const CHASER_SPAWN_FACTORS: Array[Vector2] = [
 	Vector2(0.15, -0.35),
 	Vector2(0.45, 0.35),
@@ -14,6 +15,11 @@ const RANGED_SPAWN_FACTORS: Array[Vector2] = [
 	Vector2(0.3, -0.2),
 	Vector2(0.5, 0.3),
 ]
+const WOLF_SPAWN_FACTORS: Array[Vector2] = [
+	Vector2(-0.15, 0.25),
+	Vector2(0.55, -0.35),
+	Vector2(0.05, -0.1),
+]
 const ELITE_COLOR := Color(0.95, 0.72, 0.22, 1.0)
 
 signal combat_started(room_id: StringName, enemy_count: int)
@@ -23,10 +29,13 @@ signal enemy_count_changed(remaining_count: int)
 
 @export var chaser_scene: PackedScene = CHASER_SCENE
 @export var ranged_scene: PackedScene = RANGED_SHOOTER_SCENE
+@export var wolf_scene: PackedScene = WOLF_SCENE
 @export_range(0, 12, 1) var chaser_count := 3
 @export_range(0, 12, 1) var ranged_count := 1
+@export_range(0, 12, 1) var wolf_count := 0
 @export_range(0, 12, 1) var elite_chaser_count := 0
 @export_range(0, 12, 1) var elite_ranged_count := 0
+@export_range(0, 12, 1) var elite_wolf_count := 0
 @export_range(1, 5, 1) var wave_count := 1
 @export_range(1, 8, 1) var elite_health_multiplier := 2
 @export_range(1.0, 2.0, 0.05) var elite_speed_multiplier := 1.15
@@ -68,8 +77,10 @@ func is_cleared() -> bool:
 func apply_room_config(config: Dictionary) -> void:
 	chaser_count = _config_count(config, "chaser_count", chaser_count)
 	ranged_count = _config_count(config, "ranged_count", ranged_count)
+	wolf_count = _config_count(config, "wolf_count", wolf_count)
 	elite_chaser_count = _config_count(config, "elite_chaser_count", elite_chaser_count)
 	elite_ranged_count = _config_count(config, "elite_ranged_count", elite_ranged_count)
+	elite_wolf_count = _config_count(config, "elite_wolf_count", elite_wolf_count)
 	wave_count = _config_wave_count(config, "wave_count", wave_count)
 
 
@@ -77,10 +88,12 @@ func get_encounter_summary() -> Dictionary:
 	return {
 		"chaser_count": chaser_count,
 		"ranged_count": ranged_count,
+		"wolf_count": wolf_count,
 		"elite_chaser_count": elite_chaser_count,
 		"elite_ranged_count": elite_ranged_count,
+		"elite_wolf_count": elite_wolf_count,
 		"wave_count": wave_count,
-		"total_count": chaser_count + ranged_count + elite_chaser_count + elite_ranged_count,
+		"total_count": chaser_count + ranged_count + wolf_count + elite_chaser_count + elite_ranged_count + elite_wolf_count,
 	}
 
 
@@ -127,16 +140,22 @@ func _spawn_encounter() -> void:
 
 func _build_spawn_queue() -> Array[Dictionary]:
 	var entries: Array[Dictionary] = []
-	var max_count := maxi(maxi(chaser_count, ranged_count), maxi(elite_chaser_count, elite_ranged_count))
+	var normal_max := maxi(maxi(chaser_count, ranged_count), wolf_count)
+	var elite_max := maxi(maxi(elite_chaser_count, elite_ranged_count), elite_wolf_count)
+	var max_count := maxi(normal_max, elite_max)
 	for index: int in range(max_count):
 		if index < chaser_count:
 			entries.append(_spawn_entry(&"chaser", false, index))
 		if index < ranged_count:
 			entries.append(_spawn_entry(&"ranged", false, index))
+		if index < wolf_count:
+			entries.append(_spawn_entry(&"wolf", false, index))
 		if index < elite_chaser_count:
 			entries.append(_spawn_entry(&"chaser", true, index))
 		if index < elite_ranged_count:
 			entries.append(_spawn_entry(&"ranged", true, index))
+		if index < elite_wolf_count:
+			entries.append(_spawn_entry(&"wolf", true, index))
 	return entries
 
 
@@ -174,6 +193,16 @@ func _spawn_enemy_entry(entry: Dictionary) -> void:
 			ranged_scene,
 			RANGED_SPAWN_FACTORS,
 			"EliteKumiho" if elite_variant else "Kumiho",
+			sequence,
+			elite_variant
+		)
+		return
+
+	if enemy_type == &"wolf":
+		_spawn_enemy_instance(
+			wolf_scene,
+			WOLF_SPAWN_FACTORS,
+			"EliteWolf" if elite_variant else "Wolf",
 			sequence,
 			elite_variant
 		)

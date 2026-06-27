@@ -836,7 +836,7 @@ func _on_sprite_animation_finished() -> void:
 		_sprite.speed_scale = 1.0
 
 
-## 근접 휘두르기 — 무기(맨손/배트)에 따라 사거리·각·피해가 다르다. 배트면 넉백 + 적탄 되받아침(deflect).
+## 근접 휘두르기 — 무기(맨손/배트)에 따라 사거리·각·피해가 다르다. 배트면 돌진 패링 + 넉백 + 적탄 되받아침(deflect).
 func _attack_melee(dir: Vector2) -> void:
 	var dmg := bat_damage if _has_bat else melee_damage
 	var rng := bat_range if _has_bat else melee_range
@@ -859,6 +859,8 @@ func _attack_melee(dir: Vector2) -> void:
 		var to_us := Vector2(to.x, to.y / swing_vertical_factor)
 		if to_us.length() <= rng and in_melee_arc(dir, to_us, arc):
 			hit_count += 1
+			if _has_bat and enemy.has_method("parry_dash"):
+				enemy.call("parry_dash", dir)
 			if enemy.has_method("take_damage"):
 				enemy.call("take_damage", dmg)
 			var applied_knockback := knockback_distance if _has_bat else barehand_knockback

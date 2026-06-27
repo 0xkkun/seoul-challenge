@@ -1,0 +1,22 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/enemies/wolf.gd" id="1_wolf"]
+[ext_resource type="SpriteFrames" path="res://assets/sprites/enemies/wolf/wolf_frames.tres" id="2_frames"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_wolf"]
+radius = 16.0
+
+[node name="Wolf" type="CharacterBody2D"]
+collision_layer = 1
+collision_mask = 3
+script = ExtResource("1_wolf")
+
+[node name="Collision" type="CollisionShape2D" parent="."]
+shape = SubResource("CircleShape2D_wolf")
+
+[node name="Sprite" type="AnimatedSprite2D" parent="."]
+texture_filter = 1
+sprite_frames = ExtResource("2_frames")
+animation = &"move"
+autoplay = "move"
+scale = Vector2(0.82, 0.82)
