@@ -134,8 +134,7 @@ limit_left = 0
 limit_top = 0
 limit_right = 2172
 limit_bottom = 720
-position_smoothing_enabled = true
-position_smoothing_speed = 8.0
+position_smoothing_enabled = false
 
 [node name="TouchControls" parent="." instance=ExtResource("5_touch")]
 unique_name_in_owner = true
