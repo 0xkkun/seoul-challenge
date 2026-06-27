@@ -196,6 +196,10 @@ func test_session_root_mounts_room_manager() -> void:
 		entered_payloads.append(payload)
 
 	EventBus.room_entered.connect(on_room_entered)
+	GameManager.start_session({
+		"source": "seeded_session_root_test",
+		SceneTransition.RUN_CONFIG_LAYOUT_SEED: 40,
+	})
 
 	var session := packed.instantiate()
 	add_child(session)
@@ -236,6 +240,7 @@ func test_session_root_mounts_room_manager() -> void:
 	_runner.assert_eq(entered_payloads.size(), 2, "room enter events fire for mounted rooms")
 
 	EventBus.room_entered.disconnect(on_room_entered)
+	GameManager.reset_session()
 
 
 func test_session_root_finish_requires_final_room_clear_on_branching_map() -> void:
