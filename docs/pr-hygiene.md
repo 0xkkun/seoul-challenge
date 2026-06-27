@@ -70,11 +70,11 @@ Also confirm:
 
 ## Codex Review Signal
 
-After requesting a Codex review, a `👍` reaction from `codex` on the PR body
-means there are no requested changes. If CI is green and there are no
-outstanding review comments, merge immediately with
-`gh pr merge <n> --merge --delete-branch` instead of waiting for a formal review
-object.
+After requesting a Codex review, a `👍` reaction from Codex
+(`chatgpt-codex-connector[bot]`) on the PR body means there are no requested
+changes. If CI is green and there are no outstanding review comments, merge
+immediately with `gh pr merge <n> --merge --delete-branch` instead of waiting
+for a formal review object.
 
 ## Commit Messages (커밋 메시지)
 
