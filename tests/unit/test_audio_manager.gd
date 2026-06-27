@@ -26,6 +26,16 @@ func test_session_transition_school_bell_variants_are_registered() -> void:
 		_runner.assert_true(ResourceLoader.exists(AudioManager.get_sfx_stream_path(sfx_id)), "%s audio resource exists" % sfx_id)
 
 
+func test_bat_swing_sfx_is_registered() -> void:
+	var stream_path := AudioManager.get_sfx_stream_path(&"bat_swing")
+
+	_runner.assert_true(AudioManager.has_sfx(&"bat_swing"), "bat swing SFX is registered")
+	_runner.assert_eq(stream_path, "res://assets/audio/sfx/bat_swing.mp3", "bat swing SFX path is stable")
+	_runner.assert_true(ResourceLoader.exists(stream_path), "bat swing SFX resource exists")
+	var stream := load(stream_path) as AudioStreamMP3
+	_runner.assert_not_null(stream, "bat swing SFX loads as MP3")
+
+
 func test_school_hallway_bgm_is_registered() -> void:
 	var stream_path := AudioManager.get_bgm_stream_path(AudioManager.SCHOOL_HALLWAY_BGM)
 

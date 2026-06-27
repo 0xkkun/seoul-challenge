@@ -778,7 +778,27 @@ func _play_attack_anim(dir: Vector2) -> void:
 		_sprite.flip_h = dir.x < 0.0
 	_is_attacking = true
 	_attack_movement_commit_timer = attack_movement_commit_time
+	var base_duration := animation_duration_seconds(_sprite.sprite_frames, &"attack")
+	_sprite.speed_scale = attack_animation_speed_scale(base_duration, attack_cooldown)
 	_sprite.play(&"attack")
+
+
+func animation_duration_seconds(frames: SpriteFrames, animation: StringName) -> float:
+	if frames == null or not frames.has_animation(animation):
+		return 0.0
+	var animation_speed := float(frames.get_animation_speed(animation))
+	if animation_speed <= 0.0:
+		return 0.0
+	var total_frame_duration := 0.0
+	for index in range(frames.get_frame_count(animation)):
+		total_frame_duration += float(frames.get_frame_duration(animation, index))
+	return total_frame_duration / animation_speed
+
+
+func attack_animation_speed_scale(base_duration: float, target_duration: float) -> float:
+	if base_duration <= 0.0 or target_duration <= 0.0:
+		return 1.0
+	return maxf(1.0, base_duration / target_duration)
 
 
 ## 입력 상태에 맞는 애니메이션 — 공격 중이면 유지, 이동하면 walk, 정지면 idle.
@@ -788,6 +808,7 @@ func _update_animation(move: Vector2) -> void:
 		return
 	if _is_attacking:
 		return  # 공격 중엔 조준 방향 반전을 유지(_play_attack_anim 이 설정)
+	_sprite.speed_scale = 1.0
 	if absf(_facing.x) > 0.05:
 		_sprite.flip_h = _facing.x < 0.0
 	var next: StringName = &"walk" if move.length() > 0.1 else &"idle"
@@ -799,6 +820,7 @@ func _on_sprite_animation_finished() -> void:
 	if _sprite != null and _sprite.animation == &"attack":
 		_is_attacking = false
 		_attack_movement_commit_timer = 0.0
+		_sprite.speed_scale = 1.0
 
 
 ## 근접 휘두르기 — 무기(맨손/배트)에 따라 사거리·각·피해가 다르다. 배트면 넉백 + 적탄 되받아침(deflect).
@@ -835,6 +857,7 @@ func _attack_melee(dir: Vector2) -> void:
 		else:
 			_clear_bullets_in_arc(dir, rng, arc)
 	if _has_bat:
+		_play_bat_swing_sfx()
 		_hide_swing()
 		if power_attack:
 			_hide_bat_swing()
@@ -873,6 +896,11 @@ func _emit_combat_feedback(kind: StringName, dir: Vector2, hit_count: int, inten
 		"intensity": intensity,
 		"source_position": global_position,
 	})
+
+
+func _play_bat_swing_sfx() -> void:
+	if has_node("/root/AudioManager"):
+		AudioManager.play_sfx(AudioManager.BAT_SWING)
 
 
 ## 휘두르기 시각 표시 — 실제 사거리(rng)·각(arc)으로 부채꼴을 그려 타격 범위와 일치시킨다.

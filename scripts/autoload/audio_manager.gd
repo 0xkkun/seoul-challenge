@@ -6,6 +6,7 @@ const SCHOOL_HALLWAY_BGM := &"school_hallway_bgm"
 const SCHOOL_BELL_TRANSITION_FRONT := &"school_bell_transition_front"
 const SCHOOL_BELL_TRANSITION_BACK := &"school_bell_transition_back"
 const UI_BUTTON_PRESS := &"ui_button_press"
+const BAT_SWING := &"bat_swing"
 const SESSION_TRANSITION_SFX_IDS: Array[StringName] = [
 	SCHOOL_BELL_TRANSITION_FRONT,
 	SCHOOL_BELL_TRANSITION_BACK,
@@ -26,6 +27,7 @@ const _SFX_STREAM_PATHS := {
 	SCHOOL_BELL_TRANSITION_FRONT: "res://assets/audio/sfx/school_bell_transition_front.wav",
 	SCHOOL_BELL_TRANSITION_BACK: "res://assets/audio/sfx/school_bell_transition_back.wav",
 	UI_BUTTON_PRESS: "res://assets/audio/sfx/ui_button_press.mp3",
+	BAT_SWING: "res://assets/audio/sfx/bat_swing.mp3",
 }
 
 const BGM_VOLUME_DB := 0.0
