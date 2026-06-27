@@ -26,6 +26,7 @@ const COMBAT_FEEDBACK_RECOVER_TIME := 0.10
 const COMBAT_FEEDBACK_MAX_OFFSET := 7.0
 const ROOM_ENTRY_SPAWN_INSET := Vector2(140.0, 96.0)
 const TOP_LEFT_HUD_GAP := 8.0
+const BASEBALL_ONBOARDING_LAYOUT_ID := &"onboarding_baseball_captain"
 
 @onready var world_layer: Node2D = $WorldLayer
 @onready var room_layer: Node2D = %RoomLayer
@@ -146,6 +147,8 @@ func advance_room(preferred_room_id: StringName = &"") -> bool:
 
 
 func _build_run_layout() -> RoomLayout:
+	if _is_baseball_onboarding_run():
+		return _build_baseball_onboarding_layout()
 	var generator := RoomLayoutGenerator.new()
 	generator.start_scene_path = START_ROOM_SCENE_PATH
 	generator.combat_scene_path = COMBAT_ROOM_SCENE_PATH
@@ -155,6 +158,68 @@ func _build_run_layout() -> RoomLayout:
 	generator.friend_scene_path = FRIEND_ROOM_SCENE_PATH
 	generator.final_scene_path = FINAL_ROOM_SCENE_PATH
 	return generator.generate(_resolve_run_layout_seed(), {"room_count": RUN_LAYOUT_ROOM_COUNT})
+
+
+func _build_baseball_onboarding_layout() -> RoomLayout:
+	var layout := RoomLayout.new()
+	layout.layout_id = BASEBALL_ONBOARDING_LAYOUT_ID
+	layout.start_room_id = &"start"
+	layout.allow_short_story_layout = true
+	layout.required_clears_for_hidden_reveal = 0
+	layout.room_defs = [
+		_make_room_def(&"start", RoomLayout.TYPE_START, START_ROOM_SCENE_PATH, [&"combat_1"], Vector2i.ZERO),
+		_make_room_def(
+			&"combat_1",
+			RoomLayout.TYPE_COMBAT,
+			COMBAT_ROOM_SCENE_PATH,
+			[&"start", &"friend_1"],
+			Vector2i(1, 0),
+			{
+				"chaser_count": 1,
+				"ranged_count": 0,
+				"wolf_count": 0,
+				"elite_chaser_count": 0,
+				"elite_ranged_count": 0,
+				"elite_wolf_count": 0,
+				"wave_count": 1,
+			}
+		),
+		_make_room_def(
+			&"friend_1",
+			RoomLayout.TYPE_FRIEND,
+			FRIEND_ROOM_SCENE_PATH,
+			[&"combat_1"],
+			Vector2i(2, 0),
+			{"friend_id": &"baseball_captain"}
+		),
+	]
+	return layout
+
+
+func _make_room_def(
+	room_id: StringName,
+	room_type: StringName,
+	scene_path: String,
+	connections: Array,
+	grid_pos: Vector2i,
+	room_config: Dictionary = {}
+) -> RoomDef:
+	var room_def := RoomDef.new()
+	var typed_connections: Array[StringName] = []
+	for connection: Variant in connections:
+		typed_connections.append(StringName(connection))
+	room_def.room_id = room_id
+	room_def.room_type = room_type
+	room_def.scene_path = scene_path
+	room_def.connections = typed_connections
+	room_def.grid_pos = grid_pos
+	room_def.room_config = room_config.duplicate(true)
+	return room_def
+
+
+func _is_baseball_onboarding_run() -> bool:
+	var config := GameManager.get_active_config()
+	return StringName(config.get(SceneTransition.RUN_CONFIG_ONBOARDING_KIND, &"")) == SceneTransition.ONBOARDING_KIND_BASEBALL_CAPTAIN
 
 
 func _resolve_run_layout_seed() -> int:
@@ -464,6 +529,25 @@ func _on_friend_purified(payload: Dictionary) -> void:
 	if friend_id == &"" or _friend_ids.has(friend_id):
 		return
 	_friend_ids.append(friend_id)
+	if _is_baseball_onboarding_run() and friend_id == &"baseball_captain":
+		_finish_baseball_onboarding(payload)
+
+
+func _finish_baseball_onboarding(payload: Dictionary) -> void:
+	if not has_node("/root/GameManager") or not GameManager.is_session_active():
+		return
+	var room_id := StringName(payload.get("room_id", room_manager.current_room_id))
+	if room_id != &"":
+		room_manager.cleared_room_ids[room_id] = true
+	if has_node("/root/SaveManager"):
+		SaveManager.set_flag(SceneTransition.FLAG_ONBOARDING_BASEBALL_COMPLETE, true)
+		SaveManager.set_flag(SceneTransition.FLAG_BASEBALL_CAPTAIN_REWARD_CLAIMED, false)
+	finish_session({
+		"reason": "onboarding_friend_purified",
+		"outcome": "onboarding_complete",
+		"completed": true,
+		"onboarding_kind": SceneTransition.ONBOARDING_KIND_BASEBALL_CAPTAIN,
+	})
 
 
 func _on_unlock_changed(payload: Dictionary) -> void:

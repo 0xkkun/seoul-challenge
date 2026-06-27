@@ -74,8 +74,39 @@ func test_run_result_contract_derives_records_from_existing_payload() -> void:
 	var snapshot: Dictionary = _ui.get_summary_snapshot()
 	_runner.assert_eq(snapshot["title"], "탈출 성공", "completed run maps to success")
 	_runner.assert_eq(snapshot["memory_amount"], "+3", "existing cleared rooms derive memory reward")
-	_runner.assert_eq(snapshot["friends"], "정화 1", "boss result derives purified friend count")
+	_runner.assert_eq(snapshot["friends"], "정화 0", "boss result does not count as a purified friend")
 	_runner.assert_eq(snapshot["rooms"], "방 3", "cleared rooms drive room record")
+
+
+func test_onboarding_completion_summary_points_back_to_baseball_captain() -> void:
+	_ui.show_summary({
+		"reason": "onboarding_friend_purified",
+		"completed": true,
+		"memory_reward": 1,
+		"friend_ids": [&"baseball_captain"],
+		"rooms_cleared": 2,
+	})
+
+	var snapshot: Dictionary = _ui.get_summary_snapshot()
+	_runner.assert_eq(snapshot["title"], "정화 완료", "onboarding completion uses a purification header")
+	_runner.assert_true(snapshot["narrative"].contains("야구부 주장"), "onboarding summary directs the player back to the captain")
+	_runner.assert_eq(snapshot["friends"], "정화 1", "onboarding friend id still counts as one purification")
+
+
+func test_boss_resolved_summary_keeps_open_ending() -> void:
+	_ui.show_summary({
+		"reason": "boss_resolved",
+		"completed": true,
+		"memory_reward": 3,
+		"rooms_cleared": 15,
+		"boss_id": &"gyeongbokgung_boss",
+	})
+
+	var snapshot: Dictionary = _ui.get_summary_snapshot()
+	_runner.assert_eq(snapshot["title"], "탈출 성공", "boss clear still completes the run")
+	_runner.assert_true(snapshot["narrative"].contains("돌아오지 않았다"), "boss clear does not pretend the friend returned")
+	_runner.assert_true(snapshot["narrative"].contains("범인"), "boss clear foreshadows the unresolved culprit")
+	_runner.assert_eq(snapshot["friends"], "정화 0", "boss clear is not a purification")
 
 
 func test_explicit_zero_reward_is_not_derived_from_rooms() -> void:

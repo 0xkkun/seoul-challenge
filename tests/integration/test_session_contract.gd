@@ -118,6 +118,66 @@ func test_session_root_honors_explicit_layout_seed_config() -> void:
 	different_session.free()
 
 
+func test_session_root_uses_three_room_baseball_onboarding_layout() -> void:
+	GameManager.start_session({
+		"source": "intro",
+		"stage_id": &"gyeongbokgung",
+		"stage_name": "경복궁",
+		SceneTransition.RUN_CONFIG_ONBOARDING_KIND: SceneTransition.ONBOARDING_KIND_BASEBALL_CAPTAIN,
+	})
+	var packed := load("res://scenes/session/session_root.tscn") as PackedScene
+	var session := packed.instantiate()
+	add_child(session)
+
+	var manager := session.get_node("%RoomManager") as RoomManager
+	var actor := session.get_node("%Player") as Node
+	_runner.assert_not_null(manager.layout, "onboarding session creates a layout")
+	if manager.layout == null:
+		session.queue_free()
+		return
+	_runner.assert_eq(manager.layout.layout_id, &"onboarding_baseball_captain", "onboarding layout is explicit, not generated")
+	_runner.assert_eq(manager.layout.get_room_ids(), [&"start", &"combat_1", &"friend_1"], "onboarding is exactly three straight rooms")
+	_runner.assert_eq(manager.layout.get_connected_room_ids(&"start"), [&"combat_1"], "start connects only to the tutorial combat room")
+	_runner.assert_eq(manager.layout.get_connected_room_ids(&"combat_1"), [&"start", &"friend_1"], "combat room connects linearly to the friend room")
+	_runner.assert_eq(manager.layout.get_connected_room_ids(&"friend_1"), [&"combat_1"], "friend room is the onboarding endpoint")
+	_runner.assert_eq((manager.layout.get_room(&"combat_1") as RoomDef).room_type, RoomLayout.TYPE_COMBAT, "middle onboarding room teaches combat")
+	_runner.assert_eq((manager.layout.get_room(&"friend_1") as RoomDef).room_type, RoomLayout.TYPE_FRIEND, "final onboarding room is the purification target")
+	_runner.assert_eq((manager.layout.get_room(&"combat_1") as RoomDef).room_config.get("chaser_count", -1), 1, "onboarding combat keeps one close-range enemy")
+	_runner.assert_false(actor.call("has_bat"), "onboarding starts before the bat reward is claimed")
+
+	session.queue_free()
+
+
+func test_baseball_onboarding_friend_purification_finishes_run_and_sets_reward_flag() -> void:
+	GameManager.start_session({
+		"source": "intro",
+		SceneTransition.RUN_CONFIG_ONBOARDING_KIND: SceneTransition.ONBOARDING_KIND_BASEBALL_CAPTAIN,
+	})
+	var packed := load("res://scenes/session/session_root.tscn") as PackedScene
+	var session := packed.instantiate()
+	add_child(session)
+
+	var manager := session.get_node("%RoomManager") as RoomManager
+	_runner.assert_true(manager.enter_room(&"friend_1"), "test enters the onboarding friend room")
+	var friends: Array = manager.current_room.call("get_active_friends")
+	_runner.assert_eq(friends.size(), 1, "onboarding friend room spawns the captain target")
+	if friends.size() == 1:
+		var friend := friends[0] as Node
+		friend.emit_signal("purified", friend)
+
+	var result := GameManager.get_last_result()
+	var session_ui: CanvasLayer = session.get_node("%SessionUIRoot")
+	_runner.assert_false(GameManager.is_session_active(), "purifying the onboarding target finishes the tutorial run")
+	_runner.assert_eq(result.get("reason", ""), "onboarding_friend_purified", "result distinguishes onboarding completion")
+	_runner.assert_eq(result.get("onboarding_kind", &""), SceneTransition.ONBOARDING_KIND_BASEBALL_CAPTAIN, "result records the onboarding kind")
+	_runner.assert_eq(result.get("friend_ids", []), [&"baseball_captain"], "onboarding result records the purified captain")
+	_runner.assert_true(SaveManager.get_flag(SceneTransition.FLAG_ONBOARDING_BASEBALL_COMPLETE), "day corridor reward dialogue is unlocked")
+	_runner.assert_false(SaveManager.get_flag(SceneTransition.FLAG_BASEBALL_CAPTAIN_REWARD_CLAIMED), "bat reward is still pending until the captain dialogue")
+	_runner.assert_true(session_ui.call("is_summary_visible"), "onboarding completion opens the result summary")
+
+	session.queue_free()
+
+
 func test_session_interaction_scope_reaches_current_shop_room() -> void:
 	var packed := load("res://scenes/session/session_root.tscn") as PackedScene
 	var session := packed.instantiate()
