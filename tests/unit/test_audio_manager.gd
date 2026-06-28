@@ -48,14 +48,19 @@ func test_bat_hit_sfx_is_registered() -> void:
 	_runner.assert_not_null(stream, "bat hit SFX loads as WAV")
 
 
-func test_boss_attack_sfx_is_registered() -> void:
-	var stream_path := AudioManager.get_sfx_stream_path(&"boss_attack")
+func test_boss_attack_sfx_are_registered_by_attack_moment() -> void:
+	var expected_paths := {
+		&"boss_weak_slam": "res://assets/audio/sfx/boss_weak_slam.mp3",
+		&"boss_weak_ground_spike": "res://assets/audio/sfx/boss_weak_ground_spike.mp3",
+		&"boss_strong_attack": "res://assets/audio/sfx/boss_strong_attack.mp3",
+	}
 
-	_runner.assert_true(AudioManager.has_sfx(&"boss_attack"), "boss attack SFX is registered")
-	_runner.assert_eq(stream_path, "res://assets/audio/sfx/boss_attack.mp3", "boss attack SFX path is stable")
-	_runner.assert_true(ResourceLoader.exists(stream_path), "boss attack SFX resource exists")
-	var stream := load(stream_path) as AudioStreamMP3
-	_runner.assert_not_null(stream, "boss attack SFX loads as MP3")
+	for sfx_id: StringName in expected_paths.keys():
+		var stream_path := String(expected_paths[sfx_id])
+		_runner.assert_true(AudioManager.has_sfx(sfx_id), "%s SFX is registered" % sfx_id)
+		_runner.assert_eq(AudioManager.get_sfx_stream_path(sfx_id), stream_path, "%s SFX path is stable" % sfx_id)
+		_runner.assert_true(ResourceLoader.exists(stream_path), "%s SFX resource exists" % sfx_id)
+		_runner.assert_not_null(load(stream_path) as AudioStreamMP3, "%s SFX loads as MP3" % sfx_id)
 
 
 func test_wolf_attack_sfx_is_registered() -> void:

@@ -214,11 +214,11 @@ func _begin_pattern(target: Node2D) -> void:
 		_strong_attack_hit_resolved = false
 		_phase = Phase.CHARGE
 		_phase_timer = charge_time
-		AudioManager.play_sfx(AudioManager.BOSS_ATTACK)
+		AudioManager.play_sfx(AudioManager.BOSS_STRONG_ATTACK)
 		_play_attack_animation(strong_attack_animation, _charge_dir)
 	else:
 		var aim := _aim_to(target)
-		AudioManager.play_sfx(AudioManager.BOSS_ATTACK)
+		AudioManager.play_sfx(AudioManager.BOSS_WEAK_SLAM)
 		_play_attack_animation(attack_animation, aim)
 		_play_ground_impact_effect(aim)
 		_try_swing_attack(
@@ -342,18 +342,19 @@ func _bind_attack_effect(effect: AnimatedSprite2D) -> void:
 
 
 func _play_ground_impact_effect(facing_direction: Vector2) -> void:
-	_play_attack_effect(_ground_impact_effect, facing_direction, GROUND_EFFECT_FORWARD_OFFSET, GROUND_EFFECT_BASE_OFFSET)
+	if _play_attack_effect(_ground_impact_effect, facing_direction, GROUND_EFFECT_FORWARD_OFFSET, GROUND_EFFECT_BASE_OFFSET):
+		AudioManager.play_sfx(AudioManager.BOSS_WEAK_GROUND_SPIKE)
 
 
 func _play_wound_slash_effect(facing_direction: Vector2) -> void:
 	_play_attack_effect(_wound_slash_effect, facing_direction, WOUND_EFFECT_FORWARD_OFFSET, WOUND_EFFECT_BASE_OFFSET)
 
 
-func _play_attack_effect(effect: AnimatedSprite2D, facing_direction: Vector2, forward_offset: float, base_offset: Vector2) -> void:
+func _play_attack_effect(effect: AnimatedSprite2D, facing_direction: Vector2, forward_offset: float, base_offset: Vector2) -> bool:
 	if effect == null or effect.sprite_frames == null:
-		return
+		return false
 	if not effect.sprite_frames.has_animation(ATTACK_EFFECT_ANIMATION):
-		return
+		return false
 	var dir := facing_direction.normalized() if facing_direction.length() > 0.001 else Vector2.RIGHT
 	effect.position = (dir * forward_offset) + base_offset
 	effect.flip_h = dir.x < -FACING_DEADZONE
@@ -363,6 +364,7 @@ func _play_attack_effect(effect: AnimatedSprite2D, facing_direction: Vector2, fo
 	effect.frame = 0
 	effect.play()
 	effect.frame = 0
+	return true
 
 
 func _on_attack_effect_finished(effect: AnimatedSprite2D) -> void:
