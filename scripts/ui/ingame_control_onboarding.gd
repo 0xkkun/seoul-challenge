@@ -94,6 +94,7 @@ func finish() -> void:
 	if not _active and not visible:
 		return
 	_active = false
+	_power_attack_executed_seen = false
 	visible = false
 	set_process(false)
 	_restore_camera_zoom()
@@ -313,11 +314,15 @@ func _is_power_window_active() -> bool:
 
 func _advance_step() -> void:
 	_step_index += 1
-	_power_attack_executed_seen = false
 	if _step_index >= STEPS.size():
 		finish()
 		return
+	var step_id: StringName = _current_step().get("id", &"")
+	if step_id != &"dash" and step_id != &"power_attack":
+		_power_attack_executed_seen = false
 	_refresh_step()
+	if step_id == &"power_attack" and _power_attack_executed_seen:
+		_advance_step()
 
 
 func _connect_player_power_attack() -> void:
@@ -339,10 +344,12 @@ func _disconnect_player_power_attack() -> void:
 func _on_player_power_attack_executed(_payload: Dictionary = {}) -> void:
 	if not _active:
 		return
-	if StringName(_current_step().get("id", &"")) != &"power_attack":
+	var step_id := StringName(_current_step().get("id", &""))
+	if step_id != &"dash" and step_id != &"power_attack":
 		return
 	_power_attack_executed_seen = true
-	_advance_step()
+	if step_id == &"power_attack":
+		_advance_step()
 
 
 func _apply_camera_zoom() -> void:
