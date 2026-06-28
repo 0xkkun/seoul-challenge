@@ -144,7 +144,7 @@ func test_ingame_control_onboarding_power_attack_waits_for_actual_player_executi
 	onboarding.queue_free()
 
 
-func test_ingame_control_onboarding_latches_power_attack_executed_during_dash_step() -> void:
+func test_ingame_control_onboarding_finishes_when_power_attack_executes_during_dash_step() -> void:
 	_runner.assert_true(ResourceLoader.exists(INGAME_CONTROL_ONBOARDING_SCRIPT_PATH), "인게임 조작 온보딩 스크립트가 존재한다")
 	if not ResourceLoader.exists(INGAME_CONTROL_ONBOARDING_SCRIPT_PATH):
 		return
@@ -163,11 +163,8 @@ func test_ingame_control_onboarding_latches_power_attack_executed_during_dash_st
 	_assert_onboarding_step(onboarding, &"dash", ["SkillButton"])
 
 	player.emit_power_attack()
-	_assert_onboarding_step(onboarding, &"dash", ["SkillButton"])
 
-	onboarding.call("advance_from_input", {"dash_pressed": true})
-
-	_runner.assert_false(bool(onboarding.call("is_active")), "dash 단계에 먼저 도착한 실제 강공격 실행도 power_attack 단계 완료로 소비한다")
+	_runner.assert_false(bool(onboarding.call("is_active")), "dash 단계에 먼저 도착한 실제 강공격 실행은 dash와 power_attack 완료로 즉시 소비한다")
 
 	touch.queue_free()
 	player.queue_free()

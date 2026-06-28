@@ -348,7 +348,7 @@ func _on_player_power_attack_executed(_payload: Dictionary = {}) -> void:
 	if step_id != &"dash" and step_id != &"power_attack":
 		return
 	_power_attack_executed_seen = true
-	if step_id == &"power_attack":
+	if step_id == &"dash" or step_id == &"power_attack":
 		_advance_step()
 
 
