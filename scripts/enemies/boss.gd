@@ -16,6 +16,8 @@ const MovementBounds = preload("res://scripts/systems/movement_bounds.gd")
 const FACING_DEADZONE := 0.05
 const HIT_TIMING_EPSILON := 0.0001
 const GROUND_EFFECT_FORWARD_OFFSET := 76.0
+const GROUND_EFFECT_FOLLOWUP_FORWARD_OFFSET := 168.0
+const GROUND_EFFECT_FOLLOWUP_VERTICAL_FORWARD_OFFSET := 124.0
 const GROUND_EFFECT_BASE_OFFSET := Vector2(0.0, 42.0)
 const GROUND_EFFECT_SCALE_MULTIPLIER := 3.4
 const WOUND_EFFECT_FORWARD_OFFSET := 86.0
@@ -36,13 +38,19 @@ enum Phase { RECOVER, TELEGRAPH, CHARGE, SWING }
 @export var weak_attack_damage: int = 2
 @export var weak_attack_range: float = 104.0
 @export var weak_attack_arc: float = 1.6
+@export var weak_ground_damage: int = 2
+@export var weak_ground_hitbox_half_extents := Vector2(112.0, 52.0)
+@export_range(0, 6, 1) var weak_attack_ground_effect_frame := 3
+@export var weak_attack_animation_fps: float = 16.0
+@export var weak_attack_ground_followup_delay: float = 0.12
 @export var strong_attack_damage: int = 3
 @export var strong_attack_range: float = 144.0
 @export var strong_attack_arc: float = 1.8
-@export_range(0, 7, 1) var strong_attack_hit_frame := 3
+@export_range(0, 7, 1) var strong_attack_hit_frame := 4
 @export var strong_attack_animation_fps: float = 12.0
 @export var weak_attack_feedback_intensity: float = 4.5
 @export var strong_attack_feedback_intensity: float = 7.0
+@export_range(0.0, 1.0, 0.05) var knockback_resistance: float = 0.8
 @export var contact_cooldown: float = 0.5
 @export var hit_invuln_time: float = 0.12
 @export var target_group: StringName = &"player"
@@ -60,6 +68,10 @@ var _pattern_index: int = 1   ## 다음 패턴 (0=돌진, 1=약공격) — 첫 �
 var _charge_dir: Vector2 = Vector2.ZERO
 var _charge_elapsed: float = 0.0
 var _strong_attack_hit_resolved: bool = false
+var _weak_attack_dir: Vector2 = Vector2.ZERO
+var _weak_attack_elapsed: float = 0.0
+var _weak_ground_effects_played: int = 0
+var _weak_ground_damage_applied: bool = false
 var _pattern_target: Node2D = null
 var _contact_timer: float = 0.0
 var _hit_reaction: Node = null
@@ -69,6 +81,7 @@ var _movement_bounds_enabled := false
 
 @onready var _sprite: AnimatedSprite2D = get_node_or_null(^"Sprite")
 @onready var _ground_impact_effect: AnimatedSprite2D = get_node_or_null(^"GroundImpactEffect") as AnimatedSprite2D
+@onready var _ground_impact_effect_followup: AnimatedSprite2D = get_node_or_null(^"GroundImpactEffectFollowup") as AnimatedSprite2D
 @onready var _wound_slash_effect: AnimatedSprite2D = get_node_or_null(^"WoundSlashEffect") as AnimatedSprite2D
 
 
@@ -78,6 +91,7 @@ func _ready() -> void:
 	add_to_group(&"boss")
 	_phase_timer = recover_time
 	_bind_attack_effect(_ground_impact_effect)
+	_bind_attack_effect(_ground_impact_effect_followup)
 	_bind_attack_effect(_wound_slash_effect)
 	_ensure_hit_reaction()
 	_reset_health_bar()
@@ -108,6 +122,7 @@ func _physics_process(delta: float) -> void:
 				_begin_recover()
 		Phase.SWING:
 			velocity = Vector2.ZERO
+			_tick_weak_attack_ground_effects(delta)
 			if _phase_timer <= 0.0:
 				_begin_recover()
 
@@ -144,6 +159,15 @@ func strong_attack_hit_ready(elapsed: float, hit_frame: int, animation_speed: fl
 	return elapsed + HIT_TIMING_EPSILON >= float(hit_frame) / animation_speed
 
 
+func weak_ground_effect_count(elapsed: float, effect_frame: int, animation_speed: float, followup_delay: float) -> int:
+	if not strong_attack_hit_ready(elapsed, effect_frame, animation_speed):
+		return 0
+	var first_effect_time := float(effect_frame) / animation_speed if animation_speed > 0.0 else 0.0
+	if elapsed + HIT_TIMING_EPSILON < first_effect_time + maxf(0.0, followup_delay):
+		return 1
+	return 2
+
+
 func attack_effect_layout(
 	facing_direction: Vector2,
 	boss_visual_scale: Vector2,
@@ -160,6 +184,19 @@ func attack_effect_layout(
 		"scale": Vector2.ONE * visual_scale * effect_scale_multiplier,
 		"flip_h": dir.x < -FACING_DEADZONE,
 	}
+
+
+func ground_effect_hits(effect_center: Vector2, target_position: Vector2, hitbox_half_extents: Vector2) -> bool:
+	var extents := Vector2(maxf(0.0, hitbox_half_extents.x), maxf(0.0, hitbox_half_extents.y))
+	var delta := target_position - effect_center
+	return absf(delta.x) <= extents.x and absf(delta.y) <= extents.y
+
+
+func ground_effect_followup_forward_offset(facing_direction: Vector2) -> float:
+	var dir := facing_direction.normalized() if facing_direction.length() > 0.001 else Vector2.RIGHT
+	if absf(dir.y) > absf(dir.x):
+		return GROUND_EFFECT_FOLLOWUP_VERTICAL_FORWARD_OFFSET
+	return GROUND_EFFECT_FOLLOWUP_FORWARD_OFFSET
 
 
 func set_movement_bounds(bounds: Rect2) -> void:
@@ -285,16 +322,7 @@ func _begin_pattern(target: Node2D) -> void:
 		var aim := _aim_to(target)
 		AudioManager.play_sfx(AudioManager.BOSS_WEAK_SLAM)
 		_play_attack_animation(attack_animation, aim)
-		_play_ground_impact_effect(aim)
-		_try_swing_attack(
-			target,
-			aim,
-			weak_attack_range,
-			weak_attack_arc,
-			weak_attack_damage,
-			&"weak_attack",
-			weak_attack_feedback_intensity
-		)
+		_begin_weak_attack_ground_effects(aim)
 		_phase = Phase.SWING
 		_phase_timer = 0.45
 
@@ -304,6 +332,10 @@ func _begin_recover() -> void:
 	_phase_timer = recover_time
 	_charge_elapsed = 0.0
 	_strong_attack_hit_resolved = false
+	_weak_attack_elapsed = 0.0
+	_weak_ground_effects_played = 0
+	_weak_attack_dir = Vector2.ZERO
+	_weak_ground_damage_applied = false
 	_pattern_target = null
 	_play_move_animation()
 
@@ -354,6 +386,46 @@ func _tick_strong_attack_hit(target: Node2D, delta: float) -> void:
 	_try_contact(target)
 
 
+func _begin_weak_attack_ground_effects(facing_direction: Vector2) -> void:
+	_weak_attack_dir = facing_direction
+	_weak_attack_elapsed = 0.0
+	_weak_ground_effects_played = 0
+	_weak_ground_damage_applied = false
+	_hide_attack_effect(_ground_impact_effect)
+	_hide_attack_effect(_ground_impact_effect_followup)
+
+
+func _tick_weak_attack_ground_effects(delta: float) -> void:
+	if _phase != Phase.SWING:
+		return
+	_weak_attack_elapsed += delta
+	var should_have_played := weak_ground_effect_count(
+		_weak_attack_elapsed,
+		weak_attack_ground_effect_frame,
+		weak_attack_animation_fps,
+		weak_attack_ground_followup_delay
+	)
+	if _weak_ground_effects_played < 1 and should_have_played >= 1:
+		var target := _current_pattern_target(_find_target())
+		_play_ground_impact_effect(_ground_impact_effect, _weak_attack_dir, GROUND_EFFECT_FORWARD_OFFSET)
+		_try_swing_attack(
+			target,
+			_weak_attack_dir,
+			weak_attack_range,
+			weak_attack_arc,
+			weak_attack_damage,
+			&"weak_attack",
+			weak_attack_feedback_intensity
+		)
+		_try_ground_effect_attack(target, _weak_attack_dir, GROUND_EFFECT_FORWARD_OFFSET)
+		_weak_ground_effects_played = 1
+	if _weak_ground_effects_played < 2 and should_have_played >= 2:
+		var followup_forward_offset := ground_effect_followup_forward_offset(_weak_attack_dir)
+		_play_ground_impact_effect(_ground_impact_effect_followup, _weak_attack_dir, followup_forward_offset)
+		_try_ground_effect_attack(_current_pattern_target(_find_target()), _weak_attack_dir, followup_forward_offset)
+		_weak_ground_effects_played = 2
+
+
 func _current_pattern_target(fallback: Node2D) -> Node2D:
 	if _pattern_target != null and is_instance_valid(_pattern_target):
 		return _pattern_target
@@ -401,21 +473,52 @@ func _set_sprite_facing_from_direction(direction: Vector2) -> void:
 func _bind_attack_effect(effect: AnimatedSprite2D) -> void:
 	if effect == null:
 		return
+	effect.top_level = true
 	effect.visible = false
 	var callback := _on_attack_effect_finished.bind(effect)
 	if not effect.animation_finished.is_connected(callback):
 		effect.animation_finished.connect(callback)
 
 
-func _play_ground_impact_effect(facing_direction: Vector2) -> void:
+func _play_ground_impact_effect(effect: AnimatedSprite2D, facing_direction: Vector2, forward_offset: float) -> void:
 	if _play_attack_effect(
-		_ground_impact_effect,
+		effect,
 		facing_direction,
-		GROUND_EFFECT_FORWARD_OFFSET,
+		forward_offset,
 		GROUND_EFFECT_BASE_OFFSET,
 		GROUND_EFFECT_SCALE_MULTIPLIER
 	):
 		AudioManager.play_sfx(AudioManager.BOSS_WEAK_GROUND_SPIKE)
+
+
+func _try_ground_effect_attack(target: Node2D, facing_direction: Vector2, forward_offset: float) -> void:
+	if _weak_ground_damage_applied or target == null:
+		return
+	var effect_center := _ground_effect_global_center(facing_direction, forward_offset)
+	if not ground_effect_hits(effect_center, _ground_effect_target_position(target), weak_ground_hitbox_half_extents):
+		return
+	if _apply_damage_if_possible(target, weak_ground_damage):
+		_weak_ground_damage_applied = true
+		_emit_boss_hit_feedback(target, facing_direction, weak_ground_damage, &"weak_ground", weak_attack_feedback_intensity)
+
+
+func _ground_effect_global_center(facing_direction: Vector2, forward_offset: float) -> Vector2:
+	var layout := attack_effect_layout(
+		facing_direction,
+		_boss_visual_scale(),
+		forward_offset,
+		GROUND_EFFECT_BASE_OFFSET,
+		GROUND_EFFECT_SCALE_MULTIPLIER
+	)
+	var local_position: Vector2 = layout["position"]
+	return to_global(local_position)
+
+
+func _ground_effect_target_position(target: Node2D) -> Vector2:
+	var foot_offset: Variant = target.get("attack_dust_foot_offset")
+	if typeof(foot_offset) == TYPE_FLOAT or typeof(foot_offset) == TYPE_INT:
+		return target.global_position + Vector2(0.0, float(foot_offset))
+	return target.global_position
 
 
 func _play_wound_slash_effect(facing_direction: Vector2) -> void:
@@ -440,7 +543,8 @@ func _play_attack_effect(
 	if not effect.sprite_frames.has_animation(ATTACK_EFFECT_ANIMATION):
 		return false
 	var layout := attack_effect_layout(facing_direction, _boss_visual_scale(), forward_offset, base_offset, effect_scale_multiplier)
-	effect.position = layout["position"] as Vector2
+	var local_position := layout["position"] as Vector2
+	effect.global_position = to_global(local_position)
 	effect.scale = layout["scale"] as Vector2
 	effect.flip_h = bool(layout["flip_h"])
 	effect.visible = true
@@ -453,8 +557,13 @@ func _play_attack_effect(
 
 
 func _on_attack_effect_finished(effect: AnimatedSprite2D) -> void:
+	_hide_attack_effect(effect)
+
+
+func _hide_attack_effect(effect: AnimatedSprite2D) -> void:
 	if effect == null or not is_instance_valid(effect):
 		return
+	effect.stop()
 	effect.visible = false
 
 
@@ -525,10 +634,31 @@ func _try_swing_attack(
 	var to_target := target.global_position - global_position
 	if not in_swing_arc(facing, to_target, swing_range, arc):
 		return
-	if target.has_method("take_damage"):
-		target.call("take_damage", damage)
+	if _apply_damage_if_possible(target, damage):
 		_emit_boss_hit_feedback(target, facing, damage, attack_kind, feedback_intensity)
-	_contact_timer = contact_cooldown
+		_contact_timer = contact_cooldown
+
+
+func _apply_damage_if_possible(target: Node2D, damage: int) -> bool:
+	if target == null or not target.has_method("take_damage"):
+		return false
+	if _target_is_hit_invulnerable(target):
+		return false
+	var before_health := _target_health(target)
+	target.call("take_damage", damage)
+	if before_health >= 0:
+		return _target_health(target) < before_health
+	return true
+
+
+func _target_is_hit_invulnerable(target: Node2D) -> bool:
+	return target.has_method("is_hit_invulnerable") and bool(target.call("is_hit_invulnerable"))
+
+
+func _target_health(target: Node2D) -> int:
+	if target.has_method("get_health"):
+		return int(target.call("get_health"))
+	return -1
 
 
 func _emit_boss_hit_feedback(

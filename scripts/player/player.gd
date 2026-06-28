@@ -381,6 +381,10 @@ func knockback_vector(from: Vector2, to: Vector2, distance: float) -> Vector2:
 	return d.normalized() * distance if d.length() > 0.001 else Vector2.ZERO
 
 
+func knockback_after_resistance(distance: float, resistance: float) -> float:
+	return maxf(0.0, distance * (1.0 - clampf(resistance, 0.0, 1.0)))
+
+
 ## 피해 적용 후 체력(0 클램프). 순수 함수(테스트 대상).
 func damaged_health(current: int, amount: int) -> int:
 	return maxi(0, current - amount)
@@ -1014,6 +1018,7 @@ func _attack_melee(dir: Vector2) -> void:
 			if enemy.has_method("take_damage"):
 				enemy.call("take_damage", dmg)
 			var applied_knockback := knockback_distance if _has_bat else barehand_knockback
+			applied_knockback = knockback_after_resistance(applied_knockback, _knockback_resistance_for(enemy))
 			if applied_knockback > 0.0:
 				var knocked_position := e.global_position + knockback_vector(global_position, e.global_position, applied_knockback)
 				e.global_position = _clamp_knockback_position(knocked_position, e)
@@ -1060,6 +1065,15 @@ func _melee_feedback_intensity(power_attack: bool) -> float:
 	if power_attack:
 		return 7.0
 	return 5.5 if _has_bat else 3.0
+
+
+func _knockback_resistance_for(enemy: Object) -> float:
+	if enemy == null:
+		return 0.0
+	for property: Dictionary in enemy.get_property_list():
+		if StringName(property.get("name", "")) == &"knockback_resistance":
+			return clampf(float(enemy.get(&"knockback_resistance")), 0.0, 1.0)
+	return 0.0
 
 
 func _emit_combat_feedback(kind: StringName, dir: Vector2, hit_count: int, intensity: float) -> void:
