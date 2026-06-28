@@ -995,6 +995,8 @@ func _on_boss_spawn_requested(room_id: StringName, boss_id: StringName, spawn_po
 	parent.add_child(boss)
 	if boss is Node2D:
 		(boss as Node2D).global_position = spawn_position
+	if boss.has_method("set_movement_bounds") and parent is Node2D:
+		boss.call("set_movement_bounds", _room_movement_bounds(parent))
 	_active_boss = boss
 	# Swap the run's suspense BGM for the boss-battle track now that the fight has begun.
 	# On defeat the session finishes and the destination scene starts its own BGM, matching

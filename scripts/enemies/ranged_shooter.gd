@@ -14,6 +14,7 @@ const SpawnFadeController = preload("res://scripts/combat/spawn_fade_controller.
 const EnemyDeathFade = preload("res://scripts/combat/enemy_death_fade.gd")
 const EnemyHealthBar = preload("res://scripts/enemies/enemy_health_bar.gd")
 const ENEMY_BULLET := preload("res://scenes/enemies/enemy_bullet.tscn")
+const MovementBounds = preload("res://scripts/systems/movement_bounds.gd")
 const FACING_DEADZONE := 0.01
 
 @export var max_hp: int = 2
@@ -153,7 +154,7 @@ func clamp_to_movement_bounds() -> bool:
 	if not _movement_bounds_enabled:
 		return false
 	var before := global_position
-	var clamped := clamp_position_to_bounds(before, _movement_bounds)
+	var clamped := MovementBounds.clamp_body_position_to_bounds(before, _movement_bounds, self)
 	global_position = clamped
 	if not is_equal_approx(before.x, clamped.x):
 		velocity.x = 0.0
@@ -176,13 +177,14 @@ func clamp_velocity_to_movement_bounds(position: Vector2, next_velocity: Vector2
 		return next_velocity
 	var projected := position + next_velocity * delta
 	var clamped_velocity := next_velocity
-	if projected.x < _movement_bounds.position.x and next_velocity.x < 0.0:
+	var position_bounds := MovementBounds.body_position_bounds(_movement_bounds, self)
+	if projected.x < position_bounds.position.x and next_velocity.x < 0.0:
 		clamped_velocity.x = 0.0
-	elif projected.x > _movement_bounds.end.x and next_velocity.x > 0.0:
+	elif projected.x > position_bounds.end.x and next_velocity.x > 0.0:
 		clamped_velocity.x = 0.0
-	if projected.y < _movement_bounds.position.y and next_velocity.y < 0.0:
+	if projected.y < position_bounds.position.y and next_velocity.y < 0.0:
 		clamped_velocity.y = 0.0
-	elif projected.y > _movement_bounds.end.y and next_velocity.y > 0.0:
+	elif projected.y > position_bounds.end.y and next_velocity.y > 0.0:
 		clamped_velocity.y = 0.0
 	return clamped_velocity
 
