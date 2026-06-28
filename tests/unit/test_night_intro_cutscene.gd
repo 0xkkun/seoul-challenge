@@ -53,11 +53,24 @@ func test_intro_narration_clips_are_importable() -> void:
 	_runner.assert_true(clip_count >= 7, "narration covers the voiced lines")
 
 
+func test_intro_key_lines_keep_expected_voice_clips() -> void:
+	_runner.assert_eq(
+		_find_audio_for_line("아무도 모르는 길을 따라."),
+		"res://assets/audio/night_intro/vo_beat2_2.wav",
+		"길 대사는 교체 대상 클립을 유지한다"
+	)
+	_runner.assert_eq(
+		_find_audio_for_line("돌아오지 못할지도 모른다."),
+		"res://assets/audio/night_intro/vo_beat3_2.wav",
+		"귀환 불가 대사는 교체 대상 클립을 유지한다"
+	)
+
+
 func test_intro_transition_beats_use_ordered_trailer_sfx() -> void:
 	var expected_sfx_ids := [
 		AudioManager.NIGHT_INTRO_TRANSITION_AB,
 		AudioManager.NIGHT_INTRO_TRANSITION_BC,
-		AudioManager.NIGHT_INTRO_TRANSITION_CD,
+		AudioManager.NIGHT_INTRO_TRANSITION_AB,
 	]
 
 	_runner.assert_false(NightIntroCutsceneScript.BEATS[0].has("sfx"), "first beat starts cold without a transition SFX")
@@ -71,6 +84,7 @@ func test_intro_transition_beats_use_ordered_trailer_sfx() -> void:
 		_runner.assert_eq(sfx_id, expected_sfx_id, "intro transition beat %d uses the ordered trailer SFX" % beat_index)
 		_runner.assert_true(AudioManager.has_sfx(sfx_id), "intro transition beat %d SFX is registered" % beat_index)
 		_runner.assert_true(ResourceLoader.exists(sfx_path), "intro transition beat %d SFX resource exists" % beat_index)
+	_runner.assert_eq(NightIntroCutsceneScript.FINALE_SFX, AudioManager.NIGHT_INTRO_TRANSITION_CD, "D가 끝난 뒤 기존 C-D 전환 SFX를 피날레로 재생한다")
 
 
 func test_intro_transition_sfx_sequence_can_be_played() -> void:
@@ -78,15 +92,17 @@ func test_intro_transition_sfx_sequence_can_be_played() -> void:
 		var beat: Dictionary = NightIntroCutsceneScript.BEATS[i]
 		var sfx_id := StringName(beat.get("sfx", &""))
 		AudioManager.play_sfx(sfx_id)
+	AudioManager.play_sfx(NightIntroCutsceneScript.FINALE_SFX)
 
 	_runner.assert_eq(
 		AudioManager.get_played_sfx(),
 		[
 			AudioManager.NIGHT_INTRO_TRANSITION_AB,
 			AudioManager.NIGHT_INTRO_TRANSITION_BC,
+			AudioManager.NIGHT_INTRO_TRANSITION_AB,
 			AudioManager.NIGHT_INTRO_TRANSITION_CD,
 		],
-		"intro plays trailer transition SFX in A-B, B-C, C-D order"
+		"intro plays A-B for D entry, then the original C-D SFX after D ends"
 	)
 
 
@@ -118,6 +134,18 @@ func test_intro_transition_sfx_replaces_previous_bed() -> void:
 	intro.queue_free()
 
 
+func test_intro_finale_sfx_stops_before_session_handoff() -> void:
+	var intro := NightIntroCutsceneScript.new()
+	add_child(intro)
+
+	intro.call("_play_transition_sfx", NightIntroCutsceneScript.FINALE_SFX)
+	intro.call("_stop_transition_sfx")
+
+	_runner.assert_eq(AudioManager.get_played_sfx(), [AudioManager.NIGHT_INTRO_TRANSITION_CD], "피날레는 기존 C-D 전환 SFX를 재생한다")
+	_runner.assert_eq(AudioManager.get_stopped_sfx(), [AudioManager.NIGHT_INTRO_TRANSITION_CD], "세션 handoff 전 피날레 SFX를 정지해 다음 전환음과 겹치지 않는다")
+	intro.queue_free()
+
+
 func test_intro_skip_stops_active_transition_sfx() -> void:
 	var intro := NightIntroCutsceneScript.new()
 	add_child(intro)
@@ -142,3 +170,11 @@ func test_skip_finishes_immediately_before_playing() -> void:
 	intro.skip()
 	_runner.assert_eq(finished_count[0], 1, "a second skip does not re-emit finished")
 	intro.free()
+
+
+func _find_audio_for_line(text: String) -> String:
+	for beat: Dictionary in NightIntroCutsceneScript.BEATS:
+		for line: Dictionary in beat["lines"]:
+			if String(line.get("text", "")) == text:
+				return String(line.get("audio", ""))
+	return ""
