@@ -1026,6 +1026,10 @@ func _set_encounter_beat(ui: HubDialogueUi, beat: Dictionary) -> void:
 		int(beat.get("frame", 0)),
 		false,
 	)
+	if beat.has("portrait_scale") or beat.has("portrait_y"):
+		var portrait_scale: Vector2 = beat.get("portrait_scale", HubDialogueUi.DEFAULT_PORTRAIT_SCALE)
+		var portrait_y := float(beat.get("portrait_y", HubDialogueUi.DEFAULT_PORTRAIT_Y))
+		ui.set_portrait_layout(portrait_scale, portrait_y)
 	var continue_choice: Array[Dictionary] = [{
 		"id": &"continue",
 		"tap_to_continue": true,

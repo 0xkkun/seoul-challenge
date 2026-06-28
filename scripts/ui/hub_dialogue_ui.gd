@@ -15,6 +15,8 @@ const DIALOGUE_BAR_HEIGHT := 152.0
 const UNLOCK_POPUP_SIZE := Vector2(338.0, 148.0)
 const UNLOCK_POPUP_CENTER_OFFSET := Vector2(0.0, -58.0)
 const DIALOGUE_LINE_SEPARATION := 7
+const DEFAULT_PORTRAIT_SCALE := Vector2(2.55, 2.55)
+const DEFAULT_PORTRAIT_Y := 173.0
 const CONTINUE_HINT_TOUCH := "탭해서 계속"
 const CHOICE_ASK := &"ask"
 const CHOICE_ACCEPT := &"accept"
@@ -236,6 +238,19 @@ func get_portrait_texture_path() -> String:
 	return _portrait_sprite.texture.resource_path
 
 
+func get_portrait_scale() -> Vector2:
+	return _portrait_sprite.scale
+
+
+func get_portrait_position() -> Vector2:
+	return _portrait_sprite.position
+
+
+func set_portrait_layout(scale: Vector2, y_position: float) -> void:
+	_portrait_sprite.scale = scale
+	_portrait_sprite.position.y = y_position
+
+
 func set_stage(current_stage: int, completed_stage := -1, next_stage_labels: Array[String] = []) -> void:
 	if not next_stage_labels.is_empty():
 		_stage_labels = next_stage_labels.duplicate()
@@ -385,6 +400,8 @@ func _configure_portrait(
 	if portrait_texture == null:
 		_portrait_sprite.visible = false
 		_portrait_sprite.texture = null
+		_portrait_sprite.scale = DEFAULT_PORTRAIT_SCALE
+		_portrait_sprite.position.y = DEFAULT_PORTRAIT_Y
 		_portrait_frame_count = 1
 		_portrait_elapsed = 0.0
 		_portrait_animates = false
@@ -397,6 +414,8 @@ func _configure_portrait(
 	_portrait_accent.visible = false
 	_portrait_sprite.visible = true
 	_portrait_sprite.texture = portrait_texture
+	_portrait_sprite.scale = DEFAULT_PORTRAIT_SCALE
+	_portrait_sprite.position.y = DEFAULT_PORTRAIT_Y
 	_portrait_sprite.hframes = _get_square_sheet_hframes(portrait_texture)
 	_portrait_sprite.vframes = 1
 	_portrait_frame_count = maxi(1, _portrait_sprite.hframes * _portrait_sprite.vframes)
