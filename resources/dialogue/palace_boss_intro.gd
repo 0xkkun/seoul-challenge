@@ -15,7 +15,7 @@ const BOSS_PORTRAIT_Y := 66.0
 const INTRO_FIRST: Array[Dictionary] = [
 	{"speaker": "도깨비왕", "portrait": BOSS, "portrait_scale": BOSS_PORTRAIT_SCALE, "portrait_y": BOSS_PORTRAIT_Y, "frame": 0, "text": "여기까지 걸어 들어온 인간은 오랜만이군."},
 	{"speaker": "도깨비왕", "portrait": BOSS, "portrait_scale": BOSS_PORTRAIT_SCALE, "portrait_y": BOSS_PORTRAIT_Y, "frame": 0, "text": "궁의 밤은 내 것이다. 네가 찾는 아이도, 네 길도."},
-	{"speaker": "도깨비왕", "portrait": BOSS, "portrait_scale": BOSS_PORTRAIT_SCALE, "portrait_y": BOSS_PORTRAIT_Y, "frame": 0, "text": "마지막 시즌의 배트 하나로 궁의 문을 열 수 있다고 믿었나."},
+	{"speaker": "도깨비왕", "portrait": BOSS, "portrait_scale": BOSS_PORTRAIT_SCALE, "portrait_y": BOSS_PORTRAIT_Y, "frame": 0, "text": "고작 배트 하나로 궁의 문을 열 수 있다고 믿었나."},
 	{"speaker": "도깨비왕", "portrait": BOSS, "portrait_scale": BOSS_PORTRAIT_SCALE, "portrait_y": BOSS_PORTRAIT_Y, "frame": 0, "text": "좋다. 마지막 문 앞에서 네 힘을 증명해 봐라."},
 ]
 
