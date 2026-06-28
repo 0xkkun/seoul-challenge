@@ -244,12 +244,43 @@ func test_weak_attack_plays_ground_effect_without_wound_effect() -> void:
 	_runner.assert_true(ground_followup.is_playing(), "두 번째 대지 이펙트 애니메이션이 재생 중이다")
 	_runner.assert_eq(ground_followup.frame, 0, "두 번째 대지 이펙트도 첫 프레임부터 재생한다")
 	_assert_vector2_approx(ground_followup.scale, Vector2(4.59, 4.59), 0.01, "두 번째 대지 이펙트 스케일도 보스 visual scale 기반이다")
-	_assert_vector2_approx(ground_followup.position, Vector2(286.2, 56.7), 0.01, "두 번째 대지 이펙트는 투명 여백을 고려해 첫 대지 쪽으로 붙는다")
+	_assert_vector2_approx(ground_followup.position, Vector2(226.8, 56.7), 0.01, "두 번째 대지 이펙트는 투명 여백을 고려해 첫 대지 쪽으로 더 붙는다")
 	_runner.assert_true(
-		absf(ground_followup.position.x - ground.position.x) < 48.0 * ground.scale.x,
-		"두 대지 이펙트 중심 간격은 확대된 대지 폭보다 작아 시각적 빈틈을 없앤다"
+		absf(ground_followup.position.x - ground.position.x) < 32.0 * ground.scale.x,
+		"두 대지 이펙트 중심 간격은 투명 여백을 고려해 확대된 대지 폭보다 충분히 작다"
 	)
 	_runner.assert_false(wound.visible, "보스 약공격은 강공격 상처 이펙트를 섞지 않는다")
+	b.queue_free()
+	target.queue_free()
+
+
+func test_weak_ground_followup_uses_tighter_vertical_spacing() -> void:
+	var b = BossScene.instantiate()
+	var target := DamageTarget.new()
+	add_child(b)
+	add_child(target)
+	b.global_position = Vector2.ZERO
+	target.global_position = Vector2.DOWN * 240.0
+	var ground := b.get_node_or_null("GroundImpactEffect") as AnimatedSprite2D
+	var ground_followup := b.get_node_or_null("GroundImpactEffectFollowup") as AnimatedSprite2D
+	_runner.assert_not_null(ground, "보스 약공격은 대지 이펙트 노드를 가진다")
+	_runner.assert_not_null(ground_followup, "보스 약공격은 두 번째 대지 이펙트 노드를 가진다")
+	if ground == null or ground_followup == null:
+		b.queue_free()
+		target.queue_free()
+		return
+
+	b.set("_pattern_index", 1)
+	b.call("_begin_pattern", target)
+	b.call("_tick_weak_attack_ground_effects", float(b.weak_attack_ground_effect_frame) / b.weak_attack_animation_fps)
+	b.call("_tick_weak_attack_ground_effects", b.weak_attack_ground_followup_delay)
+
+	_assert_vector2_approx(ground.position, Vector2(0.0, 159.3), 0.01, "아래 방향 첫 대지는 보스 전방 발밑에 놓인다")
+	_assert_vector2_approx(ground_followup.position, Vector2(0.0, 224.1), 0.01, "아래 방향 두 번째 대지는 첫 대지 바로 아래에 붙는다")
+	_runner.assert_true(
+		absf(ground_followup.position.y - ground.position.y) < 18.0 * ground.scale.y,
+		"위/아래 방향 두 대지 이펙트 중심 간격은 확대된 대지 높이보다 작아야 한다"
+	)
 	b.queue_free()
 	target.queue_free()
 
@@ -287,7 +318,7 @@ func test_weak_ground_effects_damage_once_across_two_spikes() -> void:
 	b.call("_tick_weak_attack_ground_effects", float(b.weak_attack_ground_effect_frame) / b.weak_attack_animation_fps)
 	_runner.assert_eq(target.damage_taken, b.weak_ground_damage, "첫 대지 이펙트 위치에 서 있으면 첫 대지 피해를 받는다")
 
-	target.global_position = Vector2(286.2, 56.7)
+	target.global_position = Vector2(226.8, 56.7)
 	b.call("_tick_weak_attack_ground_effects", b.weak_attack_ground_followup_delay)
 	_runner.assert_eq(target.damage_taken, b.weak_ground_damage, "한 번 대지 피해를 받았으면 두 번째 대지는 추가 피해를 주지 않는다")
 	b.queue_free()
@@ -308,7 +339,7 @@ func test_weak_ground_followup_can_hit_once_if_first_spike_misses() -> void:
 	b.call("_tick_weak_attack_ground_effects", float(b.weak_attack_ground_effect_frame) / b.weak_attack_animation_fps)
 	_runner.assert_eq(target.damage_taken, 0, "첫 대지 이펙트 반경 밖에 있으면 아직 피해를 받지 않는다")
 
-	target.global_position = Vector2(286.2, 56.7)
+	target.global_position = Vector2(226.8, 56.7)
 	b.call("_tick_weak_attack_ground_effects", b.weak_attack_ground_followup_delay)
 
 	_runner.assert_eq(target.damage_taken, b.weak_ground_damage, "첫 대지를 피했으면 두 번째 대지 이펙트 위치에서 한 번 피해를 받는다")

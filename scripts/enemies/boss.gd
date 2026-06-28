@@ -15,7 +15,8 @@ const EnemyHealthBar = preload("res://scripts/enemies/enemy_health_bar.gd")
 const FACING_DEADZONE := 0.05
 const HIT_TIMING_EPSILON := 0.0001
 const GROUND_EFFECT_FORWARD_OFFSET := 76.0
-const GROUND_EFFECT_FOLLOWUP_FORWARD_OFFSET := 212.0
+const GROUND_EFFECT_FOLLOWUP_FORWARD_OFFSET := 168.0
+const GROUND_EFFECT_FOLLOWUP_VERTICAL_FORWARD_OFFSET := 124.0
 const GROUND_EFFECT_BASE_OFFSET := Vector2(0.0, 42.0)
 const GROUND_EFFECT_SCALE_MULTIPLIER := 3.4
 const WOUND_EFFECT_FORWARD_OFFSET := 86.0
@@ -185,6 +186,13 @@ func ground_effect_hits(effect_center: Vector2, target_position: Vector2, hitbox
 	var extents := Vector2(maxf(0.0, hitbox_half_extents.x), maxf(0.0, hitbox_half_extents.y))
 	var delta := target_position - effect_center
 	return absf(delta.x) <= extents.x and absf(delta.y) <= extents.y
+
+
+func ground_effect_followup_forward_offset(facing_direction: Vector2) -> float:
+	var dir := facing_direction.normalized() if facing_direction.length() > 0.001 else Vector2.RIGHT
+	if absf(dir.y) > absf(dir.x):
+		return GROUND_EFFECT_FOLLOWUP_VERTICAL_FORWARD_OFFSET
+	return GROUND_EFFECT_FOLLOWUP_FORWARD_OFFSET
 
 
 # --- 피격 반응 (계약 #136) ---
@@ -365,8 +373,9 @@ func _tick_weak_attack_ground_effects(delta: float) -> void:
 		_try_ground_effect_attack(_current_pattern_target(_find_target()), _weak_attack_dir, GROUND_EFFECT_FORWARD_OFFSET)
 		_weak_ground_effects_played = 1
 	if _weak_ground_effects_played < 2 and should_have_played >= 2:
-		_play_ground_impact_effect(_ground_impact_effect_followup, _weak_attack_dir, GROUND_EFFECT_FOLLOWUP_FORWARD_OFFSET)
-		_try_ground_effect_attack(_current_pattern_target(_find_target()), _weak_attack_dir, GROUND_EFFECT_FOLLOWUP_FORWARD_OFFSET)
+		var followup_forward_offset := ground_effect_followup_forward_offset(_weak_attack_dir)
+		_play_ground_impact_effect(_ground_impact_effect_followup, _weak_attack_dir, followup_forward_offset)
+		_try_ground_effect_attack(_current_pattern_target(_find_target()), _weak_attack_dir, followup_forward_offset)
 		_weak_ground_effects_played = 2
 
 
