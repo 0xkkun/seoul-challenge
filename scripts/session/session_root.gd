@@ -32,6 +32,10 @@ const ROOM_ENTRY_SPAWN_INSET := Vector2(140.0, 96.0)
 const TOP_LEFT_HUD_GAP := 8.0
 const BASEBALL_ONBOARDING_LAYOUT_ID := &"onboarding_baseball_captain"
 const REWARD_CHOICE_DELAY_SECONDS := 1.0
+const PURIFY_ONBOARDING_INTRO_MESSAGE := "요괴에 씌인 친구를 정화시켜주세요"
+const PURIFY_ONBOARDING_GROGGY_MESSAGE := "친구에게 다가가면 정화의식이 시작돼요!"
+const PURIFY_ONBOARDING_TARGET_SIZE := Vector2(148.0, 170.0)
+const PURIFY_ONBOARDING_TARGET_OFFSET := Vector2(0.0, -54.0)
 
 @onready var world_layer: Node2D = $WorldLayer
 @onready var room_layer: Node2D = %RoomLayer
@@ -47,6 +51,7 @@ const REWARD_CHOICE_DELAY_SECONDS := 1.0
 @onready var combat_hud: CanvasLayer = %CombatHud
 @onready var session_ui_root: CanvasLayer = %SessionUIRoot
 @onready var ingame_control_onboarding: CanvasLayer = %IngameControlOnboarding
+@onready var purify_onboarding_spotlight: PurifyOnboardingSpotlight = %PurifyOnboardingSpotlight
 @onready var player_camera: Camera2D = %PlayerCamera
 @onready var _fade_rect: ColorRect = $FadeLayer/FadeRect
 @onready var _minimap: Control = $MinimapLayer/Minimap
@@ -83,6 +88,11 @@ var _baseball_friend_intro_active := false
 var _paused_before_baseball_friend_intro := false
 var _baseball_friend_intro_ui: HubDialogueUi = null
 var _baseball_friend_intro_shown := false
+var _purify_onboarding_active := false
+var _purify_onboarding_intro_shown := false
+var _purify_onboarding_groggy_shown := false
+var _paused_before_purify_onboarding := false
+var _touch_controls_visible_before_purify_onboarding := true
 
 
 func _ready() -> void:
@@ -97,6 +107,7 @@ func _ready() -> void:
 	PoolManager.register_scene(&"sample_marker", POOLED_MARKER_SCENE, 1, pooled_object_layer)
 	interaction_system.configure(actor, self)
 	_configure_player_camera()
+	_configure_purify_onboarding_spotlight()
 	_configure_ingame_control_onboarding()
 	death_return_controller.death_result_builder_callable = Callable(self, "_build_death_result")
 	death_return_controller.game_over_callable = Callable(self, "_show_death_summary")
@@ -156,10 +167,17 @@ func _configure_ingame_control_onboarding() -> void:
 		ingame_control_onboarding.visible = false
 
 
+func _configure_purify_onboarding_spotlight() -> void:
+	if purify_onboarding_spotlight == null:
+		return
+	purify_onboarding_spotlight.configure(player_camera)
+
+
 func _exit_tree() -> void:
 	# (e) 보스 인트로 도중 세션이 끝나면 pause/터치 입력을 복원한다(스턱 pause 방지).
 	_finish_boss_intro()
 	_finish_baseball_friend_intro()
+	_finish_purify_onboarding_spotlight()
 	_cancel_reward_choice_delay()
 	if room_manager != null:
 		room_manager.transition_blocked_callable = Callable()
@@ -212,6 +230,25 @@ func advance_encounter_dialogue_for_tests() -> bool:
 		return false
 	ui.select_choice(&"continue")
 	return true
+
+
+func is_purify_onboarding_spotlight_visible() -> bool:
+	return _is_purify_onboarding_spotlight_active()
+
+
+func get_purify_onboarding_snapshot() -> Dictionary:
+	if purify_onboarding_spotlight == null or not is_instance_valid(purify_onboarding_spotlight):
+		return {}
+	return purify_onboarding_spotlight.get_snapshot()
+
+
+func dismiss_purify_onboarding_for_tests() -> bool:
+	if purify_onboarding_spotlight == null or not is_instance_valid(purify_onboarding_spotlight):
+		return false
+	var dismissed := purify_onboarding_spotlight.dismiss()
+	if dismissed:
+		_finish_purify_onboarding_spotlight()
+	return dismissed
 
 
 func _build_run_layout() -> RoomLayout:
@@ -613,7 +650,7 @@ func flush_pending_reward_choice_for_tests() -> bool:
 
 
 func _is_room_transition_blocked_by_reward(_current_room_id: StringName, _preferred_room_id: StringName) -> bool:
-	return _pending_reward_room_id != &"" or _boss_intro_active or _baseball_friend_intro_active
+	return _pending_reward_room_id != &"" or _boss_intro_active or _baseball_friend_intro_active or _is_purify_onboarding_spotlight_active()
 
 
 func get_reward_choice_delay_snapshot() -> Dictionary:
@@ -776,6 +813,8 @@ func _start_camera_feedback_recover(offsets: Array = []) -> void:
 
 
 func _on_friend_purified(payload: Dictionary) -> void:
+	if is_queued_for_deletion() or not is_inside_tree():
+		return
 	var friend_id := StringName(payload.get("friend_id", &""))
 	if friend_id == &"" or _friend_ids.has(friend_id):
 		return
@@ -960,12 +999,26 @@ func _connect_friend_room(room: Node) -> void:
 	var callback := Callable(self, "_on_friend_encounter_started")
 	if not room.is_connected("friend_encounter_started", callback):
 		room.connect("friend_encounter_started", callback)
+	if room.has_signal("friend_spawned"):
+		var spawned_callback := Callable(self, "_on_friend_spawned")
+		if not room.is_connected("friend_spawned", spawned_callback):
+			room.connect("friend_spawned", spawned_callback)
 
 
 func _on_friend_encounter_started(room_id: StringName) -> void:
 	if not _should_play_baseball_friend_intro(room_id):
 		return
 	_play_baseball_friend_intro()
+
+
+func _on_friend_spawned(room_id: StringName, friend_id: StringName, friend: Node) -> void:
+	if not _should_attach_purify_onboarding(room_id, friend_id):
+		return
+	if friend == null or not friend.has_signal("stunned"):
+		return
+	var callback := Callable(self, "_on_onboarding_friend_stunned").bind(friend)
+	if not friend.is_connected("stunned", callback):
+		friend.connect("stunned", callback)
 
 
 func _should_play_baseball_friend_intro(room_id: StringName) -> bool:
@@ -979,6 +1032,24 @@ func _should_play_baseball_friend_intro(room_id: StringName) -> bool:
 	if room == null:
 		return false
 	return StringName(room.get("friend_id")) == &"baseball_captain"
+
+
+func _should_attach_purify_onboarding(room_id: StringName, friend_id: StringName) -> bool:
+	if not _is_baseball_onboarding_run():
+		return false
+	if room_id != &"friend_1":
+		return false
+	return friend_id == &"baseball_captain"
+
+
+func _on_onboarding_friend_stunned(friend: Node) -> void:
+	if _purify_onboarding_groggy_shown:
+		return
+	if not _is_baseball_onboarding_run():
+		return
+	if friend == null or not is_instance_valid(friend):
+		return
+	_play_purify_onboarding_spotlight(&"groggy", friend)
 
 
 func _on_boss_spawn_requested(room_id: StringName, boss_id: StringName, spawn_position: Vector2) -> void:
@@ -1061,6 +1132,8 @@ func _play_baseball_friend_intro() -> void:
 		_set_encounter_beat(_baseball_friend_intro_ui, beat)
 		await _baseball_friend_intro_ui.choice_selected
 	_finish_baseball_friend_intro()
+	if _should_play_purify_intro_spotlight():
+		await _play_purify_onboarding_spotlight(&"intro", _find_active_onboarding_friend())
 
 
 func _finish_baseball_friend_intro() -> void:
@@ -1074,6 +1147,81 @@ func _finish_baseball_friend_intro() -> void:
 	if tree != null:
 		tree.paused = _paused_before_baseball_friend_intro
 	_restore_touch_controls_after_reward_choice()
+
+
+func _should_play_purify_intro_spotlight() -> bool:
+	if _purify_onboarding_intro_shown:
+		return false
+	if not _is_baseball_onboarding_run():
+		return false
+	return room_manager != null and room_manager.current_room_id == &"friend_1"
+
+
+func _find_active_onboarding_friend() -> Node2D:
+	if room_manager == null or room_manager.current_room == null:
+		return null
+	if not room_manager.current_room.has_method("get_active_friends"):
+		return null
+	var friends: Array = room_manager.current_room.call("get_active_friends")
+	for friend: Node in friends:
+		if friend is Node2D and is_instance_valid(friend):
+			return friend as Node2D
+	return null
+
+
+func _play_purify_onboarding_spotlight(step_id: StringName, target: Node) -> void:
+	if _purify_onboarding_active:
+		return
+	var target_2d := target as Node2D
+	if target_2d == null or not is_instance_valid(target_2d):
+		return
+	if purify_onboarding_spotlight == null or not is_instance_valid(purify_onboarding_spotlight):
+		return
+	_purify_onboarding_active = true
+	if step_id == &"intro":
+		_purify_onboarding_intro_shown = true
+	elif step_id == &"groggy":
+		_purify_onboarding_groggy_shown = true
+	_paused_before_purify_onboarding = get_tree().paused
+	_touch_controls_visible_before_purify_onboarding = touch_controls.visible if touch_controls != null else true
+	_release_combat_touch_inputs()
+	if touch_controls != null:
+		touch_controls.visible = false
+	get_tree().paused = true
+	var message := PURIFY_ONBOARDING_GROGGY_MESSAGE if step_id == &"groggy" else PURIFY_ONBOARDING_INTRO_MESSAGE
+	purify_onboarding_spotlight.show_step(
+		step_id,
+		message,
+		target_2d,
+		PURIFY_ONBOARDING_TARGET_SIZE,
+		PURIFY_ONBOARDING_TARGET_OFFSET
+	)
+	await purify_onboarding_spotlight.dismissed
+	_finish_purify_onboarding_spotlight()
+
+
+func _finish_purify_onboarding_spotlight() -> void:
+	if not _purify_onboarding_active:
+		return
+	_purify_onboarding_active = false
+	if purify_onboarding_spotlight != null and is_instance_valid(purify_onboarding_spotlight):
+		purify_onboarding_spotlight.dismiss()
+	var tree := get_tree()
+	if tree != null:
+		tree.paused = _paused_before_purify_onboarding
+	if touch_controls != null:
+		touch_controls.visible = _touch_controls_visible_before_purify_onboarding
+
+
+func _is_purify_onboarding_spotlight_active() -> bool:
+	return (
+		_purify_onboarding_active
+		or (
+			purify_onboarding_spotlight != null
+			and is_instance_valid(purify_onboarding_spotlight)
+			and purify_onboarding_spotlight.is_active()
+		)
+	)
 
 
 ## 보스 등장 직전 인게임 대사 시퀀스를 재생한다(코루틴). 비트가 없으면 즉시 반환.
