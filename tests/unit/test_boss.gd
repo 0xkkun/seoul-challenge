@@ -195,10 +195,12 @@ func test_weak_attack_plays_ground_effect_without_wound_effect() -> void:
 	b.global_position = Vector2.ZERO
 	target.global_position = Vector2.RIGHT * 80.0
 	var ground := b.get_node_or_null("GroundImpactEffect") as AnimatedSprite2D
+	var ground_followup := b.get_node_or_null("GroundImpactEffectFollowup") as AnimatedSprite2D
 	var wound := b.get_node_or_null("WoundSlashEffect") as AnimatedSprite2D
 	_runner.assert_not_null(ground, "보스 약공격은 대지 이펙트 노드를 가진다")
+	_runner.assert_not_null(ground_followup, "보스 약공격은 두 번째 대지 이펙트 노드를 가진다")
 	_runner.assert_not_null(wound, "보스 강공격은 상처 이펙트 노드를 가진다")
-	if ground == null or wound == null:
+	if ground == null or ground_followup == null or wound == null:
 		b.queue_free()
 		target.queue_free()
 		return
@@ -206,13 +208,33 @@ func test_weak_attack_plays_ground_effect_without_wound_effect() -> void:
 	b.set("_pattern_index", 1)
 	b.call("_begin_pattern", target)
 
-	_runner.assert_true(ground.visible, "보스 약공격은 땅을 내려칠 때 대지 이펙트를 재생한다")
+	_runner.assert_false(ground.visible, "보스 약공격은 방망이를 드는 프레임에 대지 이펙트를 먼저 재생하지 않는다")
+	_runner.assert_false(ground_followup.visible, "두 번째 대지 이펙트도 약공격 시작 프레임에는 숨긴다")
+
+	b.call("_tick_weak_attack_ground_effects", (float(b.weak_attack_ground_effect_frame) / b.weak_attack_animation_fps) - 0.01)
+	_runner.assert_false(ground.visible, "보스 약공격은 방망이가 내려오기 전까지 대지 이펙트를 재생하지 않는다")
+
+	b.call("_tick_weak_attack_ground_effects", 0.02)
+	_runner.assert_true(ground.visible, "보스 약공격은 방망이를 내려치는 프레임에 첫 대지 이펙트를 재생한다")
 	_runner.assert_eq(ground.animation, &"impact", "대지 이펙트는 임팩트 애니메이션을 사용한다")
 	_runner.assert_true(ground.is_playing(), "대지 이펙트 애니메이션이 재생 중이다")
 	_runner.assert_eq(ground.frame, 0, "대지 이펙트는 첫 프레임부터 재생한다")
 	_runner.assert_true(ground.scale.x >= 4.5, "대지 이펙트는 보스 확대 비율을 반영해 충분히 크게 재생한다")
 	_assert_vector2_approx(ground.scale, Vector2(4.59, 4.59), 0.01, "대지 이펙트 스케일은 보스 visual scale 기반이다")
 	_assert_vector2_approx(ground.position, Vector2(102.6, 56.7), 0.01, "대지 이펙트는 오른쪽 약공격 전방 발밑에 놓인다")
+	_runner.assert_false(ground_followup.visible, "두 번째 대지 이펙트는 첫 대지보다 늦게 솟아난다")
+
+	b.call("_tick_weak_attack_ground_effects", b.weak_attack_ground_followup_delay)
+	_runner.assert_true(ground_followup.visible, "첫 대지 뒤에 두 번째 대지 이펙트가 이어서 솟아난다")
+	_runner.assert_eq(ground_followup.animation, &"impact", "두 번째 대지 이펙트도 임팩트 애니메이션을 사용한다")
+	_runner.assert_true(ground_followup.is_playing(), "두 번째 대지 이펙트 애니메이션이 재생 중이다")
+	_runner.assert_eq(ground_followup.frame, 0, "두 번째 대지 이펙트도 첫 프레임부터 재생한다")
+	_assert_vector2_approx(ground_followup.scale, Vector2(4.59, 4.59), 0.01, "두 번째 대지 이펙트 스케일도 보스 visual scale 기반이다")
+	_assert_vector2_approx(ground_followup.position, Vector2(337.5, 56.7), 0.01, "두 번째 대지 이펙트는 첫 대지와 겹치지 않도록 더 멀리 놓인다")
+	_runner.assert_true(
+		absf(ground_followup.position.x - ground.position.x) > 48.0 * ground.scale.x,
+		"두 대지 이펙트 중심 간격은 확대된 대지 폭보다 커서 서로 겹치지 않는다"
+	)
 	_runner.assert_false(wound.visible, "보스 약공격은 강공격 상처 이펙트를 섞지 않는다")
 	b.queue_free()
 	target.queue_free()
