@@ -71,7 +71,7 @@ const BOSS_RESULT_REPORT_LINES := [
 @export var background_asset_scale := 1.0
 @export var character_asset_scale := 2.4
 @export var character_walk_fps := 8.0
-@export var character_idle_fps := 1.6
+@export var character_idle_fps := 4.0
 ## 멈춤 상태 전용 idle 시트(없으면 걷기 시트 프레임으로 폴백).
 @export var character_idle_texture: Texture2D
 @export var character_idle_frames: PackedInt32Array = PackedInt32Array([0, 1, 2, 3, 4, 5, 6])
