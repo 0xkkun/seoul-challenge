@@ -214,6 +214,9 @@ func test_weak_attack_plays_ground_effect_without_wound_effect() -> void:
 	_runner.assert_eq(ground.animation, &"impact", "대지 이펙트는 임팩트 애니메이션을 사용한다")
 	_runner.assert_true(ground.is_playing(), "대지 이펙트 애니메이션이 재생 중이다")
 	_runner.assert_eq(ground.frame, 0, "대지 이펙트는 첫 프레임부터 재생한다")
+	_runner.assert_true(ground.scale.x >= 4.5, "대지 이펙트는 보스 확대 비율을 반영해 충분히 크게 재생한다")
+	_assert_vector2_approx(ground.scale, Vector2(4.59, 4.59), 0.01, "대지 이펙트 스케일은 보스 visual scale 기반이다")
+	_assert_vector2_approx(ground.position, Vector2(102.6, 56.7), 0.01, "대지 이펙트는 오른쪽 약공격 전방 발밑에 놓인다")
 	_runner.assert_false(wound.visible, "보스 약공격은 강공격 상처 이펙트를 섞지 않는다")
 	b.queue_free()
 	target.queue_free()
@@ -312,6 +315,8 @@ func test_strong_attack_plays_wound_effect_on_contact_frame_only() -> void:
 	_runner.assert_eq(wound.animation, &"impact", "상처 이펙트는 임팩트 애니메이션을 사용한다")
 	_runner.assert_true(wound.is_playing(), "상처 이펙트 애니메이션이 재생 중이다")
 	_runner.assert_eq(wound.frame, 0, "상처 이펙트는 첫 프레임부터 재생한다")
+	_assert_vector2_approx(wound.scale, Vector2(1.6875, 1.6875), 0.01, "상처 이펙트 스케일은 보스 visual scale 기반이다")
+	_assert_vector2_approx(wound.position, Vector2(116.1, 0.0), 0.01, "상처 이펙트는 오른쪽 강공격 타격 중심 앞에 놓인다")
 	b.queue_free()
 	target.queue_free()
 
@@ -357,3 +362,7 @@ func test_strong_attack_hit_window_closes_after_contact_frame() -> void:
 	_runner.assert_eq(target.damage_taken, 0, "강공격 임팩트 프레임을 놓친 뒤 늦게 들어와도 피해 판정은 다시 열리지 않는다")
 	b.queue_free()
 	target.queue_free()
+
+
+func _assert_vector2_approx(actual: Vector2, expected: Vector2, tolerance: float, message: String) -> void:
+	_runner.assert_true(actual.distance_to(expected) <= tolerance, "%s: expected %s, got %s" % [message, expected, actual])

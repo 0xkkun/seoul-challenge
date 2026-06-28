@@ -14,6 +14,7 @@ const REFERENCE_SIZE := Vector2(844.0, 390.0)
 const DIALOGUE_BAR_HEIGHT := 152.0
 const UNLOCK_POPUP_SIZE := Vector2(338.0, 148.0)
 const UNLOCK_POPUP_CENTER_OFFSET := Vector2(0.0, -58.0)
+const DIALOGUE_LINE_SEPARATION := 7
 const CONTINUE_HINT_TOUCH := "탭해서 계속"
 const CHOICE_ASK := &"ask"
 const CHOICE_ACCEPT := &"accept"
@@ -787,6 +788,7 @@ func _apply_static_styles() -> void:
 	_name_label.add_theme_stylebox_override("normal", _make_panel_style(NAMEPLATE_COLOR, Color(0.07, 0.08, 0.1), 2))
 	_dialogue_label.add_theme_color_override("default_color", Color.WHITE)
 	_dialogue_label.add_theme_font_size_override("normal_font_size", 18)
+	_dialogue_label.add_theme_constant_override("line_separation", DIALOGUE_LINE_SEPARATION)
 	FontRoles.apply_body(_dialogue_label)
 	_memory_label.add_theme_color_override("font_color", MEMORY_TEXT_COLOR)
 	_memory_label.add_theme_font_size_override("font_size", 13)

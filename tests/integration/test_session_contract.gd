@@ -331,6 +331,7 @@ func test_baseball_onboarding_friend_purification_finishes_run_and_sets_reward_f
 
 	var manager := session.get_node("%RoomManager") as RoomManager
 	_runner.assert_true(manager.enter_room(&"friend_1"), "test enters the onboarding friend room")
+	_drain_active_encounter_dialogue(session)
 	var friends: Array = manager.current_room.call("get_active_friends")
 	_runner.assert_eq(friends.size(), 1, "onboarding friend room spawns the captain target")
 	if friends.size() == 1:
@@ -346,6 +347,35 @@ func test_baseball_onboarding_friend_purification_finishes_run_and_sets_reward_f
 	_runner.assert_true(SaveManager.get_flag(SceneTransition.FLAG_ONBOARDING_BASEBALL_COMPLETE), "day corridor reward dialogue is unlocked")
 	_runner.assert_false(SaveManager.get_flag(SceneTransition.FLAG_BASEBALL_CAPTAIN_REWARD_CLAIMED), "bat reward is still pending until the captain dialogue")
 	_runner.assert_true(session_ui.call("is_summary_visible"), "onboarding completion opens the result summary")
+
+	session.queue_free()
+
+
+func test_baseball_onboarding_friend_room_opens_yokai_captain_dialogue_first() -> void:
+	GameManager.start_session({
+		"source": "intro_friend_dialogue",
+		SceneTransition.RUN_CONFIG_ONBOARDING_KIND: SceneTransition.ONBOARDING_KIND_BASEBALL_CAPTAIN,
+	})
+	var packed := load("res://scenes/session/session_root.tscn") as PackedScene
+	var session := packed.instantiate()
+	add_child(session)
+
+	var manager := session.get_node("%RoomManager") as RoomManager
+	var touch_controls: CanvasLayer = session.get_node("%TouchControls")
+	_runner.assert_true(manager.enter_room(&"friend_1"), "test enters the onboarding friend room")
+	_runner.assert_true(bool(session.call("is_encounter_dialogue_visible")), "first yokai captain encounter opens dialogue")
+	_runner.assert_eq(session.call("get_encounter_dialogue_speaker"), "요괴 야구부 주장", "first friend encounter speaker is the yokai captain")
+	_runner.assert_true(String(session.call("get_encounter_dialogue_text")).contains("타석"), "요괴 주장이 야구부 타석 톤을 맡는다")
+	_runner.assert_true(String(session.call("get_encounter_dialogue_text")).contains("서"), "first line invites the player into the confrontation")
+	_runner.assert_true(get_tree().paused, "friend intro pauses gameplay until the player advances the dialogue")
+	_runner.assert_false(touch_controls.visible, "friend intro hides combat touch controls while dialogue is active")
+
+	_runner.assert_true(bool(session.call("advance_encounter_dialogue_for_tests")), "first beat can advance")
+	_runner.assert_true(String(session.call("get_encounter_dialogue_text")).contains("배트"), "bat-related line belongs to the yokai captain encounter")
+	_drain_active_encounter_dialogue(session)
+	_runner.assert_false(bool(session.call("is_encounter_dialogue_visible")), "friend intro closes after all beats")
+	_runner.assert_false(get_tree().paused, "friend intro restores gameplay after closing")
+	_runner.assert_true(touch_controls.visible, "friend intro restores touch controls after closing")
 
 	session.queue_free()
 
@@ -1410,6 +1440,13 @@ func _defeat_all_combat_waves(room: Node) -> void:
 		guard += 1
 		if guard > 8:
 			return
+
+
+func _drain_active_encounter_dialogue(session: Node) -> void:
+	var guard := 0
+	while bool(session.call("is_encounter_dialogue_visible")) and guard < 8:
+		session.call("advance_encounter_dialogue_for_tests")
+		guard += 1
 
 
 func _first_connected_room_id(layout: RoomLayout, room_id: StringName) -> StringName:

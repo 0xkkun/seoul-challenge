@@ -69,6 +69,14 @@ func test_dialogue_supports_bold_bbcode_without_polluting_plain_text() -> void:
 	_runner.assert_true(_ui.get_dialogue_markup_text().contains("[b]도깨비왕[/b]"), "렌더링용 문구는 도깨비왕을 볼드 처리한다")
 
 
+func test_dialogue_body_uses_readable_line_spacing() -> void:
+	var dialogue_label := _ui.get_node("%DialogueLabel") as RichTextLabel
+
+	_runner.assert_not_null(dialogue_label, "대사 본문 라벨을 찾을 수 있다")
+	if dialogue_label != null:
+		_runner.assert_true(dialogue_label.get_theme_constant("line_separation") >= HUB_DIALOGUE_SCRIPT.DIALOGUE_LINE_SEPARATION, "여러 줄 대사의 행간은 모바일에서 겹치지 않을 만큼 넓다")
+
+
 func test_sprite_portrait_uses_texture_without_panel_background() -> void:
 	_ui.set_dialogue("반 친구", "몸 조심해. 무리하지 마.", "", HUB_DIALOGUE_SCRIPT.PORTRAIT_COLOR, PEOPLE2_TEXTURE, 1, false)
 
