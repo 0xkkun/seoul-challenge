@@ -132,6 +132,7 @@ bash scripts/verify_full.sh
 ### Web
 
 ```sh
+mkdir -p build/web
 godot --headless --path . --export-release "Web" build/web/index.html
 ```
 
