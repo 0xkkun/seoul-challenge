@@ -501,6 +501,19 @@ func test_start_dodge_opens_dash_power_attack_window() -> void:
 	_runner.assert_true(player.get_dash_power_attack_remaining() >= 0.15, "dodge opens post-dodge power attack grace")
 
 
+func test_start_dodge_clears_pending_attack_cooldown_for_power_attack_followup() -> void:
+	var player = PlayerScript.new()
+	add_child(player)
+	player.set("_attack_timer", player.attack_cooldown)
+
+	_runner.assert_true(player.try_start_special_skill(Vector2.RIGHT), "ready dodge starts")
+
+	_runner.assert_true(
+		is_equal_approx(float(player.get("_attack_timer")), 0.0),
+		"대시는 직전 기본공격 쿨타임을 끊어 강공격 후속타를 즉시 받을 수 있게 한다"
+	)
+
+
 func _screen_touch(index: int, position: Vector2, pressed: bool) -> InputEventScreenTouch:
 	var event := InputEventScreenTouch.new()
 	event.index = index

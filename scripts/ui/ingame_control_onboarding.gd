@@ -59,6 +59,7 @@ var _spotlight_frame: Panel = null
 var _label_panel: PanelContainer = null
 var _title_label: Label = null
 var _body_label: Label = null
+var _power_attack_executed_seen := false
 
 
 func _ready() -> void:
@@ -72,13 +73,16 @@ func _ready() -> void:
 func configure(touch_controls: Node, camera: Camera2D = null, player: Node = null) -> void:
 	_touch_controls = touch_controls
 	_camera = camera
+	_disconnect_player_power_attack()
 	_player = player
+	_connect_player_power_attack()
 	if _camera != null:
 		_original_camera_zoom = _camera.zoom
 
 
 func start() -> void:
 	_step_index = 0
+	_power_attack_executed_seen = false
 	_active = true
 	visible = true
 	set_process(true)
@@ -97,6 +101,10 @@ func finish() -> void:
 
 func is_active() -> bool:
 	return _active
+
+
+func _exit_tree() -> void:
+	_disconnect_player_power_attack()
 
 
 func get_visual_contract() -> Dictionary:
@@ -140,10 +148,7 @@ func advance_from_input(input_state: Dictionary) -> bool:
 		&"dash":
 			should_advance = bool(input_state.get("dash_pressed", false))
 		&"power_attack":
-			should_advance = (
-				bool(input_state.get("attack_pressed", false))
-				and bool(input_state.get("power_window_active", false))
-			)
+			should_advance = bool(input_state.get("power_attack_executed", false))
 	if not should_advance:
 		return false
 	_advance_step()
@@ -290,6 +295,7 @@ func _runtime_input_state() -> Dictionary:
 		"attack_pressed": attack_pressed,
 		"dash_pressed": dash_pressed,
 		"power_window_active": _is_power_window_active(),
+		"power_attack_executed": _power_attack_executed_seen,
 	}
 
 
@@ -307,10 +313,36 @@ func _is_power_window_active() -> bool:
 
 func _advance_step() -> void:
 	_step_index += 1
+	_power_attack_executed_seen = false
 	if _step_index >= STEPS.size():
 		finish()
 		return
 	_refresh_step()
+
+
+func _connect_player_power_attack() -> void:
+	if _player == null or not _player.has_signal("power_attack_executed"):
+		return
+	var callback := Callable(self, "_on_player_power_attack_executed")
+	if not _player.is_connected("power_attack_executed", callback):
+		_player.connect("power_attack_executed", callback)
+
+
+func _disconnect_player_power_attack() -> void:
+	if _player == null or not _player.has_signal("power_attack_executed"):
+		return
+	var callback := Callable(self, "_on_player_power_attack_executed")
+	if _player.is_connected("power_attack_executed", callback):
+		_player.disconnect("power_attack_executed", callback)
+
+
+func _on_player_power_attack_executed(_payload: Dictionary = {}) -> void:
+	if not _active:
+		return
+	if StringName(_current_step().get("id", &"")) != &"power_attack":
+		return
+	_power_attack_executed_seen = true
+	_advance_step()
 
 
 func _apply_camera_zoom() -> void:
