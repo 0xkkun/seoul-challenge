@@ -7,6 +7,7 @@ const StatusEffectController = preload("res://scripts/combat/status_effect_contr
 const SpawnFadeController = preload("res://scripts/combat/spawn_fade_controller.gd")
 const EnemyDeathFade = preload("res://scripts/combat/enemy_death_fade.gd")
 const EnemyHealthBar = preload("res://scripts/enemies/enemy_health_bar.gd")
+const MovementBounds = preload("res://scripts/systems/movement_bounds.gd")
 const FACING_DEADZONE := 0.01
 
 ## 처치됨 — RoomManager/전투방이 듣고 방 클리어 카운트에 사용한다(계약 #19).
@@ -123,7 +124,7 @@ func clamp_to_movement_bounds() -> bool:
 	if not _movement_bounds_enabled:
 		return false
 	var before := global_position
-	var clamped := clamp_position_to_bounds(before, _movement_bounds)
+	var clamped := MovementBounds.clamp_body_position_to_bounds(before, _movement_bounds, self)
 	global_position = clamped
 	if not is_equal_approx(before.x, clamped.x):
 		velocity.x = 0.0

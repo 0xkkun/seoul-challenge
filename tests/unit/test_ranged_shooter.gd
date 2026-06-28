@@ -51,7 +51,7 @@ func test_movement_bounds_clamp_like_player() -> void:
 	e.call("set_movement_bounds", bounds)
 
 	_runner.assert_eq(e.call("get_movement_bounds"), bounds, "원거리 적 이동 경계는 설정값을 보존한다")
-	_runner.assert_eq(e.global_position, Vector2(20.0, -10.0), "원거리 적은 경계 밖에서 경계 안으로 보정된다")
+	_runner.assert_eq(e.global_position, Vector2(8.0, 0.0), "원거리 적은 충돌 반경까지 경계 안으로 보정된다")
 
 
 func test_bounds_block_retreat_velocity_at_room_edge() -> void:
