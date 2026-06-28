@@ -105,14 +105,21 @@ func test_boss_scene_mounts_attack_effect_nodes() -> void:
 	var boss := (load(BOSS_SCENE_PATH) as PackedScene).instantiate()
 	add_child(boss)
 	var ground := boss.get_node_or_null("GroundImpactEffect") as AnimatedSprite2D
+	var ground_followup := boss.get_node_or_null("GroundImpactEffectFollowup") as AnimatedSprite2D
 	var wound := boss.get_node_or_null("WoundSlashEffect") as AnimatedSprite2D
 	_runner.assert_not_null(ground, "boss scene mounts weak attack ground effect")
+	_runner.assert_not_null(ground_followup, "boss scene mounts weak attack follow-up ground effect")
 	_runner.assert_not_null(wound, "boss scene mounts strong attack wound effect")
 	if ground != null:
 		_runner.assert_false(ground.visible, "ground effect starts hidden")
 		_runner.assert_not_null(ground.sprite_frames, "ground effect has SpriteFrames")
 		if ground.sprite_frames != null:
 			_runner.assert_eq(ground.sprite_frames.resource_path, BOSS_GROUND_EFFECT_FRAMES_PATH, "ground effect uses the 13-frame download sheet")
+	if ground_followup != null:
+		_runner.assert_false(ground_followup.visible, "follow-up ground effect starts hidden")
+		_runner.assert_not_null(ground_followup.sprite_frames, "follow-up ground effect has SpriteFrames")
+		if ground_followup.sprite_frames != null:
+			_runner.assert_eq(ground_followup.sprite_frames.resource_path, BOSS_GROUND_EFFECT_FRAMES_PATH, "follow-up ground effect uses the same 13-frame download sheet")
 	if wound != null:
 		_runner.assert_false(wound.visible, "wound effect starts hidden")
 		_runner.assert_not_null(wound.sprite_frames, "wound effect has SpriteFrames")
