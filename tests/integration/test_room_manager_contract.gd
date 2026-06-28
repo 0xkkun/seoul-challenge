@@ -201,6 +201,48 @@ func test_room_manager_restores_cleared_room_state_on_revisit() -> void:
 	_runner.assert_eq(manager.current_room.call("get_remaining_enemy_count"), 0, "revisited combat does not respawn enemies")
 
 
+func test_room_manager_restores_cleared_friend_room_state_on_revisit() -> void:
+	var generator := RoomLayoutGenerator.new()
+	generator.start_scene_path = "res://scenes/interactables/start_room.tscn"
+	generator.combat_scene_path = "res://scenes/interactables/combat_room.tscn"
+	generator.friend_scene_path = "res://scenes/interactables/friend_room.tscn"
+	generator.final_scene_path = "res://scenes/interactables/boss_room.tscn"
+	var layout := generator.generate(40, {"room_count": 15})
+	var container := Node2D.new()
+	var actor := (load("res://scenes/actors/sample_actor.tscn") as PackedScene).instantiate() as Node2D
+	var manager := RoomManager.new()
+	add_child(container)
+	add_child(actor)
+	add_child(manager)
+	manager.configure(layout, container, actor)
+
+	var friend_def := _first_room_of_type(layout, RoomLayout.TYPE_FRIEND)
+	_runner.assert_not_null(friend_def, "generated 15-room run has a friend purification room")
+	if friend_def == null:
+		return
+	var path := _path_between(layout, layout.start_room_id, friend_def.room_id)
+	_runner.assert_true(path.size() > 1, "friend room is reachable from start")
+	if path.size() <= 1:
+		return
+
+	_runner.assert_true(manager.start_layout(), "manager starts generated layout")
+	for index: int in range(1, path.size()):
+		_resolve_current_room(manager, actor)
+		_runner.assert_true(manager.request_next_room(path[index]), "manager walks to %s" % path[index])
+
+	_runner.assert_eq(manager.current_room_id, friend_def.room_id, "manager reaches friend purification room")
+	_runner.assert_eq(manager.current_room.call("get_remaining_friend_count"), 1, "uncleared friend room spawns one friend")
+	_resolve_current_room(manager, actor)
+	_runner.assert_true(manager.has_cleared_room(friend_def.room_id), "purification clears friend room")
+	_runner.assert_eq(manager.current_room.call("get_remaining_friend_count"), 0, "purified friend is removed immediately")
+
+	var previous_room_id := path[path.size() - 2]
+	_runner.assert_true(manager.request_next_room(previous_room_id), "manager leaves purified friend room")
+	_runner.assert_true(manager.request_next_room(friend_def.room_id), "manager revisits purified friend room")
+	_runner.assert_true(manager.current_room.has_been_cleared(), "revisited friend room restores local cleared state")
+	_runner.assert_eq(manager.current_room.call("get_remaining_friend_count"), 0, "revisited friend room does not respawn purified friend")
+
+
 func test_session_root_mounts_room_manager() -> void:
 	var packed := load("res://scenes/session/session_root.tscn") as PackedScene
 	var entered_payloads: Array[Dictionary] = []

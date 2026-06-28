@@ -330,12 +330,20 @@ func test_baseball_onboarding_friend_purification_finishes_run_and_sets_reward_f
 	add_child(session)
 
 	var manager := session.get_node("%RoomManager") as RoomManager
+	var touch_controls: CanvasLayer = session.get_node("%TouchControls")
 	_runner.assert_true(manager.enter_room(&"friend_1"), "test enters the onboarding friend room")
 	_drain_active_encounter_dialogue(session)
+	_runner.assert_true(bool(session.call("is_purify_onboarding_spotlight_visible")), "friend intro is followed by the purification purpose spotlight")
+	_runner.assert_true(get_tree().paused, "purification purpose spotlight pauses gameplay")
+	_runner.assert_false(touch_controls.visible, "purification purpose spotlight hides combat controls")
+	_runner.assert_true(bool(session.call("dismiss_purify_onboarding_for_tests")), "test dismisses the purification purpose spotlight")
 	var friends: Array = manager.current_room.call("get_active_friends")
 	_runner.assert_eq(friends.size(), 1, "onboarding friend room spawns the captain target")
 	if friends.size() == 1:
 		var friend := friends[0] as Node
+		friend.call("take_damage", int(friend.get("max_stun")))
+		_runner.assert_true(bool(session.call("is_purify_onboarding_spotlight_visible")), "groggy state teaches proximity before purification completes")
+		_runner.assert_true(bool(session.call("dismiss_purify_onboarding_for_tests")), "test dismisses the proximity purification spotlight")
 		friend.emit_signal("purified", friend)
 
 	var result := GameManager.get_last_result()
@@ -346,7 +354,10 @@ func test_baseball_onboarding_friend_purification_finishes_run_and_sets_reward_f
 	_runner.assert_eq(result.get("friend_ids", []), [&"baseball_captain"], "onboarding result records the purified captain")
 	_runner.assert_true(SaveManager.get_flag(SceneTransition.FLAG_ONBOARDING_BASEBALL_COMPLETE), "day corridor reward dialogue is unlocked")
 	_runner.assert_false(SaveManager.get_flag(SceneTransition.FLAG_BASEBALL_CAPTAIN_REWARD_CLAIMED), "bat reward is still pending until the captain dialogue")
-	_runner.assert_true(session_ui.call("is_summary_visible"), "onboarding completion opens the result summary")
+	_runner.assert_true(
+		session_ui.call("is_summary_visible"),
+		"onboarding completion opens the result summary: %s" % [session_ui.call("get_summary_snapshot")]
+	)
 
 	session.queue_free()
 
@@ -374,8 +385,51 @@ func test_baseball_onboarding_friend_room_opens_yokai_captain_dialogue_first() -
 	_runner.assert_true(String(session.call("get_encounter_dialogue_text")).contains("배트"), "bat-related line belongs to the yokai captain encounter")
 	_drain_active_encounter_dialogue(session)
 	_runner.assert_false(bool(session.call("is_encounter_dialogue_visible")), "friend intro closes after all beats")
-	_runner.assert_false(get_tree().paused, "friend intro restores gameplay after closing")
-	_runner.assert_true(touch_controls.visible, "friend intro restores touch controls after closing")
+	_runner.assert_true(bool(session.call("is_purify_onboarding_spotlight_visible")), "friend intro opens the purification spotlight before combat starts")
+	var snapshot: Dictionary = session.call("get_purify_onboarding_snapshot")
+	_runner.assert_eq(snapshot.get("step_id"), &"intro", "first purification spotlight is the intro step")
+	_runner.assert_eq(snapshot.get("message"), "요괴에 씌인 친구를 정화시켜주세요", "first purification spotlight explains why to purify")
+	_runner.assert_true(get_tree().paused, "purification spotlight keeps gameplay paused")
+	_runner.assert_false(touch_controls.visible, "purification spotlight keeps touch controls hidden")
+	_runner.assert_true(bool(session.call("dismiss_purify_onboarding_for_tests")), "tap dismissal closes the purification spotlight")
+	_runner.assert_false(bool(session.call("is_purify_onboarding_spotlight_visible")), "purification spotlight closes after tap")
+	_runner.assert_false(get_tree().paused, "purification spotlight restores gameplay after dismissal")
+	_runner.assert_true(touch_controls.visible, "purification spotlight restores touch controls after dismissal")
+
+	session.queue_free()
+
+
+func test_baseball_onboarding_friend_groggy_spotlight_teaches_proximity_purify() -> void:
+	GameManager.start_session({
+		"source": "intro_friend_groggy_spotlight",
+		SceneTransition.RUN_CONFIG_ONBOARDING_KIND: SceneTransition.ONBOARDING_KIND_BASEBALL_CAPTAIN,
+	})
+	var packed := load("res://scenes/session/session_root.tscn") as PackedScene
+	var session := packed.instantiate()
+	add_child(session)
+
+	var manager := session.get_node("%RoomManager") as RoomManager
+	var touch_controls: CanvasLayer = session.get_node("%TouchControls")
+	_runner.assert_true(manager.enter_room(&"friend_1"), "test enters the onboarding friend room")
+	_drain_active_encounter_dialogue(session)
+	_runner.assert_true(bool(session.call("dismiss_purify_onboarding_for_tests")), "test starts the purification encounter")
+	var friends: Array = manager.current_room.call("get_active_friends")
+	_runner.assert_eq(friends.size(), 1, "onboarding friend room spawns one target")
+	if friends.size() == 1:
+		var friend := friends[0] as Node
+		friend.call("take_damage", int(friend.get("max_stun")))
+
+	_runner.assert_true(bool(session.call("is_purify_onboarding_spotlight_visible")), "groggy state opens proximity purification spotlight")
+	var snapshot: Dictionary = session.call("get_purify_onboarding_snapshot")
+	_runner.assert_eq(snapshot.get("step_id"), &"groggy", "second purification spotlight is the groggy step")
+	_runner.assert_eq(snapshot.get("message"), "친구에게 다가가면 정화의식이 시작돼요!", "groggy spotlight explains proximity purification")
+	_runner.assert_true(String(snapshot.get("target_name", "")).contains("baseball_captain"), "groggy spotlight targets the captain")
+	_runner.assert_true(get_tree().paused, "groggy spotlight pauses gameplay")
+	_runner.assert_false(touch_controls.visible, "groggy spotlight hides combat controls")
+	_runner.assert_true(bool(session.call("dismiss_purify_onboarding_for_tests")), "tap dismissal closes the groggy spotlight")
+	_runner.assert_false(bool(session.call("is_purify_onboarding_spotlight_visible")), "groggy spotlight closes after tap")
+	_runner.assert_false(get_tree().paused, "groggy spotlight resumes gameplay")
+	_runner.assert_true(touch_controls.visible, "groggy spotlight restores touch controls")
 
 	session.queue_free()
 

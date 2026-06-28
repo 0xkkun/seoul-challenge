@@ -7,6 +7,7 @@ const ENTRY_FORWARD_DISTANCE := 260.0
 const SPAWN_BOUNDS_INSET := 48.0
 
 signal friend_encounter_started(room_id: StringName)
+signal friend_spawned(room_id: StringName, friend_id: StringName, friend: Node)
 signal friend_encounter_resolved(room_id: StringName, friend_id: StringName)
 signal friend_count_changed(remaining_count: int)
 
@@ -77,6 +78,17 @@ func resolve_friend_encounter(friend: Node = null) -> bool:
 	return true
 
 
+func restore_cleared_state() -> void:
+	_encounter_started = true
+	_encounter_resolved = true
+	_friend_spawned = true
+	for friend: Node in _active_friends:
+		if is_instance_valid(friend) and not friend.is_queued_for_deletion():
+			friend.queue_free()
+	_active_friends.clear()
+	super.restore_cleared_state()
+
+
 func _spawn_friend() -> void:
 	_friend_spawned = true
 	_active_friends.clear()
@@ -96,6 +108,7 @@ func _spawn_friend() -> void:
 		if not friend.is_connected("purified", callback):
 			friend.connect("purified", callback)
 	_active_friends.append(friend)
+	friend_spawned.emit(room_id, friend_id, friend)
 	friend_count_changed.emit(_active_friends.size())
 
 
