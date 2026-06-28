@@ -10,6 +10,22 @@ const INGAME_CONTROL_ONBOARDING_SCRIPT_PATH := "res://scripts/ui/ingame_control_
 var _runner: Node
 
 
+class StubPowerAttackPlayer:
+	extends Node
+	signal power_attack_executed(payload: Dictionary)
+
+	var power_window_remaining := 0.5
+
+	func get_dash_power_attack_remaining() -> float:
+		return power_window_remaining
+
+	func is_dodging() -> bool:
+		return false
+
+	func emit_power_attack() -> void:
+		power_attack_executed.emit({"kind": &"dash_power_attack"})
+
+
 func _set_runner(runner: Node) -> void:
 	_runner = runner
 
@@ -89,10 +105,69 @@ func test_ingame_control_onboarding_advances_with_actual_touch_input_state() -> 
 	_assert_onboarding_step(onboarding, &"dash", ["SkillButton"])
 	onboarding.call("advance_from_input", {"dash_pressed": true})
 	_assert_onboarding_step(onboarding, &"power_attack", ["SkillButton", "AttackButton"])
-	onboarding.call("advance_from_input", {"attack_pressed": true, "power_window_active": true})
+	onboarding.call("advance_from_input", {"power_attack_executed": true})
 	_runner.assert_false(bool(onboarding.call("is_active")), "강공격 입력까지 확인하면 온보딩은 종료된다")
 
 	touch.queue_free()
+	onboarding.queue_free()
+
+
+func test_ingame_control_onboarding_power_attack_waits_for_actual_player_execution() -> void:
+	_runner.assert_true(ResourceLoader.exists(INGAME_CONTROL_ONBOARDING_SCRIPT_PATH), "인게임 조작 온보딩 스크립트가 존재한다")
+	if not ResourceLoader.exists(INGAME_CONTROL_ONBOARDING_SCRIPT_PATH):
+		return
+	var script := load(INGAME_CONTROL_ONBOARDING_SCRIPT_PATH) as Script
+	var touch := TouchControlsScene.instantiate()
+	var player := StubPowerAttackPlayer.new()
+	var onboarding := script.new() as CanvasLayer
+	add_child(touch)
+	add_child(player)
+	add_child(onboarding)
+
+	onboarding.call("configure", touch, null, player)
+	onboarding.call("start")
+	onboarding.call("advance_from_input", {"move": Vector2.RIGHT})
+	onboarding.call("advance_from_input", {"attack_pressed": true})
+	onboarding.call("advance_from_input", {"dash_pressed": true})
+	_assert_onboarding_step(onboarding, &"power_attack", ["SkillButton", "AttackButton"])
+
+	onboarding.call("advance_from_input", {"attack_pressed": true, "power_window_active": true})
+	_assert_onboarding_step(onboarding, &"power_attack", ["SkillButton", "AttackButton"])
+	_runner.assert_true(bool(onboarding.call("is_active")), "버튼 상태만으로는 강공격 온보딩을 완료하지 않는다")
+
+	player.emit_power_attack()
+
+	_runner.assert_false(bool(onboarding.call("is_active")), "실제 강공격 실행 이벤트를 받으면 온보딩을 완료한다")
+
+	touch.queue_free()
+	player.queue_free()
+	onboarding.queue_free()
+
+
+func test_ingame_control_onboarding_finishes_when_power_attack_executes_during_dash_step() -> void:
+	_runner.assert_true(ResourceLoader.exists(INGAME_CONTROL_ONBOARDING_SCRIPT_PATH), "인게임 조작 온보딩 스크립트가 존재한다")
+	if not ResourceLoader.exists(INGAME_CONTROL_ONBOARDING_SCRIPT_PATH):
+		return
+	var script := load(INGAME_CONTROL_ONBOARDING_SCRIPT_PATH) as Script
+	var touch := TouchControlsScene.instantiate()
+	var player := StubPowerAttackPlayer.new()
+	var onboarding := script.new() as CanvasLayer
+	add_child(touch)
+	add_child(player)
+	add_child(onboarding)
+
+	onboarding.call("configure", touch, null, player)
+	onboarding.call("start")
+	onboarding.call("advance_from_input", {"move": Vector2.RIGHT})
+	onboarding.call("advance_from_input", {"attack_pressed": true})
+	_assert_onboarding_step(onboarding, &"dash", ["SkillButton"])
+
+	player.emit_power_attack()
+
+	_runner.assert_false(bool(onboarding.call("is_active")), "dash 단계에 먼저 도착한 실제 강공격 실행은 dash와 power_attack 완료로 즉시 소비한다")
+
+	touch.queue_free()
+	player.queue_free()
 	onboarding.queue_free()
 
 

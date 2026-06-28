@@ -26,6 +26,8 @@ signal fired(muzzle_position: Vector2, direction: Vector2)
 signal weapon_changed(weapon_name: String)
 ## 특수 스킬 상태 변경 — HUD 표시용.
 signal special_skill_state_changed(payload: Dictionary)
+## 대시 직후 강화 근접 공격이 실제 실행됨 — 온보딩/피드백 동기화용.
+signal power_attack_executed(payload: Dictionary)
 ## 런 한정 맵 아이템 변경 — 보물방/상점방 표시용.
 signal run_modifiers_changed(payload: Dictionary)
 
@@ -646,6 +648,8 @@ func try_start_special_skill(input_vector: Vector2 = Vector2.ZERO) -> bool:
 	_dash_power_attack_timer = maxf(dodge_duration + dash_power_attack_grace_time, visual_duration)
 	_dash_power_attack_consumed = false
 	_invuln_timer = maxf(_invuln_timer, dodge_invuln_time)
+	if not ranged_enabled:
+		_attack_timer = 0.0
 	special_skill_uses_remaining = consume_special_use(special_skill_uses_remaining)
 	_show_dash_dust(_dodge_direction)
 	_cancel_attack_anim_state()
@@ -1042,6 +1046,10 @@ func _attack_melee(dir: Vector2) -> void:
 		_dash_power_attack_consumed = true
 		_dash_power_attack_timer = 0.0
 		_show_power_impact(dir, rng, arc)
+		power_attack_executed.emit({
+			"direction": dir,
+			"hit_count": hit_count,
+		})
 	if hit_count > 0:
 		if _has_bat:
 			_play_bat_hit_sfx()
