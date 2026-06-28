@@ -4,6 +4,7 @@ const RenderLayers = preload("res://scripts/constants/render_layers.gd")
 const POOLED_MARKER_SCENE = preload("res://scenes/interactables/sample_pooled_marker.tscn")
 const BOSS_SCENE = preload("res://scenes/enemies/boss.tscn")
 const HUB_DIALOGUE_SCENE = preload("res://scenes/ui/hub_dialogue_ui.tscn")
+const BaseballOnboardingIntro = preload("res://resources/dialogue/baseball_onboarding_intro.gd")
 const PalaceBossIntro = preload("res://resources/dialogue/palace_boss_intro.gd")
 const BOSS_INTRO_DIALOG_LAYER := 200  # SessionUIRoot(10) 위, ConfirmModal(240) 아래
 const RoomPalette = preload("res://scripts/constants/room_palette.gd")
@@ -78,6 +79,10 @@ var _touch_controls_visible_before_reward_choice := true
 var _boss_intro_active := false
 var _paused_before_boss_intro := false
 var _boss_intro_ui: HubDialogueUi = null
+var _baseball_friend_intro_active := false
+var _paused_before_baseball_friend_intro := false
+var _baseball_friend_intro_ui: HubDialogueUi = null
+var _baseball_friend_intro_shown := false
 
 
 func _ready() -> void:
@@ -154,6 +159,7 @@ func _configure_ingame_control_onboarding() -> void:
 func _exit_tree() -> void:
 	# (e) 보스 인트로 도중 세션이 끝나면 pause/터치 입력을 복원한다(스턱 pause 방지).
 	_finish_boss_intro()
+	_finish_baseball_friend_intro()
 	_cancel_reward_choice_delay()
 	if room_manager != null:
 		room_manager.transition_blocked_callable = Callable()
@@ -180,6 +186,32 @@ func spawn_sample_marker() -> Node:
 
 func advance_room(preferred_room_id: StringName = &"") -> bool:
 	return room_manager.request_next_room(preferred_room_id)
+
+
+func is_encounter_dialogue_visible() -> bool:
+	return _active_encounter_dialogue_ui() != null
+
+
+func get_encounter_dialogue_speaker() -> String:
+	var ui := _active_encounter_dialogue_ui()
+	if ui == null:
+		return ""
+	return ui.get_speaker_name()
+
+
+func get_encounter_dialogue_text() -> String:
+	var ui := _active_encounter_dialogue_ui()
+	if ui == null:
+		return ""
+	return ui.get_dialogue_text()
+
+
+func advance_encounter_dialogue_for_tests() -> bool:
+	var ui := _active_encounter_dialogue_ui()
+	if ui == null:
+		return false
+	ui.select_choice(&"continue")
+	return true
 
 
 func _build_run_layout() -> RoomLayout:
@@ -581,7 +613,7 @@ func flush_pending_reward_choice_for_tests() -> bool:
 
 
 func _is_room_transition_blocked_by_reward(_current_room_id: StringName, _preferred_room_id: StringName) -> bool:
-	return _pending_reward_room_id != &""
+	return _pending_reward_room_id != &"" or _boss_intro_active or _baseball_friend_intro_active
 
 
 func get_reward_choice_delay_snapshot() -> Dictionary:
@@ -878,6 +910,7 @@ func _on_room_changed(_room_id: StringName, _room_type: StringName) -> void:
 	if current_room != null and actor != null:
 		_configure_actor_for_room(current_room)
 	_connect_boss_room(current_room)
+	_connect_friend_room(current_room)
 
 
 func _configure_actor_for_room(room: Node2D) -> void:
@@ -921,6 +954,33 @@ func _connect_boss_room(room: Node) -> void:
 		room.connect("boss_spawn_requested", callback)
 
 
+func _connect_friend_room(room: Node) -> void:
+	if room == null or not room.has_signal("friend_encounter_started"):
+		return
+	var callback := Callable(self, "_on_friend_encounter_started")
+	if not room.is_connected("friend_encounter_started", callback):
+		room.connect("friend_encounter_started", callback)
+
+
+func _on_friend_encounter_started(room_id: StringName) -> void:
+	if not _should_play_baseball_friend_intro(room_id):
+		return
+	_play_baseball_friend_intro()
+
+
+func _should_play_baseball_friend_intro(room_id: StringName) -> bool:
+	if _baseball_friend_intro_shown or _baseball_friend_intro_active:
+		return false
+	if not _is_baseball_onboarding_run():
+		return false
+	if room_id != &"friend_1":
+		return false
+	var room := room_manager.current_room
+	if room == null:
+		return false
+	return StringName(room.get("friend_id")) == &"baseball_captain"
+
+
 func _on_boss_spawn_requested(room_id: StringName, boss_id: StringName, spawn_position: Vector2) -> void:
 	if room_id != room_manager.current_room_id:
 		return
@@ -948,6 +1008,68 @@ func _on_boss_spawn_requested(room_id: StringName, boss_id: StringName, spawn_po
 	await _play_boss_intro(boss_id)
 
 
+func _active_encounter_dialogue_ui() -> HubDialogueUi:
+	if is_instance_valid(_baseball_friend_intro_ui):
+		return _baseball_friend_intro_ui
+	if is_instance_valid(_boss_intro_ui):
+		return _boss_intro_ui
+	return null
+
+
+func _set_encounter_beat(ui: HubDialogueUi, beat: Dictionary) -> void:
+	ui.set_dialogue(
+		String(beat.get("speaker", "")),
+		String(beat.get("text", "")),
+		"",
+		HubDialogueUi.PORTRAIT_COLOR,
+		beat.get("portrait") as Texture2D,
+		int(beat.get("frame", 0)),
+		false,
+	)
+	var continue_choice: Array[Dictionary] = [{
+		"id": &"continue",
+		"tap_to_continue": true,
+		"text": HubDialogueUi.CONTINUE_HINT_TOUCH,
+	}]
+	ui.set_choices(continue_choice)
+
+
+func _play_baseball_friend_intro() -> void:
+	var beats := BaseballOnboardingIntro.collect_beats()
+	if beats.is_empty():
+		return
+	_baseball_friend_intro_shown = true
+	_baseball_friend_intro_active = true
+	_paused_before_baseball_friend_intro = get_tree().paused
+	_release_combat_touch_inputs()
+	_hide_touch_controls_for_reward_choice()
+	get_tree().paused = true
+	_baseball_friend_intro_ui = HUB_DIALOGUE_SCENE.instantiate()
+	_baseball_friend_intro_ui.name = "BaseballFriendIntroDialogueUi"
+	_baseball_friend_intro_ui.battle_mode = true
+	_baseball_friend_intro_ui.layer = BOSS_INTRO_DIALOG_LAYER
+	add_child(_baseball_friend_intro_ui)
+	for beat: Dictionary in beats:
+		if not is_instance_valid(_baseball_friend_intro_ui):
+			break
+		_set_encounter_beat(_baseball_friend_intro_ui, beat)
+		await _baseball_friend_intro_ui.choice_selected
+	_finish_baseball_friend_intro()
+
+
+func _finish_baseball_friend_intro() -> void:
+	if not _baseball_friend_intro_active:
+		return
+	_baseball_friend_intro_active = false
+	if is_instance_valid(_baseball_friend_intro_ui):
+		_baseball_friend_intro_ui.queue_free()
+	_baseball_friend_intro_ui = null
+	var tree := get_tree()
+	if tree != null:
+		tree.paused = _paused_before_baseball_friend_intro
+	_restore_touch_controls_after_reward_choice()
+
+
 ## 보스 등장 직전 인게임 대사 시퀀스를 재생한다(코루틴). 비트가 없으면 즉시 반환.
 ## pause/터치 컨트롤은 보상 선택과 동일 패턴으로 잠그고(_release/_hide), 종료 시 복원한다.
 func _play_boss_intro(_boss_id: StringName) -> void:
@@ -962,27 +1084,14 @@ func _play_boss_intro(_boss_id: StringName) -> void:
 	_hide_touch_controls_for_reward_choice()
 	get_tree().paused = true
 	_boss_intro_ui = HUB_DIALOGUE_SCENE.instantiate()
+	_boss_intro_ui.name = "BossIntroDialogueUi"
 	_boss_intro_ui.battle_mode = true  # add_child 전에 설정 — 학교 부수효과 격리
 	_boss_intro_ui.layer = BOSS_INTRO_DIALOG_LAYER
 	add_child(_boss_intro_ui)
 	for beat: Dictionary in beats:
 		if not is_instance_valid(_boss_intro_ui):
 			break
-		_boss_intro_ui.set_dialogue(
-			String(beat.get("speaker", "")),
-			String(beat.get("text", "")),
-			"",
-			HubDialogueUi.PORTRAIT_COLOR,
-			beat.get("portrait") as Texture2D,
-			int(beat.get("frame", 0)),
-			false,
-		)
-		var continue_choice: Array[Dictionary] = [{
-			"id": &"continue",
-			"tap_to_continue": true,
-			"text": HubDialogueUi.CONTINUE_HINT_TOUCH,
-		}]
-		_boss_intro_ui.set_choices(continue_choice)
+		_set_encounter_beat(_boss_intro_ui, beat)
 		await _boss_intro_ui.choice_selected
 	# (f) 첫 조우 플래그는 전체 시퀀스 완료 후에만 set — 중도 이탈 시 다음 입장에 다시 재생.
 	if includes_first:

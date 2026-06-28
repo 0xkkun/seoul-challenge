@@ -4,7 +4,7 @@ extends Node
 
 const HUB_DIALOGUE_SCENE := preload("res://scenes/ui/hub_dialogue_ui.tscn")
 const PalaceBossIntro := preload("res://resources/dialogue/palace_boss_intro.gd")
-const CAPTAIN_TEXTURE := preload("res://assets/characters/school/baseball_captain.png")
+const BOSS_TEXTURE := preload("res://resources/dialogue/gyeongbokgung_boss_portrait.tres")
 
 var _runner: Node
 var _ui
@@ -32,22 +32,22 @@ func after_each() -> void:
 func test_first_encounter_plays_onboarding_intro() -> void:
 	var beats := PalaceBossIntro.collect_beats(false)
 	_runner.assert_eq(beats.size(), PalaceBossIntro.INTRO_FIRST.size(), "첫 조우는 온보딩 INTRO_FIRST를 재생한다")
-	_runner.assert_eq(String(beats[0]["text"]), "하! 새로운 녀석이 들어왔군.", "첫 줄은 온보딩 등장 대사다")
-	_runner.assert_eq(String(beats[beats.size() - 1]["text"]), "좋아. 입단 테스트다. 한 타석, 풀스윙으로 들어와.", "마지막 줄이 전투 유도라 그 자체로 완결된다")
+	_runner.assert_eq(String(beats[0]["text"]), "여기까지 걸어 들어온 인간은 오랜만이군.", "첫 줄은 보스 등장 대사다")
+	_runner.assert_eq(String(beats[beats.size() - 1]["text"]), "좋다. 마지막 문 앞에서 네 힘을 증명해 봐라.", "마지막 줄이 전투 유도라 그 자체로 완결된다")
 	_runner.assert_true(PalaceBossIntro.includes_first_intro(false), "첫 조우는 인트로를 포함한다")
 
 
 func test_repeat_encounter_skips_first_intro() -> void:
 	var beats := PalaceBossIntro.collect_beats(true)
 	_runner.assert_eq(beats.size(), PalaceBossIntro.BOSS_ENCOUNTER.size(), "재입장은 BOSS_ENCOUNTER만 재생한다")
-	_runner.assert_eq(String(beats[0]["text"]), "타석 들어와. 시간 없어.", "재입장은 보스 대면 대사로 시작한다")
+	_runner.assert_eq(String(beats[0]["text"]), "다시 왔군. 이번엔 도망칠 길도 없다.", "재입장은 보스 대면 대사로 시작한다")
 	_runner.assert_false(PalaceBossIntro.includes_first_intro(true), "재입장은 인트로를 포함하지 않는다")
 
 
 func test_every_beat_is_string_keyed_and_renderable() -> void:
 	for beat: Dictionary in PalaceBossIntro.collect_beats(false):
 		_runner.assert_true(beat.has("speaker") and beat.has("text") and beat.has("portrait"), "비트는 문자열 키(speaker/text/portrait)를 갖는다")
-		_runner.assert_eq(String(beat["speaker"]), "야구부 주장", "화자는 통일어 '야구부 주장'이다")
+		_runner.assert_eq(String(beat["speaker"]), "도깨비왕", "궁 보스 대화 화자는 야구부 주장이 아니다")
 		_runner.assert_true(beat["portrait"] is Texture2D, "포트레이트는 Texture2D다")
 
 
@@ -89,7 +89,7 @@ func test_battle_dialogue_advances_on_tap_to_continue() -> void:
 	_ui = HUB_DIALOGUE_SCENE.instantiate()
 	_ui.battle_mode = true
 	add_child(_ui)
-	_ui.set_dialogue("야구부 주장", "타석 들어와. 시간 없어.", "", _ui.PORTRAIT_COLOR, CAPTAIN_TEXTURE, 1, false)
+	_ui.set_dialogue("도깨비왕", "다시 왔군. 이번엔 도망칠 길도 없다.", "", _ui.PORTRAIT_COLOR, BOSS_TEXTURE, 0, false)
 	var choices: Array[Dictionary] = [{"id": &"continue", "tap_to_continue": true, "text": _ui.CONTINUE_HINT_TOUCH}]
 	_ui.set_choices(choices)
 	_runner.assert_true(_ui.is_tap_to_continue_active(), "탭하여계속이 활성화돼 시그널이 방출될 수 있다(없으면 소프트락)")
