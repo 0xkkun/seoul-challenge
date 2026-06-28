@@ -4,16 +4,21 @@ extends RefCounted
 const VARIANT_PRIMARY := &"primary"
 const VARIANT_SECONDARY := &"secondary"
 const VARIANT_DANGER := &"danger"
+## Small ornate frame (76x36 native) for narrow buttons like the upgrade "강화" action,
+## where the wide lobby frame's 60px corners would overlap and bleed past the button.
+const VARIANT_COMPACT := &"compact"
 
 const NORMAL_TEXTURE := preload("res://assets/ui/buttons/lobby/lobby_button_normal.png")
 const PRESSED_TEXTURE := preload("res://assets/ui/buttons/lobby/lobby_button_pressed.png")
 const DANGER_NORMAL_TEXTURE := preload("res://assets/ui/buttons/lobby/lobby_button_danger.png")
 const DANGER_PRESSED_TEXTURE := preload("res://assets/ui/buttons/lobby/lobby_button_danger_pressed.png")
+const COMPACT_TEXTURE := preload("res://assets/ui/buttons/compact/compact_button.png")
 
 const NORMAL_TEXTURE_PATH := "res://assets/ui/buttons/lobby/lobby_button_normal.png"
 const PRESSED_TEXTURE_PATH := "res://assets/ui/buttons/lobby/lobby_button_pressed.png"
 const DANGER_NORMAL_TEXTURE_PATH := "res://assets/ui/buttons/lobby/lobby_button_danger.png"
 const DANGER_PRESSED_TEXTURE_PATH := "res://assets/ui/buttons/lobby/lobby_button_danger_pressed.png"
+const COMPACT_TEXTURE_PATH := "res://assets/ui/buttons/compact/compact_button.png"
 
 
 static func apply(button: Button, variant: StringName = VARIANT_PRIMARY, minimum_size: Vector2 = Vector2.ZERO, with_sfx: bool = true) -> void:
@@ -26,11 +31,11 @@ static func apply(button: Button, variant: StringName = VARIANT_PRIMARY, minimum
 			maxf(button.custom_minimum_size.x, minimum_size.x),
 			maxf(button.custom_minimum_size.y, minimum_size.y)
 		)
-	button.add_theme_stylebox_override("normal", _style(_normal_texture(variant), _normal_modulate(variant)))
-	button.add_theme_stylebox_override("hover", _style(_normal_texture(variant), _hover_modulate(variant)))
-	button.add_theme_stylebox_override("pressed", _style(_pressed_texture(variant), _pressed_modulate(variant)))
-	button.add_theme_stylebox_override("focus", _style(_normal_texture(variant), _hover_modulate(variant)))
-	button.add_theme_stylebox_override("disabled", _style(_normal_texture(variant), _disabled_modulate(variant)))
+	button.add_theme_stylebox_override("normal", _style(_normal_texture(variant), _normal_modulate(variant), variant))
+	button.add_theme_stylebox_override("hover", _style(_normal_texture(variant), _hover_modulate(variant), variant))
+	button.add_theme_stylebox_override("pressed", _style(_pressed_texture(variant), _pressed_modulate(variant), variant))
+	button.add_theme_stylebox_override("focus", _style(_normal_texture(variant), _hover_modulate(variant), variant))
+	button.add_theme_stylebox_override("disabled", _style(_normal_texture(variant), _disabled_modulate(variant), variant))
 	button.add_theme_color_override("font_color", _font_color(variant))
 	button.add_theme_color_override("font_hover_color", _font_hover_color(variant))
 	button.add_theme_color_override("font_focus_color", _font_hover_color(variant))
@@ -60,26 +65,42 @@ static func _play_press_sfx() -> void:
 static func normal_texture_path(variant: StringName) -> String:
 	if variant == VARIANT_DANGER:
 		return DANGER_NORMAL_TEXTURE_PATH
+	if variant == VARIANT_COMPACT:
+		return COMPACT_TEXTURE_PATH
 	return NORMAL_TEXTURE_PATH
 
 
 static func pressed_texture_path(variant: StringName) -> String:
 	if variant == VARIANT_DANGER:
 		return DANGER_PRESSED_TEXTURE_PATH
+	if variant == VARIANT_COMPACT:
+		return COMPACT_TEXTURE_PATH
 	return PRESSED_TEXTURE_PATH
 
 
-static func _style(texture: Texture2D, modulate: Color) -> StyleBoxTexture:
+static func _style(texture: Texture2D, modulate: Color, variant: StringName = VARIANT_PRIMARY) -> StyleBoxTexture:
 	var style := StyleBoxTexture.new()
 	style.texture = texture
-	style.texture_margin_left = 60.0
-	style.texture_margin_top = 12.0
-	style.texture_margin_right = 60.0
-	style.texture_margin_bottom = 12.0
-	style.content_margin_left = 28.0
-	style.content_margin_top = 9.0
-	style.content_margin_right = 28.0
-	style.content_margin_bottom = 9.0
+	if variant == VARIANT_COMPACT:
+		# 76x36 frame with a slim ornate border — small corners so it renders
+		# crisp at narrow widths instead of overlapping like the wide lobby frame.
+		style.texture_margin_left = 16.0
+		style.texture_margin_top = 9.0
+		style.texture_margin_right = 16.0
+		style.texture_margin_bottom = 9.0
+		style.content_margin_left = 12.0
+		style.content_margin_top = 5.0
+		style.content_margin_right = 12.0
+		style.content_margin_bottom = 5.0
+	else:
+		style.texture_margin_left = 60.0
+		style.texture_margin_top = 12.0
+		style.texture_margin_right = 60.0
+		style.texture_margin_bottom = 12.0
+		style.content_margin_left = 28.0
+		style.content_margin_top = 9.0
+		style.content_margin_right = 28.0
+		style.content_margin_bottom = 9.0
 	style.modulate_color = modulate
 	return style
 
@@ -87,12 +108,16 @@ static func _style(texture: Texture2D, modulate: Color) -> StyleBoxTexture:
 static func _normal_texture(variant: StringName) -> Texture2D:
 	if variant == VARIANT_DANGER:
 		return DANGER_NORMAL_TEXTURE
+	if variant == VARIANT_COMPACT:
+		return COMPACT_TEXTURE
 	return NORMAL_TEXTURE
 
 
 static func _pressed_texture(variant: StringName) -> Texture2D:
 	if variant == VARIANT_DANGER:
 		return DANGER_PRESSED_TEXTURE
+	if variant == VARIANT_COMPACT:
+		return COMPACT_TEXTURE
 	return PRESSED_TEXTURE
 
 
@@ -102,6 +127,8 @@ static func _normal_modulate(variant: StringName) -> Color:
 			return Color.WHITE
 		VARIANT_SECONDARY:
 			return Color(0.78, 0.82, 0.88, 1.0)
+		VARIANT_COMPACT:
+			return Color.WHITE
 		_:
 			return Color.WHITE
 
@@ -112,6 +139,8 @@ static func _hover_modulate(variant: StringName) -> Color:
 			return Color(1.0, 0.92, 0.88, 1.0)
 		VARIANT_SECONDARY:
 			return Color(0.9, 0.93, 0.98, 1.0)
+		VARIANT_COMPACT:
+			return Color(1.0, 0.98, 0.9, 1.0)
 		_:
 			return Color(1.0, 0.956863, 0.776471, 1.0)
 
@@ -122,6 +151,9 @@ static func _pressed_modulate(variant: StringName) -> Color:
 			return Color.WHITE
 		VARIANT_SECONDARY:
 			return Color(0.66, 0.7, 0.78, 1.0)
+		VARIANT_COMPACT:
+			# Same texture as normal — darken to read as a press.
+			return Color(0.74, 0.78, 0.84, 1.0)
 		_:
 			return Color.WHITE
 
@@ -132,6 +164,8 @@ static func _disabled_modulate(variant: StringName) -> Color:
 			return Color(0.55, 0.45, 0.43, 0.86)
 		VARIANT_SECONDARY:
 			return Color(0.43, 0.48, 0.56, 0.82)
+		VARIANT_COMPACT:
+			return Color(0.5, 0.53, 0.6, 0.82)
 		_:
 			return Color(0.58, 0.55, 0.45, 0.86)
 

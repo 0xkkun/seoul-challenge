@@ -230,7 +230,7 @@ func _build_ui() -> void:
 	_skip_button.anchor_right = 0.975
 	_skip_button.anchor_top = 0.03
 	_skip_button.anchor_bottom = 0.10
-	_skip_button.text = "건너뛰기  ⏭"
+	_skip_button.text = "건너뛰기  ▶"
 	_skip_button.focus_mode = Control.FOCUS_NONE
 	_skip_button.mouse_filter = Control.MOUSE_FILTER_STOP
 	_skip_button.add_theme_font_size_override("font_size", 16)
