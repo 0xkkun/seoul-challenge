@@ -35,16 +35,16 @@ const BASEBALL_CAPTAIN_DISPLAY_NAME := "야구부 주장"
 const BASEBALL_CAPTAIN_PROMPT_TEXT := "야구부 주장  말 걸기"
 const BASEBALL_CAPTAIN_REWARD_CALLOUT_TEXT := "!  야구부 주장"
 const BASEBALL_CAPTAIN_BOSS_RESULT_CALLOUT_TEXT := "!  야구부 주장"
-const CRACKED_BAT_ID := &"cracked_bat"
-const CRACKED_BAT_NAME := "금 간 나무 배트"
-const CRACKED_BAT_POPUP_SUBTITLE := "야구부 주장이 건넨 첫 무기"
+const REWARD_BAT_ID := &"cracked_bat"
+const REWARD_BAT_NAME := "마지막 시즌의 배트"
+const REWARD_BAT_POPUP_SUBTITLE := "야구부 주장이 건넨 기억 무기"
 const BASEBALL_REWARD_LINES := [
 	{
 		"text": "고마워. 아까는 내가 제정신이 아니었던 것 같아.",
 		"memory": "",
 	},
 	{
-		"text": "이 금 간 나무 배트 가져가. 밤에 다시 들어가야 한다면 네 손에 있는 게 나아.\n[b]이 배트는 적의 공격을 튕겨내거나 돌진하는 적을 효과적으로 막을 수 있어![/b]",
+		"text": "이 배트는 마지막 시즌의 배트야. 밤에 다시 들어간다면 네가 들고 가.\n[b]이 배트는 적의 공격을 튕겨내거나 돌진하는 적을 효과적으로 막을 수 있어![/b]",
 		"memory": "",
 	},
 	{
@@ -1182,8 +1182,8 @@ func _maybe_show_baseball_reward_pickup_popup() -> void:
 	if _baseball_reward_pickup_popup_shown:
 		return
 	_baseball_reward_pickup_popup_shown = true
-	_hub_dialogue_ui.show_unlock(CRACKED_BAT_NAME, CRACKED_BAT_POPUP_SUBTITLE, [
-		{"id": CRACKED_BAT_ID, "name": CRACKED_BAT_NAME, "color": HubDialogueUi.DEFAULT_BAT_COLOR},
+	_hub_dialogue_ui.show_unlock(REWARD_BAT_NAME, REWARD_BAT_POPUP_SUBTITLE, [
+		{"id": REWARD_BAT_ID, "name": REWARD_BAT_NAME, "color": HubDialogueUi.DEFAULT_BAT_COLOR},
 	])
 
 
