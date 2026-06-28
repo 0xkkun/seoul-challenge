@@ -46,7 +46,7 @@ enum Phase { RECOVER, TELEGRAPH, CHARGE, SWING }
 @export var strong_attack_damage: int = 3
 @export var strong_attack_range: float = 144.0
 @export var strong_attack_arc: float = 1.8
-@export_range(0, 7, 1) var strong_attack_hit_frame := 3
+@export_range(0, 7, 1) var strong_attack_hit_frame := 4
 @export var strong_attack_animation_fps: float = 12.0
 @export var weak_attack_feedback_intensity: float = 4.5
 @export var strong_attack_feedback_intensity: float = 7.0

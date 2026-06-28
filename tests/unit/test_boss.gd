@@ -67,6 +67,17 @@ func test_strong_attack_hit_ready_waits_for_animation_contact_frame() -> void:
 	b.free()
 
 
+func test_strong_attack_hit_frame_matches_downswing_asset_frame() -> void:
+	var b = BossScene.instantiate()
+	_runner.assert_eq(b.strong_attack_hit_frame, 4, "보스 강공격 피해는 몽둥이가 내려오는 에셋 프레임에서 시작한다")
+	_runner.assert_eq(b.strong_attack_animation_fps, 12.0, "보스 강공격 판정 계산은 실제 강공격 애니메이션 fps를 따른다")
+	_runner.assert_true(
+		float(b.strong_attack_hit_frame) / b.strong_attack_animation_fps > 0.3,
+		"보스 강공격은 몽둥이를 하늘로 드는 초반 준비 프레임 동안 피해를 주지 않는다"
+	)
+	b.free()
+
+
 func test_boss_pattern_damage_defaults_make_slow_attacks_threatening() -> void:
 	var b = BossScene.instantiate()
 	_runner.assert_eq(b.contact_damage, 1, "보스 몸통 접촉 피해는 잡몹 수준으로 유지한다")
