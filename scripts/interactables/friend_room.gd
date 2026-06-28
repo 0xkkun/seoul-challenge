@@ -77,6 +77,17 @@ func resolve_friend_encounter(friend: Node = null) -> bool:
 	return true
 
 
+func restore_cleared_state() -> void:
+	_encounter_started = true
+	_encounter_resolved = true
+	_friend_spawned = true
+	for friend: Node in _active_friends:
+		if is_instance_valid(friend) and not friend.is_queued_for_deletion():
+			friend.queue_free()
+	_active_friends.clear()
+	super.restore_cleared_state()
+
+
 func _spawn_friend() -> void:
 	_friend_spawned = true
 	_active_friends.clear()
