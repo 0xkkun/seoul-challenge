@@ -995,6 +995,8 @@ func _on_boss_spawn_requested(room_id: StringName, boss_id: StringName, spawn_po
 	parent.add_child(boss)
 	if boss is Node2D:
 		(boss as Node2D).global_position = spawn_position
+	if boss.has_method("set_movement_bounds") and parent is Node2D:
+		boss.call("set_movement_bounds", _room_movement_bounds(parent))
 	_active_boss = boss
 	# Swap the run's suspense BGM for the boss-battle track now that the fight has begun.
 	# On defeat the session finishes and the destination scene starts its own BGM, matching
@@ -1026,6 +1028,10 @@ func _set_encounter_beat(ui: HubDialogueUi, beat: Dictionary) -> void:
 		int(beat.get("frame", 0)),
 		false,
 	)
+	if beat.has("portrait_scale") or beat.has("portrait_y"):
+		var portrait_scale: Vector2 = beat.get("portrait_scale", HubDialogueUi.DEFAULT_PORTRAIT_SCALE)
+		var portrait_y := float(beat.get("portrait_y", HubDialogueUi.DEFAULT_PORTRAIT_Y))
+		ui.set_portrait_layout(portrait_scale, portrait_y)
 	var continue_choice: Array[Dictionary] = [{
 		"id": &"continue",
 		"tap_to_continue": true,
@@ -1148,10 +1154,17 @@ func _input(event: InputEvent) -> void:
 	var tap_pos := (event as InputEventScreenTouch).position
 	if _minimap_full:
 		_minimap_full = false
+		_play_minimap_toggle_sfx()
 		_apply_minimap_layout()
 	elif _minimap.get_global_rect().has_point(tap_pos):
 		_minimap_full = true
+		_play_minimap_toggle_sfx()
 		_apply_minimap_layout()
+
+
+func _play_minimap_toggle_sfx() -> void:
+	if has_node("/root/AudioManager"):
+		AudioManager.play_sfx(AudioManager.UI_BUTTON_PRESS)
 
 
 func _apply_minimap_layout() -> void:

@@ -8,18 +8,20 @@ extends RefCounted
 
 const FIRST_INTRO_FLAG := &"palace_first_intro_shown"
 const BOSS := preload("res://resources/dialogue/gyeongbokgung_boss_portrait.tres")
+const BOSS_PORTRAIT_SCALE := Vector2(2.55, 2.55)
+const BOSS_PORTRAIT_Y := 66.0
 
 ## 온보딩 첫 조우 — 앱 프로세스당 1회(SaveManager 메모리 플래그). 앱 재시작 시 다시 노출.
 const INTRO_FIRST: Array[Dictionary] = [
-	{"speaker": "도깨비왕", "portrait": BOSS, "frame": 0, "text": "여기까지 걸어 들어온 인간은 오랜만이군."},
-	{"speaker": "도깨비왕", "portrait": BOSS, "frame": 0, "text": "궁의 밤은 내 것이다. 네가 찾는 아이도, 네 길도."},
-	{"speaker": "도깨비왕", "portrait": BOSS, "frame": 0, "text": "그 금 간 나무 배트 하나로 문을 열 수 있다고 믿었나."},
-	{"speaker": "도깨비왕", "portrait": BOSS, "frame": 0, "text": "좋다. 마지막 문 앞에서 네 힘을 증명해 봐라."},
+	{"speaker": "도깨비왕", "portrait": BOSS, "portrait_scale": BOSS_PORTRAIT_SCALE, "portrait_y": BOSS_PORTRAIT_Y, "frame": 0, "text": "여기까지 걸어 들어온 인간은 오랜만이군."},
+	{"speaker": "도깨비왕", "portrait": BOSS, "portrait_scale": BOSS_PORTRAIT_SCALE, "portrait_y": BOSS_PORTRAIT_Y, "frame": 0, "text": "궁의 밤은 내 것이다. 네가 찾는 아이도, 네 길도."},
+	{"speaker": "도깨비왕", "portrait": BOSS, "portrait_scale": BOSS_PORTRAIT_SCALE, "portrait_y": BOSS_PORTRAIT_Y, "frame": 0, "text": "마지막 시즌의 배트 하나로 궁의 문을 열 수 있다고 믿었나."},
+	{"speaker": "도깨비왕", "portrait": BOSS, "portrait_scale": BOSS_PORTRAIT_SCALE, "portrait_y": BOSS_PORTRAIT_Y, "frame": 0, "text": "좋다. 마지막 문 앞에서 네 힘을 증명해 봐라."},
 ]
 
 ## 보스 대면 — 매 입장(런)마다. 스킵 없이도 안 질리게 1줄.
 const BOSS_ENCOUNTER: Array[Dictionary] = [
-	{"speaker": "도깨비왕", "portrait": BOSS, "frame": 0, "text": "다시 왔군. 이번엔 도망칠 길도 없다."},
+	{"speaker": "도깨비왕", "portrait": BOSS, "portrait_scale": BOSS_PORTRAIT_SCALE, "portrait_y": BOSS_PORTRAIT_Y, "frame": 0, "text": "다시 왔군. 이번엔 도망칠 길도 없다."},
 ]
 
 

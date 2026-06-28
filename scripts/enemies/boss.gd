@@ -12,6 +12,7 @@ signal telegraph_started
 const HitReactionController = preload("res://scripts/combat/hit_reaction_controller.gd")
 const EnemyDeathFade = preload("res://scripts/combat/enemy_death_fade.gd")
 const EnemyHealthBar = preload("res://scripts/enemies/enemy_health_bar.gd")
+const MovementBounds = preload("res://scripts/systems/movement_bounds.gd")
 const FACING_DEADZONE := 0.05
 const HIT_TIMING_EPSILON := 0.0001
 const GROUND_EFFECT_FORWARD_OFFSET := 76.0
@@ -75,6 +76,8 @@ var _pattern_target: Node2D = null
 var _contact_timer: float = 0.0
 var _hit_reaction: Node = null
 var _health_bar: RefCounted = null
+var _movement_bounds := Rect2()
+var _movement_bounds_enabled := false
 
 @onready var _sprite: AnimatedSprite2D = get_node_or_null(^"Sprite")
 @onready var _ground_impact_effect: AnimatedSprite2D = get_node_or_null(^"GroundImpactEffect") as AnimatedSprite2D
@@ -113,6 +116,7 @@ func _physics_process(delta: float) -> void:
 			var charge_target := _current_pattern_target(target)
 			velocity = _charge_dir * charge_speed
 			move_and_slide()
+			clamp_to_movement_bounds()
 			_tick_strong_attack_hit(charge_target, delta)
 			if _phase_timer <= 0.0:
 				_begin_recover()
@@ -193,6 +197,47 @@ func ground_effect_followup_forward_offset(facing_direction: Vector2) -> float:
 	if absf(dir.y) > absf(dir.x):
 		return GROUND_EFFECT_FOLLOWUP_VERTICAL_FORWARD_OFFSET
 	return GROUND_EFFECT_FOLLOWUP_FORWARD_OFFSET
+
+
+func set_movement_bounds(bounds: Rect2) -> void:
+	_movement_bounds = bounds
+	_movement_bounds_enabled = bounds.size.x > 0.0 and bounds.size.y > 0.0
+	clamp_to_movement_bounds()
+
+
+func clear_movement_bounds() -> void:
+	_movement_bounds = Rect2()
+	_movement_bounds_enabled = false
+
+
+func has_movement_bounds() -> bool:
+	return _movement_bounds_enabled
+
+
+func get_movement_bounds() -> Rect2:
+	return _movement_bounds
+
+
+func clamp_to_movement_bounds() -> bool:
+	if not _movement_bounds_enabled:
+		return false
+	var before := global_position
+	var clamped := MovementBounds.clamp_body_position_to_bounds(before, _movement_bounds, self)
+	global_position = clamped
+	if not is_equal_approx(before.x, clamped.x):
+		velocity.x = 0.0
+	if not is_equal_approx(before.y, clamped.y):
+		velocity.y = 0.0
+	return not before.is_equal_approx(clamped)
+
+
+func clamp_position_to_bounds(position: Vector2, bounds: Rect2) -> Vector2:
+	if bounds.size.x <= 0.0 or bounds.size.y <= 0.0:
+		return position
+	return Vector2(
+		clampf(position.x, bounds.position.x, bounds.end.x),
+		clampf(position.y, bounds.position.y, bounds.end.y)
+	)
 
 
 # --- 피격 반응 (계약 #136) ---
@@ -311,6 +356,7 @@ func _slow_follow(target: Node2D) -> void:
 	velocity = charge_velocity(global_position, target.global_position, move_speed)
 	_update_move_animation()
 	move_and_slide()
+	clamp_to_movement_bounds()
 	_try_contact(target)
 
 

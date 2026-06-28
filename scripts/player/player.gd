@@ -9,6 +9,7 @@ const MapItemCatalog = preload("res://scripts/items/map_item_catalog.gd")
 const HitReactionController = preload("res://scripts/combat/hit_reaction_controller.gd")
 const StatusEffectController = preload("res://scripts/combat/status_effect_controller.gd")
 const MetaUpgradeCatalog = preload("res://scripts/items/meta_upgrade_catalog.gd")
+const MovementBounds = preload("res://scripts/systems/movement_bounds.gd")
 const SLASH_FRAME_WIDTH := 64.0
 const ATTACK_DUST_FRAME_SIZE := Vector2(48.0, 72.0)
 const DASH_DUST_FRAME_SIZE := Vector2(108.0, 42.0)
@@ -250,7 +251,7 @@ func clamp_to_movement_bounds() -> bool:
 	if not _movement_bounds_enabled:
 		return false
 	var before := global_position
-	var clamped := clamp_position_to_bounds(before, _movement_bounds)
+	var clamped := MovementBounds.clamp_body_position_to_bounds(before, _movement_bounds, self)
 	global_position = clamped
 	if not is_equal_approx(before.x, clamped.x):
 		velocity.x = 0.0
@@ -1019,7 +1020,8 @@ func _attack_melee(dir: Vector2) -> void:
 			var applied_knockback := knockback_distance if _has_bat else barehand_knockback
 			applied_knockback = knockback_after_resistance(applied_knockback, _knockback_resistance_for(enemy))
 			if applied_knockback > 0.0:
-				e.global_position += knockback_vector(global_position, e.global_position, applied_knockback)
+				var knocked_position := e.global_position + knockback_vector(global_position, e.global_position, applied_knockback)
+				e.global_position = _clamp_knockback_position(knocked_position, e)
 				if enemy.has_method("clamp_to_movement_bounds"):
 					enemy.call("clamp_to_movement_bounds")
 	if _has_bat:
@@ -1044,6 +1046,12 @@ func _attack_melee(dir: Vector2) -> void:
 		if _has_bat:
 			_play_bat_hit_sfx()
 		_emit_combat_feedback(&"melee_hit", dir, hit_count, _melee_feedback_intensity(power_attack))
+
+
+func _clamp_knockback_position(position: Vector2, body: Node2D) -> Vector2:
+	if not _movement_bounds_enabled:
+		return position
+	return MovementBounds.clamp_body_position_to_bounds(position, _movement_bounds, body)
 
 
 ## 원거리 발사(야구공) — 보존된 무기. ranged_enabled 일 때만 사용. fired → ProjectileLauncher 가 스폰.

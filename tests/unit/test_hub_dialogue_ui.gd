@@ -93,12 +93,22 @@ func test_sprite_portrait_uses_texture_without_panel_background() -> void:
 	_runner.assert_eq(_ui.get_portrait_texture_path(), "res://assets/characters/school/people2.png", "초상화 텍스처 경로를 노출한다")
 	_runner.assert_eq(_ui.get_portrait_frame(), 1, "대화 포커스는 눈을 뜬 프레임으로 고정한다")
 	_runner.assert_false(_ui.is_portrait_animating(), "대화 포커스는 프레임을 재생하지 않는다")
+	_runner.assert_eq(_ui.get_portrait_scale(), HUB_DIALOGUE_SCRIPT.DEFAULT_PORTRAIT_SCALE, "기본 초상화 스케일은 학교 캐릭터 기준을 유지한다")
+	_runner.assert_eq(_ui.get_portrait_position().y, HUB_DIALOGUE_SCRIPT.DEFAULT_PORTRAIT_Y, "기본 초상화 y 위치는 학교 캐릭터 기준을 유지한다")
 	_runner.assert_true(panel.color.a <= 0.01, "스프라이트 초상화는 단색 배경 패널을 비운다")
 	_runner.assert_false(accent.visible, "스프라이트 초상화는 기존 하단 accent를 숨긴다")
 	_runner.assert_eq(sprite.self_modulate, Color(0.94, 0.92, 0.88, 1), "스프라이트 초상화는 복도 배경과 같은 톤으로 눌러준다")
 	_runner.assert_true(sprite.z_index > dimmer.z_index, "스프라이트 초상화는 오버레이보다 앞에 그려진다")
 	_runner.assert_true(sprite.z_index < dialogue_bar.z_index, "스프라이트 초상화는 대화 바 뒤에 그려진다")
 	_runner.assert_eq(sprite.frame, frame_before, "초상화 스프라이트는 대화 중 정적 프레임을 유지한다")
+
+
+func test_portrait_layout_can_be_adjusted_for_non_school_busts() -> void:
+	_ui.set_dialogue("도깨비왕", "다시 왔군.", "", HUB_DIALOGUE_SCRIPT.PORTRAIT_COLOR, PEOPLE2_TEXTURE, 0, false)
+	_ui.set_portrait_layout(Vector2(2.2, 2.2), 72.0)
+
+	_runner.assert_eq(_ui.get_portrait_scale(), Vector2(2.2, 2.2), "전투용 초상화는 스케일을 별도로 조정할 수 있다")
+	_runner.assert_eq(_ui.get_portrait_position().y, 72.0, "전투용 초상화는 대화 바 뒤로 숨지 않게 y 위치를 별도로 조정할 수 있다")
 
 
 func test_dialogue_overlay_and_stage_row_visibility_are_configurable() -> void:

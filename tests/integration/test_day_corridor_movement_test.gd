@@ -361,7 +361,8 @@ func test_day_corridor_onboarding_reward_dialogue_grants_bat_and_clue() -> void:
 	_runner.assert_eq(scene.get_dialogue_choice_ids(), [&"next"], "reward dialogue starts with next")
 
 	_runner.assert_true(UiTestHarness.press_by_uat_action(scene, "day_corridor.dialogue.next"), "reward dialogue advances to bat line")
-	_runner.assert_true(scene.get_active_dialogue_text().contains("금 간 나무 배트"), "captain names the cracked wooden bat before the reward is claimed")
+	_runner.assert_true(scene.get_active_dialogue_text().contains("마지막 시즌의 배트"), "captain names the last-season bat at the reward handoff")
+	_runner.assert_false(scene.get_active_dialogue_text().contains("금 간 나무 배트"), "reward handoff no longer regresses to the pre-reward cracked bat name")
 	_runner.assert_true(scene.get_active_dialogue_text().contains("이 배트는 적의 공격을 튕겨내거나 돌진하는 적을 효과적으로 막을 수 있어!"), "captain explains the bat's defensive combat role")
 	_runner.assert_true(scene.get_node("%HubDialogueUi").get_dialogue_markup_text().contains("[b]이 배트는 적의 공격을 튕겨내거나 돌진하는 적을 효과적으로 막을 수 있어![/b]"), "bat defensive role line is bolded")
 	_runner.assert_true(scene.perform_uat_action("day_corridor.dialogue.dismiss_unlock"), "bat pickup popup can be dismissed before clue line")
@@ -521,7 +522,7 @@ func test_day_corridor_onboarding_reward_marks_baseball_captain_as_talk_target()
 	_runner.assert_true(interaction_prompt.text.contains("말 걸기"), "interaction prompt tells the player they can talk")
 
 
-func test_day_corridor_onboarding_reward_bat_line_shows_cracked_bat_pickup_popup() -> void:
+func test_day_corridor_onboarding_reward_bat_line_shows_last_season_bat_pickup_popup() -> void:
 	SaveManager.set_flag(SceneTransition.FLAG_ONBOARDING_BASEBALL_COMPLETE, true)
 	SaveManager.set_flag(SceneTransition.FLAG_BASEBALL_CAPTAIN_REWARD_CLAIMED, false)
 	var scene := DayCorridorScene.instantiate()
@@ -534,7 +535,7 @@ func test_day_corridor_onboarding_reward_bat_line_shows_cracked_bat_pickup_popup
 	_runner.assert_true(dialogue_ui.is_unlock_visible(), "bat line shows a pickup popup")
 	_runner.assert_eq(dialogue_ui.get_unlock_items().size(), 1, "bat pickup popup contains one reward item")
 	if dialogue_ui.get_unlock_items().size() == 1:
-		_runner.assert_eq(dialogue_ui.get_unlock_items()[0]["name"], "금 간 나무 배트", "bat pickup popup uses the pre-reward cracked bat name")
+		_runner.assert_eq(dialogue_ui.get_unlock_items()[0]["name"], "마지막 시즌의 배트", "bat pickup popup uses the post-reward story name")
 	_runner.assert_false(scene.perform_uat_action("day_corridor.dialogue.next"), "pickup popup blocks advancing to the clue line")
 
 	_runner.assert_true(scene.perform_uat_action("day_corridor.dialogue.dismiss_unlock"), "pickup popup can be dismissed without coordinates")
