@@ -21,6 +21,7 @@ const BACKDROP_ALPHA := 0.4
 const REVEAL_RISE_SECONDS := 1.1
 const REVEAL_HOLD_SECONDS := 1.6
 const FontRoles := preload("res://scripts/ui/ui_font_roles.gd")
+const FINALE_SFX := &"night_intro_transition_cd"
 
 ## 플레이트 순서는 확정 스토리보드 기준: B → A → C → D.
 const PLATES: Array[String] = [
@@ -46,7 +47,7 @@ const BEATS: Array[Dictionary] = [
 		{"text": "오늘 밤은…", "audio": "res://assets/audio/night_intro/vo_beat3_1.wav", "pre": 0.6},
 		{"text": "돌아오지 못할지도 모른다.", "audio": "res://assets/audio/night_intro/vo_beat3_2.wav"},
 	]},
-	{"plate": 3, "sfx": &"night_intro_transition_cd", "lines": [
+	{"plate": 3, "sfx": &"night_intro_transition_ab", "lines": [
 		{"text": "그래도 나는 멈추지 않는다.", "audio": "res://assets/audio/night_intro/vo_beat4_1.wav", "pre": 0.8},
 		{"text": "밤이 시작된다.", "audio": "res://assets/audio/night_intro/vo_beat4_2.wav"},
 	]},
@@ -133,7 +134,12 @@ func play() -> void:
 		if _skip:
 			break
 		if i == last_index:
+			if not _skip:
+				# 마지막 대사 뒤에 기존 C-D 전환음을 깔고 리빌/암전 시간을 확보해
+				# 직후 세션 전환음과 동시에 시작되지 않게 한다.
+				_play_transition_sfx(FINALE_SFX)
 			await _reveal_finale()
+			_stop_transition_sfx()
 		else:
 			await _fade_plate_out()
 	_finish()
@@ -283,8 +289,8 @@ func _show_plate(plate_index: int, target_alpha: float) -> void:
 	await tween.finished
 
 
-## 시네마틱 전환음. 긴 트레일러 클립이라 다음 비트가 시작되면 직전 전환음을
-## 끊고 새 전환음으로 교체해 AB/BC/CD 베드가 겹치지 않게 한다.
+## 시네마틱 전환음. 긴 트레일러 클립이라 다음 비트/피날레가 시작되면 직전
+## 전환음을 끊고 새 전환음으로 교체해 베드가 겹치지 않게 한다.
 func _play_transition_sfx(sfx_id: StringName) -> void:
 	if has_node("/root/AudioManager"):
 		if _current_transition_sfx_id != &"" and _current_transition_sfx_id != sfx_id:
