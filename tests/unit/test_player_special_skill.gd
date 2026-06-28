@@ -514,6 +514,20 @@ func test_start_dodge_clears_pending_attack_cooldown_for_power_attack_followup()
 	)
 
 
+func test_start_dodge_preserves_ranged_fire_cooldown() -> void:
+	var player = PlayerScript.new()
+	add_child(player)
+	player.ranged_enabled = true
+	player.set("_attack_timer", player.fire_cooldown)
+
+	_runner.assert_true(player.try_start_special_skill(Vector2.RIGHT), "ready dodge starts")
+
+	_runner.assert_true(
+		is_equal_approx(float(player.get("_attack_timer")), player.fire_cooldown),
+		"원거리 모드 대시는 발사 쿨타임을 초기화하지 않는다"
+	)
+
+
 func _screen_touch(index: int, position: Vector2, pressed: bool) -> InputEventScreenTouch:
 	var event := InputEventScreenTouch.new()
 	event.index = index

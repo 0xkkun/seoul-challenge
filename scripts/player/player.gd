@@ -648,7 +648,8 @@ func try_start_special_skill(input_vector: Vector2 = Vector2.ZERO) -> bool:
 	_dash_power_attack_timer = maxf(dodge_duration + dash_power_attack_grace_time, visual_duration)
 	_dash_power_attack_consumed = false
 	_invuln_timer = maxf(_invuln_timer, dodge_invuln_time)
-	_attack_timer = 0.0
+	if not ranged_enabled:
+		_attack_timer = 0.0
 	special_skill_uses_remaining = consume_special_use(special_skill_uses_remaining)
 	_show_dash_dust(_dodge_direction)
 	_cancel_attack_anim_state()
