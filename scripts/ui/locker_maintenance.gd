@@ -420,7 +420,7 @@ func _make_upgrade_row(id: StringName) -> Control:
 	button.name = "UpgradeButton_%s" % id
 	button.text = "강화"
 	button.focus_mode = Control.FOCUS_NONE
-	PixelButton.apply(button, PixelButton.VARIANT_SECONDARY, Vector2(76.0, 50.0))
+	PixelButton.apply(button, PixelButton.VARIANT_COMPACT, Vector2(76.0, 36.0))
 	FontRoles.apply_pixel(button)
 	_set_button_meta(button, "upgrade_%s" % id, action)
 	button.pressed.connect(_on_upgrade_pressed.bind(id))
