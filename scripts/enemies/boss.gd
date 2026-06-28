@@ -15,7 +15,7 @@ const EnemyHealthBar = preload("res://scripts/enemies/enemy_health_bar.gd")
 const FACING_DEADZONE := 0.05
 const HIT_TIMING_EPSILON := 0.0001
 const GROUND_EFFECT_FORWARD_OFFSET := 76.0
-const GROUND_EFFECT_FOLLOWUP_FORWARD_OFFSET := 239.2
+const GROUND_EFFECT_FOLLOWUP_FORWARD_OFFSET := 212.0
 const GROUND_EFFECT_BASE_OFFSET := Vector2(0.0, 42.0)
 const GROUND_EFFECT_SCALE_MULTIPLIER := 3.4
 const WOUND_EFFECT_FORWARD_OFFSET := 86.0
@@ -36,6 +36,8 @@ enum Phase { RECOVER, TELEGRAPH, CHARGE, SWING }
 @export var weak_attack_damage: int = 2
 @export var weak_attack_range: float = 104.0
 @export var weak_attack_arc: float = 1.6
+@export var weak_ground_damage: int = 2
+@export var weak_ground_hitbox_half_extents := Vector2(112.0, 52.0)
 @export_range(0, 6, 1) var weak_attack_ground_effect_frame := 3
 @export var weak_attack_animation_fps: float = 16.0
 @export var weak_attack_ground_followup_delay: float = 0.12
@@ -46,6 +48,7 @@ enum Phase { RECOVER, TELEGRAPH, CHARGE, SWING }
 @export var strong_attack_animation_fps: float = 12.0
 @export var weak_attack_feedback_intensity: float = 4.5
 @export var strong_attack_feedback_intensity: float = 7.0
+@export_range(0.0, 1.0, 0.05) var knockback_resistance: float = 0.8
 @export var contact_cooldown: float = 0.5
 @export var hit_invuln_time: float = 0.12
 @export var target_group: StringName = &"player"
@@ -66,6 +69,7 @@ var _strong_attack_hit_resolved: bool = false
 var _weak_attack_dir: Vector2 = Vector2.ZERO
 var _weak_attack_elapsed: float = 0.0
 var _weak_ground_effects_played: int = 0
+var _weak_ground_damage_applied: bool = false
 var _pattern_target: Node2D = null
 var _contact_timer: float = 0.0
 var _hit_reaction: Node = null
@@ -177,6 +181,12 @@ func attack_effect_layout(
 	}
 
 
+func ground_effect_hits(effect_center: Vector2, target_position: Vector2, hitbox_half_extents: Vector2) -> bool:
+	var extents := Vector2(maxf(0.0, hitbox_half_extents.x), maxf(0.0, hitbox_half_extents.y))
+	var delta := target_position - effect_center
+	return absf(delta.x) <= extents.x and absf(delta.y) <= extents.y
+
+
 # --- 피격 반응 (계약 #136) ---
 
 func is_hit_invulnerable() -> bool:
@@ -281,6 +291,7 @@ func _begin_recover() -> void:
 	_weak_attack_elapsed = 0.0
 	_weak_ground_effects_played = 0
 	_weak_attack_dir = Vector2.ZERO
+	_weak_ground_damage_applied = false
 	_pattern_target = null
 	_play_move_animation()
 
@@ -334,6 +345,7 @@ func _begin_weak_attack_ground_effects(facing_direction: Vector2) -> void:
 	_weak_attack_dir = facing_direction
 	_weak_attack_elapsed = 0.0
 	_weak_ground_effects_played = 0
+	_weak_ground_damage_applied = false
 	_hide_attack_effect(_ground_impact_effect)
 	_hide_attack_effect(_ground_impact_effect_followup)
 
@@ -350,9 +362,11 @@ func _tick_weak_attack_ground_effects(delta: float) -> void:
 	)
 	if _weak_ground_effects_played < 1 and should_have_played >= 1:
 		_play_ground_impact_effect(_ground_impact_effect, _weak_attack_dir, GROUND_EFFECT_FORWARD_OFFSET)
+		_try_ground_effect_attack(_current_pattern_target(_find_target()), _weak_attack_dir, GROUND_EFFECT_FORWARD_OFFSET)
 		_weak_ground_effects_played = 1
 	if _weak_ground_effects_played < 2 and should_have_played >= 2:
 		_play_ground_impact_effect(_ground_impact_effect_followup, _weak_attack_dir, GROUND_EFFECT_FOLLOWUP_FORWARD_OFFSET)
+		_try_ground_effect_attack(_current_pattern_target(_find_target()), _weak_attack_dir, GROUND_EFFECT_FOLLOWUP_FORWARD_OFFSET)
 		_weak_ground_effects_played = 2
 
 
@@ -418,6 +432,30 @@ func _play_ground_impact_effect(effect: AnimatedSprite2D, facing_direction: Vect
 		GROUND_EFFECT_SCALE_MULTIPLIER
 	):
 		AudioManager.play_sfx(AudioManager.BOSS_WEAK_GROUND_SPIKE)
+
+
+func _try_ground_effect_attack(target: Node2D, facing_direction: Vector2, forward_offset: float) -> void:
+	if _weak_ground_damage_applied or target == null:
+		return
+	var effect_center := _ground_effect_global_center(facing_direction, forward_offset)
+	if not ground_effect_hits(effect_center, target.global_position, weak_ground_hitbox_half_extents):
+		return
+	if target.has_method("take_damage"):
+		target.call("take_damage", weak_ground_damage)
+		_weak_ground_damage_applied = true
+		_emit_boss_hit_feedback(target, facing_direction, weak_ground_damage, &"weak_ground", weak_attack_feedback_intensity)
+
+
+func _ground_effect_global_center(facing_direction: Vector2, forward_offset: float) -> Vector2:
+	var layout := attack_effect_layout(
+		facing_direction,
+		_boss_visual_scale(),
+		forward_offset,
+		GROUND_EFFECT_BASE_OFFSET,
+		GROUND_EFFECT_SCALE_MULTIPLIER
+	)
+	var local_position: Vector2 = layout["position"]
+	return to_global(local_position)
 
 
 func _play_wound_slash_effect(facing_direction: Vector2) -> void:

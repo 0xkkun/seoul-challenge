@@ -13,6 +13,10 @@ class StubEnemy extends Node2D:
 		taken += amount
 
 
+class StubResistantEnemy extends StubEnemy:
+	var knockback_resistance: float = 0.8
+
+
 class StubParryEnemy extends StubEnemy:
 	var parry_count: int = 0
 	var parried_dir: Vector2 = Vector2.ZERO
@@ -160,6 +164,33 @@ func test_melee_knockback_clamps_enemy_to_room_bounds() -> void:
 	_runner.assert_eq(e.position.x, 100.0, "넉백 직후 적 위치는 방 경계 안으로 제한된다")
 	_runner.assert_eq(e.clamp_count, 1, "넉백은 적의 이동 경계 clamp 계약을 즉시 호출한다")
 	e.free()
+	p.free()
+
+
+func test_bat_knockback_respects_enemy_resistance() -> void:
+	var p = PlayerScript.new()
+	add_child(p)
+	p.position = Vector2.ZERO
+	p.equip_bat()
+	var e := StubResistantEnemy.new()
+	e.position = Vector2(50.0, 0.0)
+	e.add_to_group(&"enemy")
+	add_child(e)
+
+	p._attack_melee(Vector2.RIGHT)
+
+	var expected_x: float = 50.0 + p.bat_knockback * 0.2
+	_runner.assert_true(is_equal_approx(e.position.x, expected_x), "넉백 저항 80% 적은 배트 넉백의 20%만 밀린다")
+	_runner.assert_eq(e.taken, p.bat_damage, "넉백 저항은 피해량을 줄이지 않는다")
+	e.free()
+	p.free()
+
+
+func test_knockback_after_resistance_scales_distance() -> void:
+	var p = PlayerScript.new()
+	_runner.assert_true(is_equal_approx(p.knockback_after_resistance(64.0, 0.8), 12.8), "80% 넉백 저항은 거리의 20%만 남긴다")
+	_runner.assert_true(is_equal_approx(p.knockback_after_resistance(64.0, -0.5), 64.0), "음수 저항은 0으로 클램프한다")
+	_runner.assert_true(is_equal_approx(p.knockback_after_resistance(64.0, 1.5), 0.0), "100% 초과 저항은 완전 저항으로 클램프한다")
 	p.free()
 
 
