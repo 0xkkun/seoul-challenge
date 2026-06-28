@@ -77,11 +77,8 @@ const _SFX_STREAM_PATHS := {
 ## 모든 SFX의 기본 재생 볼륨. 개별 보정이 필요하면 _SFX_VOLUME_DB에 id별로 등록한다.
 const DEFAULT_SFX_VOLUME_DB := -2.0
 ## id별 볼륨 오버라이드(dB, 절대값). 없는 id는 DEFAULT_SFX_VOLUME_DB로 재생된다.
-## dash_wind: 파일 피크는 가장 크지만 지각 음량(LUFS)이 전투음보다 낮아 묻혀서,
-## 피크 클리핑이 나지 않는 선에서 한 단계 키운다(파일 피크 -1.8dB → 출력 -0.8dB).
-const _SFX_VOLUME_DB := {
-	DASH_WIND: 1.0,
-}
+## 소스 에셋은 카테고리별 loudness 기준으로 정규화되어 있으므로 예외만 여기에 둔다.
+const _SFX_VOLUME_DB := {}
 
 const BGM_VOLUME_DB := 0.0
 const BGM_SILENT_DB := -40.0
