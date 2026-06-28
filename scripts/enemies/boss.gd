@@ -14,10 +14,12 @@ const EnemyDeathFade = preload("res://scripts/combat/enemy_death_fade.gd")
 const EnemyHealthBar = preload("res://scripts/enemies/enemy_health_bar.gd")
 const FACING_DEADZONE := 0.05
 const HIT_TIMING_EPSILON := 0.0001
-const GROUND_EFFECT_FORWARD_OFFSET := 72.0
-const GROUND_EFFECT_BASE_OFFSET := Vector2(0.0, 36.0)
-const WOUND_EFFECT_FORWARD_OFFSET := 88.0
-const WOUND_EFFECT_BASE_OFFSET := Vector2(0.0, -6.0)
+const GROUND_EFFECT_FORWARD_OFFSET := 76.0
+const GROUND_EFFECT_BASE_OFFSET := Vector2(0.0, 42.0)
+const GROUND_EFFECT_SCALE_MULTIPLIER := 3.4
+const WOUND_EFFECT_FORWARD_OFFSET := 86.0
+const WOUND_EFFECT_BASE_OFFSET := Vector2.ZERO
+const WOUND_EFFECT_SCALE_MULTIPLIER := 1.25
 const ATTACK_EFFECT_ANIMATION := &"impact"
 
 enum Phase { RECOVER, TELEGRAPH, CHARGE, SWING }
@@ -136,6 +138,24 @@ func strong_attack_hit_ready(elapsed: float, hit_frame: int, animation_speed: fl
 	if hit_frame <= 0 or animation_speed <= 0.0:
 		return true
 	return elapsed + HIT_TIMING_EPSILON >= float(hit_frame) / animation_speed
+
+
+func attack_effect_layout(
+	facing_direction: Vector2,
+	boss_visual_scale: Vector2,
+	forward_offset: float,
+	base_offset: Vector2,
+	effect_scale_multiplier: float
+) -> Dictionary:
+	var visual_scale := maxf(absf(boss_visual_scale.x), absf(boss_visual_scale.y))
+	if visual_scale <= 0.001:
+		visual_scale = 1.0
+	var dir := facing_direction.normalized() if facing_direction.length() > 0.001 else Vector2.RIGHT
+	return {
+		"position": ((dir * forward_offset) + base_offset) * visual_scale,
+		"scale": Vector2.ONE * visual_scale * effect_scale_multiplier,
+		"flip_h": dir.x < -FACING_DEADZONE,
+	}
 
 
 # --- 피격 반응 (계약 #136) ---
@@ -342,21 +362,40 @@ func _bind_attack_effect(effect: AnimatedSprite2D) -> void:
 
 
 func _play_ground_impact_effect(facing_direction: Vector2) -> void:
-	_play_attack_effect(_ground_impact_effect, facing_direction, GROUND_EFFECT_FORWARD_OFFSET, GROUND_EFFECT_BASE_OFFSET)
+	_play_attack_effect(
+		_ground_impact_effect,
+		facing_direction,
+		GROUND_EFFECT_FORWARD_OFFSET,
+		GROUND_EFFECT_BASE_OFFSET,
+		GROUND_EFFECT_SCALE_MULTIPLIER
+	)
 
 
 func _play_wound_slash_effect(facing_direction: Vector2) -> void:
-	_play_attack_effect(_wound_slash_effect, facing_direction, WOUND_EFFECT_FORWARD_OFFSET, WOUND_EFFECT_BASE_OFFSET)
+	_play_attack_effect(
+		_wound_slash_effect,
+		facing_direction,
+		WOUND_EFFECT_FORWARD_OFFSET,
+		WOUND_EFFECT_BASE_OFFSET,
+		WOUND_EFFECT_SCALE_MULTIPLIER
+	)
 
 
-func _play_attack_effect(effect: AnimatedSprite2D, facing_direction: Vector2, forward_offset: float, base_offset: Vector2) -> void:
+func _play_attack_effect(
+	effect: AnimatedSprite2D,
+	facing_direction: Vector2,
+	forward_offset: float,
+	base_offset: Vector2,
+	effect_scale_multiplier: float
+) -> void:
 	if effect == null or effect.sprite_frames == null:
 		return
 	if not effect.sprite_frames.has_animation(ATTACK_EFFECT_ANIMATION):
 		return
-	var dir := facing_direction.normalized() if facing_direction.length() > 0.001 else Vector2.RIGHT
-	effect.position = (dir * forward_offset) + base_offset
-	effect.flip_h = dir.x < -FACING_DEADZONE
+	var layout := attack_effect_layout(facing_direction, _boss_visual_scale(), forward_offset, base_offset, effect_scale_multiplier)
+	effect.position = layout["position"] as Vector2
+	effect.scale = layout["scale"] as Vector2
+	effect.flip_h = bool(layout["flip_h"])
 	effect.visible = true
 	effect.stop()
 	effect.animation = ATTACK_EFFECT_ANIMATION
@@ -369,6 +408,12 @@ func _on_attack_effect_finished(effect: AnimatedSprite2D) -> void:
 	if effect == null or not is_instance_valid(effect):
 		return
 	effect.visible = false
+
+
+func _boss_visual_scale() -> Vector2:
+	if _sprite != null:
+		return _sprite.scale
+	return Vector2.ONE
 
 
 func _get_visual() -> CanvasItem:
