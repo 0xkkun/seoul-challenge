@@ -94,6 +94,17 @@ func test_strong_attack_hit_frame_matches_downswing_asset_frame() -> void:
 	b.free()
 
 
+func test_weak_attack_ground_effect_frame_matches_downswing_asset_frame() -> void:
+	var b = BossScene.instantiate()
+	_runner.assert_eq(b.weak_attack_ground_effect_frame, 4, "보스 약공격 피해와 대지 이펙트는 몽둥이가 머리 위에 있는 index 3 다음 실제 내려치는 index 4부터 시작한다")
+	_runner.assert_eq(b.weak_attack_animation_fps, 16.0, "보스 약공격 판정 계산은 실제 약공격 애니메이션 fps를 따른다")
+	_runner.assert_true(
+		float(b.weak_attack_ground_effect_frame) / b.weak_attack_animation_fps >= 0.25,
+		"보스 약공격은 몽둥이를 들어 올리는 준비 프레임 동안 피해를 주지 않는다"
+	)
+	b.free()
+
+
 func test_boss_pattern_damage_defaults_make_slow_attacks_threatening() -> void:
 	var b = BossScene.instantiate()
 	_runner.assert_eq(b.contact_damage, 1, "보스 몸통 접촉 피해는 잡몹 수준으로 유지한다")
@@ -154,6 +165,32 @@ func test_weak_attack_is_melee_swing_not_projectile_burst() -> void:
 	b.call("_tick_weak_attack_ground_effects", float(b.weak_attack_ground_effect_frame) / b.weak_attack_animation_fps)
 	_runner.assert_eq(target.damage_taken, b.weak_attack_damage, "보스 약공격은 전방 근접 스윙 피해를 준다")
 	_runner.assert_eq(get_child_count(), child_count_before, "보스 약공격은 원거리 투사체를 생성하지 않는다")
+	b.queue_free()
+	target.queue_free()
+
+
+func test_weak_attack_does_not_hit_while_club_is_overhead() -> void:
+	var b = BossScene.instantiate()
+	var target := DamageTarget.new()
+	add_child(b)
+	add_child(target)
+	b.target_group = &"boss_timing_test_player"
+	target.add_to_group(&"boss_timing_test_player")
+	b.global_position = Vector2.ZERO
+	target.global_position = Vector2.RIGHT * 80.0
+	var ground := b.get_node_or_null("GroundImpactEffect") as AnimatedSprite2D
+	_runner.assert_not_null(ground, "보스 약공격은 대지 이펙트 노드를 가진다")
+	if ground == null:
+		b.queue_free()
+		target.queue_free()
+		return
+
+	b.set("_pattern_index", 1)
+	b.call("_begin_pattern", target)
+	b.call("_tick_weak_attack_ground_effects", 3.0 / b.weak_attack_animation_fps)
+
+	_runner.assert_eq(target.damage_taken, 0, "보스 약공격은 몽둥이가 머리 위에 있는 index 3 프레임에는 피해를 주지 않는다")
+	_runner.assert_false(ground.visible, "보스 약공격 대지 이펙트도 index 3 프레임에는 아직 재생하지 않는다")
 	b.queue_free()
 	target.queue_free()
 

@@ -40,7 +40,7 @@ enum Phase { RECOVER, TELEGRAPH, CHARGE, SWING }
 @export var weak_attack_arc: float = 1.6
 @export var weak_ground_damage: int = 2
 @export var weak_ground_hitbox_half_extents := Vector2(112.0, 52.0)
-@export_range(0, 6, 1) var weak_attack_ground_effect_frame := 3
+@export_range(0, 6, 1) var weak_attack_ground_effect_frame := 4
 @export var weak_attack_animation_fps: float = 16.0
 @export var weak_attack_ground_followup_delay: float = 0.12
 @export var strong_attack_damage: int = 3
