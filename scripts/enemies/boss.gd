@@ -493,7 +493,7 @@ func _try_ground_effect_attack(target: Node2D, facing_direction: Vector2, forwar
 	if _weak_ground_damage_applied or target == null:
 		return
 	var effect_center := _ground_effect_global_center(facing_direction, forward_offset)
-	if not ground_effect_hits(effect_center, target.global_position, weak_ground_hitbox_half_extents):
+	if not ground_effect_hits(effect_center, _ground_effect_target_position(target), weak_ground_hitbox_half_extents):
 		return
 	if target.has_method("take_damage"):
 		target.call("take_damage", weak_ground_damage)
@@ -511,6 +511,13 @@ func _ground_effect_global_center(facing_direction: Vector2, forward_offset: flo
 	)
 	var local_position: Vector2 = layout["position"]
 	return to_global(local_position)
+
+
+func _ground_effect_target_position(target: Node2D) -> Vector2:
+	var foot_offset: Variant = target.get("attack_dust_foot_offset")
+	if typeof(foot_offset) == TYPE_FLOAT or typeof(foot_offset) == TYPE_INT:
+		return target.global_position + Vector2(0.0, float(foot_offset))
+	return target.global_position
 
 
 func _play_wound_slash_effect(facing_direction: Vector2) -> void:

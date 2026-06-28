@@ -13,6 +13,10 @@ class DamageTarget extends Node2D:
 		damage_taken += amount
 
 
+class FootOffsetTarget extends DamageTarget:
+	var attack_dust_foot_offset := 52.0
+
+
 func _set_runner(runner: Node) -> void:
 	_runner = runner
 
@@ -332,6 +336,26 @@ func test_weak_ground_effects_damage_once_across_two_spikes() -> void:
 	target.global_position = Vector2(226.8, 56.7)
 	b.call("_tick_weak_attack_ground_effects", b.weak_attack_ground_followup_delay)
 	_runner.assert_eq(target.damage_taken, b.weak_ground_damage, "한 번 대지 피해를 받았으면 두 번째 대지는 추가 피해를 주지 않는다")
+	b.queue_free()
+	target.queue_free()
+
+
+func test_weak_ground_effect_uses_target_foot_position() -> void:
+	var b = BossScene.instantiate()
+	var target := FootOffsetTarget.new()
+	add_child(b)
+	add_child(target)
+	b.global_position = Vector2.ZERO
+	target.global_position = Vector2.RIGHT * 240.0
+
+	b.set("_pattern_index", 1)
+	b.call("_begin_pattern", target)
+	_runner.assert_eq(target.damage_taken, 0, "대지 판정 테스트는 기존 근접 스윙 사거리 밖에서 시작한다")
+
+	target.global_position = Vector2(102.6, 0.0)
+	b.call("_tick_weak_attack_ground_effects", float(b.weak_attack_ground_effect_frame) / b.weak_attack_animation_fps)
+
+	_runner.assert_eq(target.damage_taken, b.weak_ground_damage, "대지 이펙트는 캐릭터 중심이 아니라 발밑 위치로 피해를 판정한다")
 	b.queue_free()
 	target.queue_free()
 
