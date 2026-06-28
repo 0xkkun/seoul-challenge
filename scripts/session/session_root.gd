@@ -1148,10 +1148,17 @@ func _input(event: InputEvent) -> void:
 	var tap_pos := (event as InputEventScreenTouch).position
 	if _minimap_full:
 		_minimap_full = false
+		_play_minimap_toggle_sfx()
 		_apply_minimap_layout()
 	elif _minimap.get_global_rect().has_point(tap_pos):
 		_minimap_full = true
+		_play_minimap_toggle_sfx()
 		_apply_minimap_layout()
+
+
+func _play_minimap_toggle_sfx() -> void:
+	if has_node("/root/AudioManager"):
+		AudioManager.play_sfx(AudioManager.UI_BUTTON_PRESS)
 
 
 func _apply_minimap_layout() -> void:

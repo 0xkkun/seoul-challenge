@@ -74,6 +74,15 @@ const _SFX_STREAM_PATHS := {
 	AWAKENED_BAT_REVEAL: "res://assets/audio/sfx/awakened_bat_reveal.mp3",
 }
 
+## 모든 SFX의 기본 재생 볼륨. 개별 보정이 필요하면 _SFX_VOLUME_DB에 id별로 등록한다.
+const DEFAULT_SFX_VOLUME_DB := -2.0
+## id별 볼륨 오버라이드(dB, 절대값). 없는 id는 DEFAULT_SFX_VOLUME_DB로 재생된다.
+## dash_wind: 파일 피크는 가장 크지만 지각 음량(LUFS)이 전투음보다 낮아 묻혀서,
+## 피크 클리핑이 나지 않는 선에서 한 단계 키운다(파일 피크 -1.8dB → 출력 -0.8dB).
+const _SFX_VOLUME_DB := {
+	DASH_WIND: 1.0,
+}
+
 const BGM_VOLUME_DB := 0.0
 const BGM_SILENT_DB := -40.0
 const BGM_FADE_IN_SEC := 1.5
@@ -121,7 +130,7 @@ func play_sfx(id: StringName) -> void:
 	var player := AudioStreamPlayer.new()
 	player.name = "SfxPlayer"
 	player.stream = stream
-	player.volume_db = -2.0
+	player.volume_db = _SFX_VOLUME_DB.get(id, DEFAULT_SFX_VOLUME_DB)
 	player.set_meta("sfx_id", id)
 	add_child(player)
 	_sfx_players.append(player)
