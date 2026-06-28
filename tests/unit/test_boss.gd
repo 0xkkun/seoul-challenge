@@ -171,7 +171,7 @@ func test_weak_attack_emits_boss_hit_camera_feedback() -> void:
 	target.queue_free()
 
 
-func test_weak_attack_plays_boss_attack_sfx_once() -> void:
+func test_weak_attack_plays_slam_then_ground_spike_sfx() -> void:
 	var b = BossScene.instantiate()
 	var target := DamageTarget.new()
 	add_child(b)
@@ -182,7 +182,11 @@ func test_weak_attack_plays_boss_attack_sfx_once() -> void:
 	b.set("_pattern_index", 1)
 	b.call("_begin_pattern", target)
 
-	_runner.assert_eq(AudioManager.get_played_sfx(), [&"boss_attack"], "보스 약공격 시작 시 보스 공격 SFX를 1회 재생한다")
+	_runner.assert_eq(
+		AudioManager.get_played_sfx(),
+		[&"boss_weak_slam", &"boss_weak_ground_spike"],
+		"보스 약공격은 내려찍기 후 대지 이펙트 SFX를 순서대로 재생한다"
+	)
 	b.queue_free()
 	target.queue_free()
 
@@ -317,7 +321,7 @@ func test_strong_attack_plays_wound_effect_on_contact_frame_only() -> void:
 	target.queue_free()
 
 
-func test_strong_attack_plays_boss_attack_sfx_before_hit_frame() -> void:
+func test_strong_attack_plays_strong_attack_sfx_before_hit_frame() -> void:
 	var b = BossScene.instantiate()
 	var target := DamageTarget.new()
 	add_child(b)
@@ -331,7 +335,7 @@ func test_strong_attack_plays_boss_attack_sfx_before_hit_frame() -> void:
 	b.set("_pattern_index", 0)
 	b.call("_begin_pattern", target)
 
-	_runner.assert_eq(AudioManager.get_played_sfx(), [&"boss_attack"], "보스 강공격 시작 시 보스 공격 SFX를 1회 재생한다")
+	_runner.assert_eq(AudioManager.get_played_sfx(), [&"boss_strong_attack"], "보스 강공격 시작 시 강공격 SFX를 1회 재생한다")
 	_runner.assert_eq(target.damage_taken, 0, "강공격 사운드는 임팩트 프레임 전 피해 판정을 앞당기지 않는다")
 	b.queue_free()
 	target.queue_free()
