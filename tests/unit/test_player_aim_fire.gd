@@ -56,13 +56,20 @@ func test_mobile_mouse_emulation_does_not_attack_outside_touch_button() -> void:
 	p.free()
 
 
-func test_space_and_controller_attack_inputs_remain_available() -> void:
+func test_space_is_dash_and_no_longer_attacks_on_desktop() -> void:
 	var p = PlayerScript.new()
 	_runner.assert_true(p.has_method("resolve_fire_input"), "플레이어는 플랫폼별 공격 입력 정책을 노출한다")
 	if p.has_method("resolve_fire_input"):
-		_runner.assert_true(bool(p.call("resolve_fire_input", false, true, 0.0, false, false, false)), "SPACE는 계속 기본공격이다")
+		_runner.assert_false(bool(p.call("resolve_fire_input", false, true, 0.0, false, false, false)), "SPACE는 기본공격으로 중복 실행되지 않는다")
 		_runner.assert_true(bool(p.call("resolve_fire_input", false, false, 0.31, false, false, false)), "우트리거는 계속 기본공격이다")
 		_runner.assert_false(bool(p.call("resolve_fire_input", false, false, 0.3, false, false, false)), "우트리거 데드존 경계는 공격하지 않는다")
+	_runner.assert_true(p.has_method("resolve_special_input"), "플레이어는 대시 입력 정책을 테스트 가능하게 노출한다")
+	if p.has_method("resolve_special_input"):
+		_runner.assert_true(bool(p.call("resolve_special_input", false, true, false, false, 0.0)), "SPACE는 PC 기본 대시다")
+		_runner.assert_true(bool(p.call("resolve_special_input", false, false, true, false, 0.0)), "SHIFT는 기존 대시 보조키로 유지한다")
+		_runner.assert_false(bool(p.call("resolve_special_input", false, false, false, true, 0.0)), "E는 말 걸기 전용이며 대시하지 않는다")
+		_runner.assert_true(bool(p.call("resolve_special_input", true, false, false, false, 0.0)), "모바일 스킬 버튼은 계속 대시한다")
+		_runner.assert_true(bool(p.call("resolve_special_input", false, false, false, false, 0.31)), "좌트리거는 계속 대시한다")
 	p.free()
 
 
@@ -71,7 +78,7 @@ func test_desktop_left_mouse_over_hud_does_not_attack() -> void:
 	_runner.assert_true(p.has_method("resolve_fire_input"), "플레이어는 플랫폼별 공격 입력 정책을 노출한다")
 	if p.has_method("resolve_fire_input"):
 		_runner.assert_false(bool(p.call("resolve_fire_input", false, false, 0.0, true, false, true)), "HUD 위 좌클릭은 공격으로 새지 않는다")
-		_runner.assert_true(bool(p.call("resolve_fire_input", false, true, 0.0, true, false, true)), "HUD hover는 명시적인 SPACE 공격까지 막지 않는다")
+		_runner.assert_false(bool(p.call("resolve_fire_input", false, true, 0.0, true, false, true)), "HUD 위 SPACE와 좌클릭은 공격으로 새지 않는다")
 	p.free()
 
 

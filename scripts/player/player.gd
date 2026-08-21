@@ -615,7 +615,7 @@ func aim_direction() -> Vector2:
 	return _facing
 
 
-## 발사 입력: 터치 공격 버튼 우선. PC는 좌클릭, 공통 폴백은 스페이스/우트리거.
+## 발사 입력: 터치 공격 버튼 우선. PC는 좌클릭, 패드 폴백은 우트리거.
 func is_firing() -> bool:
 	var touch_attack_pressed := (
 		_touch != null
@@ -639,13 +639,13 @@ func is_firing() -> bool:
 
 func resolve_fire_input(
 	touch_attack_pressed: bool,
-	space_pressed: bool,
+	_space_pressed: bool,
 	right_trigger_value: float,
 	left_mouse_pressed: bool,
 	mobile_runtime: bool,
 	pointer_over_ui: bool
 ) -> bool:
-	if touch_attack_pressed or space_pressed or right_trigger_value > 0.3:
+	if touch_attack_pressed or right_trigger_value > 0.3:
 		return true
 	return left_mouse_pressed and not mobile_runtime and not pointer_over_ui
 
@@ -670,13 +670,28 @@ func is_interactive_mouse_control(control: Control) -> bool:
 
 
 func is_special_pressed() -> bool:
-	if _touch != null and _touch.has_method("is_skill_pressed") and _touch.call("is_skill_pressed"):
-		return true
-	return (
-		Input.is_physical_key_pressed(KEY_SHIFT)
-		or Input.is_physical_key_pressed(KEY_E)
-		or Input.get_joy_axis(0, JOY_AXIS_TRIGGER_LEFT) > 0.3
+	var touch_skill_pressed := (
+		_touch != null
+		and _touch.has_method("is_skill_pressed")
+		and bool(_touch.call("is_skill_pressed"))
 	)
+	return resolve_special_input(
+		touch_skill_pressed,
+		Input.is_key_pressed(KEY_SPACE),
+		Input.is_physical_key_pressed(KEY_SHIFT),
+		Input.is_physical_key_pressed(KEY_E),
+		Input.get_joy_axis(0, JOY_AXIS_TRIGGER_LEFT)
+	)
+
+
+func resolve_special_input(
+	touch_skill_pressed: bool,
+	space_pressed: bool,
+	shift_pressed: bool,
+	_interact_pressed: bool,
+	left_trigger_value: float
+) -> bool:
+	return touch_skill_pressed or space_pressed or shift_pressed or left_trigger_value > 0.3
 
 
 func try_start_special_skill(input_vector: Vector2 = Vector2.ZERO) -> bool:

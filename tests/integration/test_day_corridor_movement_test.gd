@@ -520,6 +520,7 @@ func test_day_corridor_onboarding_reward_marks_baseball_captain_as_talk_target()
 	_runner.assert_true(interaction_prompt.visible, "approaching the captain shows an interaction prompt")
 	_runner.assert_true(interaction_prompt.text.contains("야구부 주장"), "interaction prompt names the captain")
 	_runner.assert_true(interaction_prompt.text.contains("말 걸기"), "interaction prompt tells the player they can talk")
+	_runner.assert_true(interaction_prompt.text.contains("[E]"), "interaction prompt names the PC talk key")
 
 
 func test_day_corridor_onboarding_reward_bat_line_shows_last_season_bat_pickup_popup() -> void:
