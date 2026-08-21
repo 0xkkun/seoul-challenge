@@ -72,6 +72,7 @@ const DESKTOP_STEPS: Array[Dictionary] = [
 ]
 
 var _touch_controls: Node = null
+var _touch_guidance_enabled := false
 var _camera: Camera2D = null
 var _player: Node = null
 var _active := false
@@ -99,6 +100,7 @@ func _ready() -> void:
 
 func configure(touch_controls: Node, camera: Camera2D = null, player: Node = null) -> void:
 	_touch_controls = touch_controls
+	_touch_guidance_enabled = _touch_controls != null and _touch_controls.visible
 	_camera = camera
 	_disconnect_player_power_attack()
 	_player = player
@@ -456,7 +458,7 @@ func _steps() -> Array[Dictionary]:
 
 
 func _uses_touch_guidance() -> bool:
-	return _touch_controls != null and _touch_controls.visible
+	return _touch_guidance_enabled
 
 
 func _input_mode() -> StringName:

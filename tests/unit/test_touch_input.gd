@@ -142,6 +142,26 @@ func test_ingame_control_onboarding_desktop_guidance_centers_hint_without_empty_
 	onboarding.queue_free()
 
 
+func test_ingame_control_onboarding_touch_guidance_survives_temporary_modal_hiding() -> void:
+	var script := load(INGAME_CONTROL_ONBOARDING_SCRIPT_PATH) as Script
+	var touch := _create_visible_touch_controls()
+	var onboarding := script.new() as CanvasLayer
+	add_child(onboarding)
+
+	onboarding.call("configure", touch, null, null)
+	onboarding.call("start")
+	_runner.assert_eq(onboarding.call("get_current_step_snapshot").get("input_mode"), &"touch", "모바일 온보딩은 touch 모드로 시작한다")
+	touch.visible = false
+	var hidden_snapshot: Dictionary = onboarding.call("get_current_step_snapshot")
+
+	_runner.assert_eq(hidden_snapshot.get("input_mode"), &"touch", "모달이 터치 UI를 잠시 숨겨도 안내 모드는 바뀌지 않는다")
+	_runner.assert_eq(hidden_snapshot.get("body"), "왼쪽 스틱을 밀어 움직이기", "모달 중에도 모바일 조작 문구를 유지한다")
+	_runner.assert_eq(hidden_snapshot.get("target_names", []), ["Joystick"], "모달 중에도 현재 터치 단계 계약을 유지한다")
+
+	touch.queue_free()
+	onboarding.queue_free()
+
+
 func test_ingame_control_onboarding_advances_from_player_integrated_input_without_touch_controls() -> void:
 	var script := load(INGAME_CONTROL_ONBOARDING_SCRIPT_PATH) as Script
 	var player := StubIntegratedInputPlayer.new()
