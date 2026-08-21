@@ -22,6 +22,12 @@ var _control_category := CONTROL_CATEGORY_COMBAT
 
 
 func _ready() -> void:
+	visible = resolve_initial_visibility_for_platform(
+		_has_touch_capability(),
+		OS.has_feature("mobile"),
+		OS.has_feature("web_android") or OS.has_feature("web_ios"),
+		_touch_controls_enabled()
+	)
 	_apply_landscape_safe_area()
 	_apply_control_category()
 	_connect_skill_button_events()
@@ -29,6 +35,15 @@ func _ready() -> void:
 		visibility_changed.connect(_on_visibility_changed)
 	if has_node("/root/EventBus") and not EventBus.special_skill_state_changed.is_connected(set_skill_state):
 		EventBus.special_skill_state_changed.connect(set_skill_state)
+
+
+func resolve_initial_visibility_for_platform(
+	touch_input_available: bool,
+	is_mobile_platform: bool,
+	is_mobile_web: bool,
+	setting_enabled: bool
+) -> bool:
+	return touch_input_available and (is_mobile_platform or is_mobile_web) and setting_enabled
 
 
 func _exit_tree() -> void:
@@ -123,6 +138,18 @@ func _on_skill_button_pressed() -> void:
 
 func _are_controls_ready() -> bool:
 	return _joystick != null and _attack != null and _skill != null
+
+
+func _has_touch_capability() -> bool:
+	if has_node("/root/PlatformManager"):
+		return bool(PlatformManager.has_touch_input())
+	return DisplayServer.is_touchscreen_available()
+
+
+func _touch_controls_enabled() -> bool:
+	if not has_node("/root/Settings"):
+		return true
+	return bool(Settings.get_value(Settings.KEY_TOUCH_CONTROLS, true))
 
 
 func _apply_landscape_safe_area() -> void:

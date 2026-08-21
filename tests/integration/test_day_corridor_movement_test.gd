@@ -725,6 +725,7 @@ func test_day_corridor_final_tap_does_not_reopen_from_held_touch_attack() -> voi
 func test_day_corridor_uat_dispatcher_drives_dialogue_by_test_id() -> void:
 	var scene := DayCorridorScene.instantiate()
 	add_child(scene)
+	(scene.get_node("%TouchControls") as CanvasLayer).visible = true
 
 	var player: CharacterBody2D = scene.get_node("%Player")
 	var bridge: Node = scene.get_node("%UatCommandBridge")
@@ -748,6 +749,7 @@ func test_day_corridor_uat_dispatcher_drives_dialogue_by_test_id() -> void:
 func test_day_corridor_uat_dispatcher_rejects_hidden_dialogue_buttons() -> void:
 	var scene := DayCorridorScene.instantiate()
 	add_child(scene)
+	(scene.get_node("%TouchControls") as CanvasLayer).visible = true
 
 	var player: CharacterBody2D = scene.get_node("%Player")
 	var bridge: Node = scene.get_node("%UatCommandBridge")

@@ -382,6 +382,7 @@ func test_touch_skill_press_starts_dash_feedback_before_physics_poll() -> void:
 	AudioManager.reset()
 	var touch := TouchControlsScene.instantiate()
 	add_child(touch)
+	touch.visible = true
 	var player := (load("res://scenes/player/player.tscn") as PackedScene).instantiate()
 	player.touch_controls_path = NodePath("../TouchControls")
 	add_child(player)
