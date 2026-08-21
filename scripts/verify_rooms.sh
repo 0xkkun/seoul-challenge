@@ -14,6 +14,10 @@ echo "== room coverage =="
 echo "== room editor load =="
 mkdir -p test-results
 mkdir -p "$GODOT_USER_HOME"
+# A clean checkout has tracked remaps but no .godot/imported cache. Prime imports
+# once before validating a second editor load so theme startup does not race the scan.
+HOME="$GODOT_USER_HOME" XDG_DATA_HOME="$GODOT_USER_HOME/.local/share" \
+  "$GODOT" --headless --editor --quit --path "$ROOT" > test-results/rooms-editor-import-prime.log 2>&1
 HOME="$GODOT_USER_HOME" XDG_DATA_HOME="$GODOT_USER_HOME/.local/share" \
   "$GODOT" --headless --editor --quit --path "$ROOT" > test-results/rooms-editor-load.log 2>&1
 "$PYTHON" scripts/verify_godot_output.py test-results/rooms-editor-load.log

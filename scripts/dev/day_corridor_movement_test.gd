@@ -130,6 +130,7 @@ var _dialogue_claims_baseball_reward := false
 var _dialogue_claims_boss_result_report := false
 var _baseball_reward_pickup_popup_shown := false
 var _was_dialogue_pressed := false
+var _touch_controls_visible_before_dialogue := false
 var _walk_elapsed := 0.0
 var _footstep_walk_loop_index := -1
 var _idle_elapsed := 0.0
@@ -158,6 +159,7 @@ var quit_game_callable: Callable
 func _ready() -> void:
 	SceneTransition.configure_exit_requests()
 	AudioManager.play_bgm(AudioManager.SCHOOL_HALLWAY_BGM)
+	_touch_controls_visible_before_dialogue = _touch_controls.visible
 	_disable_combat_output()
 	_hide_player_default_visuals()
 	_ambient_student_sprites = [_right_student3_sprite, _right_crowd_sprite]
@@ -575,7 +577,7 @@ func close_dialogue() -> void:
 	if _is_boss_result_report_dialogue_complete():
 		_claim_boss_result_report_dialogue()
 	_hub_dialogue_ui.visible = false
-	_touch_controls.visible = true
+	_touch_controls.visible = _touch_controls_visible_before_dialogue
 	_talk_button_label.visible = true
 	_player.set_physics_process(true)
 	_dialogue_line_index = -1
@@ -1117,6 +1119,7 @@ func _process_dialogue_input() -> void:
 
 func _open_dialogue_ui() -> void:
 	_hub_dialogue_ui.visible = true
+	_touch_controls_visible_before_dialogue = _touch_controls.visible
 	_touch_controls.visible = false
 	_talk_button_label.visible = false
 	_player.velocity = Vector2.ZERO

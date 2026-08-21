@@ -214,10 +214,12 @@ func test_session_starts_control_onboarding_only_for_first_baseball_run() -> voi
 		if onboarding.has_method("get_current_step_snapshot"):
 			var snapshot: Dictionary = onboarding.call("get_current_step_snapshot")
 			_runner.assert_eq(snapshot.get("step_id"), &"move", "control onboarding starts by teaching movement")
-			_runner.assert_eq(snapshot.get("target_names", []), ["Joystick"], "movement step highlights the left joystick")
+			_runner.assert_eq(snapshot.get("input_mode"), &"desktop", "headless desktop session uses keyboard onboarding guidance")
+			_runner.assert_eq(snapshot.get("body"), "WASD 또는 방향키로 움직이기", "desktop session names the real movement keys")
+			_runner.assert_eq(snapshot.get("target_names", []), [], "desktop session does not highlight a hidden joystick")
 			_runner.assert_true(float(snapshot.get("dim_alpha", 0.0)) > 0.0, "movement step dims non-target gameplay")
 	_runner.assert_false(get_tree().paused, "control onboarding does not pause first-room input")
-	_runner.assert_true(touch_controls.visible, "control onboarding leaves touch controls usable")
+	_runner.assert_false(touch_controls.visible, "desktop session hides touch controls")
 	_runner.assert_true(player_camera.zoom.x > 1.0, "control onboarding applies a subtle camera zoom-in")
 
 	onboarding_session.queue_free()
@@ -331,6 +333,7 @@ func test_baseball_onboarding_friend_purification_finishes_run_and_sets_reward_f
 
 	var manager := session.get_node("%RoomManager") as RoomManager
 	var touch_controls: CanvasLayer = session.get_node("%TouchControls")
+	touch_controls.visible = true
 	_runner.assert_true(manager.enter_room(&"friend_1"), "test enters the onboarding friend room")
 	_drain_active_encounter_dialogue(session)
 	_runner.assert_true(bool(session.call("is_purify_onboarding_spotlight_visible")), "friend intro is followed by the purification purpose spotlight")
@@ -373,6 +376,7 @@ func test_baseball_onboarding_friend_room_opens_yokai_captain_dialogue_first() -
 
 	var manager := session.get_node("%RoomManager") as RoomManager
 	var touch_controls: CanvasLayer = session.get_node("%TouchControls")
+	touch_controls.visible = true
 	_runner.assert_true(manager.enter_room(&"friend_1"), "test enters the onboarding friend room")
 	_runner.assert_true(bool(session.call("is_encounter_dialogue_visible")), "first yokai captain encounter opens dialogue")
 	_runner.assert_eq(session.call("get_encounter_dialogue_speaker"), "요괴 야구부 주장", "first friend encounter speaker is the yokai captain")
@@ -410,6 +414,7 @@ func test_baseball_onboarding_friend_groggy_spotlight_teaches_proximity_purify()
 
 	var manager := session.get_node("%RoomManager") as RoomManager
 	var touch_controls: CanvasLayer = session.get_node("%TouchControls")
+	touch_controls.visible = true
 	_runner.assert_true(manager.enter_room(&"friend_1"), "test enters the onboarding friend room")
 	_drain_active_encounter_dialogue(session)
 	_runner.assert_true(bool(session.call("dismiss_purify_onboarding_for_tests")), "test starts the purification encounter")
@@ -498,6 +503,7 @@ func test_combat_clear_requires_reward_choice_before_room_transition() -> void:
 	var manager := session.get_node("%RoomManager") as RoomManager
 	var actor := session.get_node("%Player") as Node
 	var touch_controls: Node = session.get_node("%TouchControls")
+	touch_controls.visible = true
 	var joystick := touch_controls.get_node_or_null("Joystick") as Control
 	var attack_button := touch_controls.get_node_or_null("AttackButton") as Control
 	var session_ui: CanvasLayer = session.get_node("%SessionUIRoot")

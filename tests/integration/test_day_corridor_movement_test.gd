@@ -641,6 +641,7 @@ func test_day_corridor_exit_button_confirms_lobby_return() -> void:
 func test_day_corridor_dialogue_choices_advance_and_close_ui() -> void:
 	var scene := DayCorridorScene.instantiate()
 	add_child(scene)
+	(scene.get_node("%TouchControls") as CanvasLayer).visible = true
 
 	scene.trigger_dialogue()
 	_runner.assert_true(scene.is_talk_target_visible(), "open dialogue keeps the world talk target visible")
@@ -664,6 +665,19 @@ func test_day_corridor_dialogue_choices_advance_and_close_ui() -> void:
 	_runner.assert_true(scene.is_touch_controls_visible(), "touch controls return after dialogue closes")
 	_runner.assert_true(scene.is_talk_target_visible(), "closing dialogue restores the world talk target")
 	_runner.assert_true(scene.get_node("%TalkButtonLabel").visible, "talk button helper label returns after dialogue closes")
+
+
+func test_day_corridor_dialogue_close_preserves_hidden_desktop_touch_controls() -> void:
+	var scene := DayCorridorScene.instantiate()
+	add_child(scene)
+
+	_runner.assert_false(scene.is_touch_controls_visible(), "데스크톱 복도는 터치 컨트롤을 숨긴 채 시작한다")
+	scene.trigger_dialogue()
+	_runner.assert_true(UiTestHarness.press_by_uat_action(scene, "day_corridor.dialogue.next"), "첫 대사를 진행한다")
+	_runner.assert_true(UiTestHarness.press_by_uat_action(scene, "day_corridor.dialogue.next"), "마지막 대사로 진행한다")
+	_runner.assert_true(UiTestHarness.press_by_uat_action(scene, "day_corridor.dialogue.close"), "대화를 닫는다")
+
+	_runner.assert_false(scene.is_touch_controls_visible(), "대화 종료는 데스크톱의 숨김 상태를 보존한다")
 
 
 func test_day_corridor_dialogue_ignores_hidden_touch_attack_while_open() -> void:
@@ -725,6 +739,7 @@ func test_day_corridor_final_tap_does_not_reopen_from_held_touch_attack() -> voi
 func test_day_corridor_uat_dispatcher_drives_dialogue_by_test_id() -> void:
 	var scene := DayCorridorScene.instantiate()
 	add_child(scene)
+	(scene.get_node("%TouchControls") as CanvasLayer).visible = true
 
 	var player: CharacterBody2D = scene.get_node("%Player")
 	var bridge: Node = scene.get_node("%UatCommandBridge")
@@ -748,6 +763,7 @@ func test_day_corridor_uat_dispatcher_drives_dialogue_by_test_id() -> void:
 func test_day_corridor_uat_dispatcher_rejects_hidden_dialogue_buttons() -> void:
 	var scene := DayCorridorScene.instantiate()
 	add_child(scene)
+	(scene.get_node("%TouchControls") as CanvasLayer).visible = true
 
 	var player: CharacterBody2D = scene.get_node("%Player")
 	var bridge: Node = scene.get_node("%UatCommandBridge")

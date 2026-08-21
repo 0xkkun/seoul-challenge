@@ -26,6 +26,23 @@ class StubPowerAttackPlayer:
 		power_attack_executed.emit({"kind": &"dash_power_attack"})
 
 
+class StubIntegratedInputPlayer:
+	extends StubPowerAttackPlayer
+
+	var move_input := Vector2.ZERO
+	var firing := false
+	var special_pressed := false
+
+	func read_input_vector() -> Vector2:
+		return move_input
+
+	func is_firing() -> bool:
+		return firing
+
+	func is_special_pressed() -> bool:
+		return special_pressed
+
+
 func _set_runner(runner: Node) -> void:
 	_runner = runner
 
@@ -56,8 +73,10 @@ func test_ingame_control_onboarding_contract_teaches_mobile_combat_inputs() -> v
 	if not ResourceLoader.exists(INGAME_CONTROL_ONBOARDING_SCRIPT_PATH):
 		return
 	var script := load(INGAME_CONTROL_ONBOARDING_SCRIPT_PATH) as Script
+	var touch := _create_visible_touch_controls()
 	var onboarding := script.new() as CanvasLayer
 	add_child(onboarding)
+	onboarding.call("configure", touch, null, null)
 
 	_runner.assert_true(onboarding.has_method("get_visual_contract"), "조작 온보딩은 테스트 가능한 시각 계약을 노출한다")
 	if onboarding.has_method("get_visual_contract"):
@@ -74,7 +93,152 @@ func test_ingame_control_onboarding_contract_teaches_mobile_combat_inputs() -> v
 			["SkillButton"],
 			["SkillButton", "AttackButton"],
 		], "각 단계는 실제 터치 컨트롤 노드를 타겟으로 삼는다")
+	touch.queue_free()
 	onboarding.queue_free()
+
+
+func test_ingame_control_onboarding_desktop_guidance_names_keyboard_inputs_without_touch_targets() -> void:
+	var script := load(INGAME_CONTROL_ONBOARDING_SCRIPT_PATH) as Script
+	var player := StubIntegratedInputPlayer.new()
+	var onboarding := script.new() as CanvasLayer
+	add_child(player)
+	add_child(onboarding)
+
+	onboarding.call("configure", null, null, player)
+	onboarding.call("start")
+	var snapshot: Dictionary = onboarding.call("get_current_step_snapshot")
+
+	_runner.assert_eq(snapshot.get("input_mode"), &"desktop", "터치 UI가 없으면 데스크톱 안내 모드를 쓴다")
+	_runner.assert_eq(snapshot.get("body"), "WASD 또는 방향키로 움직이기", "첫 안내는 실제 PC 이동 키를 알려준다")
+	_runner.assert_eq(snapshot.get("target_names", []), [], "데스크톱 안내는 존재하지 않는 터치 위젯을 가리키지 않는다")
+
+	player.queue_free()
+	onboarding.queue_free()
+
+
+func test_ingame_control_onboarding_desktop_guidance_centers_hint_without_empty_spotlight() -> void:
+	var script := load(INGAME_CONTROL_ONBOARDING_SCRIPT_PATH) as Script
+	var player := StubIntegratedInputPlayer.new()
+	var onboarding := script.new() as CanvasLayer
+	add_child(player)
+	add_child(onboarding)
+
+	onboarding.call("configure", null, null, player)
+	onboarding.call("start")
+	var contract: Dictionary = onboarding.call("get_visual_contract")
+	var spotlight := onboarding.get_node_or_null("Root/SpotlightFrame") as Control
+	var hint_panel := onboarding.get_node_or_null("Root/HintPanel") as Control
+
+	_runner.assert_false(bool(contract.get("uses_dim_cutout", true)), "데스크톱 안내는 존재하지 않는 터치 대상용 cutout을 만들지 않는다")
+	_runner.assert_not_null(spotlight, "온보딩은 스포트라이트 노드를 유지한다")
+	if spotlight != null:
+		_runner.assert_false(spotlight.visible, "데스크톱에서는 빈 스포트라이트를 숨긴다")
+	_runner.assert_not_null(hint_panel, "온보딩은 키 안내 패널을 유지한다")
+	if hint_panel != null:
+		var viewport_center := onboarding.get_viewport().get_visible_rect().get_center()
+		_runner.assert_true(hint_panel.get_global_rect().has_point(viewport_center), "데스크톱 키 안내는 화면 중앙에서 바로 읽힌다")
+
+	player.queue_free()
+	onboarding.queue_free()
+
+
+func test_ingame_control_onboarding_touch_guidance_survives_temporary_modal_hiding() -> void:
+	var script := load(INGAME_CONTROL_ONBOARDING_SCRIPT_PATH) as Script
+	var touch := _create_visible_touch_controls()
+	var onboarding := script.new() as CanvasLayer
+	add_child(onboarding)
+
+	onboarding.call("configure", touch, null, null)
+	onboarding.call("start")
+	_runner.assert_eq(onboarding.call("get_current_step_snapshot").get("input_mode"), &"touch", "모바일 온보딩은 touch 모드로 시작한다")
+	touch.visible = false
+	var hidden_snapshot: Dictionary = onboarding.call("get_current_step_snapshot")
+
+	_runner.assert_eq(hidden_snapshot.get("input_mode"), &"touch", "모달이 터치 UI를 잠시 숨겨도 안내 모드는 바뀌지 않는다")
+	_runner.assert_eq(hidden_snapshot.get("body"), "왼쪽 스틱을 밀어 움직이기", "모달 중에도 모바일 조작 문구를 유지한다")
+	_runner.assert_eq(hidden_snapshot.get("target_names", []), ["Joystick"], "모달 중에도 현재 터치 단계 계약을 유지한다")
+
+	touch.queue_free()
+	onboarding.queue_free()
+
+
+func test_ingame_control_onboarding_advances_from_player_integrated_input_without_touch_controls() -> void:
+	var script := load(INGAME_CONTROL_ONBOARDING_SCRIPT_PATH) as Script
+	var player := StubIntegratedInputPlayer.new()
+	var onboarding := script.new() as CanvasLayer
+	add_child(player)
+	add_child(onboarding)
+
+	onboarding.call("configure", null, null, player)
+	onboarding.call("start")
+	player.move_input = Vector2.RIGHT
+	onboarding.call("_process", 0.016)
+	_assert_onboarding_step(onboarding, &"attack", [])
+	player.move_input = Vector2.ZERO
+	player.firing = true
+	onboarding.call("_process", 0.016)
+	_assert_onboarding_step(onboarding, &"dash", [])
+	player.firing = false
+	player.special_pressed = true
+	onboarding.call("_process", 0.016)
+	_assert_onboarding_step(onboarding, &"power_attack", [])
+	player.special_pressed = false
+	player.emit_power_attack()
+
+	_runner.assert_false(bool(onboarding.call("is_active")), "플레이어 통합 입력과 실제 강공격 신호만으로 PC 온보딩을 완료한다")
+
+	player.queue_free()
+	onboarding.queue_free()
+
+
+func test_ingame_control_onboarding_runtime_falls_back_to_touch_when_player_lacks_input_methods() -> void:
+	var script := load(INGAME_CONTROL_ONBOARDING_SCRIPT_PATH) as Script
+	var touch := _create_visible_touch_controls()
+	var player := StubPowerAttackPlayer.new()
+	var onboarding := script.new() as CanvasLayer
+	add_child(player)
+	add_child(onboarding)
+
+	onboarding.call("configure", touch, null, player)
+	onboarding.call("start")
+	var joystick := touch.get_node("Joystick") as Control
+	var attack_button := touch.get_node("AttackButton") as Control
+	var skill_button := touch.get_node("SkillButton") as Control
+	joystick.set("_active_index", 1)
+	joystick.set("_value", Vector2.RIGHT)
+	onboarding.call("_process", 0.016)
+	_assert_onboarding_step(onboarding, &"attack", ["AttackButton"])
+	joystick.call("release")
+	attack_button.set("_active_index", 2)
+	onboarding.call("_process", 0.016)
+	_assert_onboarding_step(onboarding, &"dash", ["SkillButton"])
+	attack_button.call("release")
+	skill_button.set("_active_index", 3)
+	onboarding.call("_process", 0.016)
+	_assert_onboarding_step(onboarding, &"power_attack", ["SkillButton", "AttackButton"])
+	player.emit_power_attack()
+
+	_runner.assert_false(bool(onboarding.call("is_active")), "통합 입력 메서드가 없는 액터는 실제 터치 상태와 강공격 신호로 온보딩을 완료한다")
+
+	touch.queue_free()
+	player.queue_free()
+	onboarding.queue_free()
+
+
+func test_touch_controls_initial_visibility_requires_touch_capability_and_enabled_setting() -> void:
+	var touch := TouchControlsScene.instantiate()
+	add_child(touch)
+
+	_runner.assert_true(touch.has_method("resolve_initial_visibility_for_platform"), "터치 컨트롤은 플랫폼별 초기 표시 정책을 명시적으로 노출한다")
+	if touch.has_method("resolve_initial_visibility_for_platform"):
+		_runner.assert_true(bool(touch.call("resolve_initial_visibility_for_platform", true, true, false, true)), "네이티브 모바일은 터치 컨트롤을 보인다")
+		_runner.assert_true(bool(touch.call("resolve_initial_visibility_for_platform", true, false, true, true)), "Android/iOS 웹도 터치 컨트롤을 보인다")
+		_runner.assert_false(bool(touch.call("resolve_initial_visibility_for_platform", true, false, false, true)), "터치 이벤트를 에뮬레이션하는 데스크톱은 컨트롤을 숨긴다")
+		_runner.assert_false(bool(touch.call("resolve_initial_visibility_for_platform", false, true, false, true)), "터치 이벤트가 불가능하면 모바일 태그만으로 컨트롤을 보이지 않는다")
+		_runner.assert_false(bool(touch.call("resolve_initial_visibility_for_platform", true, true, false, false)), "모바일에서도 설정을 끄면 컨트롤을 숨긴다")
+	_runner.assert_false(touch.visible, "headless 데스크톱 기준에서는 터치 컨트롤이 기본 비노출이다")
+
+	touch.queue_free()
 
 
 func test_ingame_control_onboarding_advances_with_actual_touch_input_state() -> void:
@@ -82,9 +246,8 @@ func test_ingame_control_onboarding_advances_with_actual_touch_input_state() -> 
 	if not ResourceLoader.exists(INGAME_CONTROL_ONBOARDING_SCRIPT_PATH):
 		return
 	var script := load(INGAME_CONTROL_ONBOARDING_SCRIPT_PATH) as Script
-	var touch := TouchControlsScene.instantiate()
+	var touch := _create_visible_touch_controls()
 	var onboarding := script.new() as CanvasLayer
-	add_child(touch)
 	add_child(onboarding)
 
 	_runner.assert_true(onboarding.has_method("configure"), "조작 온보딩은 터치 컨트롤을 주입받는다")
@@ -117,10 +280,9 @@ func test_ingame_control_onboarding_power_attack_waits_for_actual_player_executi
 	if not ResourceLoader.exists(INGAME_CONTROL_ONBOARDING_SCRIPT_PATH):
 		return
 	var script := load(INGAME_CONTROL_ONBOARDING_SCRIPT_PATH) as Script
-	var touch := TouchControlsScene.instantiate()
+	var touch := _create_visible_touch_controls()
 	var player := StubPowerAttackPlayer.new()
 	var onboarding := script.new() as CanvasLayer
-	add_child(touch)
 	add_child(player)
 	add_child(onboarding)
 
@@ -149,10 +311,9 @@ func test_ingame_control_onboarding_finishes_when_power_attack_executes_during_d
 	if not ResourceLoader.exists(INGAME_CONTROL_ONBOARDING_SCRIPT_PATH):
 		return
 	var script := load(INGAME_CONTROL_ONBOARDING_SCRIPT_PATH) as Script
-	var touch := TouchControlsScene.instantiate()
+	var touch := _create_visible_touch_controls()
 	var player := StubPowerAttackPlayer.new()
 	var onboarding := script.new() as CanvasLayer
-	add_child(touch)
 	add_child(player)
 	add_child(onboarding)
 
@@ -186,8 +347,7 @@ func test_facing_holds_when_idle() -> void:
 
 
 func test_touch_controls_exposes_skill_button() -> void:
-	var touch := TouchControlsScene.instantiate()
-	add_child(touch)
+	var touch := _create_visible_touch_controls()
 
 	_runner.assert_true(touch.has_method("is_skill_pressed"), "touch controls expose skill input")
 	_runner.assert_true(touch.has_signal("skill_pressed"), "touch controls expose an immediate skill press signal")
@@ -221,8 +381,7 @@ func test_touch_controls_exposes_skill_button() -> void:
 
 
 func test_touch_controls_emit_immediate_skill_press_on_touch_down() -> void:
-	var touch := TouchControlsScene.instantiate()
-	add_child(touch)
+	var touch := _create_visible_touch_controls()
 	var skill_button := touch.get_node_or_null("SkillButton") as Control
 	_runner.assert_not_null(skill_button, "touch controls mount skill button")
 	_runner.assert_true(touch.has_signal("skill_pressed"), "touch controls relay skill press events")
@@ -239,8 +398,7 @@ func test_touch_controls_emit_immediate_skill_press_on_touch_down() -> void:
 
 
 func test_touch_controls_can_release_combat_inputs_for_modal_open() -> void:
-	var touch := TouchControlsScene.instantiate()
-	add_child(touch)
+	var touch := _create_visible_touch_controls()
 
 	var joystick := touch.get_node_or_null("Joystick") as Control
 	var attack_button := touch.get_node_or_null("AttackButton") as Control
@@ -268,8 +426,7 @@ func test_touch_controls_can_release_combat_inputs_for_modal_open() -> void:
 
 
 func test_touch_controls_hidden_state_releases_and_masks_all_inputs() -> void:
-	var touch := TouchControlsScene.instantiate()
-	add_child(touch)
+	var touch := _create_visible_touch_controls()
 
 	var joystick := touch.get_node_or_null("Joystick") as Control
 	var attack_button := touch.get_node_or_null("AttackButton") as Control
@@ -296,8 +453,7 @@ func test_touch_controls_hidden_state_releases_and_masks_all_inputs() -> void:
 
 
 func test_hidden_touch_controls_ignore_new_touch_events_until_shown() -> void:
-	var touch := TouchControlsScene.instantiate()
-	add_child(touch)
+	var touch := _create_visible_touch_controls()
 
 	var joystick := touch.get_node_or_null("Joystick") as Control
 	var attack_button := touch.get_node_or_null("AttackButton") as Control
@@ -325,8 +481,7 @@ func test_hidden_touch_controls_ignore_new_touch_events_until_shown() -> void:
 
 
 func test_touch_control_children_release_when_hidden_directly() -> void:
-	var touch := TouchControlsScene.instantiate()
-	add_child(touch)
+	var touch := _create_visible_touch_controls()
 
 	var joystick := touch.get_node_or_null("Joystick") as Control
 	var attack_button := touch.get_node_or_null("AttackButton") as Control
@@ -353,8 +508,7 @@ func test_touch_control_children_release_when_hidden_directly() -> void:
 
 
 func test_touch_controls_day_dialogue_category_hides_dodge_button() -> void:
-	var touch := TouchControlsScene.instantiate()
-	add_child(touch)
+	var touch := _create_visible_touch_controls()
 
 	var attack_button := touch.get_node_or_null("AttackButton") as Control
 	var skill_button := touch.get_node_or_null("SkillButton") as Control
@@ -374,8 +528,7 @@ func test_touch_controls_day_dialogue_category_hides_dodge_button() -> void:
 
 
 func test_touch_controls_day_dialogue_category_uses_speech_bubble_action_icon() -> void:
-	var touch := TouchControlsScene.instantiate()
-	add_child(touch)
+	var touch := _create_visible_touch_controls()
 
 	var attack_button := touch.get_node_or_null("AttackButton") as Control
 	_runner.assert_not_null(attack_button, "touch controls keep a right-side primary action button")
@@ -399,8 +552,7 @@ func test_touch_controls_day_dialogue_category_uses_speech_bubble_action_icon() 
 
 
 func test_touch_controls_respect_landscape_phone_safe_area() -> void:
-	var touch := TouchControlsScene.instantiate()
-	add_child(touch)
+	var touch := _create_visible_touch_controls()
 
 	var joystick := touch.get_node("Joystick") as Control
 	var attack_button := touch.get_node("AttackButton") as Control
@@ -420,6 +572,13 @@ func _assert_onboarding_step(onboarding: CanvasLayer, expected_id: StringName, e
 	_runner.assert_eq(snapshot.get("target_names", []), expected_targets, "현재 온보딩 타겟이 맞다")
 	_runner.assert_true(String(snapshot.get("title", "")) != "", "현재 온보딩 단계는 제목을 가진다")
 	_runner.assert_true(String(snapshot.get("body", "")) != "", "현재 온보딩 단계는 짧은 설명을 가진다")
+
+
+func _create_visible_touch_controls() -> CanvasLayer:
+	var touch := TouchControlsScene.instantiate()
+	add_child(touch)
+	touch.visible = true
+	return touch
 
 
 func _screen_touch(index: int, position: Vector2, pressed: bool) -> InputEventScreenTouch:

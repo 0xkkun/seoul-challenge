@@ -17,7 +17,7 @@ const LABEL_SIZE := Vector2(270.0, 82.0)
 const LABEL_MARGIN := 18.0
 const VIEWPORT_FALLBACK := MobileSafeArea.DESIGN_VIEWPORT
 
-const STEPS: Array[Dictionary] = [
+const TOUCH_STEPS: Array[Dictionary] = [
 	{
 		"id": &"move",
 		"title": "이동",
@@ -44,7 +44,35 @@ const STEPS: Array[Dictionary] = [
 	},
 ]
 
+const DESKTOP_STEPS: Array[Dictionary] = [
+	{
+		"id": &"move",
+		"title": "이동",
+		"body": "WASD 또는 방향키로 움직이기",
+		"targets": [],
+	},
+	{
+		"id": &"attack",
+		"title": "기본공격",
+		"body": "SPACE로 가까운 적을 공격",
+		"targets": [],
+	},
+	{
+		"id": &"dash",
+		"title": "대쉬",
+		"body": "SHIFT 또는 E로 짧게 회피",
+		"targets": [],
+	},
+	{
+		"id": &"power_attack",
+		"title": "강공격",
+		"body": "SHIFT/E 직후 SPACE로 강공격",
+		"targets": [],
+	},
+]
+
 var _touch_controls: Node = null
+var _touch_guidance_enabled := false
 var _camera: Camera2D = null
 var _player: Node = null
 var _active := false
@@ -72,6 +100,7 @@ func _ready() -> void:
 
 func configure(touch_controls: Node, camera: Camera2D = null, player: Node = null) -> void:
 	_touch_controls = touch_controls
+	_touch_guidance_enabled = _touch_controls != null and _touch_controls.visible
 	_camera = camera
 	_disconnect_player_power_attack()
 	_player = player
@@ -111,8 +140,9 @@ func _exit_tree() -> void:
 func get_visual_contract() -> Dictionary:
 	return {
 		"flow": FLOW_ID,
+		"input_mode": _input_mode(),
 		"blocks_gameplay": false,
-		"uses_dim_cutout": true,
+		"uses_dim_cutout": _uses_touch_guidance(),
 		"dim_alpha": DIM_ALPHA,
 		"spotlight_padding": SPOTLIGHT_PADDING,
 		"camera_zoom_target": CAMERA_ZOOM_TARGET,
@@ -127,6 +157,7 @@ func get_current_step_snapshot() -> Dictionary:
 	var target_names := _current_target_names()
 	return {
 		"active": _active,
+		"input_mode": _input_mode(),
 		"step_id": step.get("id", &""),
 		"title": String(step.get("title", "")),
 		"body": String(step.get("body", "")),
@@ -215,10 +246,24 @@ func _refresh_step() -> void:
 	var step := _current_step()
 	_title_label.text = String(step.get("title", ""))
 	_body_label.text = String(step.get("body", ""))
+	if not _uses_touch_guidance():
+		_layout_desktop_hint()
+		return
 	var focus_rect := _spotlight_rect_for_names(_current_target_names())
+	_spotlight_frame.visible = true
 	_layout_dim_cutout(focus_rect)
 	_layout_spotlight(focus_rect)
 	_layout_label(focus_rect)
+
+
+func _layout_desktop_hint() -> void:
+	var viewport_size := _viewport_size()
+	_spotlight_frame.visible = false
+	for index in range(_dim_rects.size()):
+		var rect := Rect2(Vector2.ZERO, viewport_size) if index == 0 else Rect2()
+		_apply_control_rect(_dim_rects[index], rect)
+	var centered_position := (viewport_size - LABEL_SIZE) * 0.5
+	_apply_control_rect(_label_panel, Rect2(centered_position, LABEL_SIZE))
 
 
 func _layout_dim_cutout(focus_rect: Rect2) -> void:
@@ -280,16 +325,20 @@ func _target_rect_for_names(target_names: Array) -> Rect2:
 
 
 func _runtime_input_state() -> Dictionary:
-	if _touch_controls == null:
-		return {}
 	var move := Vector2.ZERO
 	var attack_pressed := false
 	var dash_pressed := false
-	if _touch_controls.has_method("get_move"):
+	if _player != null and _player.has_method("read_input_vector"):
+		move = _player.call("read_input_vector")
+	elif _touch_controls != null and _touch_controls.has_method("get_move"):
 		move = _touch_controls.call("get_move")
-	if _touch_controls.has_method("is_attack_pressed"):
+	if _player != null and _player.has_method("is_firing"):
+		attack_pressed = bool(_player.call("is_firing"))
+	elif _touch_controls != null and _touch_controls.has_method("is_attack_pressed"):
 		attack_pressed = bool(_touch_controls.call("is_attack_pressed"))
-	if _touch_controls.has_method("is_skill_pressed"):
+	if _player != null and _player.has_method("is_special_pressed"):
+		dash_pressed = bool(_player.call("is_special_pressed"))
+	elif _touch_controls != null and _touch_controls.has_method("is_skill_pressed"):
 		dash_pressed = bool(_touch_controls.call("is_skill_pressed"))
 	return {
 		"move": move,
@@ -314,7 +363,7 @@ func _is_power_window_active() -> bool:
 
 func _advance_step() -> void:
 	_step_index += 1
-	if _step_index >= STEPS.size():
+	if _step_index >= _steps().size():
 		finish()
 		return
 	var step_id: StringName = _current_step().get("id", &"")
@@ -380,9 +429,10 @@ func _kill_camera_tween() -> void:
 
 
 func _current_step() -> Dictionary:
-	if STEPS.is_empty():
+	var steps := _steps()
+	if steps.is_empty():
 		return {}
-	return STEPS[clampi(_step_index, 0, STEPS.size() - 1)]
+	return steps[clampi(_step_index, 0, steps.size() - 1)]
 
 
 func _current_target_names() -> Array:
@@ -391,16 +441,28 @@ func _current_target_names() -> Array:
 
 func _step_ids() -> Array[StringName]:
 	var ids: Array[StringName] = []
-	for step: Dictionary in STEPS:
+	for step: Dictionary in _steps():
 		ids.append(step.get("id", &""))
 	return ids
 
 
 func _step_target_names() -> Array:
 	var target_names := []
-	for step: Dictionary in STEPS:
+	for step: Dictionary in _steps():
 		target_names.append((step.get("targets", []) as Array).duplicate())
 	return target_names
+
+
+func _steps() -> Array[Dictionary]:
+	return TOUCH_STEPS if _uses_touch_guidance() else DESKTOP_STEPS
+
+
+func _uses_touch_guidance() -> bool:
+	return _touch_guidance_enabled
+
+
+func _input_mode() -> StringName:
+	return &"touch" if _uses_touch_guidance() else &"desktop"
 
 
 func _viewport_size() -> Vector2:
