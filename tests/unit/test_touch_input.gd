@@ -116,6 +116,27 @@ func test_ingame_control_onboarding_desktop_guidance_names_keyboard_inputs_witho
 	onboarding.queue_free()
 
 
+func test_ingame_control_onboarding_desktop_attack_steps_name_left_mouse_and_space() -> void:
+	var script := load(INGAME_CONTROL_ONBOARDING_SCRIPT_PATH) as Script
+	var player := StubIntegratedInputPlayer.new()
+	var onboarding := script.new() as CanvasLayer
+	add_child(player)
+	add_child(onboarding)
+
+	onboarding.call("configure", null, null, player)
+	onboarding.call("start")
+	onboarding.call("advance_from_input", {"move": Vector2.RIGHT})
+	var attack_snapshot: Dictionary = onboarding.call("get_current_step_snapshot")
+	_runner.assert_eq(attack_snapshot.get("body"), "좌클릭 또는 SPACE로 가까운 적을 공격", "기본공격 안내는 PC 국룰과 기존 키를 함께 알려준다")
+	onboarding.call("advance_from_input", {"attack_pressed": true})
+	onboarding.call("advance_from_input", {"dash_pressed": true})
+	var power_snapshot: Dictionary = onboarding.call("get_current_step_snapshot")
+	_runner.assert_eq(power_snapshot.get("body"), "SHIFT/E 직후 좌클릭 또는 SPACE로 강공격", "강공격 안내도 좌클릭과 기존 키를 함께 알려준다")
+
+	player.queue_free()
+	onboarding.queue_free()
+
+
 func test_ingame_control_onboarding_desktop_guidance_centers_hint_without_empty_spotlight() -> void:
 	var script := load(INGAME_CONTROL_ONBOARDING_SCRIPT_PATH) as Script
 	var player := StubIntegratedInputPlayer.new()

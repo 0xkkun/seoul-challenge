@@ -37,3 +37,30 @@ func test_fire_cooldown_decrements_and_clamps() -> void:
 	_runner.assert_true(is_equal_approx(p.step_fire_cooldown(0.5, 0.2), 0.3), "쿨다운은 delta만큼 감소")
 	_runner.assert_true(is_equal_approx(p.step_fire_cooldown(0.1, 0.2), 0.0), "0 미만으로 내려가지 않음")
 	p.free()
+
+
+func test_desktop_left_mouse_is_an_attack_input() -> void:
+	var p = PlayerScript.new()
+	_runner.assert_true(p.has_method("resolve_fire_input"), "플레이어는 플랫폼별 공격 입력 정책을 노출한다")
+	if p.has_method("resolve_fire_input"):
+		_runner.assert_true(bool(p.call("resolve_fire_input", false, false, 0.0, true, false)), "데스크톱 좌클릭은 기본공격이다")
+	p.free()
+
+
+func test_mobile_mouse_emulation_does_not_attack_outside_touch_button() -> void:
+	var p = PlayerScript.new()
+	_runner.assert_true(p.has_method("resolve_fire_input"), "플레이어는 플랫폼별 공격 입력 정책을 노출한다")
+	if p.has_method("resolve_fire_input"):
+		_runner.assert_false(bool(p.call("resolve_fire_input", false, false, 0.0, true, true)), "모바일의 일반 터치 mouse 에뮬레이션은 공격이 아니다")
+		_runner.assert_true(bool(p.call("resolve_fire_input", true, false, 0.0, true, true)), "모바일은 기존 공격 버튼 터치로 공격한다")
+	p.free()
+
+
+func test_space_and_controller_attack_inputs_remain_available() -> void:
+	var p = PlayerScript.new()
+	_runner.assert_true(p.has_method("resolve_fire_input"), "플레이어는 플랫폼별 공격 입력 정책을 노출한다")
+	if p.has_method("resolve_fire_input"):
+		_runner.assert_true(bool(p.call("resolve_fire_input", false, true, 0.0, false, false)), "SPACE는 계속 기본공격이다")
+		_runner.assert_true(bool(p.call("resolve_fire_input", false, false, 0.31, false, false)), "우트리거는 계속 기본공격이다")
+		_runner.assert_false(bool(p.call("resolve_fire_input", false, false, 0.3, false, false)), "우트리거 데드존 경계는 공격하지 않는다")
+	p.free()

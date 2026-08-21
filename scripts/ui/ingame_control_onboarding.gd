@@ -54,7 +54,7 @@ const DESKTOP_STEPS: Array[Dictionary] = [
 	{
 		"id": &"attack",
 		"title": "기본공격",
-		"body": "SPACE로 가까운 적을 공격",
+		"body": "좌클릭 또는 SPACE로 가까운 적을 공격",
 		"targets": [],
 	},
 	{
@@ -66,7 +66,7 @@ const DESKTOP_STEPS: Array[Dictionary] = [
 	{
 		"id": &"power_attack",
 		"title": "강공격",
-		"body": "SHIFT/E 직후 SPACE로 강공격",
+		"body": "SHIFT/E 직후 좌클릭 또는 SPACE로 강공격",
 		"targets": [],
 	},
 ]

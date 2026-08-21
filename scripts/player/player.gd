@@ -615,11 +615,37 @@ func aim_direction() -> Vector2:
 	return _facing
 
 
-## 발사 입력: 터치 공격 버튼 우선, 없으면 스페이스/우트리거.
+## 발사 입력: 터치 공격 버튼 우선. PC는 좌클릭, 공통 폴백은 스페이스/우트리거.
 func is_firing() -> bool:
-	if _touch != null and _touch.is_attack_pressed():
+	var touch_attack_pressed := (
+		_touch != null
+		and _touch.has_method("is_attack_pressed")
+		and bool(_touch.call("is_attack_pressed"))
+	)
+	var mobile_runtime := (
+		OS.has_feature("mobile")
+		or OS.has_feature("web_android")
+		or OS.has_feature("web_ios")
+	)
+	return resolve_fire_input(
+		touch_attack_pressed,
+		Input.is_key_pressed(KEY_SPACE),
+		Input.get_joy_axis(0, JOY_AXIS_TRIGGER_RIGHT),
+		Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT),
+		mobile_runtime
+	)
+
+
+func resolve_fire_input(
+	touch_attack_pressed: bool,
+	space_pressed: bool,
+	right_trigger_value: float,
+	left_mouse_pressed: bool,
+	mobile_runtime: bool
+) -> bool:
+	if touch_attack_pressed or space_pressed or right_trigger_value > 0.3:
 		return true
-	return Input.is_key_pressed(KEY_SPACE) or Input.get_joy_axis(0, JOY_AXIS_TRIGGER_RIGHT) > 0.3
+	return left_mouse_pressed and not mobile_runtime
 
 
 func is_special_pressed() -> bool:
