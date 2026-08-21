@@ -116,7 +116,7 @@ func test_ingame_control_onboarding_desktop_guidance_names_keyboard_inputs_witho
 	onboarding.queue_free()
 
 
-func test_ingame_control_onboarding_desktop_attack_steps_name_left_mouse_and_space() -> void:
+func test_ingame_control_onboarding_desktop_actions_match_pc_control_scheme() -> void:
 	var script := load(INGAME_CONTROL_ONBOARDING_SCRIPT_PATH) as Script
 	var player := StubIntegratedInputPlayer.new()
 	var onboarding := script.new() as CanvasLayer
@@ -127,11 +127,13 @@ func test_ingame_control_onboarding_desktop_attack_steps_name_left_mouse_and_spa
 	onboarding.call("start")
 	onboarding.call("advance_from_input", {"move": Vector2.RIGHT})
 	var attack_snapshot: Dictionary = onboarding.call("get_current_step_snapshot")
-	_runner.assert_eq(attack_snapshot.get("body"), "좌클릭 또는 SPACE로 가까운 적을 공격", "기본공격 안내는 PC 국룰과 기존 키를 함께 알려준다")
+	_runner.assert_eq(attack_snapshot.get("body"), "좌클릭으로 가까운 적을 공격", "기본공격 안내는 PC 좌클릭만 알려준다")
 	onboarding.call("advance_from_input", {"attack_pressed": true})
+	var dash_snapshot: Dictionary = onboarding.call("get_current_step_snapshot")
+	_runner.assert_eq(dash_snapshot.get("body"), "SPACE로 짧게 회피", "대쉬 안내는 PC 기본 SPACE를 알려준다")
 	onboarding.call("advance_from_input", {"dash_pressed": true})
 	var power_snapshot: Dictionary = onboarding.call("get_current_step_snapshot")
-	_runner.assert_eq(power_snapshot.get("body"), "SHIFT/E 직후 좌클릭 또는 SPACE로 강공격", "강공격 안내도 좌클릭과 기존 키를 함께 알려준다")
+	_runner.assert_eq(power_snapshot.get("body"), "SPACE 직후 좌클릭으로 강공격", "강공격 안내는 대쉬와 공격의 실제 PC 키를 조합한다")
 
 	player.queue_free()
 	onboarding.queue_free()

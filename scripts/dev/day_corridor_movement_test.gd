@@ -32,7 +32,8 @@ const BOSS_REPORT_ARROW_TEXT := "<<<"
 const RETURN_TO_LOBBY_MESSAGE := "로비로 돌아갈까요? 진행 상황은 자동으로 저장됩니다."
 const QUIT_GAME_MESSAGE := "게임을 종료할까요?"
 const BASEBALL_CAPTAIN_DISPLAY_NAME := "야구부 주장"
-const BASEBALL_CAPTAIN_PROMPT_TEXT := "야구부 주장  말 걸기"
+const BASEBALL_CAPTAIN_DESKTOP_PROMPT_TEXT := "[E]  야구부 주장에게 말 걸기"
+const BASEBALL_CAPTAIN_TOUCH_PROMPT_TEXT := "야구부 주장  말 걸기"
 const BASEBALL_CAPTAIN_REWARD_CALLOUT_TEXT := "!  야구부 주장"
 const BASEBALL_CAPTAIN_BOSS_RESULT_CALLOUT_TEXT := "!  야구부 주장"
 const REWARD_BAT_ID := &"cracked_bat"
@@ -1086,7 +1087,9 @@ func _center_or_clamp(value: float, half_view: float, world_size: float) -> floa
 func _update_interaction_prompt() -> void:
 	var prompt_visible := not is_dialogue_ui_visible() and not _hub_dialogue_ui.is_unlock_visible() and is_player_in_dialogue_range()
 	_interaction_prompt.visible = prompt_visible
-	_interaction_prompt.text = BASEBALL_CAPTAIN_PROMPT_TEXT if prompt_visible else ""
+	var uses_touch_guidance: bool = _touch_controls != null and bool(_touch_controls.get("visible"))
+	var prompt_text := BASEBALL_CAPTAIN_TOUCH_PROMPT_TEXT if uses_touch_guidance else BASEBALL_CAPTAIN_DESKTOP_PROMPT_TEXT
+	_interaction_prompt.text = prompt_text if prompt_visible else ""
 	_update_talk_target_callout()
 
 

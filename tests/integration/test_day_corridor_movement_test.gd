@@ -520,6 +520,27 @@ func test_day_corridor_onboarding_reward_marks_baseball_captain_as_talk_target()
 	_runner.assert_true(interaction_prompt.visible, "approaching the captain shows an interaction prompt")
 	_runner.assert_true(interaction_prompt.text.contains("야구부 주장"), "interaction prompt names the captain")
 	_runner.assert_true(interaction_prompt.text.contains("말 걸기"), "interaction prompt tells the player they can talk")
+	_runner.assert_true(interaction_prompt.text.contains("[E]"), "interaction prompt names the PC talk key")
+
+
+func test_day_corridor_talk_prompt_keeps_mobile_guidance_touch_friendly() -> void:
+	var scene := DayCorridorScene.instantiate()
+	add_child(scene)
+
+	var player := scene.get_node("%Player") as CharacterBody2D
+	var talk_target := scene.get_node("%TalkTarget") as Node2D
+	var touch_controls := scene.get_node("%TouchControls") as CanvasLayer
+	var interaction_prompt := scene.get_node("%InteractionPrompt") as Label
+	player.global_position = talk_target.global_position + Vector2(16.0, 0.0)
+
+	touch_controls.visible = false
+	scene.call("_update_interaction_prompt")
+	_runner.assert_true(interaction_prompt.text.contains("[E]"), "desktop prompt names the talk key")
+
+	touch_controls.visible = true
+	scene.call("_update_interaction_prompt")
+	_runner.assert_true(interaction_prompt.text.contains("말 걸기"), "mobile prompt still explains the touch action")
+	_runner.assert_false(interaction_prompt.text.contains("[E]"), "mobile prompt does not advertise an unavailable keyboard key")
 
 
 func test_day_corridor_onboarding_reward_bat_line_shows_last_season_bat_pickup_popup() -> void:
