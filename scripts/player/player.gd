@@ -632,7 +632,8 @@ func is_firing() -> bool:
 		Input.is_key_pressed(KEY_SPACE),
 		Input.get_joy_axis(0, JOY_AXIS_TRIGGER_RIGHT),
 		Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT),
-		mobile_runtime
+		mobile_runtime,
+		_is_pointer_over_interactive_ui()
 	)
 
 
@@ -641,11 +642,31 @@ func resolve_fire_input(
 	space_pressed: bool,
 	right_trigger_value: float,
 	left_mouse_pressed: bool,
-	mobile_runtime: bool
+	mobile_runtime: bool,
+	pointer_over_ui: bool
 ) -> bool:
 	if touch_attack_pressed or space_pressed or right_trigger_value > 0.3:
 		return true
-	return left_mouse_pressed and not mobile_runtime
+	return left_mouse_pressed and not mobile_runtime and not pointer_over_ui
+
+
+func _is_pointer_over_interactive_ui() -> bool:
+	if get_tree() != null and get_tree().paused:
+		return true
+	var viewport := get_viewport()
+	if viewport == null:
+		return false
+	var hovered_control := viewport.gui_get_hovered_control()
+	return is_interactive_mouse_control(hovered_control)
+
+
+func is_interactive_mouse_control(control: Control) -> bool:
+	var current := control
+	while current != null:
+		if current is BaseButton or current is Range or current is LineEdit or current is TextEdit:
+			return true
+		current = current.get_parent() as Control
+	return false
 
 
 func is_special_pressed() -> bool:

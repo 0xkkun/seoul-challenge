@@ -163,6 +163,24 @@ func test_ingame_control_onboarding_desktop_guidance_centers_hint_without_empty_
 	onboarding.queue_free()
 
 
+func test_ingame_control_onboarding_hint_children_do_not_capture_gameplay_mouse() -> void:
+	var script := load(INGAME_CONTROL_ONBOARDING_SCRIPT_PATH) as Script
+	var onboarding := script.new() as CanvasLayer
+	add_child(onboarding)
+
+	var hint_text := onboarding.get_node_or_null("Root/HintPanel/HintText") as Control
+	var title_label := onboarding.get_node_or_null("Root/HintPanel/HintText/TitleLabel") as Control
+	var body_label := onboarding.get_node_or_null("Root/HintPanel/HintText/BodyLabel") as Control
+	_runner.assert_not_null(hint_text, "온보딩 힌트 컨테이너가 존재한다")
+	_runner.assert_not_null(title_label, "온보딩 제목이 존재한다")
+	_runner.assert_not_null(body_label, "온보딩 본문이 존재한다")
+	for control: Control in [hint_text, title_label, body_label]:
+		if control != null:
+			_runner.assert_eq(control.mouse_filter, Control.MOUSE_FILTER_IGNORE, "%s는 gameplay 좌클릭을 가로막지 않는다" % control.name)
+
+	onboarding.queue_free()
+
+
 func test_ingame_control_onboarding_touch_guidance_survives_temporary_modal_hiding() -> void:
 	var script := load(INGAME_CONTROL_ONBOARDING_SCRIPT_PATH) as Script
 	var touch := _create_visible_touch_controls()

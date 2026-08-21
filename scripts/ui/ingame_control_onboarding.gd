@@ -221,10 +221,12 @@ func _build_ui() -> void:
 	_root.add_child(_label_panel)
 	var box := VBoxContainer.new()
 	box.name = "HintText"
+	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	box.add_theme_constant_override("separation", 4)
 	_label_panel.add_child(box)
 	_title_label = Label.new()
 	_title_label.name = "TitleLabel"
+	_title_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	_title_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	_title_label.add_theme_font_size_override("font_size", 22)
@@ -233,6 +235,7 @@ func _build_ui() -> void:
 	box.add_child(_title_label)
 	_body_label = Label.new()
 	_body_label.name = "BodyLabel"
+	_body_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_body_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_body_label.add_theme_font_size_override("font_size", 16)
 	_body_label.add_theme_color_override("font_color", Color(0.94, 0.96, 1.0, 1.0))
