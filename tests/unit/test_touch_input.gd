@@ -171,6 +171,40 @@ func test_ingame_control_onboarding_advances_from_player_integrated_input_withou
 	onboarding.queue_free()
 
 
+func test_ingame_control_onboarding_runtime_falls_back_to_touch_when_player_lacks_input_methods() -> void:
+	var script := load(INGAME_CONTROL_ONBOARDING_SCRIPT_PATH) as Script
+	var touch := _create_visible_touch_controls()
+	var player := StubPowerAttackPlayer.new()
+	var onboarding := script.new() as CanvasLayer
+	add_child(player)
+	add_child(onboarding)
+
+	onboarding.call("configure", touch, null, player)
+	onboarding.call("start")
+	var joystick := touch.get_node("Joystick") as Control
+	var attack_button := touch.get_node("AttackButton") as Control
+	var skill_button := touch.get_node("SkillButton") as Control
+	joystick.set("_active_index", 1)
+	joystick.set("_value", Vector2.RIGHT)
+	onboarding.call("_process", 0.016)
+	_assert_onboarding_step(onboarding, &"attack", ["AttackButton"])
+	joystick.call("release")
+	attack_button.set("_active_index", 2)
+	onboarding.call("_process", 0.016)
+	_assert_onboarding_step(onboarding, &"dash", ["SkillButton"])
+	attack_button.call("release")
+	skill_button.set("_active_index", 3)
+	onboarding.call("_process", 0.016)
+	_assert_onboarding_step(onboarding, &"power_attack", ["SkillButton", "AttackButton"])
+	player.emit_power_attack()
+
+	_runner.assert_false(bool(onboarding.call("is_active")), "통합 입력 메서드가 없는 액터는 실제 터치 상태와 강공격 신호로 온보딩을 완료한다")
+
+	touch.queue_free()
+	player.queue_free()
+	onboarding.queue_free()
+
+
 func test_touch_controls_initial_visibility_requires_touch_capability_and_enabled_setting() -> void:
 	var touch := TouchControlsScene.instantiate()
 	add_child(touch)
