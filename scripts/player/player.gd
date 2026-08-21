@@ -615,11 +615,58 @@ func aim_direction() -> Vector2:
 	return _facing
 
 
-## 발사 입력: 터치 공격 버튼 우선, 없으면 스페이스/우트리거.
+## 발사 입력: 터치 공격 버튼 우선. PC는 좌클릭, 공통 폴백은 스페이스/우트리거.
 func is_firing() -> bool:
-	if _touch != null and _touch.is_attack_pressed():
+	var touch_attack_pressed := (
+		_touch != null
+		and _touch.has_method("is_attack_pressed")
+		and bool(_touch.call("is_attack_pressed"))
+	)
+	var mobile_runtime := (
+		OS.has_feature("mobile")
+		or OS.has_feature("web_android")
+		or OS.has_feature("web_ios")
+	)
+	return resolve_fire_input(
+		touch_attack_pressed,
+		Input.is_key_pressed(KEY_SPACE),
+		Input.get_joy_axis(0, JOY_AXIS_TRIGGER_RIGHT),
+		Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT),
+		mobile_runtime,
+		_is_pointer_over_interactive_ui()
+	)
+
+
+func resolve_fire_input(
+	touch_attack_pressed: bool,
+	space_pressed: bool,
+	right_trigger_value: float,
+	left_mouse_pressed: bool,
+	mobile_runtime: bool,
+	pointer_over_ui: bool
+) -> bool:
+	if touch_attack_pressed or space_pressed or right_trigger_value > 0.3:
 		return true
-	return Input.is_key_pressed(KEY_SPACE) or Input.get_joy_axis(0, JOY_AXIS_TRIGGER_RIGHT) > 0.3
+	return left_mouse_pressed and not mobile_runtime and not pointer_over_ui
+
+
+func _is_pointer_over_interactive_ui() -> bool:
+	if get_tree() != null and get_tree().paused:
+		return true
+	var viewport := get_viewport()
+	if viewport == null:
+		return false
+	var hovered_control := viewport.gui_get_hovered_control()
+	return is_interactive_mouse_control(hovered_control)
+
+
+func is_interactive_mouse_control(control: Control) -> bool:
+	var current := control
+	while current != null:
+		if current is BaseButton or current is Range or current is LineEdit or current is TextEdit:
+			return true
+		current = current.get_parent() as Control
+	return false
 
 
 func is_special_pressed() -> bool:
