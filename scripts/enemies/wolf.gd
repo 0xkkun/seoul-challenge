@@ -10,6 +10,7 @@ const MovementBounds = preload("res://scripts/systems/movement_bounds.gd")
 const FACING_DEADZONE := 0.01
 
 signal defeated(enemy)
+signal dash_state_changed(state: StringName)
 
 @export var max_hp: int = 5
 @export var move_speed: float = 108.0
@@ -88,7 +89,7 @@ func get_dash_state() -> StringName:
 func parry_dash(_direction: Vector2 = Vector2.ZERO) -> bool:
 	if _dash_state != &"dash":
 		return false
-	_dash_state = &"recover"
+	_set_dash_state(&"recover")
 	_dash_timer = parried_recover_time
 	_dash_hit_targets.clear()
 	velocity = Vector2.ZERO
@@ -113,12 +114,12 @@ func tick_dash_ai(delta: float, origin: Vector2, target_position: Vector2) -> Ve
 		&"recover":
 			_dash_timer = maxf(0.0, _dash_timer - delta)
 			if _dash_timer <= 0.0:
-				_dash_state = &"chase"
+				_set_dash_state(&"chase")
 			return Vector2.ZERO
 
 	var offset := target_position - origin
 	if offset.length() <= dash_trigger_range:
-		_dash_state = &"prepare"
+		_set_dash_state(&"prepare")
 		_dash_timer = dash_windup_time
 		_dash_direction = aim_direction(origin, target_position)
 		_play_attack_animation(_dash_direction)
@@ -323,7 +324,7 @@ func _try_dash_hit(target: Node2D) -> void:
 
 
 func _start_dash() -> void:
-	_dash_state = &"dash"
+	_set_dash_state(&"dash")
 	_dash_timer = dash_duration
 	_dash_hit_targets.clear()
 	AudioManager.play_sfx(AudioManager.WOLF_ATTACK)
@@ -331,9 +332,16 @@ func _start_dash() -> void:
 
 
 func _start_recover() -> void:
-	_dash_state = &"recover"
+	_set_dash_state(&"recover")
 	_dash_timer = dash_recover_time
 	_dash_hit_targets.clear()
+
+
+func _set_dash_state(state: StringName) -> void:
+	if _dash_state == state:
+		return
+	_dash_state = state
+	dash_state_changed.emit(state)
 
 
 func _update_animation() -> void:

@@ -66,6 +66,7 @@ const ONBOARDING_JOURNEY_PHASES: Array[StringName] = [
 @onready var session_ui_root: CanvasLayer = %SessionUIRoot
 @onready var ingame_control_onboarding: CanvasLayer = %IngameControlOnboarding
 @onready var purify_onboarding_spotlight: PurifyOnboardingSpotlight = %PurifyOnboardingSpotlight
+@onready var parry_onboarding: ParryOnboarding = %ParryOnboarding
 @onready var player_camera: Camera2D = %PlayerCamera
 @onready var _fade_rect: ColorRect = $FadeLayer/FadeRect
 @onready var _minimap: Control = $MinimapLayer/Minimap
@@ -111,6 +112,9 @@ var _paused_before_purify_onboarding := false
 var _touch_controls_visible_before_purify_onboarding := true
 var _onboarding_journey_phase: StringName = &"complete"
 var _completed_onboarding_phases: Array[StringName] = []
+var _parry_combat_room: Node = null
+var _parry_wolves: Array[Node] = []
+var _prompted_parry_wolf_ids := {}
 
 
 func _ready() -> void:
@@ -127,12 +131,14 @@ func _ready() -> void:
 	interaction_system.configure(actor, self)
 	_configure_player_camera()
 	_configure_purify_onboarding_spotlight()
+	_configure_parry_onboarding()
 	_configure_ingame_control_onboarding()
 	death_return_controller.death_result_builder_callable = Callable(self, "_build_death_result")
 	death_return_controller.game_over_callable = Callable(self, "_show_death_summary")
 	_connect_progression_events()
 	_connect_combat_feedback_events()
 	_connect_run_reward_events()
+	_connect_player_parry_events()
 	room_manager.room_changed.connect(_on_room_changed)
 	room_manager.configure(_build_run_layout(), room_layer, actor)
 	room_manager.transition_blocked_callable = Callable(self, "_is_room_transition_blocked_by_reward")
@@ -199,6 +205,12 @@ func _configure_purify_onboarding_spotlight() -> void:
 	purify_onboarding_spotlight.configure(player_camera)
 
 
+func _configure_parry_onboarding() -> void:
+	if parry_onboarding == null:
+		return
+	parry_onboarding.configure(player_camera)
+
+
 func _exit_tree() -> void:
 	# (e) 보스 인트로 도중 세션이 끝나면 pause/터치 입력을 복원한다(스턱 pause 방지).
 	_finish_boss_intro()
@@ -210,6 +222,8 @@ func _exit_tree() -> void:
 	_disconnect_progression_events()
 	_disconnect_combat_feedback_events()
 	_disconnect_run_reward_events()
+	_disconnect_player_parry_events()
+	_disconnect_parry_room_events()
 	_disconnect_player_weapon_events()
 	if has_node("/root/PoolManager"):
 		PoolManager.clear_all()
@@ -556,6 +570,8 @@ func _build_death_result() -> Dictionary:
 
 
 func _show_death_summary(result: Dictionary) -> void:
+	_disconnect_parry_room_events()
+	_disconnect_player_parry_events()
 	_clear_pending_reward_choice()
 	get_tree().paused = true
 	session_ui_root.set_status("쓰러짐")
@@ -1057,6 +1073,7 @@ func _configure_player_camera() -> void:
 func _on_room_changed(room_id: StringName, room_type: StringName) -> void:
 	_play_room_fade()
 	var current_room := room_manager.current_room
+	_connect_parry_room_events(current_room)
 	if (
 		room_id == &"start"
 		and current_room is StartRoom
@@ -1073,6 +1090,124 @@ func _on_room_changed(room_id: StringName, room_type: StringName) -> void:
 	_connect_boss_room(current_room)
 	_connect_friend_room(current_room)
 	_sync_onboarding_journey_surface()
+
+
+func _connect_player_parry_events() -> void:
+	if actor == null or not actor.has_signal("parry_succeeded"):
+		return
+	var callback := Callable(self, "_on_player_parry_succeeded")
+	if not actor.is_connected(&"parry_succeeded", callback):
+		actor.connect(&"parry_succeeded", callback)
+
+
+func _disconnect_player_parry_events() -> void:
+	if actor == null or not actor.has_signal("parry_succeeded"):
+		return
+	var callback := Callable(self, "_on_player_parry_succeeded")
+	if actor.is_connected(&"parry_succeeded", callback):
+		actor.disconnect(&"parry_succeeded", callback)
+
+
+func _connect_parry_room_events(room: Node) -> void:
+	_disconnect_parry_room_events()
+	if not _is_parry_tutorial_eligible():
+		return
+	if room == null or not room.has_signal("enemy_spawned"):
+		return
+	_parry_combat_room = room
+	var callback := Callable(self, "_on_parry_enemy_spawned")
+	if not room.is_connected(&"enemy_spawned", callback):
+		room.connect(&"enemy_spawned", callback)
+
+
+func _disconnect_parry_room_events() -> void:
+	if _parry_combat_room != null and is_instance_valid(_parry_combat_room) and _parry_combat_room.has_signal("enemy_spawned"):
+		var spawn_callback := Callable(self, "_on_parry_enemy_spawned")
+		if _parry_combat_room.is_connected(&"enemy_spawned", spawn_callback):
+			_parry_combat_room.disconnect(&"enemy_spawned", spawn_callback)
+	for wolf: Node in _parry_wolves.duplicate():
+		_disconnect_parry_wolf(wolf)
+	_parry_wolves.clear()
+	_parry_combat_room = null
+	if parry_onboarding != null:
+		parry_onboarding.dismiss()
+
+
+func _on_parry_enemy_spawned(enemy: Node, enemy_type: StringName, _wave_index: int) -> void:
+	if enemy_type != &"wolf" or not _is_parry_tutorial_eligible():
+		return
+	if enemy == null or not is_instance_valid(enemy) or _parry_wolves.has(enemy):
+		return
+	_parry_wolves.append(enemy)
+	var dash_callback := Callable(self, "_on_wolf_dash_state_changed").bind(enemy)
+	if enemy.has_signal("dash_state_changed") and not enemy.is_connected(&"dash_state_changed", dash_callback):
+		enemy.connect(&"dash_state_changed", dash_callback)
+	var defeated_callback := Callable(self, "_on_parry_wolf_defeated")
+	if enemy.has_signal("defeated") and not enemy.is_connected(&"defeated", defeated_callback):
+		enemy.connect(&"defeated", defeated_callback)
+	var exiting_callback := Callable(self, "_on_parry_wolf_tree_exiting").bind(enemy)
+	if not enemy.tree_exiting.is_connected(exiting_callback):
+		enemy.tree_exiting.connect(exiting_callback)
+
+
+func _disconnect_parry_wolf(wolf: Node) -> void:
+	if wolf == null or not is_instance_valid(wolf):
+		return
+	var dash_callback := Callable(self, "_on_wolf_dash_state_changed").bind(wolf)
+	if wolf.has_signal("dash_state_changed") and wolf.is_connected(&"dash_state_changed", dash_callback):
+		wolf.disconnect(&"dash_state_changed", dash_callback)
+	var defeated_callback := Callable(self, "_on_parry_wolf_defeated")
+	if wolf.has_signal("defeated") and wolf.is_connected(&"defeated", defeated_callback):
+		wolf.disconnect(&"defeated", defeated_callback)
+	var exiting_callback := Callable(self, "_on_parry_wolf_tree_exiting").bind(wolf)
+	if wolf.tree_exiting.is_connected(exiting_callback):
+		wolf.tree_exiting.disconnect(exiting_callback)
+
+
+func _on_wolf_dash_state_changed(state: StringName, wolf: Node2D) -> void:
+	if state != &"prepare" or not _is_parry_tutorial_eligible():
+		return
+	if wolf == null or not is_instance_valid(wolf):
+		return
+	var wolf_id := wolf.get_instance_id()
+	if _prompted_parry_wolf_ids.has(wolf_id):
+		return
+	_prompted_parry_wolf_ids[wolf_id] = true
+	parry_onboarding.show_for_wolf(wolf, _onboarding_journey_input_mode())
+
+
+func _on_player_parry_succeeded(_payload: Dictionary) -> void:
+	if not _is_parry_tutorial_eligible():
+		return
+	SaveManager.set_flag(SceneTransition.FLAG_PARRY_TUTORIAL_COMPLETE, true)
+	_disconnect_parry_room_events()
+
+
+func _on_parry_wolf_defeated(wolf: Node) -> void:
+	if parry_onboarding != null:
+		parry_onboarding.dismiss_for_wolf(wolf)
+	_parry_wolves.erase(wolf)
+
+
+func _on_parry_wolf_tree_exiting(wolf: Node) -> void:
+	if parry_onboarding != null:
+		parry_onboarding.dismiss_for_wolf(wolf)
+	_parry_wolves.erase(wolf)
+
+
+func _is_parry_tutorial_eligible() -> bool:
+	if not has_node("/root/SaveManager"):
+		return false
+	if actor != null and actor.has_method("has_bat") and not bool(actor.call("has_bat")):
+		return false
+	return (
+		SaveManager.get_flag(SceneTransition.FLAG_BASEBALL_CAPTAIN_REWARD_CLAIMED)
+		and not SaveManager.get_flag(SceneTransition.FLAG_PARRY_TUTORIAL_COMPLETE)
+	)
+
+
+func get_parry_tutorial_snapshot() -> Dictionary:
+	return parry_onboarding.get_snapshot() if parry_onboarding != null else {"active": false}
 
 
 func _configure_actor_for_room(room: Node2D) -> void:

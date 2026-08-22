@@ -32,6 +32,8 @@ signal attack_executed(payload: Dictionary)
 signal dash_started(payload: Dictionary)
 ## 대시 직후 강화 근접 공격이 실제 실행됨 — 온보딩/피드백 동기화용.
 signal power_attack_executed(payload: Dictionary)
+## 돌진 중인 적이 배트 스윙을 실제로 받아친 순간 — 패링 학습·피드백 동기화용.
+signal parry_succeeded(payload: Dictionary)
 ## 런 한정 맵 아이템 변경 — 보물방/상점방 표시용.
 signal run_modifiers_changed(payload: Dictionary)
 
@@ -1095,8 +1097,15 @@ func _attack_melee(dir: Vector2) -> void:
 		var to_us := Vector2(to.x, to.y / swing_vertical_factor)
 		if to_us.length() <= rng and in_melee_arc(dir, to_us, arc):
 			hit_count += 1
+			var parried := false
 			if _has_bat and enemy.has_method("parry_dash"):
-				enemy.call("parry_dash", dir)
+				parried = bool(enemy.call("parry_dash", dir))
+			if parried:
+				parry_succeeded.emit({
+					"direction": dir,
+					"player_position": global_position,
+					"enemy_position": e.global_position,
+				})
 			if enemy.has_method("take_damage"):
 				enemy.call("take_damage", dmg)
 			var applied_knockback := knockback_distance if _has_bat else barehand_knockback

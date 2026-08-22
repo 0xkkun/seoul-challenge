@@ -36,3 +36,18 @@ cross-scene playthrough, temporarily export with
 
 The fixture is test-only and prints `UAT_JOURNEY_READY mode=... phase=...` when
 the requested actual scene state is ready.
+
+## First-wolf parry tutorial fixture
+
+For deterministic release Web verification of the repeatable parry lesson,
+temporarily export with `res://tests/uat/parry_tutorial_web_fixture.tscn` as the
+main scene. Restore `project.godot` before committing, then open one of:
+
+- `?uat_parry_mode=desktop_prepare` — real first wolf `prepare` with PC copy.
+- `?uat_parry_mode=touch_prepare` — the same real surface with touch copy and controls.
+- `?uat_parry_mode=miss` — bounded card dismisses without writing completion.
+- `?uat_parry_mode=retry` — first wolf dies, a later real spawn shows the lesson again.
+- `?uat_parry_mode=success` — real wolf dash plus real bat swing writes completion and dismisses.
+
+The fixture prints `UAT_PARRY_READY mode=... active=... complete=...` after the
+requested state is reached. It is not referenced by production scenes.

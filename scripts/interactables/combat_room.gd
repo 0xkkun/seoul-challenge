@@ -30,6 +30,7 @@ signal combat_started(room_id: StringName, enemy_count: int)
 signal combat_resolved(room_id: StringName)
 signal combat_cleared(room_id: StringName)
 signal enemy_count_changed(remaining_count: int)
+signal enemy_spawned(enemy: Node, enemy_type: StringName, wave_index: int)
 
 @export var chaser_scene: PackedScene = CHASER_SCENE
 @export var ranged_scene: PackedScene = RANGED_SHOOTER_SCENE
@@ -192,7 +193,8 @@ func _spawn_enemy_entry(entry: Dictionary) -> void:
 			RANGED_SPAWN_FACTORS,
 			"EliteKumiho" if elite_variant else "Kumiho",
 			sequence,
-			elite_variant
+			elite_variant,
+			&"ranged"
 		)
 		return
 
@@ -202,7 +204,8 @@ func _spawn_enemy_entry(entry: Dictionary) -> void:
 			WOLF_SPAWN_FACTORS,
 			"EliteWolf" if elite_variant else "Wolf",
 			sequence,
-			elite_variant
+			elite_variant,
+			&"wolf"
 		)
 		return
 
@@ -211,7 +214,8 @@ func _spawn_enemy_entry(entry: Dictionary) -> void:
 		CHASER_SPAWN_FACTORS,
 		"EliteAkgwi" if elite_variant else "Akgwi",
 		sequence,
-		elite_variant
+		elite_variant,
+		&"chaser"
 	)
 
 
@@ -220,7 +224,8 @@ func _spawn_enemy_instance(
 	spawn_factors: Array[Vector2],
 	name_prefix: String,
 	sequence: int,
-	elite_variant := false
+	elite_variant := false,
+	enemy_type: StringName = &"chaser"
 ) -> void:
 	if scene == null or spawn_factors.is_empty():
 		return
@@ -238,6 +243,7 @@ func _spawn_enemy_instance(
 		enemy.call("start_spawn_fade", spawn_fade_time)
 	_connect_enemy(enemy)
 	_active_enemies.append(enemy)
+	enemy_spawned.emit(enemy, enemy_type, _waves_spawned)
 
 
 func _apply_enemy_variant(enemy: Node, elite_variant: bool) -> void:
@@ -349,4 +355,3 @@ func _has_property(node: Node, property_name: String) -> bool:
 		if String(property.get("name", "")) == property_name:
 			return true
 	return false
-

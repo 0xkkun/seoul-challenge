@@ -48,6 +48,46 @@ func test_combat_room_spawns_enemies_and_clears_after_defeats() -> void:
 	_runner.assert_eq(cleared_rooms, [room.get("room_id")], "combat room emits cleared once")
 
 
+func test_combat_room_emits_spawn_after_each_enemy_is_tracked() -> void:
+	var room := _instantiate_combat_room()
+	if room == null:
+		return
+	room.call("apply_room_config", {
+		"chaser_count": 0,
+		"ranged_count": 0,
+		"wolf_count": 1,
+		"elite_chaser_count": 0,
+		"elite_ranged_count": 0,
+		"elite_wolf_count": 0,
+		"wave_count": 1,
+	})
+	var payloads: Array[Dictionary] = []
+	if room.has_signal("enemy_spawned"):
+		room.connect(&"enemy_spawned", func(enemy: Node, enemy_type: StringName, wave_index: int) -> void:
+			payloads.append({
+				"enemy": enemy,
+				"enemy_type": enemy_type,
+				"wave_index": wave_index,
+				"inside_tree": enemy.is_inside_tree(),
+				"tracked": (room.call("get_active_enemies") as Array).has(enemy),
+			})
+		)
+	add_child(room)
+	room.enter()
+
+	_runner.assert_eq(payloads.size(), 1, "initial encounter emits one event per real spawn")
+	if payloads.size() == 1:
+		_runner.assert_eq(payloads[0].get("enemy_type"), &"wolf", "spawn event identifies the wolf contract")
+		_runner.assert_eq(payloads[0].get("wave_index"), 0, "initial encounter is wave zero")
+		_runner.assert_true(bool(payloads[0].get("inside_tree")), "spawn event runs after the enemy enters the tree")
+		_runner.assert_true(bool(payloads[0].get("tracked")), "spawn event runs after the room tracks the enemy")
+
+	room.call("_spawn_enemy_entry", {"enemy_type": &"wolf", "elite_variant": false, "sequence": 1})
+	_runner.assert_eq(payloads.size(), 2, "a later real spawn uses the same event contract")
+	if payloads.size() == 2:
+		_runner.assert_eq(payloads[1].get("wave_index"), 1, "later wave spawn reports the next wave index")
+
+
 func test_combat_room_spawns_and_bounds_enemies_inside_play_area() -> void:
 	var room := _instantiate_combat_room()
 	if room == null:
