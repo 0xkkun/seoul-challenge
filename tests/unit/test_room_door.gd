@@ -150,6 +150,26 @@ func test_transition_request_is_blocked_while_tree_paused() -> void:
 	_runner.assert_eq(requests, [&"N"], "unpaused door transition emits once")
 
 
+func test_paused_overlap_retries_without_actor_reentry() -> void:
+	var door := _create_door(&"E")
+	var actor := Node2D.new()
+	var requests: Array[StringName] = []
+	add_child(actor)
+	door.transition_requested.connect(func(door_dir: StringName) -> void: requests.append(door_dir))
+	door.configure_actor(actor)
+	door.open()
+	actor.global_position = door.global_position
+	get_tree().paused = true
+
+	_runner.assert_false(door.check_transition_for_actor(actor), "paused overlap cannot transition")
+	_runner.assert_eq(requests, [], "failed overlap emits no transition")
+
+	get_tree().paused = false
+	_runner.assert_true(door.check_transition_for_actor(actor), "same overlap retries immediately after unpause")
+	_runner.assert_false(door.check_transition_for_actor(actor), "successful retry consumes the overlap exactly once")
+	_runner.assert_eq(requests, [&"E"], "retry emits one transition without actor reentry")
+
+
 func test_actor_overlap_transition_emits_once_per_entry() -> void:
 	var door := _create_door(&"W")
 	var actor := Node2D.new()
