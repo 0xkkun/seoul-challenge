@@ -613,6 +613,7 @@ Run unit, integration, quick, and full gates. UAT a missed dash, wolf death, nex
 - Create: `scripts/ui/floating_combat_text.gd`
 - Create: `scenes/ui/floating_combat_text.tscn`
 - Create: `scripts/combat/parry_feedback_controller.gd`
+- Modify: `scripts/autoload/pool_manager.gd`
 - Modify: `scripts/enemies/wolf.gd`
 - Modify: `scenes/session/session_root.tscn`
 - Modify: `scripts/session/session_root.gd`
@@ -620,6 +621,7 @@ Run unit, integration, quick, and full gates. UAT a missed dash, wolf death, nex
 - Add: `assets/audio/sfx/parry_success.wav` and `.import`
 - Test: `tests/unit/test_hit_stop_manager.gd`
 - Test: `tests/unit/test_player_melee.gd`
+- Test: `tests/unit/test_pool_manager.gd`
 - Test: `tests/integration/test_session_contract.gd`
 
 **Interfaces:**
@@ -628,6 +630,11 @@ Run unit, integration, quick, and full gates. UAT a missed dash, wolf death, nex
 - Produces: `FloatingCombatText.style_for(style: StringName) -> Dictionary`.
 - Produces: `FloatingCombatText.activate_from_pool()` and `reset_for_pool()`;
   every completed lifetime returns itself through `PoolManager.release(self)`.
+- Produces: `PoolManager.clear_pool(pool_id: StringName) -> void`, which resets
+  and frees one pool's active/available nodes and erases its scene/default
+  parent registration without affecting other pools.
+- Produces: `ParryFeedbackController.reset() -> void` to kill its flash tween
+  and restore the overlay to transparent/hidden.
 - Consumes: `Player.parry_succeeded`.
 
 - [ ] **Step 1: Write hit-stop RED tests**
@@ -655,6 +662,11 @@ active; after advancing past their lifetime all 20 leave the active list and a
 new text can be acquired. Reacquire one released node and assert text, style,
 modulate, scale, position, and tween state were reset before the new
 `initialize()` call.
+
+Add a targeted teardown test for `PoolManager.clear_pool()`: seed active and
+available floating text plus a different pool, clear only
+`floating_combat_text`, and prove its counts/registration are gone while the
+other pool remains usable. This is the cross-session stale-reference guard.
 
 - [ ] **Step 5: Implement presentation order**
 
@@ -687,6 +699,9 @@ node calls `PoolManager.release(self)` instead of `queue_free()`.
 style, modulate, scale, and transform defaults so the next acquire cannot
 inherit visual state. Guard the completion callback with an activation
 generation/token so a stale tween cannot release a newly reused node.
+`ParryFeedbackController.reset()` similarly kills/clears the white-flash tween
+and sets the flash overlay alpha to zero so paused teardown cannot freeze a
+white frame.
 
 - [ ] **Step 6: Verify recovery and Web behavior**
 
@@ -715,6 +730,8 @@ Commit: `[Combat] 패링 성공 피드백 완성`. Publish impact screenshots an
 **Interfaces:**
 - Preserves: `RoomDoor.request_transition() -> bool` and transition signals.
 - Produces: `SessionRoot._finish_all_onboarding_ui() -> void` as an idempotent cleanup boundary.
+- Consumes: Task 5's `ParryFeedbackController.reset()` and
+  `PoolManager.clear_pool(&"floating_combat_text")` teardown contracts.
 
 - [ ] **Step 1: Write portal retry RED test**
 
@@ -742,6 +759,12 @@ offset after cleanup, call the boundary, advance past the tween duration, and
 assert the tween is killed/cleared and the camera offset remains
 `Vector2.ZERO`.
 
+Also start a white parry flash and an active floating text immediately before
+each termination path. Assert cleanup resets the flash, clears the targeted
+combat-text pool before its session parent is freed, and a newly instantiated
+session can register/acquire a full 20-text pool without inheriting stale
+active or available nodes.
+
 - [ ] **Step 4: Implement one idempotent cleanup boundary**
 
 Add `_finish_all_onboarding_ui()` and call it at every session termination/handoff entry point and `_exit_tree()`. Always place `onboarding_kind` in results built while the session latch is active, including death.
@@ -753,6 +776,9 @@ func _finish_all_onboarding_ui() -> void:
 	_finish_purify_onboarding_spotlight()
 	if parry_onboarding != null:
 		parry_onboarding.dismiss()
+	if parry_feedback_controller != null:
+		parry_feedback_controller.reset()
+	PoolManager.clear_pool(&"floating_combat_text")
 	get_tree().paused = false
 	player_camera.zoom = Vector2.ONE
 	if _camera_feedback_tween != null and _camera_feedback_tween.is_valid():
@@ -765,6 +791,9 @@ func _finish_all_onboarding_ui() -> void:
 Kill and clear `_camera_feedback_tween` before resetting the offset; assigning
 `Vector2.ZERO` alone does not prevent the previous tween from writing a later
 nonzero value while the death summary keeps the session scene alive.
+Clear the combat-text pool before the pooled-object parent is freed; merely
+releasing nodes back under the doomed session parent would leave freed
+instances in the global available list.
 
 - [ ] **Step 5: Verify and merge**
 
@@ -891,6 +920,8 @@ Commit: `[Enemy] 악귀 추적 압박 조정`. Update M6a coverage with before/a
 **Interfaces:**
 - Produces: `AudioManager.play_sfx(id: StringName, cooldown: float = 0.0) -> bool`.
 - Produces: `AudioManager.can_play_sfx(id: StringName, now_seconds: float, cooldown: float) -> bool`.
+- Produces: `AudioManager.get_registered_sfx_ids() -> Array[StringName]` and
+  `get_sfx_volume_db(id: StringName) -> float` for mix-contract verification.
 - Preserves: all existing SFX ids and headless playback log behavior for accepted plays.
 
 - [ ] **Step 1: Write cooldown RED tests**
@@ -911,6 +942,11 @@ The test sets the real runtime dictionary directly; do not add a test-only produ
 Add a reset lifecycle assertion: seed `_last_sfx_played_at`, call the real
 `AudioManager.reset()`, and prove an immediate same-ID play is accepted. This
 catches cooldown state leaking between tests or audio lifecycles.
+
+Add a volume-table RED test that every ID in `get_registered_sfx_ids()` has an
+explicit `_SFX_VOLUME_DB` entry, each dB value is finite and in `[-24, 6]`,
+the newly added reaction IDs have hand-authored literal values, and an unknown
+ID still falls back to `DEFAULT_SFX_VOLUME_DB`.
 
 - [ ] **Step 2: Run unit tests and confirm RED**
 
@@ -954,6 +990,12 @@ path. Do not double-play enemy death from each enemy and a shared event in the
 same PR; this slice keeps the current enemy-local death calls until D3 is
 implemented.
 
+Populate `_SFX_VOLUME_DB` for every registered SFX ID, including Task 5's parry
+sound and all Task 9 additions; source-file `volume=` filters do not substitute
+for this runtime table. Start from category-balanced literal dB values, expose
+them through `get_sfx_volume_db()`, and tune exact entries during the Web mix
+pass while keeping the final accepted table in code and the PR evidence.
+
 ```gdscript
 const PLAYER_HIT := &"player_hit"
 const ENEMY_HIT := &"enemy_hit"
@@ -996,6 +1038,7 @@ Run unit, quick, and full gates. Web UAT a multi-hit swing and simultaneous deat
 **Files:**
 - Create: `scripts/ui/damage_vignette.gd`
 - Modify: `scenes/session/session_root.tscn`
+- Modify: `scripts/session/session_root.gd`
 - Modify: `scripts/autoload/settings.gd`
 - Modify: `scripts/ui/settings_ui.gd`
 - Test: `tests/unit/test_player_health.gd`
@@ -1004,6 +1047,9 @@ Run unit, quick, and full gates. Web UAT a multi-hit swing and simultaneous deat
 
 **Interfaces:**
 - Produces: `DamageVignette.on_health_changed(current: int, max_health: int) -> void`.
+- Produces: `DamageVignette.bind_player(player: Node) -> void`, which
+  synchronizes initial health and subscribes to
+  `EventBus.player_health_changed` exactly once.
 - Produces: `DamageVignette.get_snapshot() -> Dictionary`.
 - Produces: `Settings.KEY_SCREEN_EFFECTS := "screen_effects_enabled"`.
 
@@ -1023,9 +1069,21 @@ func test_damage_vignette_distinguishes_damage_heal_and_low_health() -> void:
 	vignette.queue_free()
 ```
 
+Add an integration RED test that instantiates the real session/player, calls
+`damage_vignette.bind_player(player)`, verifies the initial snapshot matches
+`player.get_health()/max_health`, then damages the real player and observes the
+vignette pulse through `EventBus.player_health_changed` without directly
+calling `on_health_changed()`. Free the vignette/session and prove the signal
+connection is disconnected.
+
 - [ ] **Step 2: Confirm RED and implement the CanvasLayer**
 
-Use a full-rect `ColorRect`/gradient texture with `MOUSE_FILTER_IGNORE`, below modal UI. Track previous health, start a real-time tween on decreases only, and keep low-health alpha when `current/max <= 0.25`.
+Use a full-rect `ColorRect`/gradient texture with `MOUSE_FILTER_IGNORE`, below
+modal UI. Track previous health, start a real-time tween on decreases only, and
+keep low-health alpha when `current/max <= 0.25`. `bind_player()` reads the
+real player's current/max health before any later event, connects the global
+health signal once, validates payload keys, and `_exit_tree()` disconnects it.
+`SessionRoot` calls `bind_player(player)` after both nodes are ready.
 
 ```gdscript
 class_name DamageVignette
