@@ -266,13 +266,19 @@ func test_onboarding_start_room_exit_waits_for_success_capabilities_and_real_tra
 	_runner.assert_false(start_room.is_cleared(), "지도 성공 전까지 출구는 계속 잠겨 있다")
 
 	var minimap := session.get_node("MinimapLayer/Minimap") as Control
+	var emulated_touch := InputEventScreenTouch.new()
+	emulated_touch.index = 0
+	emulated_touch.pressed = true
+	emulated_touch.position = minimap.get_global_rect().get_center()
 	var click := InputEventMouseButton.new()
 	click.button_index = MOUSE_BUTTON_LEFT
 	click.pressed = true
 	click.position = minimap.get_global_rect().get_center()
+	session.call("_input", emulated_touch)
 	session.call("_input", click)
 
-	_runner.assert_eq(minimap_states, [true], "PC 실제 미니맵 클릭은 expanded=true를 정확히 한 번 낸다")
+	_runner.assert_eq(minimap_states, [true], "PC emulated touch+mouse 쌍은 expanded=true를 정확히 한 번 낸다")
+	_runner.assert_true(bool(session.call("is_minimap_expanded")), "PC 미니맵은 emulated event 뒤에도 열린 상태를 유지한다")
 	_runner.assert_eq(gate_count[0], 1, "지도 성공이 시작 방 gate를 정확히 한 번 연다")
 	_runner.assert_true(start_room.is_cleared(), "지도 확대 성공 뒤 시작 방 출구가 열린다")
 	_runner.assert_true(manager.is_current_room_cleared(), "gate 해제는 RoomManager cleared 상태에도 반영된다")

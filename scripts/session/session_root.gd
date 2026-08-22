@@ -1330,13 +1330,15 @@ func _final_room_id() -> StringName:
 
 func _input(event: InputEvent) -> void:
 	var tap_pos := Vector2.ZERO
-	if event is InputEventScreenTouch and (event as InputEventScreenTouch).pressed:
+	var mobile_runtime := _is_mobile_runtime()
+	if mobile_runtime and event is InputEventScreenTouch and (event as InputEventScreenTouch).pressed:
 		tap_pos = (event as InputEventScreenTouch).position
 	elif (
+		not mobile_runtime
+		and
 		event is InputEventMouseButton
 		and (event as InputEventMouseButton).pressed
 		and (event as InputEventMouseButton).button_index == MOUSE_BUTTON_LEFT
-		and not _is_mobile_runtime()
 	):
 		tap_pos = (event as InputEventMouseButton).position
 	else:
