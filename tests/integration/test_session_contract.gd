@@ -14,6 +14,7 @@ func _set_runner(runner: Node) -> void:
 
 
 func before_each() -> void:
+	HitStopManager.restore()
 	Settings.reset_defaults()
 	AudioManager.reset()
 	PoolManager.clear_all()
@@ -25,6 +26,7 @@ func before_each() -> void:
 
 func after_each() -> void:
 	get_tree().paused = false
+	HitStopManager.restore()
 	AudioManager.reset()
 	Settings.reset_defaults()
 	PoolManager.clear_all()
@@ -574,6 +576,8 @@ func test_session_actual_parry_presents_every_feedback_surface_once() -> void:
 
 	_runner.assert_eq(PoolManager.get_active_count(&"floating_combat_text"), 1, "actual parry spawns one floating text")
 	_runner.assert_true(HitStopManager.is_active(), "actual parry starts hit stop")
+	_runner.assert_true(is_equal_approx(HitStopManager.get_remaining_real_seconds(), 0.10), "general melee request cannot shorten the active parry duration")
+	_runner.assert_true(is_equal_approx(HitStopManager.get_active_scale(), 0.05), "general melee request cannot weaken the active parry scale")
 	_runner.assert_true(bool(controller.call("get_flash_snapshot").get("visible")), "actual parry flashes white")
 	var expected_parry_offset: Vector2 = session.call("camera_feedback_offset", Vector2.RIGHT, 9.0)
 	_runner.assert_eq(camera.offset, expected_parry_offset, "generic melee feedback cannot overwrite the stronger parry camera kick")

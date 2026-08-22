@@ -9,7 +9,12 @@ func _set_runner(runner: Node) -> void:
 	_runner = runner
 
 
+func before_each() -> void:
+	HitStopManager.restore()
+
+
 func after_each() -> void:
+	HitStopManager.restore()
 	for child: Node in get_children():
 		child.queue_free()
 

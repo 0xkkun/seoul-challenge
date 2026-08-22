@@ -9,12 +9,21 @@ var _runner: Node
 
 class StubEnemy extends Node2D:
 	var taken: int = 0
-	func take_damage(amount: int) -> void:
+	func take_damage(amount: int) -> int:
 		taken += amount
+		return amount
 
 
 func _set_runner(runner: Node) -> void:
 	_runner = runner
+
+
+func before_each() -> void:
+	HitStopManager.restore()
+
+
+func after_each() -> void:
+	HitStopManager.restore()
 
 
 func test_knockback_pushes_away() -> void:

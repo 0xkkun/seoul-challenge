@@ -269,17 +269,23 @@ func _ensure_spawn_fade() -> Node:
 	return _spawn_fade
 
 
-func take_damage(amount: int) -> void:
-	if _dead or is_hit_invulnerable():
-		return
+## 실제 감소한 HP만 반환하고 사망·피격 무적·비양수 피해는 0을 반환한다.
+func take_damage(amount: int) -> int:
+	if amount <= 0 or _dead or is_hit_invulnerable():
+		return 0
+	var previous_hp := _hp
+	_hp = maxi(0, _hp - amount)
+	var applied_damage := previous_hp - _hp
+	if applied_damage <= 0:
+		return 0
 	AudioManager.play_sfx(AudioManager.ENEMY_HIT)
 	HapticManager.on_enemy_hit()
-	_hp = maxi(0, _hp - amount)
 	_update_health_bar()
 	if is_dead(_hp):
 		_die()
 	else:
 		_trigger_hit_reaction()
+	return applied_damage
 
 
 func _die() -> void:

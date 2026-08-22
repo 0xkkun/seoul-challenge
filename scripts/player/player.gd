@@ -398,6 +398,14 @@ func damaged_health(current: int, amount: int) -> int:
 	return maxi(0, current - amount)
 
 
+static func hit_stop_profile(power_attack: bool, player_damaged: bool) -> Dictionary:
+	if player_damaged:
+		return {"duration": 0.05, "scale": 0.10}
+	if power_attack:
+		return {"duration": 0.06, "scale": 0.08}
+	return {"duration": 0.03, "scale": 0.15}
+
+
 func restored_health(current: int, amount: int, health_limit: int) -> int:
 	return clampi(current + maxi(0, amount), 0, maxi(0, health_limit))
 
@@ -459,16 +467,22 @@ func apply_room_clear_modifier_effects() -> bool:
 	return previous_health != _health
 
 
-## 적/적탄이 호출한다(계약). 무적시간이 아니면 체력 감소 후 EventBus로 발신.
+## 적/적탄이 호출한다(계약). 무적시간이 아니면 체력 감소 후 EventBus로 발신하고 실제 감소량을 반환한다.
 ## 체력 0 → 귀환 처리는 death_return_controller 가 player_health_changed 를 듣고 담당.
-func take_damage(amount: int) -> void:
-	if _health <= 0 or _invuln_timer > 0.0:
-		return
-	AudioManager.play_sfx(AudioManager.PLAYER_HIT)
+func take_damage(amount: int) -> int:
+	if amount <= 0 or _health <= 0 or _invuln_timer > 0.0:
+		return 0
+	var previous_health := _health
 	_health = damaged_health(_health, amount)
+	var applied_damage := previous_health - _health
+	if applied_damage <= 0:
+		return 0
+	AudioManager.play_sfx(AudioManager.PLAYER_HIT)
 	_invuln_timer = invuln_time
 	_trigger_hit_reaction(invuln_time)
 	_broadcast_health()
+	_request_hit_stop(hit_stop_profile(false, true))
+	return applied_damage
 
 
 func _broadcast_health() -> void:
@@ -1075,7 +1089,7 @@ func _on_sprite_animation_finished() -> void:
 		_sprite.speed_scale = 1.0
 
 
-## 근접 휘두르기 — 무기(맨손/배트)에 따라 사거리·각·피해가 다르다. 배트면 돌진 패링 + 넉백 + 적탄 되받아침(deflect).
+## 근접 휘두르기 — 무기(맨손/배트)에 따라 사거리·각·피해가 다르다. 양수 적용 피해만 넉백·피드백으로 인정한다.
 func _attack_melee(dir: Vector2) -> void:
 	var dmg := bat_damage if _has_bat else melee_damage
 	var rng := bat_range if _has_bat else melee_range
@@ -1102,7 +1116,6 @@ func _attack_melee(dir: Vector2) -> void:
 		var to := e.global_position - global_position
 		var to_us := Vector2(to.x, to.y / swing_vertical_factor)
 		if to_us.length() <= rng and in_melee_arc(dir, to_us, arc):
-			hit_count += 1
 			var parried := false
 			if _has_bat and enemy.has_method("parry_dash"):
 				parried = bool(enemy.call("parry_dash", dir))
@@ -1113,8 +1126,14 @@ func _attack_melee(dir: Vector2) -> void:
 					"player_position": global_position,
 					"enemy_position": e.global_position,
 				})
+			var applied_damage := 0
 			if enemy.has_method("take_damage"):
-				enemy.call("take_damage", dmg)
+				var damage_result: Variant = enemy.call("take_damage", dmg)
+				if damage_result is int:
+					applied_damage = int(damage_result)
+			if applied_damage <= 0:
+				continue
+			hit_count += 1
 			var applied_knockback := knockback_distance if _has_bat else barehand_knockback
 			applied_knockback = knockback_after_resistance(applied_knockback, _knockback_resistance_for(enemy))
 			if applied_knockback > 0.0:
@@ -1144,6 +1163,7 @@ func _attack_melee(dir: Vector2) -> void:
 			"hit_count": hit_count,
 		})
 	if hit_count > 0:
+		_request_hit_stop(hit_stop_profile(power_attack, false))
 		if _has_bat:
 			_play_bat_hit_sfx()
 		if not parried_any:
@@ -1188,6 +1208,12 @@ func _emit_combat_feedback(kind: StringName, dir: Vector2, hit_count: int, inten
 		"intensity": intensity,
 		"source_position": global_position,
 	})
+
+
+func _request_hit_stop(profile: Dictionary) -> void:
+	if not has_node("/root/HitStopManager"):
+		return
+	HitStopManager.request(float(profile.get("duration", 0.0)), float(profile.get("scale", 1.0)))
 
 
 func _play_bat_swing_sfx() -> void:

@@ -51,6 +51,17 @@ func test_kumiho_scene_uses_5_move_and_6_attack_frames() -> void:
 		_runner.assert_eq(attack_frame.region, Rect2(640, 0, 128, 128), "sixth attack frame cuts the final 128px region")
 
 
+func test_kumiho_take_damage_returns_only_accepted_clamped_hp_delta() -> void:
+	var enemy := (load(KUMIHO_SCENE_PATH) as PackedScene).instantiate()
+	enemy.max_hp = 2
+	add_child(enemy)
+	_runner.assert_eq(enemy.take_damage(1), 1, "kumiho returns the accepted HP delta")
+	_runner.assert_eq(enemy.take_damage(1), 0, "kumiho returns zero while hit-invulnerable")
+	enemy.call("tick_hit_reaction", enemy.hit_invuln_time + 0.05)
+	_runner.assert_eq(enemy.take_damage(5), 1, "kumiho lethal overkill clamps to remaining HP")
+	_runner.assert_eq(enemy.take_damage(1), 0, "kumiho returns zero after death")
+
+
 func test_kumiho_fireball_uses_4_fly_frames() -> void:
 	_runner.assert_true(ResourceLoader.exists(KUMIHO_FIREBALL_SCENE_PATH), "kumiho fireball projectile scene exists")
 	if not ResourceLoader.exists(KUMIHO_FIREBALL_SCENE_PATH):
