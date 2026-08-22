@@ -97,6 +97,25 @@ func test_stale_completion_cannot_dismiss_the_next_prompt() -> void:
 	_runner.assert_true(bool(snapshot.get("active")), "stale callback cannot hide the current prompt")
 
 
+func test_world_target_deletion_immediately_dismisses_the_coachmark() -> void:
+	var coach := _new_coach()
+	if coach == null:
+		return
+	var target := Node2D.new()
+	add_child(target)
+	coach.call("show_prompt", {
+		"id": &"target_cleanup",
+		"action": "공격",
+		"target_kind": &"world",
+		"target": target,
+	})
+	_runner.assert_true(bool(coach.call("is_active")), "world target prompt starts active")
+	target.queue_free()
+	coach.call("_process", 0.0)
+	_runner.assert_false(bool(coach.call("is_active")), "queued target immediately dismisses its coachmark")
+	_runner.assert_false(coach.visible, "dismissed target coachmark is hidden")
+
+
 func _new_coach() -> Node:
 	_runner.assert_true(ResourceLoader.exists(COACH_PATH), "onboarding coachmark script exists")
 	if not ResourceLoader.exists(COACH_PATH):
