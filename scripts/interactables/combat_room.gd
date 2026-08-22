@@ -134,6 +134,15 @@ func get_alive_count() -> int:
 	return get_remaining_enemy_count()
 
 
+func get_wave_snapshot() -> Dictionary:
+	return {
+		"configured": wave_count,
+		"spawned": _waves_spawned,
+		"pending": _pending_spawn_entries.size(),
+		"active": get_remaining_enemy_count(),
+	}
+
+
 func _spawn_encounter() -> void:
 	_active_enemies.clear()
 	_pending_spawn_entries = _build_spawn_queue()
@@ -175,7 +184,11 @@ func _spawn_next_wave() -> void:
 		enemy_count_changed.emit(_active_enemies.size())
 		return
 
-	while not _pending_spawn_entries.is_empty():
+	var waves_left := maxi(1, wave_count - _waves_spawned)
+	var batch_size := ceili(float(_pending_spawn_entries.size()) / float(waves_left))
+	for _index: int in range(batch_size):
+		if _pending_spawn_entries.is_empty():
+			break
 		var entry: Dictionary = _pending_spawn_entries.pop_front()
 		_spawn_enemy_entry(entry)
 	_waves_spawned += 1
