@@ -100,6 +100,12 @@ headed Chromium의 새 Web 세션에서 게임 시작 후 추가 입력 없이 8
 
 늑대가 일반 공격으로 먼저 죽거나 플레이어가 타이밍을 놓쳐도 방 진행은 계속된다. 완료 플래그는 실제 `parry_dash()`가 `true`를 반환할 때만 기록한다. 성공하지 못하면 다음 늑대의 첫 `prepare`에서 다시 안내한다.
 
+`RoomManager.room_changed`는 `CombatRoom.enter()`의 적 생성보다 먼저
+발생하므로, 한 번의 활성 적 스캔으로 늑대를 찾지 않는다. `CombatRoom`은
+초기 및 후속 웨이브의 실제 적 생성마다 `enemy_spawned`를 방출하고,
+`SessionRoot`는 방 진입 콜백에서 이 신호를 먼저 구독해 각 늑대의
+`dash_state_changed`를 연결한다.
+
 ### 5. 패링 성공 피드백
 
 성공 순간의 순서는 고정한다.
@@ -165,6 +171,8 @@ signal minimap_expanded_changed(expanded: bool)
 
 - `NightIntroCutscene`: 자동 진행, 플랫폼별 계속 문구, 스킵.
 - `IngameControlOnboarding`: 첫 방의 이동·공격·대시·강공격·지도·출구 단계.
+- `CombatRoom`: 초기·후속 웨이브의 실제 적 생성 뒤 `enemy_spawned`를
+  방출해 패링 안내가 늑대 생성 시점과 함께 연결되게 한다.
 - `SessionRoot`: 보상·정화·패링 학습의 맥락 연결과 세션 정리. 정화 완료
   시 기존 SaveManager 온보딩 완료 플래그를 기록한 뒤 학교로 전환한다.
 - `DayCorridor`: 기존 온보딩 완료·주장 보상 수령 플래그로 학교 단계

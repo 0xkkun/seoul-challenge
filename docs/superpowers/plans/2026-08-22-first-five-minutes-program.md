@@ -232,6 +232,9 @@ Publish PC/mobile screenshots under `ui-previews/pr-$PR_NUMBER/`, set metadata, 
 - Produces: `Player.dash_started(payload: Dictionary)`.
 - Produces: `SessionRoot.minimap_expanded_changed(expanded: bool)`.
 - Produces: `IngameControlOnboarding.gate_released`, `completed`, and `skipped`.
+- Produces: a visible `안내 건너뛰기` button after 5.0 active seconds with
+  `test_id=onboarding.skip_guidance_button` and
+  `uat_action=onboarding.skip_guidance`.
 - Produces: `StartRoom.set_tutorial_gate_active(active: bool)`.
 
 - [ ] **Step 1: Write player action-signal RED tests**
@@ -290,6 +293,14 @@ Connect `attack_executed`, `dash_started`, and `power_attack_executed` from the 
 
 Emit `gate_released` when the minimap step succeeds and the controller enters the exit step. Emit `completed` only after the room transition proves the exit step. `skip_guidance()` emits `gate_released` and `skipped` together, hides step UI, and leaves the compact legend visible.
 
+Build the real `안내 건너뛰기` Button in `IngameControlOnboarding` with
+`MOUSE_FILTER_STOP`, mobile safe-area offsets, and the stable metadata above.
+Keep it hidden until the onboarding has remained active for
+`SKIP_REVEAL_SECONDS := 5.0`, wire `pressed` to `skip_guidance()`, and hide it
+again after gate release, completion, or skip. The timer uses process time while
+the non-pausing onboarding is active; it is not reset by a failed capability
+input.
+
 - [ ] **Step 7: Write start-room gate integration RED tests**
 
 Add to `tests/integration/test_session_contract.gd`:
@@ -322,7 +333,11 @@ func _complete_control_steps(session: Node) -> void:
 	onboarding.record_action(&"minimap_expanded", {"expanded": true})
 ```
 
-Add a second fixture that calls `skip_guidance()` and asserts the exit opens while the compact key legend remains visible.
+Add a second fixture that starts onboarding, proves the real skip button remains
+hidden at 4.9 seconds and is visible at 5.0 seconds, then presses it by
+`test_id`/`uat_action` through the in-process UAT dispatcher. Assert the exit
+opens, `skipped` emits once, and the compact key legend remains visible. Direct
+method invocation alone is not sufficient evidence for the player escape path.
 
 - [ ] **Step 8: Implement the start-room gate and minimap event**
 
@@ -343,11 +358,21 @@ func is_cleared() -> bool:
 	return not _tutorial_gate_active
 ```
 
-In `SessionRoot._on_room_changed`, activate the gate before `Room.enter()` finishes when the room is the onboarding start. Unlock it on onboarding `gate_released` or `skipped`; waiting for `completed` would deadlock because completion requires crossing that door. Emit `minimap_expanded_changed` exactly when `_minimap_full` changes and feed it to the onboarding controller.
+In `SessionRoot._on_room_changed`, activate the gate before `Room.enter()`
+finishes when the room is the onboarding start. Unlock it once on onboarding
+`gate_released`; `skip_guidance()` emits that same signal, so a second `skipped`
+unlock path is unnecessary. Waiting for `completed` would deadlock because
+completion requires crossing that door. Emit `minimap_expanded_changed` exactly
+when `_minimap_full` changes and feed it to the onboarding controller.
 
 - [ ] **Step 9: Verify GREEN, full gate, and Web UAT**
 
-Run unit, integration, quick, and full gates. Web UAT must execute: move 96px → left click → SPACE → SPACE+left click → minimap click → door transition. Test an invalid SPACE during attack and HUD click guard. Repeat mobile with real touch buttons and minimap tap.
+Run unit, integration, quick, and full gates. Web UAT must execute: move 96px →
+left click → SPACE → SPACE+left click → minimap click → door transition. Test
+an invalid SPACE during attack and HUD click guard. In a separate fresh run,
+wait five seconds and invoke the visible `안내 건너뛰기` control on PC and mobile;
+assert the door opens and the compact legend remains. Repeat the normal path on
+mobile with real touch buttons and minimap tap.
 
 - [ ] **Step 10: Commit and merge**
 
@@ -469,17 +494,20 @@ Drive the full first-run journey with in-process UAT actions for non-coordinate 
 **Files:**
 - Modify: `scripts/player/player.gd`
 - Modify: `scripts/enemies/wolf.gd`
+- Modify: `scripts/interactables/combat_room.gd`
 - Create: `scripts/ui/parry_onboarding.gd`
 - Modify: `scenes/session/session_root.tscn`
 - Modify: `scripts/session/session_root.gd`
 - Modify: `scripts/autoload/scene_transition.gd`
 - Test: `tests/unit/test_player_melee.gd`
 - Test: `tests/unit/test_wolf_assets.gd`
+- Test: `tests/unit/test_combat_room.gd`
 - Test: `tests/integration/test_session_contract.gd`
 
 **Interfaces:**
 - Produces: `Player.parry_succeeded(payload: Dictionary)`.
 - Produces: `Wolf.dash_state_changed(state: StringName)`.
+- Produces: `CombatRoom.enemy_spawned(enemy: Node, enemy_type: StringName, wave_index: int)` after each real spawn.
 - Produces: `ParryOnboarding.show_for_wolf(wolf: Node2D, input_mode: StringName)` and `dismiss()`.
 - Persists: `SceneTransition.FLAG_PARRY_TUTORIAL_COMPLETE := &"parry_tutorial_complete"`.
 
@@ -514,7 +542,10 @@ Do not emit on a normal hit, bare hands, non-dashing wolf, or repeated call afte
 Integration fixtures cover:
 
 - hidden before bat reward;
+- `SessionRoot` subscribes to `CombatRoom.enemy_spawned` during `room_changed`,
+  before `CombatRoom.enter()` performs the initial spawn;
 - shown on first eligible wolf `prepare`;
+- shown for a wolf emitted by a later Task 7 wave, not only the initial wave;
 - remains incomplete when the wolf dies without parry;
 - appears again for the next wolf;
 - successful parry sets the flag and prevents later prompts;
@@ -522,7 +553,16 @@ Integration fixtures cover:
 
 - [ ] **Step 5: Implement the non-blocking parry tutorial**
 
-Add `dash_state_changed` to wolf transitions. `SessionRoot` connects active wolves only when bat reward is claimed and the completion flag is false. Mount `ParryOnboarding` below modal layers, use the existing target spotlight style, and never pause the tree after the first 0.6-second telegraph reveal.
+Add `dash_state_changed` to wolf transitions. Add `enemy_spawned` to
+`CombatRoom` and emit it from `_spawn_enemy_instance()` after the enemy is in
+the tree and tracked, for every initial or later wave. During
+`SessionRoot._on_room_changed`, connect the current combat room's
+`enemy_spawned` signal before `CombatRoom.enter()` runs; connect a wolf's
+`dash_state_changed` from that spawn callback only when bat reward is claimed
+and the completion flag is false. Do not scan `get_active_enemies()` only once
+from `room_changed` because that event precedes encounter spawning. Mount
+`ParryOnboarding` below modal layers, use the existing target spotlight style,
+and never pause the tree after the first 0.6-second telegraph reveal.
 
 ```gdscript
 func _on_wolf_dash_state_changed(state: StringName, wolf: Node2D) -> void:
@@ -537,7 +577,10 @@ func _on_player_parry_succeeded(payload: Dictionary) -> void:
 	parry_onboarding.dismiss()
 ```
 
-Disconnect wolf callbacks when the room changes or the wolf exits. Wolf death without the success callback leaves the flag false.
+Disconnect the combat-room spawn callback and all wolf callbacks when the room
+changes or a wolf exits. Wolf death without the success callback leaves the
+flag false. Task 7 must preserve `enemy_spawned` emission for every sequential
+wave.
 
 - [ ] **Step 6: Verify and merge**
 
@@ -695,12 +738,17 @@ Run full gate and Web UAT the pause-over-portal and onboarding-death paths. Comm
 - Modify: `tests/performance/test_room_perf.gd`
 
 **Interfaces:**
-- Preserves: authored `wave_count`, total encounter budget, `enemy_count_changed`, and room clear event.
+- Preserves: authored `wave_count`, total encounter budget,
+  `enemy_count_changed`, Task 4's `enemy_spawned` event, and room clear event.
 - Produces: `get_wave_snapshot() -> Dictionary` with `configured`, `spawned`, `pending`, `active`.
 
 - [ ] **Step 1: Replace the old full-spawn test with RED wave cases**
 
-For six enemies and `wave_count=2`, assert three spawn initially, the second three spawn only after the first wave reaches zero, and the room clears only after wave two reaches zero. Add uneven `5/2` partition expecting `3+2`.
+For six enemies and `wave_count=2`, assert three spawn initially, the second
+three spawn only after the first wave reaches zero, and the room clears only
+after wave two reaches zero. Add uneven `5/2` partition expecting `3+2`. Record
+`enemy_spawned` payloads and prove every enemy in both waves emits exactly once,
+including the second-wave wolf used by the parry tutorial.
 
 - [ ] **Step 2: Run unit tests and confirm RED**
 
@@ -940,18 +988,27 @@ func on_health_changed(current: int, max_health: int) -> void:
 
 - [ ] **Step 3: Add the settings contract**
 
-Add `KEY_SCREEN_EFFECTS`, default true, setter/getter, settings row, and `settings_changed` propagation. Test disabled mode hides both states and cancels a running tween.
+Add `KEY_SCREEN_EFFECTS`, default true, setter/getter, settings row, and reuse
+the complete `settings_changed` snapshot emitted once by `set_value()`. Test
+disabled mode hides both states and cancels a running tween. Also disable
+haptics first, toggle screen effects, and assert exactly one emitted snapshot
+contains both `KEY_SCREEN_EFFECTS=false` and
+`KEY_HAPTIC_ENABLED=false`; this catches a partial payload silently
+re-enabling another setting consumer.
 
 ```gdscript
 const KEY_SCREEN_EFFECTS := "screen_effects_enabled"
 
 func set_screen_effects_enabled(enabled: bool) -> void:
 	set_value(KEY_SCREEN_EFFECTS, enabled)
-	EventBus.emit_settings_changed({KEY_SCREEN_EFFECTS: enabled})
 
 func is_screen_effects_enabled() -> bool:
 	return bool(get_value(KEY_SCREEN_EFFECTS, true))
 ```
+
+Do not emit `EventBus.settings_changed` again from the typed setter:
+`set_value()` already calls `_emit_settings_changed()` with the full settings
+dictionary, and existing consumers rely on a single complete snapshot.
 
 - [ ] **Step 4: Verify and merge**
 
