@@ -132,7 +132,7 @@ func _on_combat_feedback(payload: Dictionary) -> void:
 	match kind:
 		&"melee_hit":
 			on_enemy_hit()
-		&"deflect", &"parry", &"dash_parry":
+		&"deflect", &"dash_parry":
 			on_deflect()
 
 

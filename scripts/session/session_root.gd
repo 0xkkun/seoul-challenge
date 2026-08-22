@@ -67,6 +67,7 @@ const ONBOARDING_JOURNEY_PHASES: Array[StringName] = [
 @onready var ingame_control_onboarding: CanvasLayer = %IngameControlOnboarding
 @onready var purify_onboarding_spotlight: PurifyOnboardingSpotlight = %PurifyOnboardingSpotlight
 @onready var parry_onboarding: ParryOnboarding = %ParryOnboarding
+@onready var parry_feedback_controller: ParryFeedbackController = %ParryFeedbackController
 @onready var player_camera: Camera2D = %PlayerCamera
 @onready var _fade_rect: ColorRect = $FadeLayer/FadeRect
 @onready var _minimap: Control = $MinimapLayer/Minimap
@@ -128,6 +129,7 @@ func _ready() -> void:
 	_connect_player_weapon_events()
 	_sync_combat_hud_health()
 	PoolManager.register_scene(&"sample_marker", POOLED_MARKER_SCENE, 1, pooled_object_layer)
+	_configure_parry_feedback_controller()
 	interaction_system.configure(actor, self)
 	_configure_player_camera()
 	_configure_purify_onboarding_spotlight()
@@ -211,11 +213,35 @@ func _configure_parry_onboarding() -> void:
 	parry_onboarding.configure(player_camera)
 
 
+func _configure_parry_feedback_controller() -> void:
+	if parry_feedback_controller == null:
+		return
+	parry_feedback_controller.configure(actor, pooled_object_layer)
+
+
+func _reset_parry_feedback_state(teardown := false) -> void:
+	if has_node("/root/HitStopManager"):
+		HitStopManager.restore()
+	if parry_feedback_controller != null:
+		if teardown:
+			parry_feedback_controller.teardown()
+		else:
+			parry_feedback_controller.reset()
+	if has_node("/root/PoolManager"):
+		PoolManager.clear_pool(&"floating_combat_text")
+	if _camera_feedback_tween != null and _camera_feedback_tween.is_valid():
+		_camera_feedback_tween.kill()
+	_camera_feedback_tween = null
+	if player_camera != null:
+		player_camera.offset = Vector2.ZERO
+
+
 func _exit_tree() -> void:
 	# (e) 보스 인트로 도중 세션이 끝나면 pause/터치 입력을 복원한다(스턱 pause 방지).
 	_finish_boss_intro()
 	_finish_baseball_friend_intro()
 	_finish_purify_onboarding_spotlight()
+	_reset_parry_feedback_state(true)
 	_cancel_reward_choice_delay()
 	if room_manager != null:
 		room_manager.transition_blocked_callable = Callable()
@@ -533,6 +559,7 @@ func _sync_combat_hud_health() -> void:
 
 func finish_session(overrides: Dictionary = {}) -> Dictionary:
 	_clear_pending_reward_choice()
+	_reset_parry_feedback_state(true)
 	var result := _build_session_result(overrides)
 	GameManager.finish_session(result)
 	_play_run_victory_sfx()
@@ -572,6 +599,7 @@ func _build_death_result() -> Dictionary:
 func _show_death_summary(result: Dictionary) -> void:
 	_disconnect_parry_room_events()
 	_disconnect_player_parry_events()
+	_reset_parry_feedback_state(true)
 	_clear_pending_reward_choice()
 	get_tree().paused = true
 	session_ui_root.set_status("쓰러짐")

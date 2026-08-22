@@ -74,3 +74,18 @@ as the main scene. Restore `project.godot` before committing, then open:
 Every valid state prints `UAT_COACHMARK_READY mode=... surface=...
 reduced_motion=...`. The fixture uses production scenes and is not referenced by
 production runtime code.
+
+## Parry success feedback fixture
+
+Temporarily export with `res://tests/uat/parry_feedback_web_fixture.tscn` as the
+main scene, restore `project.godot`, then open:
+
+- `?uat_parry_feedback_mode=before` — real wolf prepare before impact.
+- `?uat_parry_feedback_mode=impact` — real bat parry with frozen text/flash/shake frame.
+- `?uat_parry_feedback_mode=recovery` — time, flash, text, and camera restored.
+- `?uat_parry_feedback_mode=repeated` — 25 presentations capped at 20 active texts.
+- `?uat_parry_feedback_mode=teardown` — session exit clears the dedicated pool and globals.
+
+The fixture prints `UAT_PARRY_FEEDBACK_READY` with `time_scale`, `text_count`,
+`flash`, `camera_offset`, and `pool_registered`. Pass/fail uses this marker and
+browser errors; screenshots are visual evidence only.

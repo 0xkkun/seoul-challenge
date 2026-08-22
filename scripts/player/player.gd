@@ -1084,6 +1084,8 @@ func _attack_melee(dir: Vector2) -> void:
 		and is_dash_power_attack_window_active(_dodge_timer, _dash_power_attack_timer)
 	)
 	var knockback_distance := bat_knockback
+	if _has_bat:
+		_play_bat_swing_sfx()
 	if power_attack:
 		dmg += dash_power_attack_damage_bonus
 		rng *= dash_power_attack_range_multiplier
@@ -1121,7 +1123,6 @@ func _attack_melee(dir: Vector2) -> void:
 		else:
 			_clear_bullets_in_arc(dir, rng, arc)
 	if _has_bat:
-		_play_bat_swing_sfx()
 		_hide_swing()
 		if power_attack:
 			_hide_bat_swing()

@@ -17,6 +17,7 @@ const BOSS_WEAK_SLAM := &"boss_weak_slam"
 const BOSS_WEAK_GROUND_SPIKE := &"boss_weak_ground_spike"
 const BOSS_STRONG_ATTACK := &"boss_strong_attack"
 const WOLF_ATTACK := &"wolf_attack"
+const PARRY_SUCCESS := &"parry_success"
 const KUMIHO_FIREBALL := &"kumiho_fireball"
 const CORRIDOR_FOOTSTEP := &"corridor_footstep"
 const GYEONGBOKGUNG_FOOTSTEP := &"gyeongbokgung_footstep"
@@ -61,6 +62,7 @@ const _SFX_STREAM_PATHS := {
 	BOSS_WEAK_GROUND_SPIKE: "res://assets/audio/sfx/boss_weak_ground_spike.mp3",
 	BOSS_STRONG_ATTACK: "res://assets/audio/sfx/boss_strong_attack.mp3",
 	WOLF_ATTACK: "res://assets/audio/sfx/wolf_attack.wav",
+	PARRY_SUCCESS: "res://assets/audio/sfx/parry_success.wav",
 	KUMIHO_FIREBALL: "res://assets/audio/sfx/kumiho_fireball.mp3",
 	CORRIDOR_FOOTSTEP: "res://assets/audio/sfx/corridor_footstep.wav",
 	GYEONGBOKGUNG_FOOTSTEP: "res://assets/audio/sfx/gyeongbokgung_footstep.mp3",
@@ -78,7 +80,9 @@ const _SFX_STREAM_PATHS := {
 const DEFAULT_SFX_VOLUME_DB := -2.0
 ## id별 볼륨 오버라이드(dB, 절대값). 없는 id는 DEFAULT_SFX_VOLUME_DB로 재생된다.
 ## 소스 에셋은 카테고리별 loudness 기준으로 정규화되어 있으므로 예외만 여기에 둔다.
-const _SFX_VOLUME_DB := {}
+const _SFX_VOLUME_DB := {
+	PARRY_SUCCESS: -1.0,
+}
 
 const BGM_VOLUME_DB := 0.0
 const BGM_SILENT_DB := -40.0

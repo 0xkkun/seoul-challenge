@@ -333,7 +333,7 @@ func test_wolf_emits_each_dash_state_transition_once() -> void:
 	_runner.assert_eq(states, [&"prepare", &"dash", &"recover", &"chase"], "회복 종료는 chase 전이를 발행한다")
 
 
-func test_wolf_dash_parry_vibrates() -> void:
+func test_wolf_dash_parry_defers_haptic_to_feedback_controller() -> void:
 	_runner.assert_true(ResourceLoader.exists(WOLF_SCENE_PATH), "wolf dash enemy scene exists")
 	if not ResourceLoader.exists(WOLF_SCENE_PATH):
 		return
@@ -356,7 +356,7 @@ func test_wolf_dash_parry_vibrates() -> void:
 
 	enemy.call("parry_dash", Vector2.LEFT)
 
-	_runner.assert_eq(HapticManager.test_log, [L_STRONG], "늑대 돌격 패링은 강한 진동을 준다")
+	_runner.assert_eq(HapticManager.test_log, [], "늑대는 직접 진동하지 않고 성공 controller가 한 번만 담당한다")
 	HapticManager.test_mode = false
 	HapticManager.test_log.clear()
 	HapticManager._test_now = -1
