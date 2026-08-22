@@ -27,10 +27,14 @@ func test_purify_onboarding_spotlight_contract_explains_purification() -> void:
 	_runner.assert_eq(contract.get("flow"), &"baseball_purify_spotlight", "정화 온보딩 flow id는 안정적이다")
 	_runner.assert_eq(bool(contract.get("blocks_gameplay", false)), true, "정화 스포트라이트는 전투를 일시정지하는 안내다")
 	_runner.assert_eq(bool(contract.get("uses_dim_cutout", false)), true, "요괴 친구 외 화면을 dim 처리한다")
-	_runner.assert_true(float(contract.get("dim_alpha", 0.0)) >= 0.6, "dim alpha는 충분히 어둡다")
+	_runner.assert_true(float(contract.get("dim_alpha", 1.0)) <= 0.28, "dim은 장면을 읽을 수 있게 낮춘다")
+	_runner.assert_eq(contract.get("bracket_style"), &"corners", "정화 대상은 둥근 박스 대신 corner bracket을 쓴다")
 	_runner.assert_eq(contract.get("step_ids", []), [&"intro", &"groggy"], "시작 안내와 그로기 안내 두 단계가 있다")
-	_runner.assert_eq(contract.get("intro_message", ""), "공격해 기절시킨 뒤 가까이 다가가 정화", "첫 안내는 공격부터 정화까지 설명한다")
-	_runner.assert_eq(contract.get("groggy_message", ""), "친구 곁에서 정화가 끝날 때까지 지키기", "그로기 안내는 정화 완료 조건을 설명한다")
+	_runner.assert_eq(contract.get("intro_action", ""), "기절시키기", "첫 안내는 행동어를 분리한다")
+	_runner.assert_eq(contract.get("intro_detail", ""), "공격 · 가까이 가면 정화 시작", "첫 안내 detail은 한 줄 chain이다")
+	_runner.assert_eq(contract.get("groggy_action", ""), "곁을 지켜 정화", "그로기 안내는 완료 행동을 직접 말한다")
+	_runner.assert_eq(contract.get("groggy_detail", ""), "범위를 벗어나면 처음부터", "그로기 안내는 실패 조건을 짧게 말한다")
+	_runner.assert_eq(contract.get("continue_placement"), &"bottom_right_chip", "계속 안내는 우하단 chip으로 분리한다")
 	_runner.assert_true(bool(contract.get("tap_to_continue", false)), "탭으로 시작/계속한다")
 
 
@@ -75,11 +79,14 @@ func test_purify_onboarding_spotlight_uses_desktop_click_copy() -> void:
 	add_child(spotlight)
 
 	spotlight.call("show_step", &"intro", "정화 시작", target)
-	var hint := spotlight.get_node("Root/MessagePanel/MessageStack/HintLabel") as Label
-	_runner.assert_eq(hint.text, "클릭하여 시작", "데스크톱 정화 시작은 클릭 안내를 표시한다")
+	var hint := spotlight.get_node_or_null("Root/ContinueChip") as Label
+	_runner.assert_not_null(hint, "정화 계속 chip이 별도 surface로 존재한다")
+	if hint == null:
+		return
+	_runner.assert_eq(hint.text, "클릭  계속", "데스크톱 정화 시작은 compact click chip을 표시한다")
 
 	spotlight.call("show_step", &"groggy", "정화 계속", target)
-	_runner.assert_eq(hint.text, "클릭하여 계속", "데스크톱 정화 후속 안내도 클릭 표현을 쓴다")
+	_runner.assert_eq(hint.text, "클릭  계속", "데스크톱 정화 후속 안내도 같은 chip을 쓴다")
 
 
 func test_purify_onboarding_spotlight_ignores_the_event_frame_that_activated_it() -> void:
@@ -98,3 +105,22 @@ func test_purify_onboarding_spotlight_ignores_the_event_frame_that_activated_it(
 	spotlight.set("_shown_process_frame", Engine.get_process_frames() - 1)
 	spotlight.call("_input", mouse)
 	_runner.assert_false(bool(spotlight.call("is_active")), "다음 frame의 실제 click은 spotlight를 dismiss한다")
+
+
+func test_purify_onboarding_reduced_motion_starts_in_the_rest_state() -> void:
+	Settings.reset_defaults()
+	Settings.set_reduced_motion_enabled(true)
+	var spotlight := (load(SPOTLIGHT_SCRIPT_PATH) as Script).new() as CanvasLayer
+	var target := Node2D.new()
+	add_child(target)
+	add_child(spotlight)
+	spotlight.call("show_step", &"intro", "정화 시작", target)
+	var snapshot: Dictionary = spotlight.call("get_snapshot")
+	var panel := spotlight.get_node("Root/MessagePanel") as Control
+
+	_runner.assert_true(bool(snapshot.get("reduced_motion", false)), "spotlight reads the reduced-motion setting")
+	_runner.assert_eq(snapshot.get("dim_alpha"), 0.14, "reduced motion skips the reveal dim state")
+	_runner.assert_eq(panel.modulate, Color.WHITE, "reduced motion renders the final panel opacity immediately")
+	_runner.assert_eq(panel.scale, Vector2.ONE, "reduced motion renders the final panel scale immediately")
+
+	Settings.reset_defaults()
