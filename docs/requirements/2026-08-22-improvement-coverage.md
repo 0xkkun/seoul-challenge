@@ -1,6 +1,6 @@
 # 2026-08-21 개선 명세 반영 현황
 
-기준 코드: `origin/main@0db03b0` + #528 검증 대상
+기준 코드: `origin/main@7ae36d8` (Tasks 1–12 병합 완료)
 사용자 제공 자료: `요괴뎐_개선안_2026-08-21`
 프로그램 설계: `docs/superpowers/specs/2026-08-22-first-five-minutes-onboarding-design.md`
 시각 재설계: `docs/superpowers/specs/2026-08-22-onboarding-coachmark-redesign.md`
@@ -14,7 +14,7 @@
 
 ## 요약
 
-현재 검증 대상에서 확실히 완료된 축은 PC 입력 경로, 데스크톱 터치 UI 비노출, bounded 인트로, 성공 기반 첫 방 6단계, 보상→정화→학교 대화 contextual 여정, 반복 가능한 패링 학습, 기본 키 안내, 공통 coachmark·objective ribbon·reward eyebrow, 패링 성공 연출, 포탈 실패 재시도와 세션 종료 cleanup, 실제 순차 웨이브, 악귀 추적 압박, 쿨다운 기반 일반 전투 반응음, 피격·저체력 비네트, 실제 적용 피해 기반 일반·파워·플레이어 피격 히트스톱과 데미지 숫자, 일부 카메라·햅틱·보상·보물방 기반이다.
+현재 main에서 확실히 완료되고 fresh-main으로 재검증된 축은 PC 입력 경로, 데스크톱 터치 UI 비노출, bounded 인트로, 성공 기반 첫 방 6단계, 보상→정화→학교 대화 contextual 여정, 반복 가능한 패링 학습, 기본 키 안내, 공통 coachmark·objective ribbon·reward eyebrow, 패링 성공 연출, 포탈 실패 재시도와 세션 종료 cleanup, 실제 순차 웨이브, 악귀 추적 압박, 쿨다운 기반 일반 전투 반응음, 피격·저체력 비네트, 실제 적용 피해 기반 일반·파워·플레이어 피격 히트스톱과 데미지 숫자, 일부 카메라·햅틱·보상·보물방 기반이다.
 
 ## P — PC 대응
 
@@ -140,15 +140,15 @@
 
 | 순서 | 포함 요구 | 완료 증거 |
 |---|---|---|
-| Q1 인트로·계속 문구 (완료) | 새 피드백: 자동 진행, 검은 공백, 클릭/탭 분기 | #504/#505, merge `0e87117`; blocked 24,753ms·stuck 39,121ms, UI 캡처 3개, CI·Codex 통과 |
-| Q2 첫 방·첫 런 여정 (완료) | P3, P6, 이동·공격·대시·강공격·지도·출구 #507; 보상·정화·말 걸기 #509 | Task 2 merge `5a4f667`; Task 3 merge `31f8ba1`; PC/mobile journey UAT |
+| Q1 인트로·계속 문구 (완료) | 새 피드백: 자동 진행, 검은 공백, 클릭/탭 분기 | #504/#505, merge `0e87117`; unit 526/526·integration 107/107; fresh release Web blocked 24,738ms·stuck 39,092ms, console/request error 0 |
+| Q2 첫 방·첫 런 여정 (완료) | P3, P6, 이동·공격·대시·강공격·지도·출구 #506/#507; 보상·정화·말 걸기 #508/#509 | merge `5a4f667`·`31f8ba1`; unit 532/532·integration 111/111; fresh production Web PC 6단계→첫 전투방 + release Web contextual 3/3·touch 입력 경로 |
 | Q2b 온보딩 시각 재설계 (완료) | #513에서 첫 조작·objective·reward·정화·패링·인트로를 diegetic coachmark로 통일 | #513/#514 merge `e424012`; unit 544/544, integration 116/116, release Web 12 mode, Design C→A |
-| Q3 패링 학습·성공 피드백 (완료) | #510에서 반복 가능한 첫 늑대 학습 완료; #512에서 F2, F4, S7, T1, T2, T6 완성 | #510/#511 merge `76301ed`; #512/#515 merge `ab2ec465`; coverage 100%, release Web 5상태 UAT |
-| Q4 안정성 (완료) | #516에서 B1, B3, B4 구현 | #516/#517 merge `839281ec`; unit 560/560, integration 125/125, coverage 100%, release Web 5상태 |
-| Q5 전투 흐름 (완료) | #518에서 L1 구현 | #518/#519 merge `040276e`; 6/2·5/2 partition, failed-batch recovery, authored combat_2 release Web UAT |
-| Q6 적 압박 (완료) | #520에서 M6a 구현 | #520/#521 merge `5d8bb48`; 일반 140·온보딩 92, 첫 접촉 1.717s/2.617s, keyboard 99.4px·touch 96.6px 무피격 회피 |
-| Q7 전투 반응 (완료) | #522에서 S1, S3, S4, S5, #524에서 F7/F7b/F7c 구현 | cooldown·volume·damage/critical/settings tests와 release Web mix·vignette UAT |
-| Q8 일반 타격 정보 (완료) | #526에서 F3, #528에서 T3/T4/T5/T7 완료 | applied damage 1회→text→hitstop ordering, cap/reuse/settings/reject release Web UAT |
+| Q3 패링 학습·성공 피드백 (완료) | #510에서 반복 가능한 첫 늑대 학습 완료; #512에서 F2, F4, S7, T1, T2, T6 완성 | #510/#511 merge `76301ed`; #512/#515 merge `ab2ec465`; unit 559/559·integration 120/120; fresh release Web tutorial 5/5 + feedback 5/5, 반복 text cap 20·복구 scale 1.0 |
+| Q4 안정성 (완료) | #516에서 B1, B3, B4 구현 | #516/#517 merge `839281ec`; unit 560/560·integration 125/125; fresh release Web portal/death/next-session 6/6, 두 차례 death-after와 pool 20 재생성 |
+| Q5 전투 흐름 (완료) | #518에서 L1 구현 | #518/#519 merge `040276e`; unit 565/565·integration 125/125·performance 5/5; fresh authored `combat_2` Web 3→3·총 6 spawn·clear 3/3 valid |
+| Q6 적 압박 (완료) | #520에서 M6a 구현 | #520/#521 merge `5d8bb48`; unit 568/568·integration 126/126·performance 5/5; fresh PC/mobile 접촉 1.716–2.618s, keyboard 99.4px·touch 96.2px full-health 회피 |
+| Q7 전투 반응 (완료) | #522에서 S1, S3, S4, S5, #524에서 F7/F7b/F7c 구현 | #522/#523 merge `1743c36`; #524/#525 merge `57c3f94`; unit 582/582·integration 127/127; fresh release Web gesture gate·mix 2/2 + vignette 5/5, 무클리핑·오류 0 |
+| Q8 일반 타격 정보 (완료) | #526에서 F3, #528에서 T3/T4/T5/T7 완료 | #526/#527 merge `0db03b0`; #528/#529 merge `7ae36d8`; unit 598/598·integration 130/130; fresh release Web hitstop 8/8 + numbers 8/8, cap/reuse/settings/reject valid |
 
 ## 병합 근거
 
@@ -166,7 +166,30 @@
 | Task 9 전투 반응음·쿨다운 | #522 / #523 | `1743c36` | unit 577/577, integration 126/126, functional 1/1, quick/full, Codex P2 gesture gate 해결·latest-head CI green | release WebGL2 gesture 전 WAITING/READY 없음→gesture 후 multi-hit 3체/accepted 3/player 3, reaction mix player 3; deterministic -5.9/-2.4dBFS, console/network error 0 |
 | Task 10 플레이어 피격 비네트 | #524 / #525 | `57c3f94` | unit 582/582, integration 127/127; damage/heal/critical/off-on/pause/exit·max-health reset·실시간 fade·full payload·signal lifecycle 회귀 | release WebGL2 11 mode valid; fade midpoint alpha 0.258·pause 후 alpha 0·max reset pulse false; layer5/mouse-ignore, settings actual rect safe, console/network error 0 |
 | Task 11 일반 타격 히트스톱 | #526 / #527 | `0db03b0` | unit 592/592, integration 128/128; 5종 적 applied delta·player accepted/rejected/lethal·mixed target·parry priority·session cleanup 회귀 | release WebGL2 8 mode valid; normal 0.03/0.15, power 0.06/0.08, hurt 0.05/0.10+vignette, reject 0회, parry 0.10/0.05, recovery 106.9ms·lethal/exit scale 1.0 |
-| Task 12 데미지 숫자·표시 설정 | #528 / PR 준비 | 검증 대상 | unit 598/598, integration 130/130; ordinary/power/player/Yokai exact delta·text-before-hitstop·20 cap·expiry reuse·OFF no-acquire·cleanup 회귀 | release WebGL2 8 mode valid; white 2/yellow 3/red 2, HUD anchor (312,96), active20, reuse same node, disabled/rejected 0, settings safe+content fit |
+| Task 12 데미지 숫자·표시 설정 | #528 / #529 | `7ae36d8` | unit 598/598, integration 130/130; ordinary/power/player/Yokai exact delta·text-before-hitstop·20 cap·expiry reuse·OFF no-acquire·cleanup 회귀; latest-head CI green·Codex major 0 | release WebGL2 8 mode valid; white 2/yellow 3/red 2, HUD anchor (312,96) screen-space, active20, reuse same node, disabled/rejected 0, settings safe+touch drag |
+
+## Task 13 fresh-main 최종 통합 검수
+
+- 추적: #530 / #531, 기준 `origin/main@7ae36d8`, 새 worktree와 headed Chromium에서 수행.
+- 자동 게이트: unit 598/598, integration 130/130, functional 1/1, tooling 4/4, script coverage 77/78(98.72%), quick/full green.
+- 인터페이스 철자 감사: 승인 계획 Tasks 1–12의 produced/consumed 이름 37/37이 production에 정확히 존재한다. 35개는 test에서도 같은 이름으로 직접 참조하고, `get_advance_hint_reference_rect`·`set_tutorial_gate_active` 2개는 각각 실제 hint rect safe-area와 start-room exit gate 통합 테스트로 간접 실행된다.
+- release WebGL2 결정론 상태: 65/65 valid. 최종 판정 로그의 console/page error 0, HTTP 4xx/5xx 0. 시각 전용 fixture의 사용자 gesture 전 AudioContext 경고만 허용하고, SFX fixture는 WAITING 상태 뒤 실제 canvas click으로 재개.
+- 실제 production Web PC 첫 방: 새 origin에서 게임 시작→인트로 진입→이동→LMB 공격→SPACE 회피→SPACE+LMB 강공격→미니맵 클릭→열린 문 통과→첫 전투방 진입 완료. 단계는 이벤트 성공 뒤에만 교체됐고 console/page/request error 0.
+- 실제 플랫폼 입력: PC physical-key hold 99.4px, mobile touch-joystick drag 96.2px가 모두 `input_active=true`, health 5로 통과. PC/touch coachmark와 패링 surface도 각각 release Web에서 검증.
+
+| 최종 Web 묶음 | 상태 수 | 핵심 판정 | 로컬 원문 근거 |
+|---|---:|---|---|
+| 인트로 bounded 진행 | 2 | blocked 24,738ms, stuck 39,092ms | `task13-intro-*-console.log` |
+| PC/touch 코치마크 | 12 | controls/objective/reward/purify/parry/intro/reduced-motion/settings | `task13-coachmark-console.log` |
+| 정화·학교 대화·방망이 보상 | 3 | `purify`, `talk`, `bat_reward` | `task13-journey-console.log` |
+| 패링 학습·성공 연출 | 10 | miss는 미완료, retry 재노출, success만 완료; impact/recovery/cap/teardown | `task13-parry-*-console.log` |
+| 포탈·사망·새 세션 정리 | 6 | retry 1회, 두 차례 사망 후 scale 1.0, 새 pool 20 | `task13-cleanup-console.log` |
+| 순차 웨이브 | 3 | 3+3, spawn event 6, 마지막 wave 뒤 clear | `task13-wave-console.log` |
+| 추적 압박 PC/mobile | 6 | 일반 140·학습 92 접촉, keyboard/touch 무피격 회피 | `task13-chaser-final-console.log` |
+| 전투 반응음 | 2 | gesture gate, multi-hit 3체, reaction mix, clipping 없음 | `task13-sfx-console.log` |
+| 피격 비네트 | 5 | damage/critical/pause/exit/settings valid | `task13-vignette-console.log` |
+| 일반 히트스톱 | 8 | normal/power/hurt/lethal/reject/parry/recovery/exit valid | `task13-hitstop-console.log` |
+| 데미지 숫자 | 8 | ordinary/power/player/cap/reuse/off/reject/settings valid | `task13-damage-numbers-console.log` |
 
 ## 장부 유지 규칙
 
