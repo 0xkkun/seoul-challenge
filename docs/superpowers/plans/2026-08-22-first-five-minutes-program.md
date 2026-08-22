@@ -311,12 +311,18 @@ signal gate_released
 
 func record_action(action: StringName, payload: Dictionary = {}) -> bool
 func record_player_position(position: Vector2) -> bool
+func record_room_changed(room_id: StringName, room_type: StringName) -> bool
 func skip_guidance() -> void
 ```
 
 Connect `attack_executed`, `dash_started`, and `power_attack_executed` from the configured player. Track cumulative absolute displacement between sampled positions. Add platform-specific `minimap` and `exit` copy. Keep touch target lookup for joystick/buttons and accept an explicit minimap `Control` target from `configure()`.
 
 Emit `gate_released` when the minimap step succeeds and the controller enters the exit step. Emit `completed` only after the room transition proves the exit step. `skip_guidance()` emits `gate_released` and `skipped` together, hides step UI, and leaves the compact legend visible.
+
+`record_room_changed()` advances only when the active step is `exit` and the
+new room is not the onboarding start room. It emits `completed` exactly once,
+hides the step UI, and leaves no exit guidance behind. Initial start-room
+`room_changed` and later unrelated transitions cannot complete or re-emit it.
 
 Build the real `안내 건너뛰기` Button in `IngameControlOnboarding` with
 `MOUSE_FILTER_STOP`, mobile safe-area offsets, and the stable metadata above.
@@ -364,6 +370,12 @@ hidden at 4.9 seconds and is visible at 5.0 seconds, then presses it by
 opens, `skipped` emits once, and the compact key legend remains visible. Direct
 method invocation alone is not sufficient evidence for the player escape path.
 
+On the normal fixture, after `gate_released` use the real `RoomManager`/door
+transition into the first combat room rather than stopping at the open gate.
+Assert `SessionRoot._on_room_changed` forwards the new room id/type to
+`record_room_changed()`, `completed` emits exactly once, the controller is no
+longer active, and a later room change does not re-emit.
+
 - [ ] **Step 8: Implement the start-room gate and minimap event**
 
 Add to `StartRoom`:
@@ -389,6 +401,10 @@ finishes when the room is the onboarding start. Unlock it once on onboarding
 unlock path is unnecessary. Waiting for `completed` would deadlock because
 completion requires crossing that door. Emit `minimap_expanded_changed` exactly
 when `_minimap_full` changes and feed it to the onboarding controller.
+In that same `_on_room_changed` callback, feed room id/type to the onboarding
+controller after start-gate setup. The controller's current-step guard prevents
+the initial start-room event from counting; the first qualifying post-gate
+transition completes the exit step.
 
 - [ ] **Step 9: Verify GREEN, full gate, and Web UAT**
 
@@ -1075,7 +1091,7 @@ Run unit, quick, and full gates. Web UAT a multi-hit swing and simultaneous deat
 - Produces: `DamageVignette.on_health_changed(current: int, max_health: int) -> void`.
 - Produces: `DamageVignette.bind_player(player: Node) -> void`, which
   synchronizes initial health and subscribes to
-  `EventBus.player_health_changed` exactly once.
+  `EventBus.player_health_changed` and `EventBus.settings_changed` exactly once.
 - Produces: `DamageVignette.get_snapshot() -> Dictionary`.
 - Produces: `Settings.KEY_SCREEN_EFFECTS := "screen_effects_enabled"`.
 
@@ -1100,7 +1116,13 @@ Add an integration RED test that instantiates the real session/player, calls
 `player.get_health()/max_health`, then damages the real player and observes the
 vignette pulse through `EventBus.player_health_changed` without directly
 calling `on_health_changed()`. Free the vignette/session and prove the signal
-connection is disconnected.
+connections are disconnected.
+
+During an active damage pulse and again at critical health, call the real
+`Settings.set_screen_effects_enabled(false)` without emitting a new health
+event. Assert the pulse tween is cancelled and both overlay states become
+hidden immediately. Re-enable the setting and assert low-health visibility is
+recomputed from the last known current/max snapshot.
 
 - [ ] **Step 2: Confirm RED and implement the CanvasLayer**
 
@@ -1108,7 +1130,10 @@ Use a full-rect `ColorRect`/gradient texture with `MOUSE_FILTER_IGNORE`, below
 modal UI. Track previous health, start a real-time tween on decreases only, and
 keep low-health alpha when `current/max <= 0.25`. `bind_player()` reads the
 real player's current/max health before any later event, connects the global
-health signal once, validates payload keys, and `_exit_tree()` disconnects it.
+health and settings signals once, validates complete payload keys, and
+`_exit_tree()` disconnects both. The settings handler kills/clears an active
+pulse tween and renders hidden immediately when disabled; when re-enabled it
+recomputes persistent low-health state from the cached current/max values.
 `SessionRoot` calls `bind_player(player)` after both nodes are ready.
 
 ```gdscript
