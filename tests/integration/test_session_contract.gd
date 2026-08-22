@@ -666,15 +666,17 @@ func test_all_session_termination_paths_use_the_cleanup_boundary() -> void:
 		&"abandon",
 		&"retry",
 		&"return",
+		&"quit",
 		&"scene_exit",
 	]
 	for termination_path: StringName in termination_paths:
 		_reset_cleanup_matrix_globals()
 		var session := _new_onboarding_cleanup_session("cleanup_%s" % String(termination_path))
 		var fixture := _arm_all_onboarding_cleanup_surfaces(session)
-		var handoff_count := {"return": 0, "retry": 0}
+		var handoff_count := {"return": 0, "retry": 0, "quit": 0}
 		session.return_to_school_callable = func() -> void: handoff_count["return"] += 1
 		session.return_to_lobby_callable = func() -> void: handoff_count["return"] += 1
+		session.quit_game_callable = func() -> void: handoff_count["quit"] += 1
 		session.retry_session_callable = func(config: Dictionary) -> Error:
 			handoff_count["retry"] += 1
 			GameManager.start_session(config)
@@ -697,6 +699,9 @@ func test_all_session_termination_paths_use_the_cleanup_boundary() -> void:
 			&"return":
 				session.call("_on_return_requested")
 				_runner.assert_eq(handoff_count["return"], 1, "return performs one school handoff")
+			&"quit":
+				session.call("_quit_game")
+				_runner.assert_eq(handoff_count["quit"], 1, "quit performs one application handoff")
 			&"scene_exit":
 				session.call("_exit_tree")
 
