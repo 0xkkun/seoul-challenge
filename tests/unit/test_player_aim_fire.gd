@@ -3,6 +3,18 @@ extends Node
 
 const PlayerScript := preload("res://scripts/player/player.gd")
 
+
+class SuccessfulAttackPlayer:
+	extends PlayerScript
+
+	var attack_input := true
+
+	func is_firing() -> bool:
+		return attack_input
+
+	func aim_direction() -> Vector2:
+		return Vector2.RIGHT
+
 var _runner: Node
 
 
@@ -37,6 +49,29 @@ func test_fire_cooldown_decrements_and_clamps() -> void:
 	_runner.assert_true(is_equal_approx(p.step_fire_cooldown(0.5, 0.2), 0.3), "쿨다운은 delta만큼 감소")
 	_runner.assert_true(is_equal_approx(p.step_fire_cooldown(0.1, 0.2), 0.0), "0 미만으로 내려가지 않음")
 	p.free()
+
+
+func test_successful_attack_exposes_and_emits_onboarding_signal() -> void:
+	var player := SuccessfulAttackPlayer.new()
+	add_child(player)
+	_runner.assert_true(player.has_signal("attack_executed"), "attack start has an explicit success signal")
+	if not player.has_signal("attack_executed"):
+		player.queue_free()
+		return
+	var payloads: Array[Dictionary] = []
+	player.attack_executed.connect(func(payload: Dictionary) -> void: payloads.append(payload.duplicate(true)))
+
+	player._process_attack(0.0, Vector2.RIGHT)
+
+	_runner.assert_eq(payloads.size(), 1, "committed attack emits exactly one success event")
+	if payloads.size() == 1:
+		_runner.assert_eq(payloads[0].get("direction"), Vector2.RIGHT, "attack success records direction")
+		_runner.assert_eq(payloads[0].get("position"), player.global_position, "attack success records position")
+		_runner.assert_eq(payloads[0].get("attack_id"), &"melee", "attack success names the committed action")
+
+	player._process_attack(0.0, Vector2.RIGHT)
+	_runner.assert_eq(payloads.size(), 1, "cooldown-blocked attack does not emit success")
+	player.queue_free()
 
 
 func test_desktop_left_mouse_is_an_attack_input() -> void:
@@ -96,3 +131,14 @@ func test_only_interactive_controls_block_desktop_attack_clicks() -> void:
 
 	presentation_root.free()
 	p.free()
+
+
+func test_minimap_interaction_marker_blocks_desktop_attack_click() -> void:
+	var player = PlayerScript.new()
+	var minimap := Control.new()
+	minimap.set_meta("blocks_gameplay_attack", true)
+
+	_runner.assert_true(player.is_interactive_mouse_control(minimap), "미니맵 클릭은 동시에 기본공격으로 새지 않는다")
+
+	minimap.free()
+	player.free()

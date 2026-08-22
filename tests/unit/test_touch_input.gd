@@ -5,13 +5,16 @@ const JoystickScript := preload("res://scripts/ui/virtual_joystick.gd")
 const PlayerScript := preload("res://scripts/player/player.gd")
 const TouchControlsScene := preload("res://scenes/ui/touch_controls.tscn")
 const MobileSafeArea := preload("res://scripts/ui/mobile_safe_area.gd")
+const UiTestHarness := preload("res://tests/support/ui_test_harness.gd")
 const INGAME_CONTROL_ONBOARDING_SCRIPT_PATH := "res://scripts/ui/ingame_control_onboarding.gd"
 
 var _runner: Node
 
 
 class StubPowerAttackPlayer:
-	extends Node
+	extends Node2D
+	signal attack_executed(payload: Dictionary)
+	signal dash_started(payload: Dictionary)
 	signal power_attack_executed(payload: Dictionary)
 
 	var power_window_remaining := 0.5
@@ -24,6 +27,12 @@ class StubPowerAttackPlayer:
 
 	func emit_power_attack() -> void:
 		power_attack_executed.emit({"kind": &"dash_power_attack"})
+
+	func emit_attack() -> void:
+		attack_executed.emit({"attack_id": &"melee"})
+
+	func emit_dash() -> void:
+		dash_started.emit({"special_id": &"emergency_dodge"})
 
 
 class StubIntegratedInputPlayer:
@@ -86,14 +95,117 @@ func test_ingame_control_onboarding_contract_teaches_mobile_combat_inputs() -> v
 		_runner.assert_eq(bool(contract.get("uses_dim_cutout", false)), true, "대상 외 화면은 dim 처리하고 대상은 cutout으로 남긴다")
 		_runner.assert_true(float(contract.get("dim_alpha", 0.0)) >= 0.45, "dim alpha는 주변을 충분히 낮춘다")
 		_runner.assert_true(float(contract.get("camera_zoom_target", 1.0)) > 1.0, "첫 조작 안내 중 카메라는 살짝 줌인한다")
-		_runner.assert_eq(contract.get("step_ids", []), [&"move", &"attack", &"dash", &"power_attack"], "이동, 기본공격, 대쉬, 강공격 순서로 안내한다")
+		_runner.assert_eq(
+			contract.get("step_ids", []),
+			[&"move", &"attack", &"dash", &"power_attack", &"minimap", &"exit"],
+			"첫 방은 조작 성공, 지도, 실제 탈출 순서로 안내한다"
+		)
 		_runner.assert_eq(contract.get("step_target_names", []), [
 			["Joystick"],
 			["AttackButton"],
 			["SkillButton"],
 			["SkillButton", "AttackButton"],
-		], "각 단계는 실제 터치 컨트롤 노드를 타겟으로 삼는다")
+			["Minimap"],
+			[],
+		], "각 단계는 실제 터치/지도 컨트롤 노드를 타겟으로 삼는다")
 	touch.queue_free()
+	onboarding.queue_free()
+
+
+func test_ingame_control_onboarding_advances_only_from_success_events_and_real_displacement() -> void:
+	var script := load(INGAME_CONTROL_ONBOARDING_SCRIPT_PATH) as Script
+	var onboarding := script.new() as CanvasLayer
+	add_child(onboarding)
+	onboarding.call("configure", null, null, null)
+	onboarding.call("start")
+
+	_runner.assert_true(onboarding.has_method("record_action"), "온보딩은 성공 action API를 노출한다")
+	_runner.assert_true(onboarding.has_method("record_player_position"), "온보딩은 실제 위치 누적 API를 노출한다")
+	_runner.assert_true(onboarding.has_method("record_room_changed"), "온보딩은 실제 방 전환 완료 API를 노출한다")
+	_runner.assert_true(onboarding.has_method("skip_guidance"), "온보딩은 막힘 탈출 API를 노출한다")
+
+	onboarding.call("advance_from_input", {
+		"move": Vector2.RIGHT,
+		"attack_pressed": true,
+		"dash_pressed": true,
+		"power_attack_executed": true,
+	})
+	_assert_onboarding_step(onboarding, &"move", [])
+	if not onboarding.has_method("record_action") or not onboarding.has_method("record_player_position") or not onboarding.has_method("record_room_changed"):
+		onboarding.queue_free()
+		return
+
+	onboarding.call("record_player_position", Vector2.ZERO)
+	onboarding.call("record_player_position", Vector2(95.0, 0.0))
+	_assert_onboarding_step(onboarding, &"move", [])
+	onboarding.call("record_player_position", Vector2(96.0, 0.0))
+	_assert_onboarding_step(onboarding, &"attack", [])
+
+	onboarding.call("advance_from_input", {"attack_pressed": true, "dash_pressed": true})
+	_assert_onboarding_step(onboarding, &"attack", [])
+	_runner.assert_true(bool(onboarding.call("record_action", &"attack_executed")), "실제 공격 성공만 다음 단계로 간다")
+	_assert_onboarding_step(onboarding, &"dash", [])
+	_runner.assert_false(bool(onboarding.call("record_action", &"attack_executed")), "잘못된 성공 action은 현재 단계를 넘기지 않는다")
+	_runner.assert_true(bool(onboarding.call("record_action", &"dash_started")), "실제 대시 성공만 강공격 단계로 간다")
+	_runner.assert_true(bool(onboarding.call("record_action", &"power_attack_executed")), "실제 강공격 성공만 지도 단계로 간다")
+	_assert_onboarding_step(onboarding, &"minimap", ["Minimap"])
+	_runner.assert_false(bool(onboarding.call("record_action", &"minimap_expanded", {"expanded": false})), "접힌 지도 상태는 성공이 아니다")
+	_runner.assert_true(bool(onboarding.call("record_action", &"minimap_expanded", {"expanded": true})), "실제 지도 확대가 출구 단계를 연다")
+	_assert_onboarding_step(onboarding, &"exit", [])
+	_runner.assert_false(bool(onboarding.call("record_room_changed", &"start", &"start")), "시작 방 이벤트는 출구 완료가 아니다")
+	_runner.assert_true(bool(onboarding.call("record_room_changed", &"combat_1", &"combat")), "실제 다음 방 전환이 온보딩을 완료한다")
+	_runner.assert_false(bool(onboarding.call("record_room_changed", &"friend_1", &"friend")), "완료는 다시 emit되지 않는다")
+	onboarding.queue_free()
+
+
+func test_ingame_control_onboarding_reveals_real_skip_escape_and_keeps_compact_legend() -> void:
+	var script := load(INGAME_CONTROL_ONBOARDING_SCRIPT_PATH) as Script
+	var onboarding := script.new() as CanvasLayer
+	add_child(onboarding)
+	_runner.assert_true(onboarding.has_signal("gate_released"), "온보딩은 출구 gate 해제 신호를 노출한다")
+	_runner.assert_true(onboarding.has_signal("completed"), "온보딩은 실제 탈출 완료 신호를 노출한다")
+	_runner.assert_true(onboarding.has_signal("skipped"), "온보딩은 건너뛰기 신호를 노출한다")
+	if not onboarding.has_signal("gate_released") or not onboarding.has_signal("skipped"):
+		onboarding.queue_free()
+		return
+
+	onboarding.call("configure", null, null, null)
+	onboarding.call("start")
+	var skip_button := UiTestHarness.find_by_test_id(onboarding, "onboarding.skip_guidance_button") as Button
+	var compact_legend := onboarding.get_node_or_null("Root/CompactLegend") as Control
+	_runner.assert_not_null(skip_button, "안내 건너뛰기는 stable test id를 가진 실제 Button이다")
+	_runner.assert_not_null(compact_legend, "건너뛴 세션용 compact 조작표가 존재한다")
+	if skip_button == null or compact_legend == null:
+		onboarding.queue_free()
+		return
+	_runner.assert_eq(skip_button.get_meta("uat_action", ""), "onboarding.skip_guidance", "건너뛰기 UAT action은 안정적이다")
+	_runner.assert_eq(skip_button.mouse_filter, Control.MOUSE_FILTER_STOP, "건너뛰기 버튼은 실제 클릭을 받는다")
+	_runner.assert_false(skip_button.visible, "건너뛰기는 시작 직후 숨긴다")
+	_runner.assert_false(compact_legend.visible, "compact 조작표는 정상 안내 중 숨긴다")
+
+	onboarding.call("_process", 4.9)
+	_runner.assert_false(skip_button.visible, "4.9초에는 건너뛰기를 노출하지 않는다")
+	onboarding.call("_process", 0.1)
+	_runner.assert_true(skip_button.visible, "5.0초에는 막힘 탈출 버튼을 노출한다")
+	var skip_rect := onboarding.call("get_skip_button_reference_rect") as Rect2
+	_runner.assert_true(
+		MobileSafeArea.meets_landscape_minimum(skip_rect),
+		"건너뛰기는 960x540 safe-area 안에 있다: rect=%s margins=%s" % [skip_rect, MobileSafeArea.margins_for_rect(skip_rect)]
+	)
+
+	var gate_count := [0]
+	var skipped_count := [0]
+	onboarding.gate_released.connect(func() -> void: gate_count[0] += 1)
+	onboarding.skipped.connect(func() -> void: skipped_count[0] += 1)
+	_runner.assert_true(UiTestHarness.press_by_uat_action(onboarding, "onboarding.skip_guidance"), "stable UAT action으로 건너뛰기를 누른다")
+	_runner.assert_eq(gate_count[0], 1, "건너뛰기는 gate를 정확히 한 번 연다")
+	_runner.assert_eq(skipped_count[0], 1, "건너뛰기는 정확히 한 번 기록된다")
+	_runner.assert_false(bool(onboarding.call("is_active")), "건너뛰면 단계 진행은 비활성화된다")
+	_runner.assert_false(skip_button.visible, "건너뛴 뒤 버튼을 숨긴다")
+	_runner.assert_true(compact_legend.visible, "건너뛴 세션에는 compact 조작표를 남긴다")
+	onboarding.call("skip_guidance")
+	_runner.assert_eq(gate_count[0], 1, "반복 호출은 gate 신호를 재발행하지 않는다")
+	_runner.assert_eq(skipped_count[0], 1, "반복 호출은 skipped를 재발행하지 않는다")
 	onboarding.queue_free()
 
 
@@ -109,7 +221,7 @@ func test_ingame_control_onboarding_desktop_guidance_names_keyboard_inputs_witho
 	var snapshot: Dictionary = onboarding.call("get_current_step_snapshot")
 
 	_runner.assert_eq(snapshot.get("input_mode"), &"desktop", "터치 UI가 없으면 데스크톱 안내 모드를 쓴다")
-	_runner.assert_eq(snapshot.get("body"), "WASD 또는 방향키로 움직이기", "첫 안내는 실제 PC 이동 키를 알려준다")
+	_runner.assert_eq(snapshot.get("body"), "WASD 또는 방향키로 96px 이동", "첫 안내는 실제 PC 이동 거리와 키를 알려준다")
 	_runner.assert_eq(snapshot.get("target_names", []), [], "데스크톱 안내는 존재하지 않는 터치 위젯을 가리키지 않는다")
 
 	player.queue_free()
@@ -125,13 +237,14 @@ func test_ingame_control_onboarding_desktop_actions_match_pc_control_scheme() ->
 
 	onboarding.call("configure", null, null, player)
 	onboarding.call("start")
-	onboarding.call("advance_from_input", {"move": Vector2.RIGHT})
+	onboarding.call("record_player_position", Vector2.ZERO)
+	onboarding.call("record_player_position", Vector2(96.0, 0.0))
 	var attack_snapshot: Dictionary = onboarding.call("get_current_step_snapshot")
 	_runner.assert_eq(attack_snapshot.get("body"), "좌클릭으로 가까운 적을 공격", "기본공격 안내는 PC 좌클릭만 알려준다")
-	onboarding.call("advance_from_input", {"attack_pressed": true})
+	onboarding.call("record_action", &"attack_executed")
 	var dash_snapshot: Dictionary = onboarding.call("get_current_step_snapshot")
 	_runner.assert_eq(dash_snapshot.get("body"), "SPACE로 짧게 회피", "대쉬 안내는 PC 기본 SPACE를 알려준다")
-	onboarding.call("advance_from_input", {"dash_pressed": true})
+	onboarding.call("record_action", &"dash_started")
 	var power_snapshot: Dictionary = onboarding.call("get_current_step_snapshot")
 	_runner.assert_eq(power_snapshot.get("body"), "SPACE 직후 좌클릭으로 강공격", "강공격 안내는 대쉬와 공격의 실제 PC 키를 조합한다")
 
@@ -196,7 +309,7 @@ func test_ingame_control_onboarding_touch_guidance_survives_temporary_modal_hidi
 	var hidden_snapshot: Dictionary = onboarding.call("get_current_step_snapshot")
 
 	_runner.assert_eq(hidden_snapshot.get("input_mode"), &"touch", "모달이 터치 UI를 잠시 숨겨도 안내 모드는 바뀌지 않는다")
-	_runner.assert_eq(hidden_snapshot.get("body"), "왼쪽 스틱을 밀어 움직이기", "모달 중에도 모바일 조작 문구를 유지한다")
+	_runner.assert_eq(hidden_snapshot.get("body"), "왼쪽 스틱으로 96px 이동", "모달 중에도 모바일 조작 문구를 유지한다")
 	_runner.assert_eq(hidden_snapshot.get("target_names", []), ["Joystick"], "모달 중에도 현재 터치 단계 계약을 유지한다")
 
 	touch.queue_free()
@@ -212,27 +325,29 @@ func test_ingame_control_onboarding_advances_from_player_integrated_input_withou
 
 	onboarding.call("configure", null, null, player)
 	onboarding.call("start")
-	player.move_input = Vector2.RIGHT
+	onboarding.call("_process", 0.016)
+	player.position = Vector2(96.0, 0.0)
 	onboarding.call("_process", 0.016)
 	_assert_onboarding_step(onboarding, &"attack", [])
-	player.move_input = Vector2.ZERO
-	player.firing = true
-	onboarding.call("_process", 0.016)
+	player.emit_attack()
 	_assert_onboarding_step(onboarding, &"dash", [])
-	player.firing = false
-	player.special_pressed = true
-	onboarding.call("_process", 0.016)
+	player.emit_dash()
 	_assert_onboarding_step(onboarding, &"power_attack", [])
-	player.special_pressed = false
 	player.emit_power_attack()
+	_assert_onboarding_step(onboarding, &"minimap", ["Minimap"])
+	onboarding.call("record_action", &"minimap_expanded", {"expanded": true})
+	_assert_onboarding_step(onboarding, &"exit", [])
+	var exit_spotlight := onboarding.get_node("Root/SpotlightFrame") as Control
+	_runner.assert_false(exit_spotlight.visible, "대상이 없는 출구 단계는 빈 spotlight 사각형을 만들지 않는다")
+	onboarding.call("record_room_changed", &"combat_1", &"combat")
 
-	_runner.assert_false(bool(onboarding.call("is_active")), "플레이어 통합 입력과 실제 강공격 신호만으로 PC 온보딩을 완료한다")
+	_runner.assert_false(bool(onboarding.call("is_active")), "플레이어 성공 신호와 실제 방 전환으로 PC 온보딩을 완료한다")
 
 	player.queue_free()
 	onboarding.queue_free()
 
 
-func test_ingame_control_onboarding_runtime_falls_back_to_touch_when_player_lacks_input_methods() -> void:
+func test_ingame_control_onboarding_uses_success_signals_when_touch_player_lacks_input_polling_methods() -> void:
 	var script := load(INGAME_CONTROL_ONBOARDING_SCRIPT_PATH) as Script
 	var touch := _create_visible_touch_controls()
 	var player := StubPowerAttackPlayer.new()
@@ -242,24 +357,20 @@ func test_ingame_control_onboarding_runtime_falls_back_to_touch_when_player_lack
 
 	onboarding.call("configure", touch, null, player)
 	onboarding.call("start")
-	var joystick := touch.get_node("Joystick") as Control
-	var attack_button := touch.get_node("AttackButton") as Control
-	var skill_button := touch.get_node("SkillButton") as Control
-	joystick.set("_active_index", 1)
-	joystick.set("_value", Vector2.RIGHT)
+	onboarding.call("_process", 0.016)
+	player.position = Vector2(96.0, 0.0)
 	onboarding.call("_process", 0.016)
 	_assert_onboarding_step(onboarding, &"attack", ["AttackButton"])
-	joystick.call("release")
-	attack_button.set("_active_index", 2)
-	onboarding.call("_process", 0.016)
+	player.emit_attack()
 	_assert_onboarding_step(onboarding, &"dash", ["SkillButton"])
-	attack_button.call("release")
-	skill_button.set("_active_index", 3)
-	onboarding.call("_process", 0.016)
+	player.emit_dash()
 	_assert_onboarding_step(onboarding, &"power_attack", ["SkillButton", "AttackButton"])
 	player.emit_power_attack()
+	_assert_onboarding_step(onboarding, &"minimap", ["Minimap"])
+	onboarding.call("record_action", &"minimap_expanded", {"expanded": true})
+	onboarding.call("record_room_changed", &"combat_1", &"combat")
 
-	_runner.assert_false(bool(onboarding.call("is_active")), "통합 입력 메서드가 없는 액터는 실제 터치 상태와 강공격 신호로 온보딩을 완료한다")
+	_runner.assert_false(bool(onboarding.call("is_active")), "입력 polling 메서드가 없는 액터도 성공 신호로 온보딩을 완료한다")
 
 	touch.queue_free()
 	player.queue_free()
@@ -282,13 +393,18 @@ func test_touch_controls_initial_visibility_requires_touch_capability_and_enable
 	touch.queue_free()
 
 
-func test_ingame_control_onboarding_advances_with_actual_touch_input_state() -> void:
+func test_ingame_control_onboarding_touch_buttons_require_success_events() -> void:
 	_runner.assert_true(ResourceLoader.exists(INGAME_CONTROL_ONBOARDING_SCRIPT_PATH), "인게임 조작 온보딩 스크립트가 존재한다")
 	if not ResourceLoader.exists(INGAME_CONTROL_ONBOARDING_SCRIPT_PATH):
 		return
 	var script := load(INGAME_CONTROL_ONBOARDING_SCRIPT_PATH) as Script
 	var touch := _create_visible_touch_controls()
 	var onboarding := script.new() as CanvasLayer
+	var minimap := Control.new()
+	minimap.name = "Minimap"
+	minimap.position = Vector2(640.0, 24.0)
+	minimap.size = Vector2(260.0, 100.0)
+	add_child(minimap)
 	add_child(onboarding)
 
 	_runner.assert_true(onboarding.has_method("configure"), "조작 온보딩은 터치 컨트롤을 주입받는다")
@@ -300,20 +416,35 @@ func test_ingame_control_onboarding_advances_with_actual_touch_input_state() -> 
 		onboarding.queue_free()
 		return
 
-	onboarding.call("configure", touch, null, null)
+	onboarding.call("configure", touch, null, null, minimap)
 	onboarding.call("start")
 	_assert_onboarding_step(onboarding, &"move", ["Joystick"])
-	onboarding.call("advance_from_input", {"move": Vector2.RIGHT})
+	onboarding.call("advance_from_input", {"move": Vector2.RIGHT, "attack_pressed": true, "dash_pressed": true})
+	_assert_onboarding_step(onboarding, &"move", ["Joystick"])
+	onboarding.call("record_player_position", Vector2.ZERO)
+	onboarding.call("record_player_position", Vector2(96.0, 0.0))
 	_assert_onboarding_step(onboarding, &"attack", ["AttackButton"])
 	onboarding.call("advance_from_input", {"attack_pressed": true})
+	_assert_onboarding_step(onboarding, &"attack", ["AttackButton"])
+	onboarding.call("record_action", &"attack_executed")
 	_assert_onboarding_step(onboarding, &"dash", ["SkillButton"])
 	onboarding.call("advance_from_input", {"dash_pressed": true})
+	_assert_onboarding_step(onboarding, &"dash", ["SkillButton"])
+	onboarding.call("record_action", &"dash_started")
 	_assert_onboarding_step(onboarding, &"power_attack", ["SkillButton", "AttackButton"])
-	onboarding.call("advance_from_input", {"power_attack_executed": true})
-	_runner.assert_false(bool(onboarding.call("is_active")), "강공격 입력까지 확인하면 온보딩은 종료된다")
+	onboarding.call("record_action", &"power_attack_executed")
+	_assert_onboarding_step(onboarding, &"minimap", ["Minimap"])
+	_runner.assert_eq(onboarding.call("get_current_step_snapshot").get("target_rect"), minimap.get_global_rect(), "지도 단계는 외부 minimap Control을 직접 가리킨다")
+	onboarding.call("record_action", &"minimap_expanded", {"expanded": true})
+	_assert_onboarding_step(onboarding, &"exit", [])
+	var touch_exit_spotlight := onboarding.get_node("Root/SpotlightFrame") as Control
+	_runner.assert_false(touch_exit_spotlight.visible, "터치 출구 단계도 빈 spotlight 사각형을 만들지 않는다")
+	onboarding.call("record_room_changed", &"combat_1", &"combat")
+	_runner.assert_false(bool(onboarding.call("is_active")), "실제 성공 이벤트와 방 전환까지 확인하면 온보딩이 끝난다")
 
 	touch.queue_free()
 	onboarding.queue_free()
+	minimap.queue_free()
 
 
 func test_ingame_control_onboarding_power_attack_waits_for_actual_player_execution() -> void:
@@ -329,9 +460,10 @@ func test_ingame_control_onboarding_power_attack_waits_for_actual_player_executi
 
 	onboarding.call("configure", touch, null, player)
 	onboarding.call("start")
-	onboarding.call("advance_from_input", {"move": Vector2.RIGHT})
-	onboarding.call("advance_from_input", {"attack_pressed": true})
-	onboarding.call("advance_from_input", {"dash_pressed": true})
+	onboarding.call("record_player_position", Vector2.ZERO)
+	onboarding.call("record_player_position", Vector2(96.0, 0.0))
+	player.emit_attack()
+	player.emit_dash()
 	_assert_onboarding_step(onboarding, &"power_attack", ["SkillButton", "AttackButton"])
 
 	onboarding.call("advance_from_input", {"attack_pressed": true, "power_window_active": true})
@@ -340,14 +472,15 @@ func test_ingame_control_onboarding_power_attack_waits_for_actual_player_executi
 
 	player.emit_power_attack()
 
-	_runner.assert_false(bool(onboarding.call("is_active")), "실제 강공격 실행 이벤트를 받으면 온보딩을 완료한다")
+	_assert_onboarding_step(onboarding, &"minimap", ["Minimap"])
+	_runner.assert_true(bool(onboarding.call("is_active")), "강공격 성공 뒤에도 지도와 출구 증거를 기다린다")
 
 	touch.queue_free()
 	player.queue_free()
 	onboarding.queue_free()
 
 
-func test_ingame_control_onboarding_finishes_when_power_attack_executes_during_dash_step() -> void:
+func test_ingame_control_onboarding_ignores_power_attack_until_dash_success_step_completes() -> void:
 	_runner.assert_true(ResourceLoader.exists(INGAME_CONTROL_ONBOARDING_SCRIPT_PATH), "인게임 조작 온보딩 스크립트가 존재한다")
 	if not ResourceLoader.exists(INGAME_CONTROL_ONBOARDING_SCRIPT_PATH):
 		return
@@ -360,13 +493,19 @@ func test_ingame_control_onboarding_finishes_when_power_attack_executes_during_d
 
 	onboarding.call("configure", touch, null, player)
 	onboarding.call("start")
-	onboarding.call("advance_from_input", {"move": Vector2.RIGHT})
-	onboarding.call("advance_from_input", {"attack_pressed": true})
+	onboarding.call("record_player_position", Vector2.ZERO)
+	onboarding.call("record_player_position", Vector2(96.0, 0.0))
+	player.emit_attack()
 	_assert_onboarding_step(onboarding, &"dash", ["SkillButton"])
 
 	player.emit_power_attack()
+	_assert_onboarding_step(onboarding, &"dash", ["SkillButton"])
+	_runner.assert_true(bool(onboarding.call("is_active")), "대시 성공 전에 온 강공격은 순서를 건너뛰지 않는다")
+	player.emit_dash()
+	_assert_onboarding_step(onboarding, &"power_attack", ["SkillButton", "AttackButton"])
+	player.emit_power_attack()
 
-	_runner.assert_false(bool(onboarding.call("is_active")), "dash 단계에 먼저 도착한 실제 강공격 실행은 dash와 power_attack 완료로 즉시 소비한다")
+	_assert_onboarding_step(onboarding, &"minimap", ["Minimap"])
 
 	touch.queue_free()
 	player.queue_free()

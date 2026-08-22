@@ -502,6 +502,28 @@ func test_start_dodge_opens_dash_power_attack_window() -> void:
 	_runner.assert_true(player.get_dash_power_attack_remaining() >= 0.15, "dodge opens post-dodge power attack grace")
 
 
+func test_successful_dash_exposes_and_emits_onboarding_signal() -> void:
+	var player = PlayerScript.new()
+	add_child(player)
+	_runner.assert_true(player.has_signal("dash_started"), "dash start has an explicit success signal")
+	if not player.has_signal("dash_started"):
+		player.queue_free()
+		return
+	var payloads: Array[Dictionary] = []
+	player.dash_started.connect(func(payload: Dictionary) -> void: payloads.append(payload.duplicate(true)))
+
+	_runner.assert_true(player.try_start_special_skill(Vector2.RIGHT), "ready dash starts")
+	_runner.assert_eq(payloads.size(), 1, "committed dash emits exactly one success event")
+	if payloads.size() == 1:
+		_runner.assert_eq(payloads[0].get("direction"), Vector2.RIGHT, "dash success records direction")
+		_runner.assert_eq(payloads[0].get("position"), player.global_position, "dash success records position")
+		_runner.assert_eq(payloads[0].get("special_id"), &"emergency_dodge", "dash success names the committed special")
+
+	_runner.assert_false(player.try_start_special_skill(Vector2.RIGHT), "active dash blocks duplicate start")
+	_runner.assert_eq(payloads.size(), 1, "failed duplicate dash does not emit success")
+	player.queue_free()
+
+
 func test_start_dodge_clears_pending_attack_cooldown_for_power_attack_followup() -> void:
 	var player = PlayerScript.new()
 	add_child(player)

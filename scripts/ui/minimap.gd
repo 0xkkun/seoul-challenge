@@ -51,6 +51,9 @@ var _minimap_rooms_by_id := {}
 
 
 func _ready() -> void:
+	set_meta("test_id", "session.minimap")
+	set_meta("uat_action", "session.minimap.expand")
+	set_meta("blocks_gameplay_attack", true)
 	if custom_minimum_size == Vector2.ZERO:
 		custom_minimum_size = Vector2(196.0, 144.0)
 	_connect_event_bus()
