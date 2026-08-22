@@ -29,8 +29,8 @@ func test_purify_onboarding_spotlight_contract_explains_purification() -> void:
 	_runner.assert_eq(bool(contract.get("uses_dim_cutout", false)), true, "요괴 친구 외 화면을 dim 처리한다")
 	_runner.assert_true(float(contract.get("dim_alpha", 0.0)) >= 0.6, "dim alpha는 충분히 어둡다")
 	_runner.assert_eq(contract.get("step_ids", []), [&"intro", &"groggy"], "시작 안내와 그로기 안내 두 단계가 있다")
-	_runner.assert_eq(contract.get("intro_message", ""), "요괴에 씌인 친구를 정화시켜주세요", "첫 안내는 정화 목적을 설명한다")
-	_runner.assert_eq(contract.get("groggy_message", ""), "친구에게 다가가면 정화의식이 시작돼요!", "그로기 안내는 근접 정화를 설명한다")
+	_runner.assert_eq(contract.get("intro_message", ""), "공격해 기절시킨 뒤 가까이 다가가 정화", "첫 안내는 공격부터 정화까지 설명한다")
+	_runner.assert_eq(contract.get("groggy_message", ""), "친구 곁에서 정화가 끝날 때까지 지키기", "그로기 안내는 정화 완료 조건을 설명한다")
 	_runner.assert_true(bool(contract.get("tap_to_continue", false)), "탭으로 시작/계속한다")
 
 
@@ -80,3 +80,21 @@ func test_purify_onboarding_spotlight_uses_desktop_click_copy() -> void:
 
 	spotlight.call("show_step", &"groggy", "정화 계속", target)
 	_runner.assert_eq(hint.text, "클릭하여 계속", "데스크톱 정화 후속 안내도 클릭 표현을 쓴다")
+
+
+func test_purify_onboarding_spotlight_ignores_the_event_frame_that_activated_it() -> void:
+	var spotlight := (load(SPOTLIGHT_SCRIPT_PATH) as Script).new() as CanvasLayer
+	var target := Node2D.new()
+	add_child(target)
+	add_child(spotlight)
+	spotlight.call("show_step", &"intro", "정화 시작", target)
+	var mouse := InputEventMouseButton.new()
+	mouse.button_index = MOUSE_BUTTON_LEFT
+	mouse.pressed = true
+
+	spotlight.call("_input", mouse)
+	_runner.assert_true(bool(spotlight.call("is_active")), "dialogue를 닫은 같은 event frame은 새 spotlight를 dismiss하지 않는다")
+
+	spotlight.set("_shown_process_frame", Engine.get_process_frames() - 1)
+	spotlight.call("_input", mouse)
+	_runner.assert_false(bool(spotlight.call("is_active")), "다음 frame의 실제 click은 spotlight를 dismiss한다")

@@ -335,12 +335,14 @@ func show_unlock(title: String, subtitle: String, items: Array[Dictionary], hero
 
 
 func _continue_hint() -> String:
+	return InputPromptPolicy.continue_hint(_input_mode())
+
+
+func _input_mode() -> StringName:
 	var features := {}
 	if has_node("/root/PlatformManager"):
 		features = PlatformManager.get_feature_flags()
-	return InputPromptPolicy.continue_hint(
-		InputPromptPolicy.input_mode_from_features(features)
-	)
+	return InputPromptPolicy.input_mode_from_features(features)
 
 
 func apply_baseball_progress(show_unlock_popup := false) -> void:
@@ -798,13 +800,7 @@ func _tap_to_continue_choice_id() -> StringName:
 
 
 func _is_advance_tap_event(event: InputEvent) -> bool:
-	var mouse := event as InputEventMouseButton
-	if mouse != null:
-		return mouse.pressed and mouse.button_index == MOUSE_BUTTON_LEFT
-	var touch := event as InputEventScreenTouch
-	if touch != null:
-		return touch.pressed
-	return false
+	return InputPromptPolicy.should_accept_pointer_event(_input_mode(), event)
 
 
 func _apply_static_styles() -> void:
