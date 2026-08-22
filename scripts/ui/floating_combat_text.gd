@@ -16,17 +16,48 @@ func _ready() -> void:
 	visible = false
 
 
-func style_for(style: StringName) -> Dictionary:
-	if style == &"parry":
-		return {
-			"font_size": 32,
-			"duration": 1.0,
-			"rise": 20.0,
-			"punch_scale": 1.28,
-			"color": Color(0.78, 1.0, 0.97, 1.0),
-			"outline_color": Tokens.CYAN_TIMING,
-			"outline_size": 5,
-		}
+static func style_for(style: StringName) -> Dictionary:
+	match style:
+		&"parry":
+			return {
+				"font_size": 32,
+				"duration": 1.0,
+				"rise": 20.0,
+				"punch_scale": 1.28,
+				"color": Color(0.78, 1.0, 0.97, 1.0),
+				"outline_color": Tokens.CYAN_TIMING,
+				"outline_size": 5,
+			}
+		&"ordinary":
+			return {
+				"font_size": 18,
+				"duration": 0.8,
+				"rise": 40.0,
+				"punch_scale": 1.12,
+				"color": Color.WHITE,
+				"outline_color": Tokens.SOFT_SHADOW,
+				"outline_size": 3,
+			}
+		&"power":
+			return {
+				"font_size": 24,
+				"duration": 0.8,
+				"rise": 40.0,
+				"punch_scale": 1.22,
+				"color": Color(1.0, 0.78, 0.22, 1.0),
+				"outline_color": Color(0.28, 0.12, 0.02, 0.95),
+				"outline_size": 4,
+			}
+		&"player_damage":
+			return {
+				"font_size": 20,
+				"duration": 0.5,
+				"rise": 20.0,
+				"punch_scale": 1.18,
+				"color": Color(1.0, 0.24, 0.3, 1.0),
+				"outline_color": Color(1.0, 0.9, 0.84, 1.0),
+				"outline_size": 5,
+			}
 	return {
 		"font_size": 24,
 		"duration": 0.8,

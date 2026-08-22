@@ -33,6 +33,9 @@ const COMBAT_FEEDBACK_SHAKE_STEP_TIME := 0.035
 const COMBAT_FEEDBACK_MAX_OFFSET := 7.0
 const ROOM_ENTRY_SPAWN_INSET := Vector2(140.0, 96.0)
 const TOP_LEFT_HUD_GAP := 8.0
+const FLOATING_TEXT_POOL_ID := &"floating_combat_text"
+const FLOATING_TEXT_CAP := 20
+const PLAYER_DAMAGE_TEXT_SCREEN_OFFSET := Vector2(24.0, 0.0)
 const BASEBALL_ONBOARDING_LAYOUT_ID := &"onboarding_baseball_captain"
 const REWARD_CHOICE_DELAY_SECONDS := 1.0
 const PURIFY_ONBOARDING_INTRO_MESSAGE := "공격해 기절시킨 뒤 가까이 다가가 정화"
@@ -134,6 +137,7 @@ func _ready() -> void:
 	_sync_combat_hud_health()
 	PoolManager.register_scene(&"sample_marker", POOLED_MARKER_SCENE, 1, pooled_object_layer)
 	_configure_parry_feedback_controller()
+	_connect_player_combat_text_events()
 	interaction_system.configure(actor, self)
 	_configure_player_camera()
 	_configure_purify_onboarding_spotlight()
@@ -246,6 +250,7 @@ func _finish_all_onboarding_ui() -> void:
 	_finish_purify_onboarding_spotlight()
 	_disconnect_parry_room_events()
 	_disconnect_player_parry_events()
+	_disconnect_player_combat_text_events()
 	if ingame_control_onboarding != null and ingame_control_onboarding.has_method("finish"):
 		ingame_control_onboarding.call("finish")
 	if parry_onboarding != null:
@@ -566,6 +571,53 @@ func _disconnect_player_weapon_events() -> void:
 	var callback := Callable(self, "_on_actor_weapon_changed")
 	if actor.is_connected("weapon_changed", callback):
 		actor.disconnect("weapon_changed", callback)
+
+
+func _connect_player_combat_text_events() -> void:
+	if actor == null or not actor.has_signal(&"combat_text_requested"):
+		return
+	var callback := Callable(self, "_on_actor_combat_text_requested")
+	if not actor.is_connected(&"combat_text_requested", callback):
+		actor.connect(&"combat_text_requested", callback)
+
+
+func _disconnect_player_combat_text_events() -> void:
+	if actor == null or not is_instance_valid(actor) or not actor.has_signal(&"combat_text_requested"):
+		return
+	var callback := Callable(self, "_on_actor_combat_text_requested")
+	if actor.is_connected(&"combat_text_requested", callback):
+		actor.disconnect(&"combat_text_requested", callback)
+
+
+func _on_actor_combat_text_requested(position: Vector2, text: String, style: StringName) -> void:
+	var target_position := _player_damage_text_world_position() if style == &"player_damage" else position
+	spawn_combat_text(target_position, text, style)
+
+
+func spawn_combat_text(position: Vector2, text: String, style: StringName) -> bool:
+	if not Settings.is_damage_numbers_enabled():
+		return false
+	if not PoolManager.has_pool(FLOATING_TEXT_POOL_ID):
+		return false
+	if PoolManager.get_active_count(FLOATING_TEXT_POOL_ID) >= FLOATING_TEXT_CAP:
+		return false
+	var text_node := PoolManager.acquire(FLOATING_TEXT_POOL_ID, pooled_object_layer)
+	if text_node == null or not text_node.has_method("initialize"):
+		if text_node != null:
+			PoolManager.release(text_node)
+		return false
+	text_node.call("initialize", position, text, style)
+	return true
+
+
+func _player_damage_text_world_position() -> Vector2:
+	var health_panel := combat_hud.get_node_or_null("Root/HealthPanel") as Control
+	var viewport := get_viewport()
+	if health_panel == null or viewport == null:
+		return actor.global_position if actor != null else Vector2.ZERO
+	var health_rect := health_panel.get_global_rect()
+	var screen_position := Vector2(health_rect.end.x, health_rect.get_center().y) + PLAYER_DAMAGE_TEXT_SCREEN_OFFSET
+	return viewport.get_canvas_transform().affine_inverse() * screen_position
 
 
 func _on_actor_weapon_changed(weapon_name: String) -> void:

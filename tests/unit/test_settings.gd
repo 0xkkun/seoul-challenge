@@ -33,6 +33,9 @@ func test_settings_default_audio_and_haptic_flags_are_on() -> void:
 	_runner.assert_true(Settings.has_method("is_screen_effects_enabled"), "settings exposes screen-effects state")
 	if Settings.has_method("is_screen_effects_enabled"):
 		_runner.assert_true(bool(Settings.call("is_screen_effects_enabled")), "screen effects default on")
+	_runner.assert_true(Settings.has_method("is_damage_numbers_enabled"), "settings exposes damage-number state")
+	if Settings.has_method("is_damage_numbers_enabled"):
+		_runner.assert_true(bool(Settings.call("is_damage_numbers_enabled")), "damage numbers default on")
 
 
 func test_reduced_motion_setting_emits_the_updated_snapshot() -> void:
@@ -95,6 +98,21 @@ func test_screen_effects_setter_emits_one_complete_settings_snapshot() -> void:
 		return
 	_runner.assert_false(bool(_settings_payloads[0].get("screen_effects_enabled", true)), "payload includes disabled screen effects")
 	_runner.assert_false(bool(_settings_payloads[0].get(Settings.KEY_HAPTIC_ENABLED, true)), "payload preserves the existing disabled haptic flag")
+
+
+func test_damage_numbers_setter_emits_one_complete_settings_snapshot() -> void:
+	Settings.set_screen_effects_enabled(false)
+	_settings_payloads.clear()
+	_runner.assert_true(Settings.has_method("set_damage_numbers_enabled"), "settings exposes damage-number setter")
+	if not Settings.has_method("set_damage_numbers_enabled"):
+		return
+	Settings.call("set_damage_numbers_enabled", false)
+	_runner.assert_eq(_settings_payloads.size(), 1, "typed damage-number setter emits exactly once")
+	if _settings_payloads.size() != 1:
+		return
+	_runner.assert_false(bool(_settings_payloads[0].get("damage_numbers_enabled", true)), "payload includes disabled damage numbers")
+	_runner.assert_false(bool(_settings_payloads[0].get(Settings.KEY_SCREEN_EFFECTS, true)), "payload preserves the existing disabled screen effects")
+	_runner.assert_true(_settings_payloads[0].has(Settings.KEY_BGM_ENABLED), "payload remains a full settings snapshot")
 
 
 func _record_settings_payload(payload: Dictionary) -> void:

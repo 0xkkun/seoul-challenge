@@ -8,6 +8,7 @@ const KEY_SFX_ENABLED := "sfx_enabled"
 const KEY_HAPTIC_ENABLED := "haptic_enabled"
 const KEY_REDUCED_MOTION := "reduced_motion"
 const KEY_SCREEN_EFFECTS := "screen_effects_enabled"
+const KEY_DAMAGE_NUMBERS := "damage_numbers_enabled"
 
 const DEFAULT_SETTINGS := {
 	"language": "en",
@@ -18,6 +19,7 @@ const DEFAULT_SETTINGS := {
 	"haptic_enabled": true,
 	"reduced_motion": false,
 	"screen_effects_enabled": true,
+	"damage_numbers_enabled": true,
 }
 
 var _settings: Dictionary = DEFAULT_SETTINGS.duplicate(true)
@@ -74,6 +76,14 @@ func is_screen_effects_enabled() -> bool:
 
 func set_screen_effects_enabled(enabled: bool) -> void:
 	set_value(KEY_SCREEN_EFFECTS, enabled)
+
+
+func is_damage_numbers_enabled() -> bool:
+	return bool(get_value(KEY_DAMAGE_NUMBERS, true))
+
+
+func set_damage_numbers_enabled(enabled: bool) -> void:
+	set_value(KEY_DAMAGE_NUMBERS, enabled)
 
 
 func try_vibrate(duration_ms: int = 80) -> void:

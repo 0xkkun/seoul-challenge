@@ -16,6 +16,8 @@ const DASH_DUST_FRAME_SIZE := Vector2(108.0, 42.0)
 const DASH_DUST_FRAME_COUNT := 6
 const BAT_SLASH_VISUAL_SCALE := 1.18
 const POWER_SLASH_VISUAL_SCALE := 1.35
+const ENEMY_COMBAT_TEXT_OFFSET := Vector2(0.0, -48.0)
+const POWER_COMBAT_TEXT_OFFSET := Vector2(0.0, -80.0)
 const WEAPON_NAME_BARE_HANDS := "맨손"
 const WEAPON_NAME_CRACKED_BAT := "금 간 나무 배트"
 const WEAPON_NAME_AWAKENED_BAT := "마지막 시즌의 배트"
@@ -34,6 +36,8 @@ signal dash_started(payload: Dictionary)
 signal power_attack_executed(payload: Dictionary)
 ## 돌진 중인 적이 배트 스윙을 실제로 받아친 순간 — 패링 학습·피드백 동기화용.
 signal parry_succeeded(payload: Dictionary)
+## 실제 적용 피해 숫자 — SessionRoot가 공용 floating-text pool에 배치한다.
+signal combat_text_requested(position: Vector2, text: String, style: StringName)
 ## 런 한정 맵 아이템 변경 — 보물방/상점방 표시용.
 signal run_modifiers_changed(payload: Dictionary)
 
@@ -480,6 +484,7 @@ func take_damage(amount: int) -> int:
 	AudioManager.play_sfx(AudioManager.PLAYER_HIT)
 	_invuln_timer = invuln_time
 	_trigger_hit_reaction(invuln_time)
+	combat_text_requested.emit(global_position, str(applied_damage), &"player_damage")
 	_request_hit_stop(hit_stop_profile(false, true))
 	_broadcast_health()
 	return applied_damage
@@ -1134,6 +1139,9 @@ func _attack_melee(dir: Vector2) -> void:
 			if applied_damage <= 0:
 				continue
 			hit_count += 1
+			var combat_text_style: StringName = &"power" if power_attack else &"ordinary"
+			var combat_text_offset := POWER_COMBAT_TEXT_OFFSET if power_attack else ENEMY_COMBAT_TEXT_OFFSET
+			combat_text_requested.emit(e.global_position + combat_text_offset, str(applied_damage), combat_text_style)
 			var applied_knockback := knockback_distance if _has_bat else barehand_knockback
 			applied_knockback = knockback_after_resistance(applied_knockback, _knockback_resistance_for(enemy))
 			if applied_knockback > 0.0:
