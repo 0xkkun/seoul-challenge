@@ -397,6 +397,32 @@ func test_parry_tutorial_surface_is_touch_aware_short_and_non_blocking() -> void
 	wolf.queue_free()
 
 
+func test_parry_dismiss_freezes_the_last_target_layout_after_wolf_deletion() -> void:
+	var tutorial := ParryOnboarding.new()
+	var wolf := Node2D.new()
+	wolf.name = "DismissingWolf"
+	add_child(wolf)
+	add_child(tutorial)
+	tutorial.show_for_wolf(wolf, &"desktop")
+	var coach := tutorial.get_node("CoachMark") as OnboardingCoachMark
+	var panel := coach.get_node("Root/CoachPanel") as Control
+	var bracket := coach.get_node("Root/BracketPart0") as Control
+	var panel_before := panel.get_global_rect()
+	var bracket_before := bracket.get_global_rect()
+
+	_runner.assert_true(tutorial.dismiss_for_wolf(wolf), "wolf defeat starts the normal dismiss")
+	var dismissing_model := (coach.get("_model") as Dictionary).duplicate(true)
+	dismissing_model["target"] = null
+	coach.set("_model", dismissing_model)
+	coach.call("_process", 0.0)
+	_runner.assert_eq(panel.get_global_rect(), panel_before, "dismissing panel keeps its last target-relative position")
+	_runner.assert_eq(bracket.get_global_rect(), bracket_before, "dismissing brackets keep their last target rect")
+	coach.finish_motion_for_tests(&"parry")
+	_runner.assert_false(tutorial.visible, "wrapper hides after the frozen dismiss finishes")
+	wolf.queue_free()
+	tutorial.queue_free()
+
+
 func test_parry_tutorial_retries_next_wolf_and_completes_only_on_success() -> void:
 	SaveManager.set_flag(SceneTransition.FLAG_BASEBALL_CAPTAIN_REWARD_CLAIMED, true)
 	GameManager.start_session({

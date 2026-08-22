@@ -142,7 +142,7 @@
 |---|---|---|
 | Q1 인트로·계속 문구 (완료) | 새 피드백: 자동 진행, 검은 공백, 클릭/탭 분기 | #504/#505, merge `0e87117`; blocked 24,753ms·stuck 39,121ms, UI 캡처 3개, CI·Codex 통과 |
 | Q2 첫 방·첫 런 여정 (완료) | P3, P6, 이동·공격·대시·강공격·지도·출구 #507; 보상·정화·말 걸기 #509 | Task 2 merge `5a4f667`; Task 3 merge `31f8ba1`; PC/mobile journey UAT |
-| Q2b 온보딩 시각 재설계 (진행 중) | #513에서 첫 조작·objective·reward·정화·패링·인트로를 diegetic coachmark로 통일 | unit 544/544, integration 115/115, release Web 12 mode, PR/CI 예정 |
+| Q2b 온보딩 시각 재설계 (진행 중) | #513에서 첫 조작·objective·reward·정화·패링·인트로를 diegetic coachmark로 통일 | unit 544/544, integration 116/116, release Web 12 mode, PR/CI 예정 |
 | Q3 패링 학습·성공 피드백 (진행 중) | #510에서 반복 가능한 첫 늑대 학습 완료; F2, F4, S7, T1, T2, T6 시청각 피드백은 #512에서 재개 | Task 4 merge `76301ed`; miss/death/next-wolf/success Web UAT |
 | Q4 안정성 | B1, B3, B4 | 포탈 pause-overlap 재시도와 종료 matrix |
 | Q5 전투 흐름 | L1 | configured wave별 spawn 테스트와 Web play |

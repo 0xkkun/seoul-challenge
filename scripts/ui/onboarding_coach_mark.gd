@@ -127,12 +127,17 @@ func finish_motion_for_tests(prompt_id: StringName) -> void:
 func _process(_delta: float) -> void:
 	if not _active:
 		return
-	var raw_target: Variant = _model.get("target")
-	var target := raw_target as Node
-	var target_gone := raw_target != null and (target == null or not is_instance_valid(target) or target.is_queued_for_deletion())
-	if target_gone and not _has_pending_exit_for_current_prompt():
-		dismiss(true)
+	if _has_pending_exit_for_current_prompt():
 		return
+	var raw_target: Variant = _model.get("target")
+	if raw_target != null:
+		if not is_instance_valid(raw_target):
+			dismiss(true)
+			return
+		var target := raw_target as Node
+		if target == null or target.is_queued_for_deletion():
+			dismiss(true)
+			return
 	_refresh_layout()
 
 
