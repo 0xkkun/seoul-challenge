@@ -51,3 +51,26 @@ main scene. Restore `project.godot` before committing, then open one of:
 
 The fixture prints `UAT_PARRY_READY mode=... active=... complete=...` after the
 requested state is reached. It is not referenced by production scenes.
+
+## Onboarding coachmark redesign fixture
+
+For deterministic release Web verification of the shared coachmark language,
+temporarily export with `res://tests/uat/onboarding_coachmark_web_fixture.tscn`
+as the main scene. Restore `project.godot` before committing, then open:
+
+- `?uat_coachmark_mode=controls_pc`
+- `?uat_coachmark_mode=controls_touch`
+- `?uat_coachmark_mode=objective`
+- `?uat_coachmark_mode=reward`
+- `?uat_coachmark_mode=purify_intro`
+- `?uat_coachmark_mode=purify_groggy`
+- `?uat_coachmark_mode=parry_pc`
+- `?uat_coachmark_mode=parry_touch`
+- `?uat_coachmark_mode=intro_pc`
+- `?uat_coachmark_mode=intro_touch`
+- `?uat_coachmark_mode=reduced_motion`
+- `?uat_coachmark_mode=settings`
+
+Every valid state prints `UAT_COACHMARK_READY mode=... surface=...
+reduced_motion=...`. The fixture uses production scenes and is not referenced by
+production runtime code.
