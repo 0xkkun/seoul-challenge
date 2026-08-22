@@ -71,6 +71,8 @@ Tasks 7 and 8 both affect difficulty. Do not combine them; play and merge Task 7
 - Produces: `InputPromptPolicy.continue_hint(input_mode: StringName) -> String`.
 - Produces: `InputPromptPolicy.action_hint(action: StringName, input_mode: StringName) -> String`.
 - Produces: `NightIntroCutscene.should_advance_line(narration_started: bool, narration_playing: bool, line_elapsed: float, narration_finished_elapsed: float, user_requested: bool) -> bool`.
+- Produces: `NightIntroCutscene.get_skip_button_reference_rect() -> Rect2` for
+  safe-area/UAT assertions at the canonical 960x540 viewport.
 - Preserves: `NightIntroCutscene.finished`, `skip()`, `HubDialogueUi` choice ids and UAT metadata.
 
 - [ ] **Step 1: Create the platform-copy RED tests**
@@ -179,6 +181,12 @@ static func should_advance_line(
 
 Refactor `_wait_for_advance()` to track real line elapsed and post-narration elapsed. Keep early user input buffered. Shorten plate/subtitle transition constants enough that the measured `14.88s` narration set completes below 30 seconds in the normal path. Set the plate to a nonzero initial alpha before its first tween so the canvas is never only black for longer than one second.
 
+Re-anchor `SkipButton` to the fixed top-right corner and position it through
+`MobileSafeArea.apply_edge_offsets()` with at least `top=24` and `right=60`
+at 960x540. Add a real-control unit assertion that
+`MobileSafeArea.meets_landscape_minimum(get_skip_button_reference_rect())` is
+true; do not validate this by source-text grep.
+
 - [ ] **Step 7: Replace every runtime continue hint**
 
 Use `InputPromptPolicy.continue_hint(InputPromptPolicy.input_mode_from_features(PlatformManager.get_feature_flags()))` in:
@@ -215,6 +223,8 @@ Export release Web and serve it locally. In fresh browser contexts verify:
 
 - PC 960x540 and 1920x900 display `클릭하여 계속`.
 - Mobile Web 960x540 displays `탭하여 계속`.
+- Mobile Web 960x540 keeps the visible `건너뛰기` button at least 24px from the
+  top and 60px from the right; assert its rect and capture it.
 - No input: normal and autoplay-blocked fixtures reach the lobby/session within 30 seconds.
 - A stuck-audio fixture reaches the lobby/session within 45 seconds.
 - No fully black frame persists longer than 1.5 seconds.
@@ -918,8 +928,9 @@ Commit: `[Enemy] 악귀 추적 압박 조정`. Update M6a coverage with before/a
 - Test: `tests/unit/test_yokai_friend.gd`
 
 **Interfaces:**
-- Produces: `AudioManager.play_sfx(id: StringName, cooldown: float = 0.0) -> bool`.
+- Produces: `AudioManager.play_sfx(id: StringName, cooldown_override: float = -1.0) -> bool`.
 - Produces: `AudioManager.can_play_sfx(id: StringName, now_seconds: float, cooldown: float) -> bool`.
+- Produces: `AudioManager.get_sfx_cooldown(id: StringName, override: float = -1.0) -> float`.
 - Produces: `AudioManager.get_registered_sfx_ids() -> Array[StringName]` and
   `get_sfx_volume_db(id: StringName) -> float` for mix-contract verification.
 - Preserves: all existing SFX ids and headless playback log behavior for accepted plays.
@@ -943,6 +954,12 @@ Add a reset lifecycle assertion: seed `_last_sfx_played_at`, call the real
 `AudioManager.reset()`, and prove an immediate same-ID play is accepted. This
 catches cooldown state leaking between tests or audio lifecycles.
 
+Add a runtime-table RED test: two immediate one-argument
+`play_sfx(ENEMY_HIT)` calls record only one accepted play, a different ID is
+independent, and `play_sfx(ENEMY_HIT, 0.0)` explicitly bypasses throttling.
+Assert `get_sfx_cooldown(ENEMY_HIT) == 0.06` and an unlisted existing ID
+resolves to `0.0`.
+
 Add a volume-table RED test that every ID in `get_registered_sfx_ids()` has an
 explicit `_SFX_VOLUME_DB` entry, each dB value is finite and in `[-24, 6]`,
 the newly added reaction IDs have hand-authored literal values, and an unknown
@@ -964,9 +981,15 @@ func can_play_sfx(id: StringName, now_seconds: float, cooldown: float) -> bool:
 		return true
 	return now_seconds - float(_last_sfx_played_at[id]) >= cooldown
 
-func play_sfx(id: StringName, cooldown: float = 0.0) -> bool:
+func get_sfx_cooldown(id: StringName, override: float = -1.0) -> float:
+	if override >= 0.0:
+		return override
+	return float(_SFX_COOLDOWNS.get(id, 0.0))
+
+func play_sfx(id: StringName, cooldown_override: float = -1.0) -> bool:
 	var now_seconds := Time.get_ticks_msec() / 1000.0
-	if not _is_sfx_enabled() or not can_play_sfx(id, now_seconds, cooldown):
+	var effective_cooldown := get_sfx_cooldown(id, cooldown_override)
+	if not _is_sfx_enabled() or not can_play_sfx(id, now_seconds, effective_cooldown):
 		return false
 	_last_sfx_played_at[id] = now_seconds
 	# Preserve the existing accepted-play load/player path here.
@@ -976,6 +999,9 @@ func play_sfx(id: StringName, cooldown: float = 0.0) -> bool:
 Only append to `_played_sfx` after cooldown acceptance.
 `AudioManager.reset()` must also clear `_last_sfx_played_at` along with the
 existing playback state.
+The negative default means “use the per-ID table”; an explicit `0.0` means
+“disable cooldown for this call.” Thus existing one-argument call sites
+automatically receive the new reaction cooldowns.
 
 - [ ] **Step 4: Add assets and exact event wiring**
 
