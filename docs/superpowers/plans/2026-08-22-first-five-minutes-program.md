@@ -883,9 +883,12 @@ Commit: `[Room] 전투 웨이브 순차 스폰 활성화`. Do not modify enemy s
 **Files:**
 - Modify: `scripts/enemies/chaser.gd`
 - Modify: `scenes/enemies/akgwi.tscn`
+- Modify: `scripts/interactables/combat_room.gd`
+- Modify: `scripts/session/session_root.gd`
 - Modify: `tests/unit/test_chaser.gd`
 - Modify: `tests/unit/test_akgwi_assets.gd`
 - Modify: `tests/unit/test_combat_room.gd`
+- Modify: `tests/integration/test_session_contract.gd`
 - Modify: `tests/performance/test_room_perf.gd`
 
 **Interfaces:**
@@ -893,6 +896,9 @@ Commit: `[Room] 전투 웨이브 순차 스폰 활성화`. Do not modify enemy s
 - Removes the serialized `move_speed = 92.0` override from
   `scenes/enemies/akgwi.tscn` so the scene preloaded by `CombatRoom` inherits
   the calibrated default.
+- Produces: optional room config `chaser_speed_override: float`; omitted or
+  nonpositive values inherit the scene/default speed, while the first baseball
+  onboarding combat explicitly uses `92.0`.
 - Preserves: contact range, damage, cooldown, spawn protection, movement bounds.
 
 - [ ] **Step 1: Write the RED default-pressure test**
@@ -903,6 +909,10 @@ stops inside contact range. Add a combat-room test that inspects the actual
 default AkGwi spawned through `CombatRoom` rather than the separate chaser
 fixture.
 
+Add a real session-layout test: `_build_baseball_onboarding_layout()` carries
+`chaser_speed_override=92.0`, the spawned teaching AkGwi runs at 92, and a
+normal combat room with the key omitted spawns AkGwi at 140.
+
 - [ ] **Step 2: Run unit tests and confirm RED**
 
 Expected: the script default is 90.0 and the instantiated AkGwi remains 92.0.
@@ -910,13 +920,20 @@ Expected: the script default is 90.0 and the instantiated AkGwi remains 92.0.
 - [ ] **Step 3: Change only the default speed**
 
 Set `@export var move_speed: float = 140.0` and remove the AkGwi scene's
-serialized 92.0 override. Do not alter count, HP, contact damage, or elite
-multiplier. Keep any explicit teaching-safe room-config override local to that
-room rather than in the shared AkGwi scene.
+serialized 92.0 override. Extend `CombatRoom.apply_room_config()` to store an
+optional `chaser_speed_override` and apply it only to spawned chaser/AkGwi
+instances after scene instantiation and before spawn activation. Add
+`chaser_speed_override=92.0` only to
+`SessionRoot._build_baseball_onboarding_layout()`. Do not alter count, HP,
+contact damage, or elite multiplier.
 
 - [ ] **Step 4: Verify after-wave playability**
 
-Run quick/full/performance gates. In Web, play the first combat after Task 7 with keyboard and touch. Capture time-to-contact and first-room survival. If the first onboarding combat uses a chaser, keep its explicit room-config speed at the teaching-safe value rather than weakening the global default.
+Run quick/full/performance gates. In Web, play the first regular combat after
+Task 7 with keyboard and touch and capture 140-speed time-to-contact/survival.
+Separately play the baseball teaching combat and verify its spawned AkGwi
+snapshot remains 92 on PC/mobile. The teaching exception must not weaken the
+global scene default.
 
 - [ ] **Step 5: Commit and merge**
 
