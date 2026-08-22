@@ -165,10 +165,11 @@ gesture so suspended browser audio cannot produce a false pass.
 
 Temporarily export with `res://tests/uat/damage_vignette_web_fixture.tscn` as
 the main scene and restore `project.godot` after the release export. Use
-`uat_damage_vignette_mode` with `healthy`, `damage`, `critical`, `healed`,
-`disabled`, `reenabled`, `pause_after`, `scene_exit`, or `settings`.
+`uat_damage_vignette_mode` with `healthy`, `damage`, `critical`, `fade_mid`,
+`healed`, `max_health_reset`, `disabled`, `reenabled`, `pause_after`,
+`scene_exit`, or `settings`.
 
 Every valid state prints `UAT_DAMAGE_VIGNETTE_READY`. The fixture uses the real
-SessionRoot and Player for health modes, verifies the always-processing tween
+SessionRoot and Player for health modes, verifies the pause-safe real-time fade
 while paused, proves scene-exit signal cleanup, and mounts the production
 SettingsUI for the five-row mobile-safe capture.

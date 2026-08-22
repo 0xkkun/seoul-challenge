@@ -52,6 +52,47 @@ func test_damage_vignette_distinguishes_damage_heal_and_low_health() -> void:
 	_runner.assert_true(bool(vignette.call("get_snapshot")["low_health_visible"]), "critical health stays visible")
 	vignette.call("on_health_changed", 4, 5)
 	_runner.assert_false(bool(vignette.call("get_snapshot")["low_health_visible"]), "healing clears low-health state")
+	var pulse_overlay := vignette.get("_pulse_overlay") as ColorRect
+	var pulse_material := pulse_overlay.material as ShaderMaterial
+	_runner.assert_true(pulse_material.shader.code.contains("alpha * canvas_alpha"), "vignette shader multiplies rendered alpha by the runtime CanvasItem alpha")
+	vignette.free()
+	Settings.reset_defaults()
+
+
+func test_damage_vignette_ignores_proportional_max_health_removal() -> void:
+	_runner.assert_true(ResourceLoader.exists(DAMAGE_VIGNETTE_SCRIPT_PATH), "damage vignette script exists for max-health regression")
+	if not ResourceLoader.exists(DAMAGE_VIGNETTE_SCRIPT_PATH):
+		return
+	Settings.reset_defaults()
+	var vignette: Node = (load(DAMAGE_VIGNETTE_SCRIPT_PATH) as Script).new()
+	add_child(vignette)
+	vignette.call("on_health_changed", 6, 6)
+	vignette.call("on_health_changed", 5, 5)
+	var snapshot: Dictionary = vignette.call("get_snapshot")
+	_runner.assert_false(bool(snapshot["damage_pulse_active"]), "full-health max reduction cannot masquerade as incoming damage")
+	_runner.assert_false(bool(snapshot["low_health_visible"]), "full-health max reduction stays visually healthy")
+	vignette.free()
+	Settings.reset_defaults()
+
+
+func test_damage_vignette_fade_uses_real_time_progress() -> void:
+	_runner.assert_true(ResourceLoader.exists(DAMAGE_VIGNETTE_SCRIPT_PATH), "damage vignette script exists for fade timing")
+	if not ResourceLoader.exists(DAMAGE_VIGNETTE_SCRIPT_PATH):
+		return
+	Settings.reset_defaults()
+	HitStopManager.restore()
+	var vignette: Node = (load(DAMAGE_VIGNETTE_SCRIPT_PATH) as Script).new()
+	add_child(vignette)
+	vignette.call("on_health_changed", 5, 5)
+	vignette.call("on_health_changed", 3, 5)
+	vignette.call("_advance_damage_pulse", 0.21)
+	var midpoint: Dictionary = vignette.call("get_snapshot")
+	_runner.assert_true(is_equal_approx(float(midpoint["pulse_alpha"]), 0.25), "half-duration pulse renders quarter alpha with quadratic ease-out")
+	_runner.assert_true(bool(midpoint["damage_pulse_active"]), "half-duration pulse remains active")
+	vignette.call("_advance_damage_pulse", 0.21)
+	var finished: Dictionary = vignette.call("get_snapshot")
+	_runner.assert_false(bool(finished["damage_pulse_active"]), "full real-time duration finishes the pulse")
+	_runner.assert_eq(float(finished["pulse_alpha"]), 0.0, "finished pulse clears rendered alpha")
 	vignette.free()
 	Settings.reset_defaults()
 

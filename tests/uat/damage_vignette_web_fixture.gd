@@ -34,8 +34,12 @@ func _setup() -> void:
 			player.call("take_damage", 4)
 			_freeze_pulse_for_capture(vignette)
 			_emit_vignette_marker(vignette)
+		"fade_mid":
+			_run_fade_mid(player, vignette)
 		"healed":
 			_run_healed(player, vignette)
+		"max_health_reset":
+			_run_max_health_reset(player, vignette)
 		"disabled":
 			player.call("take_damage", 4)
 			Settings.set_screen_effects_enabled(false)
@@ -66,10 +70,41 @@ func _run_healed(player: Node, vignette: DamageVignette) -> void:
 	_emit_vignette_marker(vignette)
 
 
+func _run_fade_mid(player: Node, vignette: DamageVignette) -> void:
+	var warmup_frames := 5 if OS.has_feature("web") else 1
+	for _frame: int in range(warmup_frames):
+		await get_tree().process_frame
+	player.call("take_damage", 2)
+	if DisplayServer.get_name() == "headless":
+		vignette.call("_advance_damage_pulse", 0.21)
+	else:
+		await get_tree().create_timer(0.21, true, false, true).timeout
+		await get_tree().process_frame
+	_freeze_pulse_for_capture(vignette)
+	_emit_vignette_marker(vignette)
+
+
+func _run_max_health_reset(player: Node, vignette: DamageVignette) -> void:
+	player.set("max_health", 6)
+	player.set("_health", 6)
+	player.call("_broadcast_health")
+	player.set("max_health", 5)
+	player.set("_health", 5)
+	player.call("_broadcast_health")
+	_emit_vignette_marker(vignette)
+
+
 func _run_pause_after(player: Node, vignette: DamageVignette) -> void:
+	if OS.has_feature("web"):
+		for _frame: int in range(5):
+			await get_tree().process_frame
 	player.call("take_damage", 2)
 	get_tree().paused = true
-	await get_tree().create_timer(0.55, true, false, true).timeout
+	if DisplayServer.get_name() == "headless":
+		vignette.call("_advance_damage_pulse", 0.55)
+	else:
+		await get_tree().create_timer(0.55, true, false, true).timeout
+		await get_tree().process_frame
 	_emit_vignette_marker(vignette)
 
 
@@ -105,8 +140,12 @@ func _emit_vignette_marker(vignette: DamageVignette) -> void:
 			valid = snapshot["damage_pulse_active"] and not snapshot["low_health_visible"] and snapshot["pulse_alpha"] > 0.0
 		"critical":
 			valid = snapshot["damage_pulse_active"] and snapshot["low_health_visible"] and snapshot["pulse_alpha"] > 0.0
+		"fade_mid":
+			valid = snapshot["damage_pulse_active"] and snapshot["pulse_alpha"] > 0.05 and snapshot["pulse_alpha"] < 0.95
 		"healed":
 			valid = not snapshot["damage_pulse_active"] and not snapshot["low_health_visible"] and snapshot["current_health"] == 4
+		"max_health_reset":
+			valid = not snapshot["damage_pulse_active"] and not snapshot["low_health_visible"] and snapshot["current_health"] == 5 and snapshot["max_health"] == 5
 		"disabled":
 			valid = not snapshot["screen_effects_enabled"] and not snapshot["damage_pulse_active"] and not snapshot["low_health_visible"] and snapshot["pulse_alpha"] == 0.0
 		"reenabled":
@@ -156,9 +195,7 @@ func _emit_settings_marker(settings_ui: SettingsUI) -> void:
 
 
 func _freeze_pulse_for_capture(vignette: DamageVignette) -> void:
-	var pulse_tween := vignette.get("_pulse_tween") as Tween
-	if pulse_tween != null and pulse_tween.is_valid():
-		pulse_tween.pause()
+	vignette.set_process(false)
 
 
 func _find_by_test_id(root: Node, test_id: String) -> Node:

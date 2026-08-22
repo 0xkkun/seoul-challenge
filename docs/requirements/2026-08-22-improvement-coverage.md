@@ -14,7 +14,7 @@
 
 ## 요약
 
-현재 검증 대상에서 확실히 완료된 축은 PC 입력 경로, 데스크톱 터치 UI 비노출, bounded 인트로, 성공 기반 첫 방 6단계, 보상→정화→학교 대화 contextual 여정, 반복 가능한 패링 학습, 기본 키 안내, 공통 coachmark·objective ribbon·reward eyebrow, 패링 성공 연출, 포탈 실패 재시도와 세션 종료 cleanup, 실제 순차 웨이브, 악귀 추적 압박, 쿨다운 기반 일반 전투 반응음, 일부 카메라·햅틱·보상·보물방 기반이다. 일반 타격 히트스톱과 피격 비네트는 미구현 또는 부분 상태다.
+현재 검증 대상에서 확실히 완료된 축은 PC 입력 경로, 데스크톱 터치 UI 비노출, bounded 인트로, 성공 기반 첫 방 6단계, 보상→정화→학교 대화 contextual 여정, 반복 가능한 패링 학습, 기본 키 안내, 공통 coachmark·objective ribbon·reward eyebrow, 패링 성공 연출, 포탈 실패 재시도와 세션 종료 cleanup, 실제 순차 웨이브, 악귀 추적 압박, 쿨다운 기반 일반 전투 반응음, 피격·저체력 비네트, 일부 카메라·햅틱·보상·보물방 기반이다. 일반 타격 히트스톱은 아직 미구현 상태다.
 
 ## P — PC 대응
 
@@ -164,7 +164,7 @@
 | Task 7 실제 순차 전투 웨이브 | #518 / #519 | `040276e` | unit 565/565, integration 125/125, performance 5/5, quick/full, latest-head CI·Codex green | release WebGL2 wave one/two/cleared; 3+3 spawn event 보존, console/network error 0 |
 | Task 8 악귀 추적 압박 | #520 / #521 | `5d8bb48` | unit 568/568, integration 126/126, performance 5/5, functional 1/1, quick/full, latest-head CI·Codex green | release WebGL2 PC 1280x720/mobile 960x540; 일반 1.717s·온보딩 2.617s 첫 접촉 health 4; physical keyboard 99.4px·touch drag 96.6px full-health 회피; console/network error 0 |
 | Task 9 전투 반응음·쿨다운 | #522 / #523 | `1743c36` | unit 577/577, integration 126/126, functional 1/1, quick/full, Codex P2 gesture gate 해결·latest-head CI green | release WebGL2 gesture 전 WAITING/READY 없음→gesture 후 multi-hit 3체/accepted 3/player 3, reaction mix player 3; deterministic -5.9/-2.4dBFS, console/network error 0 |
-| Task 10 플레이어 피격 비네트 | #524 / PR 준비 | 검증 대상 | unit 580/580, integration 127/127; damage/heal/critical/off-on/pause/exit·full payload·signal lifecycle 회귀 | release WebGL2 9 mode valid; layer5/mouse-ignore, settings actual rect safe, console/network error 0 |
+| Task 10 플레이어 피격 비네트 | #524 / #525 | 검증 대상 | unit 582/582, integration 127/127; damage/heal/critical/off-on/pause/exit·max-health reset·실시간 fade·full payload·signal lifecycle 회귀 | release WebGL2 11 mode valid; fade midpoint alpha 0.258·pause 후 alpha 0·max reset pulse false; layer5/mouse-ignore, settings actual rect safe, console/network error 0 |
 
 ## 장부 유지 규칙
 

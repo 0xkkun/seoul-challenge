@@ -9,8 +9,9 @@ const LOW_HEALTH_RATIO := 0.25
 
 var _pulse_overlay: ColorRect = null
 var _low_health_overlay: ColorRect = null
-var _pulse_tween: Tween = null
 var _damage_pulse_active := false
+var _pulse_elapsed_real_seconds := 0.0
+var _pulse_started_at_usec := 0
 var _low_health_requested := false
 var _current_health := -1
 var _max_health := 1
@@ -22,6 +23,14 @@ func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	_ensure_overlays()
 	_render_state()
+
+
+func _process(_delta: float) -> void:
+	if not _damage_pulse_active:
+		return
+	# Monotonic time keeps the pulse duration stable through pause, hit-stop, and frame stalls.
+	var elapsed_real_seconds := float(Time.get_ticks_usec() - _pulse_started_at_usec) / 1_000_000.0
+	_set_damage_pulse_elapsed(elapsed_real_seconds)
 
 
 func bind_player(player: Node) -> void:
@@ -36,8 +45,14 @@ func bind_player(player: Node) -> void:
 
 func on_health_changed(current: int, max_health: int) -> void:
 	var previous_health := _current_health
+	var previous_max_health := _max_health
 	_set_cached_health(current, max_health)
-	if previous_health >= 0 and _current_health < previous_health and _screen_effects_enabled():
+	if (
+		previous_health >= 0
+		and _current_health < previous_health
+		and _max_health == previous_max_health
+		and _screen_effects_enabled()
+	):
 		_start_damage_pulse()
 	_render_state()
 
@@ -106,25 +121,37 @@ func _start_damage_pulse() -> void:
 	_ensure_overlays()
 	_cancel_damage_pulse()
 	_damage_pulse_active = true
+	_pulse_elapsed_real_seconds = 0.0
+	_pulse_started_at_usec = Time.get_ticks_usec()
 	_pulse_overlay.visible = true
 	_pulse_overlay.modulate = Color.WHITE
-	_pulse_tween = create_tween().set_ignore_time_scale(true)
-	_pulse_tween.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
-	_pulse_tween.tween_property(_pulse_overlay, "modulate:a", 0.0, PULSE_DURATION).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-	_pulse_tween.tween_callback(_finish_damage_pulse)
+
+
+func _advance_damage_pulse(real_delta: float) -> void:
+	if not _damage_pulse_active:
+		return
+	_set_damage_pulse_elapsed(_pulse_elapsed_real_seconds + maxf(0.0, real_delta))
+
+
+func _set_damage_pulse_elapsed(elapsed_real_seconds: float) -> void:
+	_pulse_elapsed_real_seconds = minf(PULSE_DURATION, maxf(0.0, elapsed_real_seconds))
+	var remaining_ratio := 1.0 - _pulse_elapsed_real_seconds / PULSE_DURATION
+	_pulse_overlay.modulate = Color(1.0, 1.0, 1.0, remaining_ratio * remaining_ratio)
+	if _pulse_elapsed_real_seconds >= PULSE_DURATION:
+		_finish_damage_pulse()
 
 
 func _finish_damage_pulse() -> void:
 	_damage_pulse_active = false
-	_pulse_tween = null
+	_pulse_elapsed_real_seconds = 0.0
+	_pulse_started_at_usec = 0
 	_render_state()
 
 
 func _cancel_damage_pulse() -> void:
-	if _pulse_tween != null and _pulse_tween.is_valid():
-		_pulse_tween.kill()
-	_pulse_tween = null
 	_damage_pulse_active = false
+	_pulse_elapsed_real_seconds = 0.0
+	_pulse_started_at_usec = 0
 	if _pulse_overlay != null:
 		_pulse_overlay.modulate = Color(1.0, 1.0, 1.0, 0.0)
 		_pulse_overlay.visible = false
@@ -167,12 +194,13 @@ func _make_vignette_material(tint: Color) -> ShaderMaterial:
 shader_type canvas_item;
 uniform vec4 tint_color : source_color;
 void fragment() {
+	float canvas_alpha = COLOR.a;
 	vec2 centered = UV * 2.0 - 1.0;
 	float radial = length(centered * vec2(0.82, 1.08));
 	float edge = smoothstep(0.48, 1.06, radial);
 	float side = smoothstep(0.68, 1.0, max(abs(centered.x), abs(centered.y)));
 	float alpha = max(edge, side * 0.72) * tint_color.a;
-	COLOR = vec4(tint_color.rgb, alpha);
+	COLOR = vec4(tint_color.rgb, alpha * canvas_alpha);
 }
 """
 	var material := ShaderMaterial.new()
