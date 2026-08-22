@@ -1,5 +1,7 @@
 extends Node
 
+const CombatSfxWebFixture := preload("res://tests/uat/combat_sfx_web_fixture.gd")
+
 var _runner: Node
 
 
@@ -15,6 +17,97 @@ func before_each() -> void:
 func after_each() -> void:
 	AudioManager.reset()
 	Settings.reset_defaults()
+
+
+func test_same_sfx_is_throttled_without_blocking_other_ids() -> void:
+	AudioManager.reset()
+	_runner.assert_true(AudioManager.can_play_sfx(&"enemy_hit", 10.0, 0.08), "first play is accepted")
+	AudioManager.set("_last_sfx_played_at", {&"enemy_hit": 10.0})
+	_runner.assert_false(AudioManager.can_play_sfx(&"enemy_hit", 10.04, 0.08), "same id inside cooldown is rejected")
+	_runner.assert_true(AudioManager.can_play_sfx(&"player_hit", 10.04, 0.08), "different id is independent")
+	_runner.assert_true(AudioManager.can_play_sfx(&"enemy_hit", 10.08, 0.08), "boundary play is accepted")
+
+
+func test_web_audio_fixture_requires_a_pressed_gesture_event() -> void:
+	var mouse_press := InputEventMouseButton.new()
+	mouse_press.pressed = true
+	_runner.assert_true(CombatSfxWebFixture.is_audio_unlock_event(mouse_press), "pressed pointer unlocks Web audio")
+	mouse_press.pressed = false
+	_runner.assert_false(CombatSfxWebFixture.is_audio_unlock_event(mouse_press), "pointer release cannot start the fixture")
+
+	var touch_press := InputEventScreenTouch.new()
+	touch_press.pressed = true
+	_runner.assert_true(CombatSfxWebFixture.is_audio_unlock_event(touch_press), "pressed touch unlocks Web audio")
+
+	var key_press := InputEventKey.new()
+	key_press.pressed = true
+	_runner.assert_true(CombatSfxWebFixture.is_audio_unlock_event(key_press), "fresh key press unlocks Web audio")
+	key_press.echo = true
+	_runner.assert_false(CombatSfxWebFixture.is_audio_unlock_event(key_press), "key repeat cannot retrigger fixture setup")
+
+	_runner.assert_false(CombatSfxWebFixture.is_audio_unlock_event(InputEventMouseMotion.new()), "pointer motion alone cannot unlock Web audio")
+
+
+func test_runtime_cooldown_table_throttles_and_explicit_zero_bypasses() -> void:
+	_runner.assert_eq(AudioManager.get_sfx_cooldown(&"enemy_hit"), 0.06, "enemy hit uses the authored cooldown")
+	_runner.assert_eq(AudioManager.get_sfx_cooldown(AudioManager.UI_BUTTON_PRESS), 0.0, "unlisted existing SFX keeps no cooldown")
+
+	_runner.assert_true(AudioManager.play_sfx(&"enemy_hit"), "first enemy hit is accepted")
+	_runner.assert_false(AudioManager.play_sfx(&"enemy_hit"), "immediate same-id hit is throttled")
+	_runner.assert_true(AudioManager.play_sfx(&"player_hit"), "different reaction id remains independent")
+	_runner.assert_true(AudioManager.play_sfx(&"enemy_hit", 0.0), "explicit zero bypasses the cooldown for this call")
+	_runner.assert_eq(
+		AudioManager.get_played_sfx(),
+		[&"enemy_hit", &"player_hit", &"enemy_hit"],
+		"only accepted runtime plays are recorded"
+	)
+
+
+func test_reset_clears_sfx_cooldown_lifecycle() -> void:
+	AudioManager.set("_last_sfx_played_at", {&"enemy_hit": Time.get_ticks_msec() / 1000.0})
+	_runner.assert_false(AudioManager.play_sfx(&"enemy_hit"), "seeded cooldown blocks the immediate play")
+	AudioManager.reset()
+	_runner.assert_true(AudioManager.play_sfx(&"enemy_hit"), "reset accepts the same id immediately")
+
+
+func test_registered_sfx_have_explicit_bounded_runtime_mix_values() -> void:
+	var registered_ids: Array[StringName] = AudioManager.get_registered_sfx_ids()
+	_runner.assert_true(registered_ids.size() > 0, "runtime exposes registered SFX ids")
+	for sfx_id: StringName in registered_ids:
+		_runner.assert_true(AudioManager._SFX_VOLUME_DB.has(sfx_id), "%s has an explicit runtime mix entry" % sfx_id)
+		var volume_db := AudioManager.get_sfx_volume_db(sfx_id)
+		_runner.assert_true(is_finite(volume_db), "%s has a finite volume" % sfx_id)
+		_runner.assert_true(volume_db >= -24.0 and volume_db <= 6.0, "%s volume stays in the safe mix range" % sfx_id)
+
+	var reaction_mix := {
+		&"player_hit": -3.0,
+		&"enemy_hit": -6.0,
+		&"enemy_death": -4.0,
+		&"chaser_attack": -5.0,
+		&"bare_hand_swing": -7.0,
+		&"awakened_bat_reveal": -1.0,
+	}
+	for sfx_id: StringName in reaction_mix:
+		_runner.assert_eq(AudioManager.get_sfx_volume_db(sfx_id), reaction_mix[sfx_id], "%s keeps its hand-authored mix literal" % sfx_id)
+	_runner.assert_eq(AudioManager.get_sfx_volume_db(&"unknown_sfx"), AudioManager.DEFAULT_SFX_VOLUME_DB, "unknown id falls back to the default volume")
+
+
+func test_reaction_sfx_assets_are_registered_and_importable() -> void:
+	var expected_paths := {
+		&"awakened_bat_reveal": "res://assets/audio/sfx/awakened_bat_reveal.wav",
+		&"player_hit": "res://assets/audio/sfx/player_hit.wav",
+		&"enemy_hit": "res://assets/audio/sfx/enemy_hit.wav",
+		&"enemy_death": "res://assets/audio/sfx/enemy_death.wav",
+		&"chaser_attack": "res://assets/audio/sfx/chaser_attack.wav",
+		&"bare_hand_swing": "res://assets/audio/sfx/bare_hand_swing.wav",
+	}
+	for sfx_id: StringName in expected_paths:
+		var stream_path := String(expected_paths[sfx_id])
+		_runner.assert_true(AudioManager.has_sfx(sfx_id), "%s is registered" % sfx_id)
+		_runner.assert_eq(AudioManager.get_sfx_stream_path(sfx_id), stream_path, "%s uses the committed WAV path" % sfx_id)
+		_runner.assert_true(ResourceLoader.exists(stream_path), "%s WAV resource exists" % sfx_id)
+		if ResourceLoader.exists(stream_path):
+			_runner.assert_not_null(load(stream_path) as AudioStreamWAV, "%s imports as WAV" % sfx_id)
 
 
 func test_session_transition_school_bell_variants_are_registered() -> void:

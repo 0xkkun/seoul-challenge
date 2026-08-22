@@ -301,13 +301,13 @@ func test_barehand_hit_does_not_play_bat_impact_sfx() -> void:
 
 	p._attack_melee(Vector2.RIGHT)
 
-	_runner.assert_eq(AudioManager.get_played_sfx(), [], "맨손 타격은 배트 전용 타격음을 재생하지 않는다")
+	_runner.assert_eq(AudioManager.get_played_sfx(), [&"bare_hand_swing"], "맨손 타격은 전용 스윙음만 재생하고 배트 타격음은 재생하지 않는다")
 	e.free()
 	p.free()
 	AudioManager.reset()
 
 
-func test_barehand_attack_does_not_play_bat_swing_sfx() -> void:
+func test_barehand_attack_plays_only_its_dedicated_swing_sfx() -> void:
 	AudioManager.reset()
 	var p = PlayerScript.new()
 	add_child(p)
@@ -315,7 +315,7 @@ func test_barehand_attack_does_not_play_bat_swing_sfx() -> void:
 
 	p._attack_melee(Vector2.RIGHT)
 
-	_runner.assert_eq(AudioManager.get_played_sfx(), [], "barehand melee attack does not play the bat swing SFX")
+	_runner.assert_eq(AudioManager.get_played_sfx(), [&"bare_hand_swing"], "barehand melee attack plays only its dedicated swing SFX")
 	p.free()
 	AudioManager.reset()
 

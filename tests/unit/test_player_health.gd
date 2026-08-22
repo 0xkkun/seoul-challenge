@@ -57,6 +57,17 @@ func test_invuln_blocks_immediate_second_hit() -> void:
 	p.free()
 
 
+func test_player_hit_sfx_plays_only_for_accepted_damage() -> void:
+	AudioManager.reset()
+	var p = PlayerScript.new()
+	add_child(p)
+	p.take_damage(1)
+	p.take_damage(1)
+	_runner.assert_eq(AudioManager.get_played_sfx(), [&"player_hit"], "accepted damage plays once and invulnerable rejection stays silent")
+	p.free()
+	AudioManager.reset()
+
+
 func test_hit_reaction_flashes_sprite_and_restores_after_invuln() -> void:
 	var p = PlayerScene.instantiate()
 	add_child(p)

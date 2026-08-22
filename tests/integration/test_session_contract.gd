@@ -577,7 +577,11 @@ func test_session_actual_parry_presents_every_feedback_surface_once() -> void:
 	_runner.assert_true(bool(controller.call("get_flash_snapshot").get("visible")), "actual parry flashes white")
 	var expected_parry_offset: Vector2 = session.call("camera_feedback_offset", Vector2.RIGHT, 9.0)
 	_runner.assert_eq(camera.offset, expected_parry_offset, "generic melee feedback cannot overwrite the stronger parry camera kick")
-	_runner.assert_eq(AudioManager.get_played_sfx(), [&"bat_swing", &"parry_success", &"bat_hit"], "actual parry plays swing, dedicated success, then hit sound")
+	_runner.assert_eq(
+		AudioManager.get_played_sfx(),
+		[&"bat_swing", &"parry_success", &"enemy_hit", &"bat_hit"],
+		"actual parry keeps swing and dedicated success before accepted enemy and bat hit sounds"
+	)
 	_runner.assert_eq(HapticManager.test_log, [2], "actual parry produces exactly one strong haptic")
 
 	HapticManager.test_mode = false

@@ -1,6 +1,6 @@
 # 2026-08-21 개선 명세 반영 현황
 
-기준 코드: `origin/main@040276e` + #520 검증 대상
+기준 코드: `origin/main@5d8bb48` + #522 검증 대상
 사용자 제공 자료: `요괴뎐_개선안_2026-08-21`
 프로그램 설계: `docs/superpowers/specs/2026-08-22-first-five-minutes-onboarding-design.md`
 시각 재설계: `docs/superpowers/specs/2026-08-22-onboarding-coachmark-redesign.md`
@@ -14,7 +14,7 @@
 
 ## 요약
 
-현재 검증 대상에서 확실히 완료된 축은 PC 입력 경로, 데스크톱 터치 UI 비노출, bounded 인트로, 성공 기반 첫 방 6단계, 보상→정화→학교 대화 contextual 여정, 반복 가능한 패링 학습, 기본 키 안내, 공통 coachmark·objective ribbon·reward eyebrow, 패링 성공 연출, 포탈 실패 재시도와 세션 종료 cleanup, 실제 순차 웨이브, 일부 카메라·햅틱·보상·보물방 기반이다. 일반 타격 히트스톱, 일반 전투 반응음, 피격 비네트는 미구현 또는 부분 상태다.
+현재 검증 대상에서 확실히 완료된 축은 PC 입력 경로, 데스크톱 터치 UI 비노출, bounded 인트로, 성공 기반 첫 방 6단계, 보상→정화→학교 대화 contextual 여정, 반복 가능한 패링 학습, 기본 키 안내, 공통 coachmark·objective ribbon·reward eyebrow, 패링 성공 연출, 포탈 실패 재시도와 세션 종료 cleanup, 실제 순차 웨이브, 악귀 추적 압박, 쿨다운 기반 일반 전투 반응음, 일부 카메라·햅틱·보상·보물방 기반이다. 일반 타격 히트스톱과 피격 비네트는 미구현 또는 부분 상태다.
 
 ## P — PC 대응
 
@@ -64,11 +64,11 @@
 
 | ID | 상태 | 현재 근거 | 다음 계약 |
 |---|---|---|---|
-| S1 `awakened_bat_reveal.mp3` | 미구현 | registry 경로는 있으나 파일 없음 | 오디오 기반 PR |
+| S1 각성 배트 공개음 | 완료 | #522 `awakened_bat_reveal.wav` 실파일·registry·팝업→보상 순서 회귀 | 리소스 누락 fallback 유지 |
 | S2 미사용 SFX 3개 배선 | 완료 | 학교 전환·페이지·보상 SFX 호출과 unit tests 존재 | 회귀 유지 |
-| S3 `play_sfx` 쿨다운 | 미구현 | 매 호출마다 새 AudioStreamPlayer 생성 | 전투음 선행 PR |
-| S4 S급 전투음 | 부분 | 늑대·구미호·배트는 존재, 플레이어/적 피격·적 사망·악귀·맨손 누락 | 전투음 PR |
-| S5 볼륨 테이블 | 부분 | override 구조는 있으나 table 비어 있음 | S4와 함께 조정 |
+| S3 `play_sfx` 쿨다운 | 완료 | #522 ID별 cooldown·boundary·reset·0 override; accepted play만 기록/player 생성 | 새 반응 ID는 table entry 필수 |
+| S4 S급 전투음 | 완료 | #522 player/enemy hit·enemy death·악귀 attack·맨손 swing 실파일과 accepted/rejected event wiring | D3 공통 death event 전까지 enemy-local 1회 유지 |
+| S5 볼륨 테이블 | 완료 | 모든 registered SFX가 명시적 유한 `[-24,6]dB` entry; deterministic multi mix -5.9dBFS, reaction mix -2.4dBFS | 신규 ID 누락 금지 |
 | S6 A급 8개 | 부분 | 일부 방/획득/전환음만 존재 | first-impression 뒤 |
 | S7 패링 성공음 | 완료 | `parry_success.wav`·`AudioManager.PARRY_SUCCESS`, 스윙→패링→타격 순서 test, #512 | 볼륨 table 통합 시 회귀 유지 |
 | S8 B급 7개 | 미구현 | 요구 목록용 registry/asset 없음 | 후순위 |
@@ -146,8 +146,8 @@
 | Q3 패링 학습·성공 피드백 (완료) | #510에서 반복 가능한 첫 늑대 학습 완료; #512에서 F2, F4, S7, T1, T2, T6 완성 | #510/#511 merge `76301ed`; #512/#515 merge `ab2ec465`; coverage 100%, release Web 5상태 UAT |
 | Q4 안정성 (완료) | #516에서 B1, B3, B4 구현 | #516/#517 merge `839281ec`; unit 560/560, integration 125/125, coverage 100%, release Web 5상태 |
 | Q5 전투 흐름 (완료) | #518에서 L1 구현 | #518/#519 merge `040276e`; 6/2·5/2 partition, failed-batch recovery, authored combat_2 release Web UAT |
-| Q6 적 압박 (진행 중) | #520에서 M6a 구현 | baseline 90/serialized 92 RED → 일반 140·온보딩 92; release Web 첫 접촉 1.717s/2.617s, keyboard 99.4px·touch 96.6px 무피격 회피 |
-| Q7 전투 반응 | S1, S3, S4, F7 | cooldown·asset·피격 시청각 테스트와 Web UAT |
+| Q6 적 압박 (완료) | #520에서 M6a 구현 | #520/#521 merge `5d8bb48`; 일반 140·온보딩 92, 첫 접촉 1.717s/2.617s, keyboard 99.4px·touch 96.6px 무피격 회피 |
+| Q7 전투 반응 (진행 중) | #522에서 S1, S3, S4, S5 구현; F7 후속 | cooldown·volume·accepted/rejected event tests와 release Web 2-mode mix UAT |
 | Q8 일반 타격 정보 | F3, T3, T4 | hitstop 복구·20 cap·설정 토글 테스트 |
 
 ## 병합 근거
@@ -162,7 +162,8 @@
 | Task 5 패링 성공 피드백 | #512 / #515 | `ab2ec465` | unit 559/559, integration 120/120, functional 1/1, coverage 100%, PR UI capture·Quick·Rooms·Web Preview green, Codex P2 RED→GREEN + latest-head major issue 0 | release WebGL2 before/impact/recovery/repeated/teardown; impact camera `(-7, 0)`, console/network error 0 |
 | Task 6 포탈 재시도·온보딩 종료 정리 | #516 / #517 | `839281ec` | unit 560/560, integration 125/125, functional 1/1, coverage 100%, PR UI capture·Quick·Rooms·Web Preview green, Challenger 0, Codex latest-head major issue 0 | release WebGL2 portal blocked/retry·death before/after·next session; console/network error 0 |
 | Task 7 실제 순차 전투 웨이브 | #518 / #519 | `040276e` | unit 565/565, integration 125/125, performance 5/5, quick/full, latest-head CI·Codex green | release WebGL2 wave one/two/cleared; 3+3 spawn event 보존, console/network error 0 |
-| Task 8 악귀 추적 압박 | #520 / PR 준비 | 검증 대상 | unit 568/568, integration 126/126, performance 5/5, functional 1/1, quick/full; 기본 140·온보딩 92·elite 배율·음수/비유한 override 회귀 | release WebGL2 PC 1280x720/mobile 960x540; 일반 1.717s·온보딩 2.617s 첫 접촉 health 4; physical keyboard 99.4px·touch drag 96.6px full-health 회피; console/network error 0 |
+| Task 8 악귀 추적 압박 | #520 / #521 | `5d8bb48` | unit 568/568, integration 126/126, performance 5/5, functional 1/1, quick/full, latest-head CI·Codex green | release WebGL2 PC 1280x720/mobile 960x540; 일반 1.717s·온보딩 2.617s 첫 접촉 health 4; physical keyboard 99.4px·touch drag 96.6px full-health 회피; console/network error 0 |
+| Task 9 전투 반응음·쿨다운 | #522 / PR 준비 | 검증 대상 | unit 577/577, integration 126/126, functional 1/1, quick/full; cooldown·reset·volume·gesture gate·모든 accepted/rejected event 회귀 | release WebGL2 gesture 전 WAITING/READY 없음→gesture 후 multi-hit 3체/accepted 3/player 3, reaction mix player 3; deterministic -5.9/-2.4dBFS, console/network error 0 |
 
 ## 장부 유지 규칙
 

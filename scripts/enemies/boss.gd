@@ -271,6 +271,7 @@ func _ensure_hit_reaction() -> Node:
 func take_damage(amount: int) -> void:
 	if _dead or is_hit_invulnerable():
 		return
+	AudioManager.play_sfx(AudioManager.ENEMY_HIT)
 	HapticManager.on_boss_hit()
 	_hp = maxi(0, _hp - amount)
 	_update_health_bar()
@@ -284,6 +285,7 @@ func _die() -> void:
 	if _dead:
 		return
 	_dead = true
+	AudioManager.play_sfx(AudioManager.ENEMY_DEATH)
 	_spawn_death_fade()
 	defeated.emit(self)
 	queue_free()

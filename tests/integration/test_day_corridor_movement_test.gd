@@ -658,7 +658,11 @@ func test_day_corridor_onboarding_reward_dialogue_completes_baseball_lobby_quest
 	_runner.assert_true(SaveManager.get_flag(SceneTransition.FLAG_BASEBALL_CAPTAIN_REWARD_CLAIMED), "reward flag is claimed before the unlock popup closes")
 	_runner.assert_true(ProgressionSystem.is_quest_completed(ProgressionSystem.QUEST_BASEBALL_CAPTAIN_LOBBY), "captain reward dialogue completes the lobby quest")
 	_runner.assert_true(ProgressionSystem.is_weapon_unlocked(&"awakened_bat"), "lobby quest completion unlocks awakened bat")
-	_runner.assert_eq(AudioManager.get_played_sfx(), [AudioManager.QUEST_REWARD_LEVEL_UP], "quest completion reward plays the level-up SFX")
+	_runner.assert_eq(
+		AudioManager.get_played_sfx(),
+		[AudioManager.AWAKENED_BAT_REVEAL, AudioManager.QUEST_REWARD_LEVEL_UP],
+		"quest completion plays the awakened-bat reveal before the level-up SFX"
+	)
 	_runner.assert_true(dialogue_ui.is_unlock_visible(), "awakened bat popup is shown after the dialogue closes")
 	_runner.assert_false(scene.is_dialogue_ui_visible(), "dialogue content is closed before the awakened bat popup appears")
 	_runner.assert_false(dialogue_ui.is_dialogue_content_visible(), "dialogue bar stays hidden behind the awakened bat popup")

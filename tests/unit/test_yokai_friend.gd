@@ -68,6 +68,37 @@ func test_damage_ignored_while_stunned() -> void:
 	f.free()
 
 
+func test_yokai_friend_hit_sfx_plays_only_when_stun_damage_is_accepted() -> void:
+	AudioManager.reset()
+	var f = FriendScene.instantiate()
+	add_child(f)
+	f.take_damage(1)
+	_runner.assert_eq(AudioManager.get_played_sfx(), [&"enemy_hit"], "accepted stun accumulation plays enemy hit")
+
+	AudioManager.reset()
+	f.take_damage(1)
+	_runner.assert_eq(AudioManager.get_played_sfx(), [], "hit-invulnerable rejection stays silent")
+
+	f.call("tick_hit_reaction", f.hit_invuln_time + 0.05)
+	AudioManager.reset()
+	f.take_damage(1)
+	_runner.assert_eq(AudioManager.get_played_sfx(), [&"enemy_hit"], "later accepted stun accumulation plays again")
+	AudioManager.reset()
+
+
+func test_yokai_friend_stunned_rejection_does_not_play_hit_sfx() -> void:
+	AudioManager.reset()
+	var f = FriendScene.instantiate()
+	f.max_stun = 1
+	add_child(f)
+	f.take_damage(1)
+	_runner.assert_true(f.is_stunned(), "fixture enters stunned state")
+	AudioManager.reset()
+	f.take_damage(1)
+	_runner.assert_eq(AudioManager.get_played_sfx(), [], "stunned rejection stays silent")
+	AudioManager.reset()
+
+
 func test_yokai_friend_defaults_are_midboss_tuned() -> void:
 	var f = FriendScene.instantiate()
 	var player = preload("res://scripts/player/player.gd").new()

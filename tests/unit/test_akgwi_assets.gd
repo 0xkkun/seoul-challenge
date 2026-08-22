@@ -54,14 +54,17 @@ func test_akgwi_contact_damage_plays_attack_animation() -> void:
 	add_child(target)
 	enemy.global_position = Vector2.ZERO
 	target.global_position = Vector2.RIGHT
+	AudioManager.reset()
 
 	enemy.call("_try_contact", target)
 
 	_runner.assert_eq(target.damage_taken, enemy.contact_damage, "akgwi applies melee contact damage")
+	_runner.assert_eq(AudioManager.get_played_sfx(), [&"chaser_attack"], "accepted akgwi contact starts one dedicated attack sound")
 	var sprite := enemy.get_node_or_null("Sprite") as AnimatedSprite2D
 	_runner.assert_not_null(sprite, "akgwi sprite remains mounted after contact")
 	if sprite != null:
 		_runner.assert_eq(sprite.animation, &"attack", "akgwi switches to attack animation on melee contact")
+	AudioManager.reset()
 
 
 func test_akgwi_takes_three_default_bat_hits() -> void:

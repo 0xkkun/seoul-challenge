@@ -27,8 +27,12 @@ const NIGHT_INTRO_TRANSITION_BC := &"night_intro_transition_bc"
 const NIGHT_INTRO_TRANSITION_CD := &"night_intro_transition_cd"
 const NIGHT_INTRO_TRANSITION := &"night_intro_transition"
 const NIGHT_INTRO_TRANSITION_C := &"night_intro_transition_c"
+const PLAYER_HIT := &"player_hit"
+const ENEMY_HIT := &"enemy_hit"
+const ENEMY_DEATH := &"enemy_death"
+const CHASER_ATTACK := &"chaser_attack"
+const BARE_HAND_SWING := &"bare_hand_swing"
 ## 각성 배트("마지막 시즌의 배트") 해금 팝업의 '따란!' 효과음.
-## 에셋 파일이 추가되면 _SFX_STREAM_PATHS 경로로 자동 재생된다(파일 없으면 무음 스킵).
 const AWAKENED_BAT_REVEAL := &"awakened_bat_reveal"
 const SESSION_TRANSITION_SFX_IDS: Array[StringName] = [
 	SCHOOL_BELL_TRANSITION_FRONT,
@@ -72,16 +76,54 @@ const _SFX_STREAM_PATHS := {
 	NIGHT_INTRO_TRANSITION_CD: "res://assets/audio/sfx/night_intro_transition_cd.mp3",
 	NIGHT_INTRO_TRANSITION: "res://assets/audio/sfx/night_intro_transition.mp3",
 	NIGHT_INTRO_TRANSITION_C: "res://assets/audio/sfx/night_intro_transition_c.mp3",
-	# 사용자 제공 예정 — 이 경로에 파일을 떨구면 각성 배트 해금 연출에서 자동 재생된다.
-	AWAKENED_BAT_REVEAL: "res://assets/audio/sfx/awakened_bat_reveal.mp3",
+	PLAYER_HIT: "res://assets/audio/sfx/player_hit.wav",
+	ENEMY_HIT: "res://assets/audio/sfx/enemy_hit.wav",
+	ENEMY_DEATH: "res://assets/audio/sfx/enemy_death.wav",
+	CHASER_ATTACK: "res://assets/audio/sfx/chaser_attack.wav",
+	BARE_HAND_SWING: "res://assets/audio/sfx/bare_hand_swing.wav",
+	AWAKENED_BAT_REVEAL: "res://assets/audio/sfx/awakened_bat_reveal.wav",
 }
 
 ## 모든 SFX의 기본 재생 볼륨. 개별 보정이 필요하면 _SFX_VOLUME_DB에 id별로 등록한다.
 const DEFAULT_SFX_VOLUME_DB := -2.0
-## id별 볼륨 오버라이드(dB, 절대값). 없는 id는 DEFAULT_SFX_VOLUME_DB로 재생된다.
-## 소스 에셋은 카테고리별 loudness 기준으로 정규화되어 있으므로 예외만 여기에 둔다.
+## 등록된 모든 SFX의 런타임 믹스(dB, 절대값). 새 id는 반드시 명시적으로 조정한다.
 const _SFX_VOLUME_DB := {
+	SCHOOL_BELL_TRANSITION_FRONT: -3.0,
+	SCHOOL_BELL_TRANSITION_BACK: -3.0,
+	SCHOOL_SCENE_PAGE_FLIP: -4.0,
+	QUEST_REWARD_LEVEL_UP: -2.0,
+	RUN_VICTORY: -1.0,
+	UI_BUTTON_PRESS: -6.0,
+	BAT_SWING: -3.0,
+	BAT_HIT: -2.0,
+	BOSS_WEAK_SLAM: -2.0,
+	BOSS_WEAK_GROUND_SPIKE: -4.0,
+	BOSS_STRONG_ATTACK: -1.0,
+	WOLF_ATTACK: -3.0,
 	PARRY_SUCCESS: -1.0,
+	KUMIHO_FIREBALL: -4.0,
+	CORRIDOR_FOOTSTEP: -10.0,
+	GYEONGBOKGUNG_FOOTSTEP: -8.0,
+	DASH_WIND: -5.0,
+	NIGHT_INTRO_TRANSITION_AB: -4.0,
+	NIGHT_INTRO_TRANSITION_BC: -4.0,
+	NIGHT_INTRO_TRANSITION_CD: -4.0,
+	NIGHT_INTRO_TRANSITION: -5.0,
+	NIGHT_INTRO_TRANSITION_C: -5.0,
+	PLAYER_HIT: -3.0,
+	ENEMY_HIT: -6.0,
+	ENEMY_DEATH: -4.0,
+	CHASER_ATTACK: -5.0,
+	BARE_HAND_SWING: -7.0,
+	AWAKENED_BAT_REVEAL: -1.0,
+}
+
+const _SFX_COOLDOWNS := {
+	PLAYER_HIT: 0.12,
+	ENEMY_HIT: 0.06,
+	ENEMY_DEATH: 0.08,
+	CHASER_ATTACK: 0.18,
+	BARE_HAND_SWING: 0.10,
 }
 
 const BGM_VOLUME_DB := 0.0
@@ -94,6 +136,7 @@ const BGM_DUCK_DB := -20.0
 
 var _played_sfx: Array[StringName] = []
 var _stopped_sfx: Array[StringName] = []
+var _last_sfx_played_at := {}
 var _current_bgm: StringName = &""
 var _current_bgm_path := ""
 var _bgm_player: AudioStreamPlayer
@@ -112,31 +155,47 @@ func _ready() -> void:
 		EventBus.settings_changed.connect(_on_settings_changed)
 
 
-func play_sfx(id: StringName) -> void:
-	if not _is_sfx_enabled():
-		return
+func can_play_sfx(id: StringName, now_seconds: float, cooldown: float) -> bool:
+	if cooldown <= 0.0 or not _last_sfx_played_at.has(id):
+		return true
+	return now_seconds - float(_last_sfx_played_at[id]) >= cooldown
+
+
+func get_sfx_cooldown(id: StringName, override: float = -1.0) -> float:
+	if override >= 0.0:
+		return override
+	return float(_SFX_COOLDOWNS.get(id, 0.0))
+
+
+func play_sfx(id: StringName, cooldown_override: float = -1.0) -> bool:
+	var now_seconds := Time.get_ticks_msec() / 1000.0
+	var effective_cooldown := get_sfx_cooldown(id, cooldown_override)
+	if not _is_sfx_enabled() or not can_play_sfx(id, now_seconds, effective_cooldown):
+		return false
+	_last_sfx_played_at[id] = now_seconds
 	_played_sfx.append(id)
 	var stream_path := get_sfx_stream_path(id)
 	if stream_path == "":
-		return
+		return true
 	# Skip real playback when there is no audio output (headless CI/tests). The
 	# play is still recorded above; spawning a player here would leak its stream
 	# because the dummy audio server never releases in-flight playbacks at exit.
 	if DisplayServer.get_name() == "headless":
-		return
+		return true
 	var stream := load(stream_path) as AudioStream
 	if stream == null:
 		push_error("SFX stream is missing: %s" % stream_path)
-		return
+		return true
 	var player := AudioStreamPlayer.new()
 	player.name = "SfxPlayer"
 	player.stream = stream
-	player.volume_db = _SFX_VOLUME_DB.get(id, DEFAULT_SFX_VOLUME_DB)
+	player.volume_db = get_sfx_volume_db(id)
 	player.set_meta("sfx_id", id)
 	add_child(player)
 	_sfx_players.append(player)
 	player.finished.connect(_on_sfx_player_finished.bind(player), CONNECT_ONE_SHOT)
 	player.play()
+	return true
 
 
 func stop_sfx(id: StringName) -> void:
@@ -280,6 +339,17 @@ func get_sfx_stream_path(id: StringName) -> String:
 	return _SFX_STREAM_PATHS.get(id, "")
 
 
+func get_registered_sfx_ids() -> Array[StringName]:
+	var ids: Array[StringName] = []
+	for id: Variant in _SFX_STREAM_PATHS.keys():
+		ids.append(StringName(id))
+	return ids
+
+
+func get_sfx_volume_db(id: StringName) -> float:
+	return float(_SFX_VOLUME_DB.get(id, DEFAULT_SFX_VOLUME_DB))
+
+
 func has_bgm(id: StringName) -> bool:
 	return _BGM_STREAM_PATHS.has(id)
 
@@ -309,6 +379,7 @@ func get_stopped_sfx() -> Array[StringName]:
 func reset() -> void:
 	_played_sfx.clear()
 	_stopped_sfx.clear()
+	_last_sfx_played_at.clear()
 	_clear_sfx_players()
 	stop_bgm()
 
