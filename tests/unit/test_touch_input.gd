@@ -92,8 +92,11 @@ func test_ingame_control_onboarding_contract_teaches_mobile_combat_inputs() -> v
 		var contract: Dictionary = onboarding.call("get_visual_contract")
 		_runner.assert_eq(contract.get("flow"), &"first_ingame_controls", "온보딩 flow id는 안정적이다")
 		_runner.assert_eq(bool(contract.get("blocks_gameplay", true)), false, "조작 온보딩은 실제 입력을 막지 않는다")
-		_runner.assert_eq(bool(contract.get("uses_dim_cutout", false)), true, "대상 외 화면은 dim 처리하고 대상은 cutout으로 남긴다")
-		_runner.assert_true(float(contract.get("dim_alpha", 0.0)) >= 0.45, "dim alpha는 주변을 충분히 낮춘다")
+		_runner.assert_false(bool(contract.get("uses_dim_cutout", true)), "조작 코치마크는 playfield를 dim 처리하지 않는다")
+		_runner.assert_false(bool(contract.get("uses_fullscreen_dim", true)), "조작 코치마크는 중앙 fullscreen overlay를 만들지 않는다")
+		_runner.assert_eq(float(contract.get("dim_alpha", -1.0)), 0.0, "비모달 조작 안내의 dim alpha는 0이다")
+		_runner.assert_eq(contract.get("bracket_style"), &"corners", "실제 컨트롤은 corner bracket으로 강조한다")
+		_runner.assert_eq(float(contract.get("screen_coverage_hard_cap", 1.0)), 0.25, "온보딩 UI는 화면 25%를 hard cap으로 둔다")
 		_runner.assert_true(float(contract.get("camera_zoom_target", 1.0)) > 1.0, "첫 조작 안내 중 카메라는 살짝 줌인한다")
 		_runner.assert_eq(
 			contract.get("step_ids", []),
@@ -221,8 +224,11 @@ func test_ingame_control_onboarding_desktop_guidance_names_keyboard_inputs_witho
 	var snapshot: Dictionary = onboarding.call("get_current_step_snapshot")
 
 	_runner.assert_eq(snapshot.get("input_mode"), &"desktop", "터치 UI가 없으면 데스크톱 안내 모드를 쓴다")
-	_runner.assert_eq(snapshot.get("body"), "WASD 또는 방향키로 96px 이동", "첫 안내는 실제 PC 이동 거리와 키를 알려준다")
+	_runner.assert_eq(snapshot.get("key_label"), "WASD", "첫 안내는 실제 PC 이동 key chip을 쓴다")
+	_runner.assert_eq(snapshot.get("action"), "이동", "첫 안내는 행동어만 강하게 보여준다")
+	_runner.assert_eq(snapshot.get("detail"), "96px", "성공 거리는 짧은 detail로 분리한다")
 	_runner.assert_eq(snapshot.get("target_names", []), [], "데스크톱 안내는 존재하지 않는 터치 위젯을 가리키지 않는다")
+	_runner.assert_true(float(snapshot.get("screen_coverage", 1.0)) <= 0.25, "PC coachmark는 playfield 75% 이상을 남긴다")
 
 	player.queue_free()
 	onboarding.queue_free()
@@ -240,19 +246,22 @@ func test_ingame_control_onboarding_desktop_actions_match_pc_control_scheme() ->
 	onboarding.call("record_player_position", Vector2.ZERO)
 	onboarding.call("record_player_position", Vector2(96.0, 0.0))
 	var attack_snapshot: Dictionary = onboarding.call("get_current_step_snapshot")
-	_runner.assert_eq(attack_snapshot.get("body"), "좌클릭으로 가까운 적을 공격", "기본공격 안내는 PC 좌클릭만 알려준다")
+	_runner.assert_eq(attack_snapshot.get("key_label"), "LMB", "기본공격 안내는 PC 좌클릭 key chip만 쓴다")
+	_runner.assert_eq(attack_snapshot.get("action"), "공격", "기본공격 행동어가 짧다")
 	onboarding.call("record_action", &"attack_executed")
 	var dash_snapshot: Dictionary = onboarding.call("get_current_step_snapshot")
-	_runner.assert_eq(dash_snapshot.get("body"), "SPACE로 짧게 회피", "대쉬 안내는 PC 기본 SPACE를 알려준다")
+	_runner.assert_eq(dash_snapshot.get("key_label"), "SPACE", "대시 안내는 PC 기본 SPACE를 알려준다")
+	_runner.assert_eq(dash_snapshot.get("action"), "회피", "대시는 의도를 행동어로 보여준다")
 	onboarding.call("record_action", &"dash_started")
 	var power_snapshot: Dictionary = onboarding.call("get_current_step_snapshot")
-	_runner.assert_eq(power_snapshot.get("body"), "SPACE 직후 좌클릭으로 강공격", "강공격 안내는 대쉬와 공격의 실제 PC 키를 조합한다")
+	_runner.assert_eq(power_snapshot.get("key_label"), "SPACE → LMB", "강공격 안내는 실제 PC 키 순서를 조합한다")
+	_runner.assert_eq(power_snapshot.get("action"), "강공격", "강공격 행동어가 짧다")
 
 	player.queue_free()
 	onboarding.queue_free()
 
 
-func test_ingame_control_onboarding_desktop_guidance_centers_hint_without_empty_spotlight() -> void:
+func test_ingame_control_onboarding_desktop_guidance_uses_safe_actor_coachmark_without_dim() -> void:
 	var script := load(INGAME_CONTROL_ONBOARDING_SCRIPT_PATH) as Script
 	var player := StubIntegratedInputPlayer.new()
 	var onboarding := script.new() as CanvasLayer
@@ -262,17 +271,15 @@ func test_ingame_control_onboarding_desktop_guidance_centers_hint_without_empty_
 	onboarding.call("configure", null, null, player)
 	onboarding.call("start")
 	var contract: Dictionary = onboarding.call("get_visual_contract")
-	var spotlight := onboarding.get_node_or_null("Root/SpotlightFrame") as Control
-	var hint_panel := onboarding.get_node_or_null("Root/HintPanel") as Control
+	var coach := onboarding.get_node_or_null("CoachMark") as CanvasLayer
+	var snapshot: Dictionary = onboarding.call("get_current_step_snapshot")
 
-	_runner.assert_false(bool(contract.get("uses_dim_cutout", true)), "데스크톱 안내는 존재하지 않는 터치 대상용 cutout을 만들지 않는다")
-	_runner.assert_not_null(spotlight, "온보딩은 스포트라이트 노드를 유지한다")
-	if spotlight != null:
-		_runner.assert_false(spotlight.visible, "데스크톱에서는 빈 스포트라이트를 숨긴다")
-	_runner.assert_not_null(hint_panel, "온보딩은 키 안내 패널을 유지한다")
-	if hint_panel != null:
-		var viewport_center := onboarding.get_viewport().get_visible_rect().get_center()
-		_runner.assert_true(hint_panel.get_global_rect().has_point(viewport_center), "데스크톱 키 안내는 화면 중앙에서 바로 읽힌다")
+	_runner.assert_false(bool(contract.get("uses_dim_cutout", true)), "데스크톱 안내는 cutout을 만들지 않는다")
+	_runner.assert_eq(onboarding.get_node_or_null("Root/SpotlightFrame"), null, "기존 둥근 spotlight 노드는 제거한다")
+	_runner.assert_eq(onboarding.get_node_or_null("Root/HintPanel"), null, "기존 중앙 HintPanel은 제거한다")
+	_runner.assert_not_null(coach, "온보딩은 공통 CoachMark를 마운트한다")
+	_runner.assert_true(MobileSafeArea.meets_landscape_minimum(snapshot.get("coach_rect", Rect2()) as Rect2), "PC coach label은 safe area 안에 있다")
+	_runner.assert_true(float(snapshot.get("screen_coverage", 1.0)) <= 0.25, "PC coach label은 화면을 덮지 않는다")
 
 	player.queue_free()
 	onboarding.queue_free()
@@ -283,13 +290,15 @@ func test_ingame_control_onboarding_hint_children_do_not_capture_gameplay_mouse(
 	var onboarding := script.new() as CanvasLayer
 	add_child(onboarding)
 
-	var hint_text := onboarding.get_node_or_null("Root/HintPanel/HintText") as Control
-	var title_label := onboarding.get_node_or_null("Root/HintPanel/HintText/TitleLabel") as Control
-	var body_label := onboarding.get_node_or_null("Root/HintPanel/HintText/BodyLabel") as Control
-	_runner.assert_not_null(hint_text, "온보딩 힌트 컨테이너가 존재한다")
-	_runner.assert_not_null(title_label, "온보딩 제목이 존재한다")
-	_runner.assert_not_null(body_label, "온보딩 본문이 존재한다")
-	for control: Control in [hint_text, title_label, body_label]:
+	var root := onboarding.get_node_or_null("CoachMark/Root") as Control
+	var panel := onboarding.get_node_or_null("CoachMark/Root/CoachPanel") as Control
+	var action_label := onboarding.get_node_or_null("CoachMark/Root/CoachPanel/CoachStack/ActionRow/ActionLabel") as Control
+	var detail_label := onboarding.get_node_or_null("CoachMark/Root/CoachPanel/CoachStack/DetailLabel") as Control
+	_runner.assert_not_null(root, "공통 coach root가 존재한다")
+	_runner.assert_not_null(panel, "compact coach panel이 존재한다")
+	_runner.assert_not_null(action_label, "행동어 label이 존재한다")
+	_runner.assert_not_null(detail_label, "detail label이 존재한다")
+	for control: Control in [root, panel, action_label, detail_label]:
 		if control != null:
 			_runner.assert_eq(control.mouse_filter, Control.MOUSE_FILTER_IGNORE, "%s는 gameplay 좌클릭을 가로막지 않는다" % control.name)
 
@@ -309,10 +318,32 @@ func test_ingame_control_onboarding_touch_guidance_survives_temporary_modal_hidi
 	var hidden_snapshot: Dictionary = onboarding.call("get_current_step_snapshot")
 
 	_runner.assert_eq(hidden_snapshot.get("input_mode"), &"touch", "모달이 터치 UI를 잠시 숨겨도 안내 모드는 바뀌지 않는다")
-	_runner.assert_eq(hidden_snapshot.get("body"), "왼쪽 스틱으로 96px 이동", "모달 중에도 모바일 조작 문구를 유지한다")
+	_runner.assert_eq(hidden_snapshot.get("key_label"), "스틱", "모달 중에도 모바일 key chip을 유지한다")
+	_runner.assert_eq(hidden_snapshot.get("action"), "이동", "모달 중에도 모바일 행동어를 유지한다")
 	_runner.assert_eq(hidden_snapshot.get("target_names", []), ["Joystick"], "모달 중에도 현재 터치 단계 계약을 유지한다")
 
 	touch.queue_free()
+	onboarding.queue_free()
+
+
+func test_ingame_control_onboarding_applies_reduced_motion_on_the_next_step() -> void:
+	Settings.reset_defaults()
+	var script := load(INGAME_CONTROL_ONBOARDING_SCRIPT_PATH) as Script
+	var player := StubIntegratedInputPlayer.new()
+	var onboarding := script.new() as CanvasLayer
+	add_child(player)
+	add_child(onboarding)
+
+	onboarding.call("configure", null, null, player)
+	onboarding.call("start")
+	_runner.assert_false(bool(onboarding.call("get_current_step_snapshot").get("reduced_motion", true)), "first step uses the current default motion setting")
+	Settings.set_reduced_motion_enabled(true)
+	onboarding.call("record_player_position", Vector2.ZERO)
+	onboarding.call("record_player_position", Vector2(96.0, 0.0))
+	_runner.assert_true(bool(onboarding.call("get_current_step_snapshot").get("reduced_motion", false)), "next successful step reads the changed reduced-motion setting")
+
+	Settings.reset_defaults()
+	player.queue_free()
 	onboarding.queue_free()
 
 
@@ -337,8 +368,7 @@ func test_ingame_control_onboarding_advances_from_player_integrated_input_withou
 	_assert_onboarding_step(onboarding, &"minimap", ["Minimap"])
 	onboarding.call("record_action", &"minimap_expanded", {"expanded": true})
 	_assert_onboarding_step(onboarding, &"exit", [])
-	var exit_spotlight := onboarding.get_node("Root/SpotlightFrame") as Control
-	_runner.assert_false(exit_spotlight.visible, "대상이 없는 출구 단계는 빈 spotlight 사각형을 만들지 않는다")
+	_runner.assert_eq(onboarding.call("get_current_step_snapshot").get("target_rect"), Rect2(), "대상이 없는 출구 단계는 빈 spotlight 사각형을 만들지 않는다")
 	onboarding.call("record_room_changed", &"combat_1", &"combat")
 
 	_runner.assert_false(bool(onboarding.call("is_active")), "플레이어 성공 신호와 실제 방 전환으로 PC 온보딩을 완료한다")
@@ -437,8 +467,7 @@ func test_ingame_control_onboarding_touch_buttons_require_success_events() -> vo
 	_runner.assert_eq(onboarding.call("get_current_step_snapshot").get("target_rect"), minimap.get_global_rect(), "지도 단계는 외부 minimap Control을 직접 가리킨다")
 	onboarding.call("record_action", &"minimap_expanded", {"expanded": true})
 	_assert_onboarding_step(onboarding, &"exit", [])
-	var touch_exit_spotlight := onboarding.get_node("Root/SpotlightFrame") as Control
-	_runner.assert_false(touch_exit_spotlight.visible, "터치 출구 단계도 빈 spotlight 사각형을 만들지 않는다")
+	_runner.assert_eq(onboarding.call("get_current_step_snapshot").get("target_rect"), Rect2(), "터치 출구 단계도 빈 spotlight 사각형을 만들지 않는다")
 	onboarding.call("record_room_changed", &"combat_1", &"combat")
 	_runner.assert_false(bool(onboarding.call("is_active")), "실제 성공 이벤트와 방 전환까지 확인하면 온보딩이 끝난다")
 
@@ -750,8 +779,8 @@ func _assert_onboarding_step(onboarding: CanvasLayer, expected_id: StringName, e
 	var snapshot: Dictionary = onboarding.call("get_current_step_snapshot")
 	_runner.assert_eq(snapshot.get("step_id"), expected_id, "현재 온보딩 단계 id가 맞다")
 	_runner.assert_eq(snapshot.get("target_names", []), expected_targets, "현재 온보딩 타겟이 맞다")
-	_runner.assert_true(String(snapshot.get("title", "")) != "", "현재 온보딩 단계는 제목을 가진다")
-	_runner.assert_true(String(snapshot.get("body", "")) != "", "현재 온보딩 단계는 짧은 설명을 가진다")
+	_runner.assert_true(String(snapshot.get("action", "")) != "", "현재 온보딩 단계는 짧은 행동어를 가진다")
+	_runner.assert_true(float(snapshot.get("screen_coverage", 1.0)) <= 0.25, "현재 코치마크는 화면 25%를 넘지 않는다")
 
 
 func _create_visible_touch_controls() -> CanvasLayer:

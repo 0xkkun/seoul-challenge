@@ -231,6 +231,9 @@ func _desired_panel_size() -> Vector2:
 
 
 func _target_rect() -> Rect2:
+	var rect_override: Variant = _model.get("target_rect")
+	if rect_override is Rect2 and (rect_override as Rect2).size != Vector2.ZERO:
+		return rect_override as Rect2
 	var target := _model.get("target") as Node
 	if target == null or not is_instance_valid(target):
 		return Rect2()
