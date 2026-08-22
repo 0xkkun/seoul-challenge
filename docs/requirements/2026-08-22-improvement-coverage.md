@@ -1,7 +1,7 @@
 # 2026-08-21 개선 명세 반영 현황
 
 기준 코드: `origin/main@c6a2ac7`
-원문: `/Users/orbit/Downloads/아카이브/요괴뎐_개선안_2026-08-21`
+사용자 제공 자료: `요괴뎐_개선안_2026-08-21`
 프로그램 설계: `docs/superpowers/specs/2026-08-22-first-five-minutes-onboarding-design.md`
 
 ## 상태 정의
