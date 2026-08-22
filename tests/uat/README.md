@@ -89,3 +89,17 @@ main scene, restore `project.godot`, then open:
 The fixture prints `UAT_PARRY_FEEDBACK_READY` with `time_scale`, `text_count`,
 `flash`, `camera_offset`, and `pool_registered`. Pass/fail uses this marker and
 browser errors; screenshots are visual evidence only.
+
+## Portal retry and session cleanup fixture
+
+Temporarily export with `res://tests/uat/session_cleanup_web_fixture.tscn` as the
+main scene, restore `project.godot`, then open:
+
+- `?uat_session_cleanup_mode=portal_blocked` — actor overlaps an open portal while paused; the failed request remains retryable.
+- `?uat_session_cleanup_mode=portal_retry` — unpause without actor movement; the same overlap succeeds exactly once.
+- `?uat_session_cleanup_mode=death_before` — control, purification, parry, flash, text, zoom, and camera feedback are all active.
+- `?uat_session_cleanup_mode=death_after` — death summary keeps its intended pause while all transient onboarding state is clean.
+- `?uat_session_cleanup_mode=next_session` — a replacement session owns a fresh 20-slot combat text pool.
+
+Every valid state prints `UAT_SESSION_CLEANUP_READY`. Pass/fail uses the marker
+and browser errors; screenshots are visual evidence only.

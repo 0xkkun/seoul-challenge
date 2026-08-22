@@ -99,8 +99,9 @@ func check_transition_for_actor(actor: Node2D) -> bool:
 	if _was_actor_overlapping:
 		return false
 
-	_was_actor_overlapping = true
-	return request_transition()
+	var transitioned := request_transition()
+	_was_actor_overlapping = transitioned
+	return transitioned
 
 
 func request_transition() -> bool:

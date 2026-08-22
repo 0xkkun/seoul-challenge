@@ -223,6 +223,11 @@ func set_onboarding_journey_hint(title: String, body: String, enabled: bool) -> 
 	_onboarding_journey_hint_panel.visible = enabled and not _onboarding_journey_hint_action.text.is_empty()
 
 
+func finish_onboarding_ui() -> void:
+	hide_reward_choices()
+	set_onboarding_journey_hint("", "", false)
+
+
 func get_onboarding_journey_hint_snapshot() -> Dictionary:
 	_ensure_onboarding_journey_hint()
 	var rect := _onboarding_journey_hint_panel.get_global_rect()
