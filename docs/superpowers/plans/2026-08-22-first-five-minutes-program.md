@@ -626,6 +626,8 @@ Run unit, integration, quick, and full gates. UAT a missed dash, wolf death, nex
 - Produces: `HitStopManager.request(duration: float, scale: float = 0.05) -> bool` and `restore() -> void`.
 - Produces: `FloatingCombatText.initialize(position: Vector2, text: String, style: StringName) -> void`.
 - Produces: `FloatingCombatText.style_for(style: StringName) -> Dictionary`.
+- Produces: `FloatingCombatText.activate_from_pool()` and `reset_for_pool()`;
+  every completed lifetime returns itself through `PoolManager.release(self)`.
 - Consumes: `Player.parry_succeeded`.
 
 - [ ] **Step 1: Write hit-stop RED tests**
@@ -648,7 +650,11 @@ Record controller calls and assert exact order:
 _runner.assert_eq(log, [&"text", &"hit_stop", &"flash", &"shake", &"sound", &"haptic"])
 ```
 
-Add a pool-cap test that the 21st floating text is rejected while 20 are active.
+Add a pool-cap/lifecycle test: the 21st floating text is rejected while 20 are
+active; after advancing past their lifetime all 20 leave the active list and a
+new text can be acquired. Reacquire one released node and assert text, style,
+modulate, scale, position, and tween state were reset before the new
+`initialize()` call.
 
 - [ ] **Step 5: Implement presentation order**
 
@@ -673,11 +679,21 @@ func present(payload: Dictionary) -> void:
 
 Remove the old direct `HapticManager.on_deflect()` call from `Wolf.parry_dash()` in this same slice so one successful parry produces exactly one strong haptic.
 
-The parry style is fixed at 32pt, 1.0s, 20px rise, cyan/white glow, punch scale. Register a pool of 20 and reject further acquire attempts without allocating.
+The parry style is fixed at 32pt, 1.0s, 20px rise, cyan/white glow, punch
+scale. Register a pool of 20 and reject further acquire attempts without
+allocating. `initialize()` starts one owned lifetime tween; on completion the
+node calls `PoolManager.release(self)` instead of `queue_free()`.
+`reset_for_pool()` kills and clears any owned tween and restores label text,
+style, modulate, scale, and transform defaults so the next acquire cannot
+inherit visual state. Guard the completion callback with an activation
+generation/token so a stale tween cannot release a newly reused node.
 
 - [ ] **Step 6: Verify recovery and Web behavior**
 
-Test session exit during hit stop, repeated parries, and Web frame pacing. Run full gate. UAT must capture before/impact/recovery frames and confirm time scale and camera offset return to defaults.
+Test session exit during hit stop, repeated parries, text expiry/reacquire after
+more than 20 sequential presentations, and Web frame pacing. Run full gate.
+UAT must capture before/impact/recovery frames and confirm time scale, camera
+offset, and floating-text active count return to defaults.
 
 - [ ] **Step 7: Commit and merge**
 
@@ -1169,7 +1185,12 @@ func test_damage_text_styles_are_distinct_and_capped() -> void:
 
 - [ ] **Step 2: Confirm RED and implement styles**
 
-Use ordinary 18pt white/40px/0.8s, power 24pt yellow/40px/0.8s, player damage 20pt red/20px/0.5s. Check `PoolManager.get_active_count(&"floating_combat_text") >= 20` before acquire.
+Use ordinary 18pt white/40px/0.8s, power 24pt yellow/40px/0.8s, player damage
+20pt red/20px/0.5s. Check
+`PoolManager.get_active_count(&"floating_combat_text") >= 20` before acquire.
+Each style's lifetime still ends through Task 5's release/reset contract; add a
+sequential 21-text test proving an expired slot is reused rather than
+permanently consuming the cap.
 
 - [ ] **Step 3: Add and test the setting**
 
