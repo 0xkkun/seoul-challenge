@@ -6,6 +6,7 @@ const KEY_TOUCH_CONTROLS := "touch_controls"
 const KEY_BGM_ENABLED := "bgm_enabled"
 const KEY_SFX_ENABLED := "sfx_enabled"
 const KEY_HAPTIC_ENABLED := "haptic_enabled"
+const KEY_REDUCED_MOTION := "reduced_motion"
 
 const DEFAULT_SETTINGS := {
 	"language": "en",
@@ -14,6 +15,7 @@ const DEFAULT_SETTINGS := {
 	"bgm_enabled": true,
 	"sfx_enabled": true,
 	"haptic_enabled": true,
+	"reduced_motion": false,
 }
 
 var _settings: Dictionary = DEFAULT_SETTINGS.duplicate(true)
@@ -54,6 +56,14 @@ func is_haptic_enabled() -> bool:
 
 func set_haptic_enabled(enabled: bool) -> void:
 	set_value(KEY_HAPTIC_ENABLED, enabled)
+
+
+func is_reduced_motion_enabled() -> bool:
+	return bool(get_value(KEY_REDUCED_MOTION, false))
+
+
+func set_reduced_motion_enabled(enabled: bool) -> void:
+	set_value(KEY_REDUCED_MOTION, enabled)
 
 
 func try_vibrate(duration_ms: int = 80) -> void:

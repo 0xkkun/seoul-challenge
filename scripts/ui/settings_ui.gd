@@ -4,10 +4,12 @@ extends PopupBase
 const TEST_ID_BGM_TOGGLE := "settings.bgm_toggle"
 const TEST_ID_SFX_TOGGLE := "settings.sfx_toggle"
 const TEST_ID_HAPTIC_TOGGLE := "settings.haptic_toggle"
+const TEST_ID_REDUCED_MOTION_TOGGLE := "settings.reduced_motion_toggle"
 const TEST_ID_CLOSE := "settings.close_button"
 const ACTION_BGM_TOGGLE := "settings.bgm.toggle"
 const ACTION_SFX_TOGGLE := "settings.sfx.toggle"
 const ACTION_HAPTIC_TOGGLE := "settings.haptic.toggle"
+const ACTION_REDUCED_MOTION_TOGGLE := "settings.reduced_motion.toggle"
 const ACTION_CLOSE := "settings.close"
 
 const _OPEN_DURATION := 0.14
@@ -206,6 +208,8 @@ func _on_toggle_pressed(key: String) -> void:
 			Settings.set_sfx_enabled(next_value)
 		Settings.KEY_HAPTIC_ENABLED:
 			Settings.set_haptic_enabled(next_value)
+		Settings.KEY_REDUCED_MOTION:
+			Settings.set_reduced_motion_enabled(next_value)
 		_:
 			Settings.set_value(key, next_value)
 	_sync_toggle_button(key)
@@ -220,6 +224,8 @@ func _sync_toggle_button(key: String) -> void:
 	if button == null:
 		return
 	var enabled := bool(Settings.get_value(key, true))
+	if key == Settings.KEY_REDUCED_MOTION:
+		enabled = Settings.is_reduced_motion_enabled()
 	button.text = "ON" if enabled else "OFF"
 	var variant := PixelButtonStyle.VARIANT_PRIMARY if enabled else PixelButtonStyle.VARIANT_SECONDARY
 	PixelButtonStyle.apply(button, variant, _TOGGLE_MIN_SIZE)
@@ -258,6 +264,14 @@ func _toggle_rows() -> Array[Dictionary]:
 			"label": "진동",
 			"test_id": TEST_ID_HAPTIC_TOGGLE,
 			"action": ACTION_HAPTIC_TOGGLE,
+			"icon_on": _HAPTIC_ON_ICON,
+			"icon_off": _HAPTIC_OFF_ICON,
+		},
+		{
+			"key": Settings.KEY_REDUCED_MOTION,
+			"label": "온보딩 모션 줄이기",
+			"test_id": TEST_ID_REDUCED_MOTION_TOGGLE,
+			"action": ACTION_REDUCED_MOTION_TOGGLE,
 			"icon_on": _HAPTIC_ON_ICON,
 			"icon_off": _HAPTIC_OFF_ICON,
 		},
