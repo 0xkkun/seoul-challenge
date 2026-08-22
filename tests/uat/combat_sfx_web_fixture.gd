@@ -5,19 +5,36 @@ const PLAYER_SCENE := preload("res://scenes/player/player.tscn")
 const CHASER_SCENE := preload("res://scenes/enemies/akgwi.tscn")
 
 var _mode := "multi_hit"
+var _web_audio_unlocked := false
 
 
 func _ready() -> void:
 	_mode = _read_mode()
 	if OS.has_feature("web"):
-		call_deferred("_setup_after_audio_unlock_window")
+		set_process_input(true)
+		print("UAT_COMBAT_SFX_WAITING_FOR_GESTURE mode=%s" % _mode)
 	else:
 		call_deferred("_setup")
 
 
-func _setup_after_audio_unlock_window() -> void:
-	await get_tree().create_timer(0.8).timeout
-	_setup()
+func _input(event: InputEvent) -> void:
+	if not OS.has_feature("web") or _web_audio_unlocked:
+		return
+	if not is_audio_unlock_event(event):
+		return
+	_web_audio_unlocked = true
+	set_process_input(false)
+	call_deferred("_setup")
+
+
+static func is_audio_unlock_event(event: InputEvent) -> bool:
+	if event is InputEventMouseButton:
+		return event.pressed
+	if event is InputEventScreenTouch:
+		return event.pressed
+	if event is InputEventKey:
+		return event.pressed and not event.echo
+	return false
 
 
 func _setup() -> void:

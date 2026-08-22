@@ -1,5 +1,7 @@
 extends Node
 
+const CombatSfxWebFixture := preload("res://tests/uat/combat_sfx_web_fixture.gd")
+
 var _runner: Node
 
 
@@ -24,6 +26,26 @@ func test_same_sfx_is_throttled_without_blocking_other_ids() -> void:
 	_runner.assert_false(AudioManager.can_play_sfx(&"enemy_hit", 10.04, 0.08), "same id inside cooldown is rejected")
 	_runner.assert_true(AudioManager.can_play_sfx(&"player_hit", 10.04, 0.08), "different id is independent")
 	_runner.assert_true(AudioManager.can_play_sfx(&"enemy_hit", 10.08, 0.08), "boundary play is accepted")
+
+
+func test_web_audio_fixture_requires_a_pressed_gesture_event() -> void:
+	var mouse_press := InputEventMouseButton.new()
+	mouse_press.pressed = true
+	_runner.assert_true(CombatSfxWebFixture.is_audio_unlock_event(mouse_press), "pressed pointer unlocks Web audio")
+	mouse_press.pressed = false
+	_runner.assert_false(CombatSfxWebFixture.is_audio_unlock_event(mouse_press), "pointer release cannot start the fixture")
+
+	var touch_press := InputEventScreenTouch.new()
+	touch_press.pressed = true
+	_runner.assert_true(CombatSfxWebFixture.is_audio_unlock_event(touch_press), "pressed touch unlocks Web audio")
+
+	var key_press := InputEventKey.new()
+	key_press.pressed = true
+	_runner.assert_true(CombatSfxWebFixture.is_audio_unlock_event(key_press), "fresh key press unlocks Web audio")
+	key_press.echo = true
+	_runner.assert_false(CombatSfxWebFixture.is_audio_unlock_event(key_press), "key repeat cannot retrigger fixture setup")
+
+	_runner.assert_false(CombatSfxWebFixture.is_audio_unlock_event(InputEventMouseMotion.new()), "pointer motion alone cannot unlock Web audio")
 
 
 func test_runtime_cooldown_table_throttles_and_explicit_zero_bypasses() -> void:

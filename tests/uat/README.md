@@ -155,3 +155,8 @@ main scene and restore `project.godot` after the release export. Open:
 Every valid state prints `UAT_COMBAT_SFX_READY`. Pass/fail uses the marker,
 active audio-player count, browser errors, and a no-clipping waveform mix check;
 screenshots are visual evidence only.
+
+On Web the fixture first prints `UAT_COMBAT_SFX_WAITING_FOR_GESTURE` and must
+not create players or print `READY` until a pressed pointer, touch, or fresh key
+event reaches Godot. UAT must verify the waiting state before supplying that
+gesture so suspended browser audio cannot produce a false pass.
