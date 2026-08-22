@@ -388,6 +388,11 @@ func test_parry_tutorial_surface_is_touch_aware_short_and_non_blocking() -> void
 	_runner.assert_true(bool(tutorial.get_snapshot().get("reveal_complete")), "bracket reveal finishes without blocking gameplay")
 	tutorial.call("_process", 2.99)
 	_runner.assert_false(tutorial.is_active(), "short card auto-dismisses after its bounded display window")
+	var coach := tutorial.get_node("CoachMark") as OnboardingCoachMark
+	_runner.assert_true(tutorial.visible, "normal-motion wrapper stays visible while the 140ms dismiss plays")
+	_runner.assert_true(coach.is_active(), "shared coach remains active during its normal dismiss")
+	coach.finish_motion_for_tests(&"parry")
+	_runner.assert_false(tutorial.visible, "wrapper hides after the shared dismiss finishes")
 	tutorial.queue_free()
 	wolf.queue_free()
 

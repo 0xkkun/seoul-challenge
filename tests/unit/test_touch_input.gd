@@ -362,6 +362,7 @@ func test_ingame_control_onboarding_finishes_success_motion_before_replacing_vis
 	onboarding.call("record_player_position", Vector2(96.0, 0.0))
 	_runner.assert_eq(onboarding.call("get_current_step_snapshot").get("step_id"), &"attack", "success advances the state machine immediately")
 	_runner.assert_eq(coach.get_snapshot().get("id"), &"move", "completed move visual remains during its success exit")
+	_runner.assert_eq(coach.get_snapshot().get("tone_color"), Color(0.38, 0.94, 0.89, 1.0), "completed prompt switches to cyan before shrinking")
 	coach.finish_motion_for_tests(&"move")
 	_runner.assert_eq(coach.get_snapshot().get("id"), &"attack", "next visual appears only after success exit completes")
 	_runner.assert_true(coach.is_active(), "next visual is active after the handoff")

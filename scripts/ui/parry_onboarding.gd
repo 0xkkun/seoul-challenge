@@ -16,6 +16,7 @@ var _input_mode: StringName = InputPromptPolicy.MODE_DESKTOP
 var _active := false
 var _elapsed := 0.0
 var _coach: OnboardingCoachMark = null
+var _dismissing := false
 
 
 func _ready() -> void:
@@ -24,6 +25,7 @@ func _ready() -> void:
 	_coach = CoachMarkScript.new() as OnboardingCoachMark
 	_coach.name = "CoachMark"
 	add_child(_coach)
+	_coach.exit_finished.connect(_on_coach_exit_finished)
 	visible = false
 	set_process(false)
 
@@ -38,6 +40,7 @@ func show_for_wolf(wolf: Node2D, input_mode: StringName) -> void:
 	_wolf = wolf
 	_input_mode = InputPromptPolicy.MODE_TOUCH if input_mode == InputPromptPolicy.MODE_TOUCH else InputPromptPolicy.MODE_DESKTOP
 	_active = true
+	_dismissing = false
 	_elapsed = 0.0
 	visible = true
 	set_process(true)
@@ -61,10 +64,11 @@ func dismiss() -> bool:
 	if not _active:
 		return false
 	_active = false
+	_dismissing = true
 	if _coach != null:
-		_coach.dismiss(true)
+		_coach.configure(_camera, _is_reduced_motion())
+		_coach.dismiss(_is_reduced_motion())
 	_wolf = null
-	visible = false
 	set_process(false)
 	return true
 
@@ -136,3 +140,10 @@ func _legacy_message() -> String:
 
 func _is_reduced_motion() -> bool:
 	return has_node("/root/Settings") and Settings.is_reduced_motion_enabled()
+
+
+func _on_coach_exit_finished(_prompt_id: StringName, kind: StringName) -> void:
+	if kind != &"dismiss" or not _dismissing:
+		return
+	_dismissing = false
+	visible = false

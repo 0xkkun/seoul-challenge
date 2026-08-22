@@ -59,6 +59,8 @@ func show_prompt(model: Dictionary) -> void:
 func complete() -> void:
 	if not _active:
 		return
+	_model["tone"] = &"timing"
+	_apply_tone(&"timing")
 	_play_exit(&"complete")
 
 
@@ -125,8 +127,10 @@ func finish_motion_for_tests(prompt_id: StringName) -> void:
 func _process(_delta: float) -> void:
 	if not _active:
 		return
-	var target := _model.get("target") as Node
-	if target != null and (not is_instance_valid(target) or target.is_queued_for_deletion()):
+	var raw_target: Variant = _model.get("target")
+	var target := raw_target as Node
+	var target_gone := raw_target != null and (target == null or not is_instance_valid(target) or target.is_queued_for_deletion())
+	if target_gone and not _has_pending_exit_for_current_prompt():
 		dismiss(true)
 		return
 	_refresh_layout()
@@ -194,16 +198,20 @@ func _build_ui() -> void:
 
 func _refresh_content() -> void:
 	var tone := StringName(_model.get("tone", &"info"))
+	_key_label.text = String(_model.get("key_label", ""))
+	_key_panel.visible = not _key_label.text.is_empty()
+	_action_label.text = String(_model.get("action", ""))
+	_detail_label.text = String(_model.get("detail", ""))
+	_detail_label.visible = not _detail_label.text.is_empty()
+	_apply_tone(tone)
+
+
+func _apply_tone(tone: StringName) -> void:
 	var tone_color := Tokens.tone_color(tone)
 	_panel.add_theme_stylebox_override("panel", Tokens.coach_style(tone))
 	_key_panel.add_theme_stylebox_override("panel", Tokens.key_chip_style(tone))
-	_key_label.text = String(_model.get("key_label", ""))
 	_key_label.add_theme_color_override("font_color", tone_color)
-	_key_panel.visible = not _key_label.text.is_empty()
-	_action_label.text = String(_model.get("action", ""))
 	_action_label.add_theme_color_override("font_color", tone_color)
-	_detail_label.text = String(_model.get("detail", ""))
-	_detail_label.visible = not _detail_label.text.is_empty()
 	for part: ColorRect in _bracket_parts:
 		part.color = tone_color
 
@@ -365,6 +373,11 @@ func _prompt_id_for_generation(generation: int) -> StringName:
 func _clear_pending_exit(prompt_id: StringName) -> void:
 	_pending_exit_generations.erase(prompt_id)
 	_pending_exit_kinds.erase(prompt_id)
+
+
+func _has_pending_exit_for_current_prompt() -> bool:
+	var prompt_id := StringName(_model.get("id", &""))
+	return int(_pending_exit_generations.get(prompt_id, -1)) == _generation
 
 
 func _kill_motion() -> void:
