@@ -13,6 +13,7 @@ var _enemy: Node2D = null
 var _ordering := {"observed": false, "text_ready": false, "hit_stop_inactive": false}
 var _reused_same_instance := false
 var _settings_scroll_valid := false
+var _settings_drag_path_open := false
 
 
 func _ready() -> void:
@@ -113,6 +114,7 @@ func _emit_marker() -> void:
 	var available_count := PoolManager.get_available_count(TEXT_POOL_ID)
 	var valid := false
 	var player_text_screen_position := Vector2.ZERO
+	var player_screen_space := false
 	match _mode:
 		"ordinary":
 			valid = active_count == 1 and _has_text(snapshots, "2", &"ordinary") and bool(_ordering["text_ready"]) and bool(_ordering["hit_stop_inactive"]) and HitStopManager.is_active() and is_equal_approx(HitStopManager.get_active_scale(), 0.15)
@@ -120,9 +122,11 @@ func _emit_marker() -> void:
 			valid = active_count == 1 and _has_text(snapshots, "3", &"power") and HitStopManager.is_active() and is_equal_approx(HitStopManager.get_active_scale(), 0.08)
 		"player_damage":
 			player_text_screen_position = _player_text_screen_position()
+			var player_text_nodes: Array = (PoolManager.get("_active") as Dictionary).get(TEXT_POOL_ID, [])
+			player_screen_space = not player_text_nodes.is_empty() and (player_text_nodes[0] as Node).get_parent() == _session.get_node("%CombatHud")
 			var health_panel := _session.get_node("%CombatHud").get_node("Root/HealthPanel") as Control
 			var expected_position := Vector2(health_panel.get_global_rect().end.x + 24.0, health_panel.get_global_rect().get_center().y)
-			valid = active_count == 1 and _has_text(snapshots, "2", &"player_damage") and player_text_screen_position.distance_to(expected_position) < 1.0 and HitStopManager.is_active() and is_equal_approx(HitStopManager.get_active_scale(), 0.10) and bool((_session.get_node("%DamageVignette") as DamageVignette).get_snapshot().get("damage_pulse_active", false))
+			valid = active_count == 1 and _has_text(snapshots, "2", &"player_damage") and player_screen_space and player_text_screen_position.distance_to(expected_position) < 1.0 and HitStopManager.is_active() and is_equal_approx(HitStopManager.get_active_scale(), 0.10) and bool((_session.get_node("%DamageVignette") as DamageVignette).get_snapshot().get("damage_pulse_active", false))
 		"cap":
 			valid = active_count == 20 and available_count == 0
 		"reuse":
@@ -134,8 +138,8 @@ func _emit_marker() -> void:
 	if not valid:
 		push_error("Damage-numbers UAT mismatch: mode=%s active=%d available=%d snapshots=%s ordering=%s player_screen=%s hit_stop=%s scale=%.2f" % [_mode, active_count, available_count, snapshots, _ordering, player_text_screen_position, HitStopManager.is_active(), HitStopManager.get_active_scale()])
 	print(
-		"UAT_DAMAGE_NUMBERS_READY mode=%s active=%d available=%d snapshots=%s text_before_hit_stop=%s player_screen=%s hit_stop=%s scale=%.2f valid=%s"
-		% [_mode, active_count, available_count, snapshots, str(bool(_ordering["text_ready"]) and bool(_ordering["hit_stop_inactive"])).to_lower(), player_text_screen_position, str(HitStopManager.is_active()).to_lower(), HitStopManager.get_active_scale(), str(valid).to_lower()]
+		"UAT_DAMAGE_NUMBERS_READY mode=%s active=%d available=%d snapshots=%s text_before_hit_stop=%s player_screen=%s player_screen_space=%s hit_stop=%s scale=%.2f valid=%s"
+		% [_mode, active_count, available_count, snapshots, str(bool(_ordering["text_ready"]) and bool(_ordering["hit_stop_inactive"])).to_lower(), player_text_screen_position, str(player_screen_space).to_lower(), str(HitStopManager.is_active()).to_lower(), HitStopManager.get_active_scale(), str(valid).to_lower()]
 	)
 	_finish_or_pause()
 
@@ -147,10 +151,12 @@ func _run_settings(settings_ui: SettingsUI) -> void:
 	await get_tree().process_frame
 	var rows_scroll := settings_ui.get_node("Root/Panel/Margin/Stack/RowsScroll") as ScrollContainer
 	var screen_toggle := _find_by_test_id(settings_ui, SettingsUI.TEST_ID_SCREEN_EFFECTS_TOGGLE) as Control
+	var screen_row := settings_ui.get_node("Root/Panel/Margin/Stack/RowsScroll/Rows/ScreenEffectsEnabledRow") as Control
 	var scroll_bar := rows_scroll.get_v_scroll_bar()
 	var max_scroll := maxf(0.0, scroll_bar.max_value - scroll_bar.page)
 	rows_scroll.scroll_vertical = int(ceil(max_scroll))
 	await get_tree().process_frame
+	_settings_drag_path_open = _scroll_drag_path_is_open(screen_row)
 	_settings_scroll_valid = max_scroll > 0.0 and screen_toggle != null and rows_scroll.get_global_rect().has_point(screen_toggle.get_global_rect().get_center())
 	rows_scroll.scroll_vertical = 0
 	await get_tree().process_frame
@@ -163,10 +169,10 @@ func _emit_settings_marker(settings_ui: SettingsUI) -> void:
 	var panel_rect := panel.get_global_rect()
 	var safe := MobileSafeArea.meets_landscape_minimum(panel_rect) if OS.has_feature("web") else true
 	var content_fits := panel.get_combined_minimum_size().y <= panel.size.y and panel.size.y <= 482.0
-	var valid := toggle != null and settings_ui.get_toggle_text(Settings.KEY_DAMAGE_NUMBERS) == "ON" and safe and content_fits and _settings_scroll_valid
+	var valid := toggle != null and settings_ui.get_toggle_text(Settings.KEY_DAMAGE_NUMBERS) == "ON" and safe and content_fits and _settings_scroll_valid and _settings_drag_path_open
 	if not valid:
 		push_error("Damage-numbers settings UAT mismatch: toggle=%s rect=%s safe=%s content_fits=%s minimum=%s size=%s" % [toggle != null, panel_rect, safe, content_fits, panel.get_combined_minimum_size(), panel.size])
-	print("UAT_DAMAGE_NUMBERS_READY mode=settings toggle=%s text=%s rect=%s safe=%s content_fits=%s scroll_reaches_bottom=%s minimum=%s size=%s valid=%s" % [str(toggle != null).to_lower(), settings_ui.get_toggle_text(Settings.KEY_DAMAGE_NUMBERS), panel_rect, str(safe).to_lower(), str(content_fits).to_lower(), str(_settings_scroll_valid).to_lower(), panel.get_combined_minimum_size(), panel.size, str(valid).to_lower()])
+	print("UAT_DAMAGE_NUMBERS_READY mode=settings toggle=%s text=%s rect=%s safe=%s content_fits=%s scroll_reaches_bottom=%s touch_drag_path=%s minimum=%s size=%s valid=%s" % [str(toggle != null).to_lower(), settings_ui.get_toggle_text(Settings.KEY_DAMAGE_NUMBERS), panel_rect, str(safe).to_lower(), str(content_fits).to_lower(), str(_settings_scroll_valid).to_lower(), str(_settings_drag_path_open).to_lower(), panel.get_combined_minimum_size(), panel.size, str(valid).to_lower()])
 	_finish_or_pause()
 
 
@@ -188,7 +194,10 @@ func _player_text_screen_position() -> Vector2:
 	var active_nodes: Array = (PoolManager.get("_active") as Dictionary).get(TEXT_POOL_ID, [])
 	if active_nodes.is_empty():
 		return Vector2.ZERO
-	return get_viewport().get_canvas_transform() * (active_nodes[0] as Node2D).global_position
+	var text_node := active_nodes[0] as Node2D
+	if text_node.get_parent() is CanvasLayer:
+		return text_node.global_position
+	return get_viewport().get_canvas_transform() * text_node.global_position
 
 
 func _freeze_active_feedback() -> void:
@@ -213,6 +222,15 @@ func _find_by_test_id(root: Node, test_id: String) -> Node:
 		if found != null:
 			return found
 	return null
+
+
+func _scroll_drag_path_is_open(root: Node) -> bool:
+	if root is Control and (root as Control).mouse_filter == Control.MOUSE_FILTER_STOP:
+		return false
+	for child: Node in root.get_children():
+		if not _scroll_drag_path_is_open(child):
+			return false
+	return true
 
 
 func _warm_up_web_frames() -> void:

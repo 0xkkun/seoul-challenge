@@ -590,8 +590,7 @@ func _disconnect_player_combat_text_events() -> void:
 
 
 func _on_actor_combat_text_requested(position: Vector2, text: String, style: StringName) -> void:
-	var target_position := _player_damage_text_world_position() if style == &"player_damage" else position
-	spawn_combat_text(target_position, text, style)
+	spawn_combat_text(position, text, style)
 
 
 func spawn_combat_text(position: Vector2, text: String, style: StringName) -> bool:
@@ -601,23 +600,23 @@ func spawn_combat_text(position: Vector2, text: String, style: StringName) -> bo
 		return false
 	if PoolManager.get_active_count(FLOATING_TEXT_POOL_ID) >= FLOATING_TEXT_CAP:
 		return false
-	var text_node := PoolManager.acquire(FLOATING_TEXT_POOL_ID, pooled_object_layer)
+	var target_parent: Node = combat_hud if style == &"player_damage" else pooled_object_layer
+	var target_position := _player_damage_text_screen_position() if style == &"player_damage" else position
+	var text_node := PoolManager.acquire(FLOATING_TEXT_POOL_ID, target_parent)
 	if text_node == null or not text_node.has_method("initialize"):
 		if text_node != null:
 			PoolManager.release(text_node)
 		return false
-	text_node.call("initialize", position, text, style)
+	text_node.call("initialize", target_position, text, style)
 	return true
 
 
-func _player_damage_text_world_position() -> Vector2:
+func _player_damage_text_screen_position() -> Vector2:
 	var health_panel := combat_hud.get_node_or_null("Root/HealthPanel") as Control
-	var viewport := get_viewport()
-	if health_panel == null or viewport == null:
-		return actor.global_position if actor != null else Vector2.ZERO
+	if health_panel == null:
+		return Vector2.ZERO
 	var health_rect := health_panel.get_global_rect()
-	var screen_position := Vector2(health_rect.end.x, health_rect.get_center().y) + PLAYER_DAMAGE_TEXT_SCREEN_OFFSET
-	return viewport.get_canvas_transform().affine_inverse() * screen_position
+	return Vector2(health_rect.end.x, health_rect.get_center().y) + PLAYER_DAMAGE_TEXT_SCREEN_OFFSET
 
 
 func _on_actor_weapon_changed(weapon_name: String) -> void:

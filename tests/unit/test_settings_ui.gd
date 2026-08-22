@@ -78,10 +78,13 @@ func test_settings_ui_starts_hidden_and_opens_with_six_safe_toggles() -> void:
 	var damage_row := _settings_ui.get_node_or_null("Root/Panel/Margin/Stack/RowsScroll/Rows/DamageNumbersEnabledRow") as Control
 	_runner.assert_not_null(damage_row, "damage numbers row is named predictably")
 	if damage_row != null:
+		_runner.assert_true(_scroll_drag_path_is_open(damage_row), "dragging over the damage row can reach the settings scroller")
 		var damage_labels := damage_row.find_children("*", "Label", true, false)
 		_runner.assert_true(not damage_labels.is_empty(), "damage numbers row has a visible label")
 		if not damage_labels.is_empty():
 			_runner.assert_eq((damage_labels[0] as Label).text, "데미지 숫자", "damage numbers label uses compact language")
+	if screen_row != null:
+		_runner.assert_true(_scroll_drag_path_is_open(screen_row), "dragging over the bottom screen-effects row can reach the settings scroller")
 
 
 func test_settings_ui_toggles_bgm_sfx_and_haptic() -> void:
@@ -157,3 +160,12 @@ func test_settings_ui_can_close_immediately_for_contract_checks() -> void:
 	_settings_ui.close(true)
 
 	_runner.assert_false(_settings_ui.is_open(), "immediate close hides popup")
+
+
+func _scroll_drag_path_is_open(root: Node) -> bool:
+	if root is Control and (root as Control).mouse_filter == Control.MOUSE_FILTER_STOP:
+		return false
+	for child: Node in root.get_children():
+		if not _scroll_drag_path_is_open(child):
+			return false
+	return true

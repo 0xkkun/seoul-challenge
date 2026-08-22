@@ -904,8 +904,11 @@ func test_session_player_damage_text_appears_beside_health_hud() -> void:
 	_runner.assert_eq(snapshot.get("style"), &"player_damage", "player damage uses the red HUD style")
 	var health_panel := session.get_node("%CombatHud").get_node("Root/HealthPanel") as Control
 	var expected_screen_position := Vector2(health_panel.get_global_rect().end.x + 24.0, health_panel.get_global_rect().get_center().y)
-	var actual_screen_position: Vector2 = get_viewport().get_canvas_transform() * text_node.global_position
-	_runner.assert_true(actual_screen_position.distance_to(expected_screen_position) < 1.0, "player damage text is anchored beside the health HUD")
+	_runner.assert_true(text_node.get_parent() == session.get_node("%CombatHud"), "player damage text lives in the HUD screen-space layer")
+	_runner.assert_true(text_node.global_position.distance_to(expected_screen_position) < 1.0, "player damage text is anchored beside the health HUD")
+	var anchored_position := text_node.global_position
+	(session.get_node("%PlayerCamera") as Camera2D).offset = Vector2(80.0, 20.0)
+	_runner.assert_eq(text_node.global_position, anchored_position, "camera movement cannot drift player damage text away from the HUD")
 	session.queue_free()
 
 
