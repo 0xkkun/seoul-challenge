@@ -718,7 +718,13 @@ return transitioned
 
 - [ ] **Step 3: Write onboarding cleanup matrix RED tests**
 
-Cover completion, death, abandon, retry request, return to school, and scene exit. In every path assert control onboarding, purify spotlight, parry hint, camera zoom, touch visibility, pause state, and `Engine.time_scale` are restored.
+Cover completion, death, abandon, retry request, return to school, and scene
+exit. In every path assert control onboarding, purify spotlight, parry hint,
+camera zoom, touch visibility, pause state, and `Engine.time_scale` are
+restored. Start a real `_camera_feedback_tween` that would write a nonzero
+offset after cleanup, call the boundary, advance past the tween duration, and
+assert the tween is killed/cleared and the camera offset remains
+`Vector2.ZERO`.
 
 - [ ] **Step 4: Implement one idempotent cleanup boundary**
 
@@ -733,9 +739,16 @@ func _finish_all_onboarding_ui() -> void:
 		parry_onboarding.dismiss()
 	get_tree().paused = false
 	player_camera.zoom = Vector2.ONE
+	if _camera_feedback_tween != null and _camera_feedback_tween.is_valid():
+		_camera_feedback_tween.kill()
+	_camera_feedback_tween = null
 	player_camera.offset = Vector2.ZERO
 	HitStopManager.restore()
 ```
+
+Kill and clear `_camera_feedback_tween` before resetting the offset; assigning
+`Vector2.ZERO` alone does not prevent the previous tween from writing a later
+nonzero value while the death summary keeps the session scene alive.
 
 - [ ] **Step 5: Verify and merge**
 
@@ -1088,10 +1101,12 @@ Commit: `[Combat] 일반 타격 히트스톱 연결`. Update F3/F8 coverage.
 - Modify: `scripts/enemies/wolf.gd`
 - Modify: `scripts/enemies/ranged_shooter.gd`
 - Modify: `scripts/enemies/boss.gd`
+- Modify: `scripts/enemies/yokai_friend.gd`
 - Modify: `scripts/session/session_root.gd`
 - Modify: `scripts/autoload/settings.gd`
 - Modify: `scripts/ui/settings_ui.gd`
 - Test: `tests/unit/test_player_melee.gd`
+- Test: `tests/unit/test_yokai_friend.gd`
 - Test: `tests/unit/test_settings.gd`
 - Test: `tests/integration/test_session_contract.gd`
 
@@ -1101,6 +1116,9 @@ Commit: `[Combat] 일반 타격 히트스톱 연결`. Update F3/F8 coverage.
 - Produces: `Player.combat_text_requested(position: Vector2, text: String, style: StringName)`.
 - Changes: enemy `take_damage(amount: int) -> int` returns the clamped HP delta
   actually applied, with `0` for rejected damage.
+- Changes: `YokaiFriend.take_damage(amount: int) -> int` returns the clamped
+  stun-accumulator delta, with `0` outside attacking/chasing or during hit
+  invulnerability.
 - Consumes: Task 5's shared 20-node pool.
 
 - [ ] **Step 1: Write style and cap RED tests**
@@ -1140,7 +1158,7 @@ func spawn_combat_text(position: Vector2, text: String, style: StringName) -> bo
 
 - [ ] **Step 4: Wire real, clamped damage payloads**
 
-Before subtraction, capture `previous_hp`; after clamping HP to zero, return
+For HP enemies, before subtraction capture `previous_hp`; after clamping HP to zero, return
 `previous_hp - current_hp`. Return `0` when dead, invulnerable, or otherwise
 rejected. Add a RED overkill test where a 1-HP enemy receives 5 damage and must
 return `1`, plus a rejected-hit test returning `0`. In the player's melee loop,
@@ -1151,6 +1169,13 @@ var applied_damage := int(enemy.call("take_damage", dmg))
 if applied_damage > 0:
 	combat_text_requested.emit(enemy.global_position, str(applied_damage), &"power" if power_attack else &"ordinary")
 ```
+
+`YokaiFriend` is also in the `enemy` group and is hit by the same player loop.
+Clamp its accepted accumulator to `max_stun` and return
+`new_stun_accum - previous_stun_accum`. Add real-scene tests proving a hit
+needed to fill only 1 remaining stun point returns `1`, while a hit during
+stun or hit invulnerability returns `0`. Do not cast a `void` return from any
+node in the `enemy` group.
 
 Player health changes surface the accepted `previous-current` delta near the health HUD.
 
