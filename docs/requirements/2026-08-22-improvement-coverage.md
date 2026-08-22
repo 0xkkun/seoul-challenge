@@ -1,6 +1,6 @@
 # 2026-08-21 개선 명세 반영 현황
 
-기준 코드: `origin/main@c6a2ac7`
+기준 코드: `origin/main@0e87117`
 사용자 제공 자료: `요괴뎐_개선안_2026-08-21`
 프로그램 설계: `docs/superpowers/specs/2026-08-22-first-five-minutes-onboarding-design.md`
 
@@ -13,7 +13,7 @@
 
 ## 요약
 
-현재 main에서 확실히 완료된 축은 PC 입력 경로, 데스크톱 터치 UI 비노출, 기본 키 안내, 일부 카메라·햅틱·보상·보물방 기반이다. 첫 3~5분 품질을 결정하는 인트로 자동 진행, 지도 학습, 패링 피드백, 일반 히트스톱, 전투 반응음, 피격 비네트, 실제 웨이브, 포탈 재시도는 미구현 또는 부분 상태다.
+현재 main에서 확실히 완료된 축은 PC 입력 경로, 데스크톱 터치 UI 비노출, 플랫폼별 계속 안내, bounded 인트로 자동 진행, 기본 키 안내, 일부 카메라·햅틱·보상·보물방 기반이다. 첫 3~5분 품질을 결정하는 성공 기반 지도 학습, 패링 피드백, 일반 히트스톱, 전투 반응음, 피격 비네트, 실제 웨이브, 포탈 재시도는 미구현 또는 부분 상태다.
 
 ## P — PC 대응
 
@@ -21,10 +21,10 @@
 |---|---|---|---|
 | P1 온보딩 입력 소스 통합 | 완료 | `IngameControlOnboarding._runtime_input_state`, #497 | 성공 이벤트 방식으로 강화 |
 | P2 터치 UI 데스크톱 자동 숨김 | 완료 | `touch_controls.gd`, platform feature tests, #497 | 회귀 유지 |
-| P3 스포트라이트 좌표 대응 | 부분 | 터치 버튼과 정화 대상은 지원, 외부 minimap target은 미지원 | 첫 방 조작·지도 PR |
-| P4 키 조작 안내 | 완료 | 좌클릭·SPACE·E 문구, #499/#501 | 공용 prompt policy로 일원화 |
+| P3 스포트라이트 좌표 대응 | 부분 | 터치 버튼과 정화 대상은 지원, 외부 minimap target은 미지원 | #506 첫 방 조작·지도 PR |
+| P4 키 조작 안내 | 완료 | 좌클릭·SPACE·E 문구와 `InputPromptPolicy`, #499/#501/#505 | 후속 copy 회귀 유지 |
 | P5 마우스 조준 | 보류 | `aim_direction()`은 이동 방향 fallback | 웨이브·난이도 확정 뒤 재승인 |
-| P6 미니맵 온보딩 | 미구현 | 온보딩 step에 map 없음, `_minimap_full` 신호 없음 | 첫 방 조작·지도 PR |
+| P6 미니맵 온보딩 | 미구현 | 온보딩 step에 map 없음, `_minimap_full` 신호 없음 | #506 첫 방 조작·지도 PR |
 
 ## B — 버그
 
@@ -125,10 +125,10 @@
 
 | 항목 | 상태 | 현재 근거 | 실행 계약 |
 |---|---|---|---|
-| PC `클릭하여 계속` | 미구현 | night intro와 dialogue가 `탭해서 계속` 고정 | 인트로·prompt policy PR |
-| 인트로 무입력 자동 진행 | 미구현 | `_wait_for_advance()`가 timeout 없이 click만 대기 | 인트로 PR |
-| 완전 검은 화면 장기 유지 방지 | 미구현 | black background와 첫 plate/subtitle fade 사이 공백 | 인트로 PR + 1920x900 UAT |
-| 성공 기반 전체 온보딩 | 부분 | raw input 4단계, reward/purify hints는 분산 | 첫 방·여정 PR |
+| PC `클릭하여 계속` | 완료 | desktop/mobile 분기를 `InputPromptPolicy`로 통일, #505 | unit 526/526 + PC/mobile Web 캡처 |
+| 인트로 무입력 자동 진행 | 완료 | 정상·autoplay 차단·음성 고착에 bounded line scheduling 적용, #505 | blocked 24,753ms·stuck 39,121ms Web UAT |
+| 완전 검은 화면 장기 유지 방지 | 완료 | plate 초기 alpha와 transition 단축, #505 | 960x540·1920x900 release Web UAT |
+| 성공 기반 전체 온보딩 | 부분 | raw input 4단계, reward/purify hints는 분산 | #506 첫 방, 후속 여정 PR |
 | 패링 안내와 성공 학습 | 미구현 | 안내·성공 signal 없음 | 패링 이벤트·피드백 PR |
 | 요구사항 추적 | 이 문서로 시작 | 이전에는 mapping 없음 | 모든 하위 이슈/PR에 이 표 갱신 |
 
@@ -138,14 +138,20 @@
 
 | 순서 | 포함 요구 | 완료 증거 |
 |---|---|---|
-| Q1 인트로·계속 문구 | 새 피드백: 자동 진행, 검은 공백, 클릭/탭 분기 | PC/mobile Web 무입력 timing UAT |
-| Q2 첫 방·첫 런 여정 | P3, P6, 성공 기반 이동·공격·대시·강공격·지도·보상·정화·말 걸기 | 신호 기반 unit/integration + 전체 journey UAT |
+| Q1 인트로·계속 문구 (완료) | 새 피드백: 자동 진행, 검은 공백, 클릭/탭 분기 | #504/#505, merge `0e87117`; blocked 24,753ms·stuck 39,121ms, UI 캡처 3개, CI·Codex 통과 |
+| Q2 첫 방·첫 런 여정 | P3, P6, 성공 기반 이동·공격·대시·강공격·지도·보상·정화·말 걸기; #506 진행 중 | 신호 기반 unit/integration + 전체 journey UAT |
 | Q3 패링 학습·성공 피드백 | F2, F4, S7, T1, T2, T6 | 첫 늑대 실제 parry UAT와 복구 테스트 |
 | Q4 안정성 | B1, B3, B4 | 포탈 pause-overlap 재시도와 종료 matrix |
 | Q5 전투 흐름 | L1 | configured wave별 spawn 테스트와 Web play |
 | Q6 적 압박 | M6a | 악귀 단독 변경 전후 encounter UAT |
 | Q7 전투 반응 | S1, S3, S4, F7 | cooldown·asset·피격 시청각 테스트와 Web UAT |
 | Q8 일반 타격 정보 | F3, T3, T4 | hitstop 복구·20 cap·설정 토글 테스트 |
+
+## 병합 근거
+
+| 작업 | 이슈 / PR | merge | 자동 검증 | UAT |
+|---|---|---|---|---|
+| Task 1 인트로 자동 진행·플랫폼 안내 | #504 / #505 | `0e87117` | unit 526/526, integration 107/107, quick/full, 최신 CI green, Codex 👍 | release WebGL2 PC 960x540·1920x900/mobile 960x540; blocked 24,753ms, stuck 39,121ms; console error 0 |
 
 ## 장부 유지 규칙
 
