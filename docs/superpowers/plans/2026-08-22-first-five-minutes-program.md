@@ -57,16 +57,19 @@ Tasks 7 and 8 both affect difficulty. Do not combine them; play and merge Task 7
 - Modify: `scripts/autoload/platform_manager.gd`
 - Modify: `scripts/cutscene/night_intro_cutscene.gd`
 - Modify: `scripts/ui/hub_dialogue_ui.gd`
+- Modify: `scripts/ui/purify_onboarding_spotlight.gd`
 - Modify: `scripts/session/session_root.gd`
 - Modify: `scripts/dev/day_corridor_movement_test.gd`
 - Test: `tests/unit/test_night_intro_cutscene.gd`
 - Test: `tests/unit/test_hub_dialogue_ui.gd`
+- Test: `tests/unit/test_purify_onboarding_spotlight.gd`
 - Test: `tests/integration/test_day_corridor_movement_test.gd`
 - Test: `tests/unit/test_boss_intro_gating.gd`
 
 **Interfaces:**
 - Produces: `InputPromptPolicy.input_mode_from_features(features: Dictionary) -> StringName`.
 - Produces: `InputPromptPolicy.continue_hint(input_mode: StringName) -> String`.
+- Produces: `InputPromptPolicy.action_hint(action: StringName, input_mode: StringName) -> String`.
 - Produces: `NightIntroCutscene.should_advance_line(narration_started: bool, narration_playing: bool, line_elapsed: float, narration_finished_elapsed: float, user_requested: bool) -> bool`.
 - Preserves: `NightIntroCutscene.finished`, `skip()`, `HubDialogueUi` choice ids and UAT metadata.
 
@@ -79,6 +82,8 @@ func test_continue_hint_matches_active_input_mode() -> void:
 	var policy := load("res://scripts/ui/input_prompt_policy.gd")
 	_runner.assert_eq(policy.continue_hint(&"desktop"), "클릭하여 계속", "PC는 클릭 표현을 쓴다")
 	_runner.assert_eq(policy.continue_hint(&"touch"), "탭하여 계속", "터치는 탭 표현을 쓴다")
+	_runner.assert_eq(policy.action_hint(&"start", &"desktop"), "클릭하여 시작", "PC 시작 안내도 클릭 표현을 쓴다")
+	_runner.assert_eq(policy.action_hint(&"start", &"touch"), "탭하여 시작", "터치 시작 안내는 탭 표현을 쓴다")
 	_runner.assert_eq(
 		policy.input_mode_from_features({"web": true, "web_android": false, "web_ios": false, "mobile": false, "touch_input": true}),
 		&"desktop",
@@ -117,7 +122,12 @@ static func input_mode_from_features(features: Dictionary) -> StringName:
 	) else MODE_DESKTOP
 
 static func continue_hint(input_mode: StringName) -> String:
-	return "탭하여 계속" if input_mode == MODE_TOUCH else "클릭하여 계속"
+	return action_hint(&"continue", input_mode)
+
+static func action_hint(action: StringName, input_mode: StringName) -> String:
+	var gesture := "탭하여" if input_mode == MODE_TOUCH else "클릭하여"
+	var verb := "시작" if action == &"start" else "계속"
+	return "%s %s" % [gesture, verb]
 ```
 
 Extend `PlatformManager.get_feature_flags()` with literal `web_android` and `web_ios` entries. Do not change `has_touch_input()` semantics in this slice.
@@ -175,6 +185,7 @@ Use `InputPromptPolicy.continue_hint(InputPromptPolicy.input_mode_from_features(
 
 - `NightIntroCutscene._build_ui()`
 - `HubDialogueUi` unlock hint
+- `PurifyOnboardingSpotlight` intro/continue hint
 - `SessionRoot._set_encounter_beat()`
 - `DayCorridor` dialogue choice construction
 
@@ -182,7 +193,11 @@ Keep the existing choice ids, `tap_to_continue` boolean, `test_id`, and `uat_act
 
 - [ ] **Step 8: Update copy consumers' tests**
 
-Update desktop integration expectations to `클릭하여 계속`; add a mobile feature fixture expecting `탭하여 계속`. Test the value returned by the policy rather than grepping source text.
+Update desktop integration expectations to `클릭하여 계속`; add a mobile
+feature fixture expecting `탭하여 계속`. In the real
+`PurifyOnboardingSpotlight`, assert desktop renders `클릭하여 시작/계속` and
+touch renders `탭하여 시작/계속`. Test the value returned by the policy and the
+rendered Control text rather than grepping source text.
 
 - [ ] **Step 9: Verify GREEN and run the quick gate**
 
