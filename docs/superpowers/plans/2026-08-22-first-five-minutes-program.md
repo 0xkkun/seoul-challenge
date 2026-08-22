@@ -864,11 +864,13 @@ Commit: `[Enemy] 악귀 추적 압박 조정`. Update M6a coverage with before/a
 - Modify: `scripts/enemies/wolf.gd`
 - Modify: `scripts/enemies/ranged_shooter.gd`
 - Modify: `scripts/enemies/boss.gd`
+- Modify: `scripts/enemies/yokai_friend.gd`
 - Add: `assets/audio/sfx/awakened_bat_reveal.wav` and import metadata
 - Add: `assets/audio/sfx/player_hit.wav`, `enemy_hit.wav`, `enemy_death.wav`, `chaser_attack.wav`, `bare_hand_swing.wav` and import metadata
 - Test: `tests/unit/test_audio_manager.gd`
 - Test: `tests/unit/test_player_health.gd`
 - Test: `tests/unit/test_enemy_death_feedback.gd`
+- Test: `tests/unit/test_yokai_friend.gd`
 
 **Interfaces:**
 - Produces: `AudioManager.play_sfx(id: StringName, cooldown: float = 0.0) -> bool`.
@@ -925,7 +927,16 @@ existing playback state.
 
 - [ ] **Step 4: Add assets and exact event wiring**
 
-Register ids `PLAYER_HIT`, `ENEMY_HIT`, `ENEMY_DEATH`, `CHASER_ATTACK`, `BARE_HAND_SWING`, and point `AWAKENED_BAT_REVEAL` at the real added file. Use cooldowns `0.12`, `0.06`, `0.08`, `0.18`, and `0.10` seconds respectively. Wire player damage, enemy damage/death, chaser attack start, and bare-hand swing start. Preserve Task 5's existing parry SFX path. Do not double-play enemy death from each enemy and a shared event in the same PR; this slice keeps the current enemy-local death calls until D3 is implemented.
+Register ids `PLAYER_HIT`, `ENEMY_HIT`, `ENEMY_DEATH`, `CHASER_ATTACK`,
+`BARE_HAND_SWING`, and point `AWAKENED_BAT_REVEAL` at the real added file. Use
+cooldowns `0.12`, `0.06`, `0.08`, `0.18`, and `0.10` seconds respectively.
+Wire player damage, every enemy's accepted damage/death, chaser attack start,
+and bare-hand swing start. `YokaiFriend` must play `ENEMY_HIT` only when its
+stun accumulator accepts the hit; add accepted and hit-invulnerable/stunned
+rejection audio tests in its real scene. Preserve Task 5's existing parry SFX
+path. Do not double-play enemy death from each enemy and a shared event in the
+same PR; this slice keeps the current enemy-local death calls until D3 is
+implemented.
 
 ```gdscript
 const PLAYER_HIT := &"player_hit"
@@ -1051,12 +1062,29 @@ Run unit/integration/quick gates. Web UAT damage, healing, critical health, paus
 **Files:**
 - Modify: `scripts/player/player.gd`
 - Modify: `scripts/session/session_root.gd`
+- Modify: `scripts/enemies/chaser.gd`
+- Modify: `scripts/enemies/wolf.gd`
+- Modify: `scripts/enemies/ranged_shooter.gd`
+- Modify: `scripts/enemies/boss.gd`
+- Modify: `scripts/enemies/yokai_friend.gd`
 - Test: `tests/unit/test_player_melee.gd`
 - Test: `tests/unit/test_player_health.gd`
+- Test: `tests/unit/test_chaser.gd`
+- Test: `tests/unit/test_wolf_assets.gd`
+- Test: `tests/unit/test_kumiho_assets.gd`
+- Test: `tests/unit/test_boss.gd`
+- Test: `tests/unit/test_yokai_friend.gd`
 - Test: `tests/integration/test_session_contract.gd`
 
 **Interfaces:**
 - Consumes: `HitStopManager.request(duration: float, scale: float)` and `restore()` from Task 5.
+- Produces: HP-enemy `take_damage(amount: int) -> int` returns the clamped HP
+  delta actually applied, with `0` for rejected damage.
+- Produces: `YokaiFriend.take_damage(amount: int) -> int` returns the clamped
+  stun-accumulator delta, with `0` outside attacking/chasing or during hit
+  invulnerability.
+- Preserves the local `applied_damage` result in `Player._attack_melee()` for
+  Task 12's combat-text emission.
 
 - [ ] **Step 1: Write hit-kind RED tests**
 
@@ -1067,9 +1095,21 @@ func test_hit_stop_profile_matches_combat_result() -> void:
 	_runner.assert_eq(PlayerScript.hit_stop_profile(false, true), {"duration": 0.05, "scale": 0.10})
 ```
 
+Add a real/table-driven applied-damage RED matrix for chaser, wolf, ranged
+shooter, boss, and YokaiFriend. HP enemies with 1 HP receiving 5 damage return
+`1`; dead or hit-invulnerable targets return `0`. YokaiFriend clamps to
+`max_stun`, returns only the accepted stun delta, and returns `0` while stunned
+or hit-invulnerable.
+
 - [ ] **Step 2: Confirm RED and implement profiles**
 
-Add the pure profile helper. Request ordinary/power hit stop only when `hit_count > 0`; request player-damage hit stop only after damage is accepted past invulnerability.
+Add the pure profile helper and convert all `enemy`-group `take_damage`
+implementations to the integer contracts above. In `Player._attack_melee()`,
+call `take_damage()` once per target, capture `applied_damage`, and increment
+`accepted_hit_count` only when the value is positive. Request ordinary/power
+hit stop only when `accepted_hit_count > 0`; geometric overlap or an existing
+`hit_count` increment before damage is not evidence of a landed hit. Request
+player-damage hit stop only after damage is accepted past invulnerability.
 
 ```gdscript
 static func hit_stop_profile(power_attack: bool, player_damaged: bool) -> Dictionary:
@@ -1082,7 +1122,10 @@ static func hit_stop_profile(power_attack: bool, player_damaged: bool) -> Dictio
 
 - [ ] **Step 3: Verify overlap and recovery**
 
-Tests assert parry `(0.10, 0.05)` beats every general request, rejected damage produces none, and session exit restores 1.0. Run full gate and Web UAT frame pacing.
+Tests assert parry `(0.10, 0.05)` beats every general request, an overlapping
+dead/invulnerable enemy returns `0` and produces no hit stop, mixed
+accepted/rejected targets request one profile, and session exit restores 1.0.
+Run full gate and Web UAT frame pacing.
 
 - [ ] **Step 4: Commit and merge**
 
@@ -1097,16 +1140,10 @@ Commit: `[Combat] 일반 타격 히트스톱 연결`. Update F3/F8 coverage.
 **Files:**
 - Modify: `scripts/ui/floating_combat_text.gd`
 - Modify: `scripts/player/player.gd`
-- Modify: `scripts/enemies/chaser.gd`
-- Modify: `scripts/enemies/wolf.gd`
-- Modify: `scripts/enemies/ranged_shooter.gd`
-- Modify: `scripts/enemies/boss.gd`
-- Modify: `scripts/enemies/yokai_friend.gd`
 - Modify: `scripts/session/session_root.gd`
 - Modify: `scripts/autoload/settings.gd`
 - Modify: `scripts/ui/settings_ui.gd`
 - Test: `tests/unit/test_player_melee.gd`
-- Test: `tests/unit/test_yokai_friend.gd`
 - Test: `tests/unit/test_settings.gd`
 - Test: `tests/integration/test_session_contract.gd`
 
@@ -1114,12 +1151,9 @@ Commit: `[Combat] 일반 타격 히트스톱 연결`. Update F3/F8 coverage.
 - Produces: `Settings.KEY_DAMAGE_NUMBERS := "damage_numbers_enabled"`.
 - Produces: `SessionRoot.spawn_combat_text(position: Vector2, text: String, style: StringName) -> bool`.
 - Produces: `Player.combat_text_requested(position: Vector2, text: String, style: StringName)`.
-- Changes: enemy `take_damage(amount: int) -> int` returns the clamped HP delta
-  actually applied, with `0` for rejected damage.
-- Changes: `YokaiFriend.take_damage(amount: int) -> int` returns the clamped
-  stun-accumulator delta, with `0` outside attacking/chasing or during hit
-  invulnerability.
 - Consumes: Task 5's shared 20-node pool.
+- Consumes: Task 11's already-validated positive `applied_damage` local from the
+  single `take_damage()` call.
 
 - [ ] **Step 1: Write style and cap RED tests**
 
@@ -1156,13 +1190,11 @@ func spawn_combat_text(position: Vector2, text: String, style: StringName) -> bo
 	return true
 ```
 
-- [ ] **Step 4: Wire real, clamped damage payloads**
+- [ ] **Step 4: Wire already-applied damage payloads**
 
-For HP enemies, before subtraction capture `previous_hp`; after clamping HP to zero, return
-`previous_hp - current_hp`. Return `0` when dead, invulnerable, or otherwise
-rejected. Add a RED overkill test where a 1-HP enemy receives 5 damage and must
-return `1`, plus a rejected-hit test returning `0`. In the player's melee loop,
-use the returned value once:
+Use the `applied_damage` value already returned by the single `take_damage()`
+call introduced in Task 11. Do not call damage twice or reintroduce a
+pre-damage overlap count. Emit combat text only from a positive accepted delta:
 
 ```gdscript
 var applied_damage := int(enemy.call("take_damage", dmg))
@@ -1170,12 +1202,10 @@ if applied_damage > 0:
 	combat_text_requested.emit(enemy.global_position, str(applied_damage), &"power" if power_attack else &"ordinary")
 ```
 
-`YokaiFriend` is also in the `enemy` group and is hit by the same player loop.
-Clamp its accepted accumulator to `max_stun` and return
-`new_stun_accum - previous_stun_accum`. Add real-scene tests proving a hit
-needed to fill only 1 remaining stun point returns `1`, while a hit during
-stun or hit invulnerability returns `0`. Do not cast a `void` return from any
-node in the `enemy` group.
+Task 11 already proves overkill clamping and rejected-hit zero returns for HP
+enemies and YokaiFriend. Task 12 adds assertions that both ordinary HP damage
+and accepted YokaiFriend stun damage render their exact returned integer, while
+rejected hits render no text.
 
 Player health changes surface the accepted `previous-current` delta near the health HUD.
 
