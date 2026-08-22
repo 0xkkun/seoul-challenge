@@ -76,6 +76,21 @@ func get_active_count(pool_id: StringName) -> int:
 	return _active.get(pool_id, []).size()
 
 
+func has_pool(pool_id: StringName) -> bool:
+	return _pool_scenes.has(pool_id)
+
+
+func clear_pool(pool_id: StringName) -> void:
+	_free_node_lists([
+		_available.get(pool_id, []),
+		_active.get(pool_id, []),
+	])
+	_pool_scenes.erase(pool_id)
+	_available.erase(pool_id)
+	_active.erase(pool_id)
+	_default_parents.erase(pool_id)
+
+
 func clear_all() -> void:
 	_free_node_lists(_available.values())
 	_free_node_lists(_active.values())

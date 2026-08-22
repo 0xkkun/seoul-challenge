@@ -1,6 +1,6 @@
 # 2026-08-21 개선 명세 반영 현황
 
-기준 코드: `origin/main@76301ed`
+기준 코드: `origin/main@e424012` + #512 검증 대상
 사용자 제공 자료: `요괴뎐_개선안_2026-08-21`
 프로그램 설계: `docs/superpowers/specs/2026-08-22-first-five-minutes-onboarding-design.md`
 시각 재설계: `docs/superpowers/specs/2026-08-22-onboarding-coachmark-redesign.md`
@@ -14,7 +14,7 @@
 
 ## 요약
 
-현재 main에서 확실히 완료된 축은 PC 입력 경로, 데스크톱 터치 UI 비노출, bounded 인트로, 성공 기반 첫 방 6단계, 보상→정화→학교 대화 contextual 여정, 반복 가능한 패링 학습, 기본 키 안내, 일부 카메라·햅틱·보상·보물방 기반이다. #513은 이 기능들을 중앙 대형 카드에서 공통 coachmark·objective ribbon·reward eyebrow로 시각 재설계한다. 패링 성공 연출, 일반 히트스톱, 전투 반응음, 피격 비네트, 실제 웨이브, 포탈 재시도는 미구현 또는 부분 상태다.
+현재 검증 대상에서 확실히 완료된 축은 PC 입력 경로, 데스크톱 터치 UI 비노출, bounded 인트로, 성공 기반 첫 방 6단계, 보상→정화→학교 대화 contextual 여정, 반복 가능한 패링 학습, 기본 키 안내, 공통 coachmark·objective ribbon·reward eyebrow, 패링 성공 연출과 일부 카메라·햅틱·보상·보물방 기반이다. 일반 타격 히트스톱, 일반 전투 반응음, 피격 비네트, 실제 웨이브, 포탈 재시도는 미구현 또는 부분 상태다.
 
 ## P — PC 대응
 
@@ -50,9 +50,9 @@
 | ID | 상태 | 현재 근거 | 다음 계약 |
 |---|---|---|---|
 | F1 피격 카메라 셰이크 | 부분 | `combat_feedback` 카메라 경로는 있으나 플레이어 `take_damage`가 feedback을 emit하지 않음 | 피격 피드백 PR |
-| F2 히트스톱 매니저 | 미구현 | `Engine.time_scale` manager 없음 | 패링 기반 PR |
+| F2 히트스톱 매니저 | 완료 | `HitStopManager` longer-wins·실시간 복구·종료 복구, #512 unit/session teardown tests | 일반 타격 연결 시 회귀 유지 |
 | F3 일반 타격 히트스톱 | 미구현 | melee feedback은 camera뿐 | 일반 히트스톱 PR |
-| F4 패링 성공 연출 | 부분 | #510에서 `parry_dash()` true를 `parry_succeeded`로 보존; 텍스트·hit stop·flash·shake·SFX는 아직 없음 | 패링 피드백 PR |
+| F4 패링 성공 연출 | 완료 | #510의 실제 `parry_succeeded`에 #512가 `텍스트→히트스톱→플래시→셰이크→SFX→햅틱` 고정 순서 연결 | 실전 encounter 회귀 유지 |
 | F5 넉백 트윈 | 미구현 | player가 적 위치를 즉시 대입 | 후순위 PR |
 | F6 적 사망 셰이크·방 클리어 정적 | 미구현 | 공통 death event 없음 | D3 이후 |
 | F7 피격 붉은 비네트 | 미구현 | vignette UI/contract 없음 | 피격 피드백 PR |
@@ -70,7 +70,7 @@
 | S4 S급 전투음 | 부분 | 늑대·구미호·배트는 존재, 플레이어/적 피격·적 사망·악귀·맨손 누락 | 전투음 PR |
 | S5 볼륨 테이블 | 부분 | override 구조는 있으나 table 비어 있음 | S4와 함께 조정 |
 | S6 A급 8개 | 부분 | 일부 방/획득/전환음만 존재 | first-impression 뒤 |
-| S7 패링 성공음 | 미구현 | parry SFX id/asset 없음 | 패링 피드백 PR |
+| S7 패링 성공음 | 완료 | `parry_success.wav`·`AudioManager.PARRY_SUCCESS`, 스윙→패링→타격 순서 test, #512 | 볼륨 table 통합 시 회귀 유지 |
 | S8 B급 7개 | 미구현 | 요구 목록용 registry/asset 없음 | 후순위 |
 | S9 웹 프리로드 | 보류 | 끊김 측정 증거 없음 | 최종 Web 성능 UAT 후 판단 |
 
@@ -78,12 +78,12 @@
 
 | ID | 상태 | 현재 근거 | 다음 계약 |
 |---|---|---|---|
-| T1 floating text + pool | 미구현 | 관련 script/pool 없음 | 패링 피드백 기반 PR |
-| T2 활성 20개 cap | 미구현 | T1 없음 | T1과 같은 PR |
+| T1 floating text + pool | 완료 | `FloatingCombatText`와 `PoolManager` warm/release/reset/generation guard, #512 | 일반 데미지 숫자 재사용 |
+| T2 활성 20개 cap | 완료 | 사전 준비 20개·21번째 거절·반복 Web UAT `text_count=20`, #512 | 다종 텍스트 합산 cap 설계 |
 | T3 적 데미지 숫자 | 미구현 | enemy damage text 없음 | 일반 전투 피드백 PR |
 | T4 설정 토글 | 미구현 | Settings key/UI 없음 | T3과 같은 PR |
 | T5 강공격 스타일 | 미구현 | power attack floating text 없음 | T3 뒤 |
-| T6 `받아쳤다` | 미구현 | parry event/text 없음 | 패링 피드백 PR |
+| T6 `받아쳤다` | 완료 | 패링 접점 중점에 32pt cyan/white glow·1.0초·20px rise, #512 | 실전 가독성 회귀 유지 |
 | T7 플레이어 피격 숫자 | 미구현 | player damage text 없음 | 피격 피드백 PR |
 
 ## D — 사망 연출
@@ -131,7 +131,7 @@
 | 완전 검은 화면 장기 유지 방지 | 완료 | plate 초기 alpha와 transition 단축, #505 | 960x540·1920x900 release Web UAT |
 | 성공 기반 전체 온보딩 | 완료 | 첫 방 6단계·실제 action/minimap/room transition은 #507, reward/purify/talk·PC E/mobile prompt는 #509 | Task 2·3 release Web UAT와 자동 회귀 유지 |
 | 패링 안내와 성공 학습 | 완료 | #510의 `enemy_spawned`·`dash_state_changed`·`parry_succeeded`, miss/death/next-wolf/success lifecycle tests | Task 5가 성공 시청각 피드백을 추가 |
-| 온보딩 시각 품질 | 완료 | #513의 공통 token/coachmark, corner bracket, objective ribbon, reward eyebrow, reduced-motion toggle | release Web 11 mode, Design C→A, AI slop C→A |
+| 온보딩 시각 품질 | 완료 | #513/#514의 공통 token/coachmark, corner bracket, objective ribbon, reward eyebrow, reduced-motion toggle | merge `e424012`; release Web 12 mode, Design C→A, AI slop C→A |
 | 요구사항 추적 | 이 문서로 시작 | 이전에는 mapping 없음 | 모든 하위 이슈/PR에 이 표 갱신 |
 
 ## 승인된 실행 큐
@@ -142,8 +142,8 @@
 |---|---|---|
 | Q1 인트로·계속 문구 (완료) | 새 피드백: 자동 진행, 검은 공백, 클릭/탭 분기 | #504/#505, merge `0e87117`; blocked 24,753ms·stuck 39,121ms, UI 캡처 3개, CI·Codex 통과 |
 | Q2 첫 방·첫 런 여정 (완료) | P3, P6, 이동·공격·대시·강공격·지도·출구 #507; 보상·정화·말 걸기 #509 | Task 2 merge `5a4f667`; Task 3 merge `31f8ba1`; PC/mobile journey UAT |
-| Q2b 온보딩 시각 재설계 (진행 중) | #513에서 첫 조작·objective·reward·정화·패링·인트로를 diegetic coachmark로 통일 | unit 544/544, integration 116/116, release Web 12 mode, PR/CI 예정 |
-| Q3 패링 학습·성공 피드백 (진행 중) | #510에서 반복 가능한 첫 늑대 학습 완료; F2, F4, S7, T1, T2, T6 시청각 피드백은 #512에서 재개 | Task 4 merge `76301ed`; miss/death/next-wolf/success Web UAT |
+| Q2b 온보딩 시각 재설계 (완료) | #513에서 첫 조작·objective·reward·정화·패링·인트로를 diegetic coachmark로 통일 | #513/#514 merge `e424012`; unit 544/544, integration 116/116, release Web 12 mode, Design C→A |
+| Q3 패링 학습·성공 피드백 (진행 중) | #510에서 반복 가능한 첫 늑대 학습 완료; #512에서 F2, F4, S7, T1, T2, T6를 완성 | Task 4 merge `76301ed`; #512 unit 559/559, integration 120/120, release Web before/impact/recovery/repeated/teardown UAT |
 | Q4 안정성 | B1, B3, B4 | 포탈 pause-overlap 재시도와 종료 matrix |
 | Q5 전투 흐름 | L1 | configured wave별 spawn 테스트와 Web play |
 | Q6 적 압박 | M6a | 악귀 단독 변경 전후 encounter UAT |
@@ -158,6 +158,7 @@
 | Task 2 성공 기반 첫 방 조작·지도 | #506 / #507 | `5a4f667` | unit 531/531, integration 109/109, quick/full, PR UI capture·Quick·Rooms·Web Preview green, Codex P1 해결 + 👍 | release WebGL2 PC/mobile 6단계→첫 전투방, PC/mobile skip→compact legend; console/page/request error 0 |
 | Task 3 첫 런 보상·정화·대화 안내 | #508 / #509 | `31f8ba1` | unit 532/532, integration 111/111, quick/full, PR UI capture·Quick·Rooms·Web Preview green, Codex major issue 0 + 👍 | 실제 PC combat→reward→friend→purify intro, deterministic PC/mobile groggy·talk·bat popup; WebGL2=true, error 0 |
 | Task 4 첫 늑대 패링 학습 | #510 / #511 | `76301ed` | unit 535/535, integration 115/115, quick/full, PR UI capture·Quick·Rooms·Web Preview green, Challenger/Codex issue 0 | release WebGL2 PC/touch prepare, miss, next-wolf retry, success; console/network error 0 |
+| Task 4b 온보딩 코치마크 시각 재설계 | #513 / #514 | `e424012` | unit 544/544, integration 116/116, quick/full, PR UI capture·Quick·Rooms·Web Preview green, Challenger/Codex issue 0 + 👍 | release WebGL2 12 mode, Design C→A, AI slop C→A, console error 0 |
 
 ## 장부 유지 규칙
 

@@ -512,6 +512,32 @@ func test_bat_emits_parry_success_only_when_dash_parry_returns_true() -> void:
 	p.free()
 
 
+func test_bat_parry_audio_orders_swing_success_then_hit() -> void:
+	AudioManager.reset()
+	var p = PlayerScript.new()
+	add_child(p)
+	p.position = Vector2.ZERO
+	p.equip_bat()
+	p.connect(&"parry_succeeded", func(_payload: Dictionary) -> void:
+		AudioManager.play_sfx(AudioManager.PARRY_SUCCESS)
+	)
+	var e := StubParryEnemy.new()
+	e.position = Vector2(40.0, 0.0)
+	e.add_to_group(&"enemy")
+	add_child(e)
+
+	p._attack_melee(Vector2.RIGHT)
+
+	_runner.assert_eq(
+		AudioManager.get_played_sfx(),
+		[AudioManager.BAT_SWING, AudioManager.PARRY_SUCCESS, AudioManager.BAT_HIT],
+		"player emits parry success after swing audio and before impact audio"
+	)
+	e.free()
+	p.free()
+	AudioManager.reset()
+
+
 func test_bare_hands_do_not_parry_dash_enemy() -> void:
 	var p = PlayerScript.new()
 	add_child(p)

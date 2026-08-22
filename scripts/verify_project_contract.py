@@ -18,6 +18,7 @@ EXPECTED_AUTOLOADS = {
     "PoolManager": "res://scripts/autoload/pool_manager.gd",
     "PlatformManager": "res://scripts/autoload/platform_manager.gd",
     "HapticManager": "res://scripts/autoload/haptic_manager.gd",
+    "HitStopManager": "res://scripts/autoload/hit_stop_manager.gd",
 }
 
 REQUIRED_FILES = [

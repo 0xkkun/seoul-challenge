@@ -2,6 +2,7 @@ extends Node
 
 const TOKENS_PATH := "res://scripts/ui/onboarding_visual_tokens.gd"
 const COACH_PATH := "res://scripts/ui/onboarding_coach_mark.gd"
+const PARRY_ONBOARDING_PATH := "res://scripts/ui/parry_onboarding.gd"
 const MobileSafeArea := preload("res://scripts/ui/mobile_safe_area.gd")
 
 var _runner: Node
@@ -114,6 +115,22 @@ func test_world_target_deletion_immediately_dismisses_the_coachmark() -> void:
 	coach.call("_process", 0.0)
 	_runner.assert_false(bool(coach.call("is_active")), "queued target immediately dismisses its coachmark")
 	_runner.assert_false(coach.visible, "dismissed target coachmark is hidden")
+
+
+func test_detached_parry_onboarding_dismisses_without_root_lookup_error() -> void:
+	_runner.assert_true(ResourceLoader.exists(PARRY_ONBOARDING_PATH), "parry onboarding script exists")
+	if not ResourceLoader.exists(PARRY_ONBOARDING_PATH):
+		return
+	var tutorial := (load(PARRY_ONBOARDING_PATH) as Script).new() as Node
+	var wolf := Node2D.new()
+	add_child(tutorial)
+	add_child(wolf)
+	tutorial.call("show_for_wolf", wolf, &"desktop")
+	remove_child(tutorial)
+
+	_runner.assert_true(bool(tutorial.call("dismiss_for_wolf", wolf)), "detached scene teardown still dismisses the active prompt")
+	_runner.assert_false(bool(tutorial.call("is_active")), "detached prompt cannot survive teardown")
+	tutorial.free()
 
 
 func _new_coach() -> Node:

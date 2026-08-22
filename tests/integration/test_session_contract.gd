@@ -490,6 +490,157 @@ func test_parry_tutorial_retries_next_wolf_and_completes_only_on_success() -> vo
 	session.queue_free()
 
 
+func test_session_actual_parry_presents_every_feedback_surface_once() -> void:
+	SaveManager.set_flag(SceneTransition.FLAG_BASEBALL_CAPTAIN_REWARD_CLAIMED, true)
+	GameManager.start_session({
+		"source": "parry_feedback_integration",
+		SceneTransition.RUN_CONFIG_LAYOUT_SEED: 512,
+		SceneTransition.RUN_CONFIG_SELECTED_WEAPON_ID: &"bat",
+	})
+	var session := (load("res://scenes/session/session_root.tscn") as PackedScene).instantiate()
+	add_child(session)
+	var controller := session.get_node_or_null("%ParryFeedbackController") as CanvasLayer
+	_runner.assert_not_null(controller, "session mounts the parry feedback controller")
+	if controller == null:
+		session.queue_free()
+		return
+	AudioManager.reset()
+	HapticManager.test_mode = true
+	HapticManager.test_log.clear()
+	HapticManager._enabled = true
+	HapticManager._last_any_ms = -100000
+	HapticManager._last_cat_ms.clear()
+	HapticManager._test_now = 1000
+	var manager := session.get_node("%RoomManager") as RoomManager
+	var combat_def := _first_room_of_type(manager.layout, RoomLayout.TYPE_COMBAT)
+	_runner.assert_not_null(combat_def, "parry feedback fixture has a combat room")
+	if combat_def == null:
+		session.queue_free()
+		return
+	manager.enter_room(combat_def.room_id)
+	var wolf := _first_enemy_named(manager.current_room, "Wolf")
+	var actor := session.get_node("%Player") as Node2D
+	var camera := session.get_node("%PlayerCamera") as Camera2D
+	_runner.assert_not_null(wolf, "parry feedback fixture has a wolf")
+	if wolf == null:
+		session.queue_free()
+		return
+	actor.global_position = Vector2(100.0, 100.0)
+	(wolf as Node2D).global_position = Vector2(140.0, 100.0)
+	wolf.call("tick_dash_ai", 0.01, (wolf as Node2D).global_position, actor.global_position)
+	wolf.call("tick_dash_ai", float(wolf.get("dash_windup_time")), (wolf as Node2D).global_position, actor.global_position)
+	AudioManager.reset()
+	actor.call("_attack_melee", Vector2.RIGHT)
+
+	_runner.assert_eq(PoolManager.get_active_count(&"floating_combat_text"), 1, "actual parry spawns one floating text")
+	_runner.assert_true(HitStopManager.is_active(), "actual parry starts hit stop")
+	_runner.assert_true(bool(controller.call("get_flash_snapshot").get("visible")), "actual parry flashes white")
+	var expected_parry_offset: Vector2 = session.call("camera_feedback_offset", Vector2.RIGHT, 9.0)
+	_runner.assert_eq(camera.offset, expected_parry_offset, "generic melee feedback cannot overwrite the stronger parry camera kick")
+	_runner.assert_eq(AudioManager.get_played_sfx(), [&"bat_swing", &"parry_success", &"bat_hit"], "actual parry plays swing, dedicated success, then hit sound")
+	_runner.assert_eq(HapticManager.test_log, [2], "actual parry produces exactly one strong haptic")
+
+	HapticManager.test_mode = false
+	HapticManager.test_log.clear()
+	HapticManager._test_now = -1
+	HitStopManager.restore()
+	session.queue_free()
+
+
+func test_session_exit_during_parry_feedback_restores_global_and_pooled_state() -> void:
+	GameManager.start_session({
+		"source": "parry_feedback_teardown",
+		SceneTransition.RUN_CONFIG_LAYOUT_SEED: 514,
+		SceneTransition.RUN_CONFIG_SELECTED_WEAPON_ID: &"bat",
+	})
+	var session := (load("res://scenes/session/session_root.tscn") as PackedScene).instantiate()
+	add_child(session)
+	var controller := session.get_node_or_null("%ParryFeedbackController") as CanvasLayer
+	_runner.assert_not_null(controller, "session mounts controller for teardown")
+	if controller == null:
+		session.queue_free()
+		return
+	controller.call("present", {
+		"player_position": Vector2(10.0, 20.0),
+		"enemy_position": Vector2(30.0, 20.0),
+		"direction": Vector2.RIGHT,
+	})
+	_runner.assert_true(HitStopManager.is_active(), "teardown fixture starts during hit stop")
+	_runner.assert_true(bool(controller.call("get_flash_snapshot").get("visible")), "teardown fixture starts during flash")
+	_runner.assert_true(PoolManager.call("has_pool", &"floating_combat_text"), "floating text pool is registered")
+
+	session.call("_exit_tree")
+
+	_runner.assert_eq(Engine.time_scale, 1.0, "session exit always restores normal time")
+	_runner.assert_false(bool(controller.call("get_flash_snapshot").get("visible")), "session exit clears white flash")
+	_runner.assert_false(bool(PoolManager.call("has_pool", &"floating_combat_text")), "session exit clears only the floating text pool before global cleanup")
+	_runner.assert_eq((session.get_node("%PlayerCamera") as Camera2D).offset, Vector2.ZERO, "session exit restores camera offset")
+	session.queue_free()
+
+
+func test_finish_session_during_parry_feedback_restores_every_effect() -> void:
+	GameManager.start_session({
+		"source": "parry_feedback_finish",
+		SceneTransition.RUN_CONFIG_LAYOUT_SEED: 515,
+		SceneTransition.RUN_CONFIG_SELECTED_WEAPON_ID: &"bat",
+	})
+	var session := (load("res://scenes/session/session_root.tscn") as PackedScene).instantiate()
+	add_child(session)
+	var controller := session.get_node_or_null("%ParryFeedbackController") as CanvasLayer
+	_runner.assert_not_null(controller, "finish fixture mounts the parry controller")
+	if controller == null:
+		session.queue_free()
+		return
+	_start_active_parry_feedback(controller)
+
+	session.call("finish_session")
+
+	_assert_parry_feedback_cleared(session, controller, "finish")
+	_runner.assert_false(GameManager.is_session_active(), "finish closes the active game session")
+	session.queue_free()
+
+
+func test_death_summary_during_parry_feedback_restores_every_effect() -> void:
+	GameManager.start_session({
+		"source": "parry_feedback_death",
+		SceneTransition.RUN_CONFIG_LAYOUT_SEED: 516,
+		SceneTransition.RUN_CONFIG_SELECTED_WEAPON_ID: &"bat",
+	})
+	var session := (load("res://scenes/session/session_root.tscn") as PackedScene).instantiate()
+	add_child(session)
+	var controller := session.get_node_or_null("%ParryFeedbackController") as CanvasLayer
+	_runner.assert_not_null(controller, "death fixture mounts the parry controller")
+	if controller == null:
+		session.queue_free()
+		return
+	_start_active_parry_feedback(controller)
+
+	var death_result: Dictionary = session.call("_build_death_result")
+	session.call("_show_death_summary", death_result)
+
+	_assert_parry_feedback_cleared(session, controller, "death")
+	_runner.assert_true(get_tree().paused, "death summary keeps the normal paused result state")
+	session.queue_free()
+
+
+func _start_active_parry_feedback(controller: CanvasLayer) -> void:
+	controller.call("present", {
+		"player_position": Vector2(10.0, 20.0),
+		"enemy_position": Vector2(30.0, 20.0),
+		"direction": Vector2.RIGHT,
+	})
+	_runner.assert_true(HitStopManager.is_active(), "feedback fixture starts during hit stop")
+	_runner.assert_true(bool(controller.call("get_flash_snapshot").get("visible")), "feedback fixture starts during flash")
+	_runner.assert_true(PoolManager.call("has_pool", &"floating_combat_text"), "feedback fixture starts with its pool registered")
+
+
+func _assert_parry_feedback_cleared(session: Node, controller: CanvasLayer, path_name: String) -> void:
+	_runner.assert_eq(Engine.time_scale, 1.0, "%s restores normal time" % path_name)
+	_runner.assert_false(bool(controller.call("get_flash_snapshot").get("visible")), "%s clears white flash" % path_name)
+	_runner.assert_false(bool(PoolManager.call("has_pool", &"floating_combat_text")), "%s clears the floating text pool" % path_name)
+	_runner.assert_eq((session.get_node("%PlayerCamera") as Camera2D).offset, Vector2.ZERO, "%s restores camera offset" % path_name)
+
+
 func test_parry_tutorial_miss_never_blocks_room_clear() -> void:
 	SaveManager.set_flag(SceneTransition.FLAG_BASEBALL_CAPTAIN_REWARD_CLAIMED, true)
 	GameManager.start_session({

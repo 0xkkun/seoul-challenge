@@ -73,6 +73,16 @@ func test_wolf_attack_sfx_is_registered() -> void:
 	_runner.assert_not_null(stream, "wolf attack SFX loads as WAV")
 
 
+func test_parry_success_sfx_is_registered_and_importable() -> void:
+	var stream_path := AudioManager.get_sfx_stream_path(&"parry_success")
+
+	_runner.assert_true(AudioManager.has_sfx(&"parry_success"), "parry success has a dedicated SFX id")
+	_runner.assert_eq(stream_path, "res://assets/audio/sfx/parry_success.wav", "parry success uses the committed WAV")
+	_runner.assert_true(ResourceLoader.exists(stream_path), "parry success WAV is importable")
+	if stream_path == "res://assets/audio/sfx/parry_success.wav" and ResourceLoader.exists(stream_path):
+		_runner.assert_not_null(load(stream_path) as AudioStreamWAV, "parry success loads as WAV")
+
+
 func test_kumiho_fireball_sfx_is_registered() -> void:
 	var stream_path := AudioManager.get_sfx_stream_path(&"kumiho_fireball")
 

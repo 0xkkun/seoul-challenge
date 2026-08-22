@@ -105,6 +105,12 @@ func test_combat_feedback_deflect_maps_to_strong_haptic() -> void:
 	_runner.assert_eq(HapticManager.test_log, [L_STRONG], "패링/반사는 STRONG 진동")
 
 
+func test_parry_feedback_defers_haptic_to_presentation_controller() -> void:
+	_at(1000)
+	EventBus.emit_combat_feedback({"kind": &"parry", "intensity": 9.0})
+	_runner.assert_eq(HapticManager.test_log, [], "parry camera feedback는 controller의 마지막 진동을 선점하지 않는다")
+
+
 # --- 과진동 방지 ---
 
 func test_global_floor_suppresses_rapid_back_to_back() -> void:
