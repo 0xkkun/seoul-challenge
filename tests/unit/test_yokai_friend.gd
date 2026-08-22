@@ -59,6 +59,18 @@ func test_damage_accumulates_to_stun() -> void:
 	f.free()
 
 
+func test_take_damage_returns_only_accepted_clamped_stun_delta() -> void:
+	var friend = FriendScene.instantiate()
+	friend.max_stun = 3
+	add_child(friend)
+	_runner.assert_eq(friend.take_damage(1), 1, "yokai friend returns accepted stun delta")
+	_runner.assert_eq(friend.take_damage(1), 0, "yokai friend returns zero while hit-invulnerable")
+	friend.call("tick_hit_reaction", friend.hit_invuln_time + 0.05)
+	_runner.assert_eq(friend.take_damage(5), 2, "yokai friend overkill clamps to remaining stun threshold")
+	_runner.assert_true(friend.is_stunned(), "clamped accepted damage still enters stunned state")
+	_runner.assert_eq(friend.take_damage(1), 0, "yokai friend returns zero while stunned")
+
+
 func test_damage_ignored_while_stunned() -> void:
 	var f = FriendScene.instantiate()
 	f.take_damage(8)

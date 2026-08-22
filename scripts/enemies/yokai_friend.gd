@@ -204,17 +204,22 @@ func _ensure_hit_reaction() -> Node:
 
 # --- 피격/기절/정화 (I/O) ---
 
-## 정화탄 등이 호출(계약). 추적/공격 중에는 기절 게이지를 채운다.
-func take_damage(amount: int) -> void:
-	if not (_state == State.CHASING or _state == State.ATTACKING) or is_hit_invulnerable():
-		return
+## 정화탄 등이 호출(계약). 추적/공격 중에는 기절 게이지를 채우고 실제 누적량을 반환한다.
+func take_damage(amount: int) -> int:
+	if amount <= 0 or not (_state == State.CHASING or _state == State.ATTACKING) or is_hit_invulnerable():
+		return 0
+	var previous_stun := _stun_accum
+	_stun_accum = mini(max_stun, accumulate_stun(_stun_accum, amount))
+	var applied_damage := _stun_accum - previous_stun
+	if applied_damage <= 0:
+		return 0
 	AudioManager.play_sfx(AudioManager.ENEMY_HIT)
 	HapticManager.on_enemy_hit()
-	_stun_accum = accumulate_stun(_stun_accum, amount)
 	if reached_stun_threshold(_stun_accum, max_stun):
 		_enter_stunned()
 	else:
 		_trigger_hit_reaction()
+	return applied_damage
 
 
 ## 정화 진행을 delta만큼 누적하고, 완료되면 true. (테스트에서 직접 호출 가능)

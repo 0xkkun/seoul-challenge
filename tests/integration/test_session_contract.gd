@@ -14,6 +14,7 @@ func _set_runner(runner: Node) -> void:
 
 
 func before_each() -> void:
+	HitStopManager.restore()
 	Settings.reset_defaults()
 	AudioManager.reset()
 	PoolManager.clear_all()
@@ -25,6 +26,7 @@ func before_each() -> void:
 
 func after_each() -> void:
 	get_tree().paused = false
+	HitStopManager.restore()
 	AudioManager.reset()
 	Settings.reset_defaults()
 	PoolManager.clear_all()
@@ -574,6 +576,8 @@ func test_session_actual_parry_presents_every_feedback_surface_once() -> void:
 
 	_runner.assert_eq(PoolManager.get_active_count(&"floating_combat_text"), 1, "actual parry spawns one floating text")
 	_runner.assert_true(HitStopManager.is_active(), "actual parry starts hit stop")
+	_runner.assert_true(is_equal_approx(HitStopManager.get_remaining_real_seconds(), 0.10), "general melee request cannot shorten the active parry duration")
+	_runner.assert_true(is_equal_approx(HitStopManager.get_active_scale(), 0.05), "general melee request cannot weaken the active parry scale")
 	_runner.assert_true(bool(controller.call("get_flash_snapshot").get("visible")), "actual parry flashes white")
 	var expected_parry_offset: Vector2 = session.call("camera_feedback_offset", Vector2.RIGHT, 9.0)
 	_runner.assert_eq(camera.offset, expected_parry_offset, "generic melee feedback cannot overwrite the stronger parry camera kick")
@@ -2106,6 +2110,29 @@ func test_player_death_shows_game_over_summary_without_immediate_transition() ->
 	_runner.assert_eq(session.get("_parry_combat_room"), null, "death summary releases the combat room callback")
 	_runner.assert_false(actor.is_connected(&"parry_succeeded", Callable(session, "_on_player_parry_succeeded")), "death summary releases the player parry callback")
 
+	get_tree().paused = false
+	session.queue_free()
+
+
+func test_lethal_player_damage_keeps_death_summary_at_normal_time_scale() -> void:
+	GameManager.start_session({
+		"source": "lethal_hurt_hit_stop_cleanup",
+		SceneTransition.RUN_CONFIG_LAYOUT_SEED: 526,
+	})
+	var session := (load("res://scenes/session/session_root.tscn") as PackedScene).instantiate()
+	add_child(session)
+	var actor := session.get_node("%Player") as Node
+	actor.set("_health", 1)
+	HitStopManager.restore()
+
+	var applied_damage: Variant = actor.call("take_damage", 1)
+
+	_runner.assert_eq(applied_damage, 1, "lethal player damage is still accepted")
+	_runner.assert_false(GameManager.is_session_active(), "lethal health event finishes the active run")
+	_runner.assert_eq(GameManager.get_last_result().get("outcome", ""), "death", "lethal health event records the death outcome")
+	_runner.assert_true(get_tree().paused, "lethal health event pauses gameplay for the death summary")
+	_runner.assert_false(HitStopManager.is_active(), "death cleanup remains the final hit-stop owner")
+	_runner.assert_eq(Engine.time_scale, 1.0, "death summary never inherits the hurt slow scale")
 	get_tree().paused = false
 	session.queue_free()
 

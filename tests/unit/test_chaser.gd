@@ -61,6 +61,17 @@ func test_chase_stops_inside_contact_range() -> void:
 	e.free()
 
 
+func test_take_damage_returns_only_accepted_clamped_hp_delta() -> void:
+	var enemy = ChaserScene.instantiate()
+	enemy.max_hp = 2
+	add_child(enemy)
+	_runner.assert_eq(enemy.take_damage(1), 1, "chaser returns the accepted HP delta")
+	_runner.assert_eq(enemy.take_damage(1), 0, "chaser returns zero while hit-invulnerable")
+	enemy.call("tick_hit_reaction", enemy.hit_invuln_time + 0.05)
+	_runner.assert_eq(enemy.take_damage(5), 1, "chaser lethal overkill clamps to remaining HP")
+	_runner.assert_eq(enemy.take_damage(1), 0, "chaser returns zero after death")
+
+
 func test_dies_after_max_hp_damage() -> void:
 	var e = ChaserScene.instantiate()
 	add_child(e)  # _ready → _hp = max_hp(3)

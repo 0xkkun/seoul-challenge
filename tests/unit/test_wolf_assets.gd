@@ -80,6 +80,17 @@ func test_wolf_takes_three_default_bat_hits() -> void:
 	_runner.assert_true(enemy.max_hp <= player.bat_damage * 3, "wolf should die by the third default bat hit")
 
 
+func test_wolf_take_damage_returns_only_accepted_clamped_hp_delta() -> void:
+	var enemy := (load(WOLF_SCENE_PATH) as PackedScene).instantiate()
+	enemy.max_hp = 2
+	add_child(enemy)
+	_runner.assert_eq(enemy.take_damage(1), 1, "wolf returns the accepted HP delta")
+	_runner.assert_eq(enemy.take_damage(1), 0, "wolf returns zero while hit-invulnerable")
+	enemy.call("tick_hit_reaction", enemy.hit_invuln_time + 0.05)
+	_runner.assert_eq(enemy.take_damage(5), 1, "wolf lethal overkill clamps to remaining HP")
+	_runner.assert_eq(enemy.take_damage(1), 0, "wolf returns zero after death")
+
+
 func test_wolf_contact_range_starts_before_body_overlap() -> void:
 	_runner.assert_true(ResourceLoader.exists(WOLF_SCENE_PATH), "wolf dash enemy scene exists")
 	if not ResourceLoader.exists(WOLF_SCENE_PATH):

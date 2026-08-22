@@ -56,6 +56,17 @@ func test_pattern_alternates() -> void:
 	b.free()
 
 
+func test_boss_take_damage_returns_only_accepted_clamped_hp_delta() -> void:
+	var boss = BossScene.instantiate()
+	boss.max_hp = 2
+	add_child(boss)
+	_runner.assert_eq(boss.take_damage(1), 1, "boss returns the accepted HP delta")
+	_runner.assert_eq(boss.take_damage(1), 0, "boss returns zero while hit-invulnerable")
+	boss.call("tick_hit_reaction", boss.hit_invuln_time + 0.05)
+	_runner.assert_eq(boss.take_damage(5), 1, "boss lethal overkill clamps to remaining HP")
+	_runner.assert_eq(boss.take_damage(1), 0, "boss returns zero after death")
+
+
 func test_swing_arc_hits_forward_target_only() -> void:
 	var b = BossScene.instantiate()
 	_runner.assert_true(b.has_method("in_swing_arc"), "보스 스윙 판정은 테스트 가능한 순수 함수로 노출된다")

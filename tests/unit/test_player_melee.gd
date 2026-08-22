@@ -9,8 +9,12 @@ var _runner: Node
 
 class StubEnemy extends Node2D:
 	var taken: int = 0
-	func take_damage(amount: int) -> void:
+	var accepts_damage := true
+	func take_damage(amount: int) -> int:
+		if not accepts_damage:
+			return 0
 		taken += amount
+		return amount
 
 
 class StubResistantEnemy extends StubEnemy:
@@ -58,6 +62,91 @@ class StubBullet extends Node2D:
 
 func _set_runner(runner: Node) -> void:
 	_runner = runner
+
+
+func before_each() -> void:
+	HitStopManager.restore()
+
+
+func after_each() -> void:
+	HitStopManager.restore()
+
+
+func test_hit_stop_profile_matches_combat_result() -> void:
+	_runner.assert_eq(PlayerScript.hit_stop_profile(false, false), {"duration": 0.03, "scale": 0.15}, "normal melee uses the light hit-stop profile")
+	_runner.assert_eq(PlayerScript.hit_stop_profile(true, false), {"duration": 0.06, "scale": 0.08}, "dash power melee uses the stronger profile")
+	_runner.assert_eq(PlayerScript.hit_stop_profile(false, true), {"duration": 0.05, "scale": 0.10}, "accepted player damage uses the hurt profile")
+
+
+func test_general_hit_stop_requires_positive_applied_damage() -> void:
+	var player := PlayerScript.new()
+	add_child(player)
+	player.position = Vector2.ZERO
+	var rejected := StubEnemy.new()
+	rejected.accepts_damage = false
+	rejected.position = Vector2(25.0, 0.0)
+	rejected.add_to_group(&"enemy")
+	add_child(rejected)
+
+	player._attack_melee(Vector2.RIGHT)
+
+	_runner.assert_eq(rejected.taken, 0, "rejected overlap applies no damage")
+	_runner.assert_false(HitStopManager.is_active(), "rejected overlap cannot start hit stop")
+	_runner.assert_eq(Engine.time_scale, 1.0, "rejected overlap keeps real-time play")
+	rejected.free()
+	player.free()
+
+
+func test_general_hit_stop_uses_one_profile_for_mixed_targets() -> void:
+	var payloads: Array[Dictionary] = []
+	var callback := func(payload: Dictionary) -> void:
+		payloads.append(payload)
+	EventBus.combat_feedback.connect(callback)
+	var player := PlayerScript.new()
+	add_child(player)
+	player.position = Vector2.ZERO
+	var accepted := StubEnemy.new()
+	accepted.position = Vector2(25.0, 0.0)
+	accepted.add_to_group(&"enemy")
+	add_child(accepted)
+	var rejected := StubEnemy.new()
+	rejected.accepts_damage = false
+	rejected.position = Vector2(30.0, 0.0)
+	rejected.add_to_group(&"enemy")
+	add_child(rejected)
+
+	player._attack_melee(Vector2.RIGHT)
+
+	_runner.assert_eq(accepted.taken, player.melee_damage, "accepted target receives damage once")
+	_runner.assert_eq(rejected.taken, 0, "rejected target remains untouched")
+	_runner.assert_true(is_equal_approx(HitStopManager.get_remaining_real_seconds(), 0.03), "mixed swing requests one normal hit-stop duration")
+	_runner.assert_true(is_equal_approx(HitStopManager.get_active_scale(), 0.15), "mixed swing requests the normal hit-stop scale")
+	_runner.assert_eq(payloads.size(), 1, "mixed swing emits one combat feedback payload")
+	if payloads.size() == 1:
+		_runner.assert_eq(int(payloads[0].get("hit_count", -1)), 1, "feedback counts only accepted targets")
+	EventBus.combat_feedback.disconnect(callback)
+	accepted.free()
+	rejected.free()
+	player.free()
+
+
+func test_power_attack_hit_stop_uses_stronger_profile() -> void:
+	var player := PlayerScript.new()
+	add_child(player)
+	player.position = Vector2.ZERO
+	player.equip_bat()
+	var enemy := StubEnemy.new()
+	enemy.position = Vector2(50.0, 0.0)
+	enemy.add_to_group(&"enemy")
+	add_child(enemy)
+	player.try_start_special_skill(Vector2.RIGHT)
+
+	player._attack_melee(Vector2.RIGHT)
+
+	_runner.assert_true(is_equal_approx(HitStopManager.get_remaining_real_seconds(), 0.06), "accepted power attack requests its longer duration")
+	_runner.assert_true(is_equal_approx(HitStopManager.get_active_scale(), 0.08), "accepted power attack requests its stronger slow scale")
+	enemy.free()
+	player.free()
 
 
 func test_in_melee_arc_front_is_hit() -> void:

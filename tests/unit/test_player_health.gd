@@ -14,6 +14,14 @@ func _set_runner(runner: Node) -> void:
 	_runner = runner
 
 
+func before_each() -> void:
+	HitStopManager.restore()
+
+
+func after_each() -> void:
+	HitStopManager.restore()
+
+
 func _enable_haptic_test_mode(t: int = 1000) -> void:
 	HapticManager.test_mode = true
 	HapticManager.test_log.clear()
@@ -131,9 +139,26 @@ func test_take_damage_reduces_health() -> void:
 	add_child(p)  # _ready → _health = max_health
 	var before: int = p.get_health()
 	_runner.assert_true(before > 0, "초기 체력 > 0")
-	p.take_damage(2)
+	var applied: Variant = p.take_damage(2)
 	_runner.assert_eq(p.get_health(), before - 2, "피해만큼 체력 감소")
+	_runner.assert_eq(applied, 2, "플레이어 피격도 실제 적용 피해량을 반환한다")
 	p.free()
+
+
+func test_player_hit_stop_starts_only_for_accepted_damage() -> void:
+	var player := PlayerScript.new()
+	add_child(player)
+	var accepted: Variant = player.take_damage(2)
+	_runner.assert_eq(accepted, 2, "first player hit applies damage")
+	_runner.assert_true(is_equal_approx(HitStopManager.get_remaining_real_seconds(), 0.05), "accepted player hit requests hurt duration")
+	_runner.assert_true(is_equal_approx(HitStopManager.get_active_scale(), 0.10), "accepted player hit requests hurt slow scale")
+
+	HitStopManager.restore()
+	var rejected: Variant = player.take_damage(2)
+	_runner.assert_eq(rejected, 0, "invulnerable repeat hit returns zero")
+	_runner.assert_false(HitStopManager.is_active(), "invulnerable repeat hit cannot restart hit stop")
+	_runner.assert_eq(Engine.time_scale, 1.0, "rejected player hit keeps normal time")
+	player.free()
 
 
 func test_invuln_blocks_immediate_second_hit() -> void:
