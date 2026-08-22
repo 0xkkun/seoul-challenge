@@ -203,7 +203,13 @@ func test_intro_controls_use_desktop_copy_and_mobile_safe_area() -> void:
 	var skip_button := intro.get_node("SkipButton") as Button
 	var viewport_size := intro.get_viewport().get_visible_rect().size
 
-	_runner.assert_eq(hint.text, "클릭하여 계속", "데스크톱 인트로는 클릭 안내를 표시한다")
+	_runner.assert_eq(hint.text, "LMB  계속", "데스크톱 인트로는 compact key/action chip을 표시한다")
+	_runner.assert_true(intro.has_method("continue_chip_text_for_mode"), "intro exposes deterministic PC/touch chip copy")
+	if intro.has_method("continue_chip_text_for_mode"):
+		_runner.assert_eq(intro.call("continue_chip_text_for_mode", &"desktop"), "LMB  계속", "PC chip uses LMB")
+		_runner.assert_eq(intro.call("continue_chip_text_for_mode", &"touch"), "탭  계속", "touch chip never exposes a PC key")
+	_runner.assert_true(hint.size.x <= 180.0 and hint.size.y <= 34.0, "continue chip stays compact")
+	_runner.assert_true(is_equal_approx(hint.get_theme_color("font_color").a, 0.78), "continue chip stays subordinate to the cinematic")
 	_runner.assert_true(
 		MobileSafeArea.meets_landscape_minimum(skip_button.get_global_rect(), viewport_size),
 		"인트로 건너뛰기는 top/right safe-area 안쪽에 있다"

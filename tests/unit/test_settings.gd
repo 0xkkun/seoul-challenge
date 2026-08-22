@@ -27,6 +27,20 @@ func test_settings_default_audio_and_haptic_flags_are_on() -> void:
 	_runner.assert_true(Settings.is_bgm_enabled(), "BGM defaults on")
 	_runner.assert_true(Settings.is_sfx_enabled(), "SFX defaults on")
 	_runner.assert_true(Settings.is_haptic_enabled(), "haptic defaults on")
+	_runner.assert_true(Settings.has_method("is_reduced_motion_enabled"), "settings exposes reduced-motion state")
+	if Settings.has_method("is_reduced_motion_enabled"):
+		_runner.assert_false(bool(Settings.call("is_reduced_motion_enabled")), "reduced onboarding motion defaults off")
+
+
+func test_reduced_motion_setting_emits_the_updated_snapshot() -> void:
+	_runner.assert_true(Settings.has_method("set_reduced_motion_enabled"), "settings exposes reduced-motion setter")
+	if not Settings.has_method("set_reduced_motion_enabled"):
+		return
+	Settings.call("set_reduced_motion_enabled", true)
+
+	_runner.assert_true(bool(Settings.call("is_reduced_motion_enabled")), "reduced motion setter updates the setting")
+	_runner.assert_eq(_settings_payloads.size(), 1, "reduced motion change emits once")
+	_runner.assert_true(bool(_settings_payloads[0].get("reduced_motion", false)), "settings payload exposes reduced motion")
 
 
 func test_audio_manager_honors_bgm_toggle_without_forgetting_track() -> void:

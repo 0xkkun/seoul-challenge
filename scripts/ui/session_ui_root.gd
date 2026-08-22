@@ -15,6 +15,7 @@ const MAP_TAB_TEST_ID := "session.map_tab"
 const MAP_TAB_ACTION := "session.map_tab"
 const MobileSafeArea := preload("res://scripts/ui/mobile_safe_area.gd")
 const FontRoles := preload("res://scripts/ui/ui_font_roles.gd")
+const OnboardingVisualTokens := preload("res://scripts/ui/onboarding_visual_tokens.gd")
 const REWARD_CHOICE_ROW_OFFSET_LEFT := -390.0
 const REWARD_CHOICE_ROW_OFFSET_TOP := -84.0
 const REWARD_CHOICE_ROW_OFFSET_RIGHT := 390.0
@@ -22,10 +23,9 @@ const REWARD_CHOICE_ROW_OFFSET_BOTTOM := 84.0
 const REWARD_CHOICE_TITLE_TEXT := "방 클리어 보상"
 const REWARD_CHOICE_TITLE_OFFSET_TOP := -170.0
 const REWARD_CHOICE_TITLE_OFFSET_BOTTOM := -124.0
-const REWARD_CHOICE_ONBOARDING_TITLE := "전투 보상"
-const REWARD_CHOICE_ONBOARDING_BODY := "카드 하나를 골라 이번 탐험을 강화"
-const REWARD_CHOICE_ONBOARDING_SIZE := Vector2(560.0, 56.0)
-const REWARD_CHOICE_ONBOARDING_OFFSET_TOP := 116.0
+const REWARD_CHOICE_ONBOARDING_EYEBROW := "첫 강화 · 1장 선택"
+const REWARD_CHOICE_ONBOARDING_EYEBROW_SIZE := Vector2(320.0, 28.0)
+const REWARD_CHOICE_ONBOARDING_EYEBROW_TOP := -202.0
 const REWARD_CHOICE_CARD_SIZE := Vector2(244.0, 146.0)
 const REWARD_CHOICE_CARD_ORNAMENT_HEIGHT := 49.0
 const REWARD_CHOICE_CARD_ORNAMENT_INSET_X := 3.0
@@ -37,7 +37,7 @@ const REWARD_CHOICE_CARD_TITLE_OUTLINE := 4
 const REWARD_CHOICE_CARD_EFFECT_OUTLINE := 1
 const REWARD_CHOICE_CARD_TITLE_COLOR := Color(1.0, 0.835294, 0.258824, 1.0)
 const REWARD_CHOICE_CARD_EFFECT_COLOR := Color(0.88, 0.86, 0.66, 0.94)
-const ONBOARDING_JOURNEY_HINT_SIZE := Vector2(320.0, 82.0)
+const ONBOARDING_JOURNEY_HINT_SIZE := Vector2(320.0, 48.0)
 const ONBOARDING_JOURNEY_HINT_TOP := 24.0
 const ONBOARDING_JOURNEY_HINT_CENTER_OFFSET_X := -16.0
 const SUMMARY_RECORD_TITLE_COLOR := DungeonUiTheme.COLOR_TEXT
@@ -71,9 +71,7 @@ const UNLOCK_LABELS := {
 var _reward_choice_overlay: Control = null
 var _reward_choice_dim: ColorRect = null
 var _reward_choice_title_label: Label = null
-var _reward_choice_onboarding_panel: PanelContainer = null
-var _reward_choice_onboarding_title_label: Label = null
-var _reward_choice_onboarding_body_label: Label = null
+var _reward_choice_onboarding_eyebrow: Label = null
 var _reward_choice_row: HBoxContainer = null
 var _reward_choice_cards: Array[Button] = []
 var _reward_choice_room_id: StringName = &""
@@ -81,8 +79,8 @@ var _reward_choice_models: Array[Dictionary] = []
 var _reward_choice_open_tween: Tween = null
 var _reward_choice_onboarding_hint_enabled := false
 var _onboarding_journey_hint_panel: PanelContainer = null
-var _onboarding_journey_hint_title: Label = null
-var _onboarding_journey_hint_body: Label = null
+var _onboarding_journey_hint_detail: Label = null
+var _onboarding_journey_hint_action: Label = null
 
 
 func _ready() -> void:
@@ -219,20 +217,35 @@ func set_status(text: String) -> void:
 
 func set_onboarding_journey_hint(title: String, body: String, enabled: bool) -> void:
 	_ensure_onboarding_journey_hint()
-	_onboarding_journey_hint_title.text = title
-	_onboarding_journey_hint_body.text = body
-	_onboarding_journey_hint_panel.visible = enabled and not body.is_empty()
+	var visual := _journey_visual_copy(title, body)
+	_onboarding_journey_hint_detail.text = String(visual.get("detail", ""))
+	_onboarding_journey_hint_action.text = String(visual.get("action", ""))
+	_onboarding_journey_hint_panel.visible = enabled and not _onboarding_journey_hint_action.text.is_empty()
 
 
 func get_onboarding_journey_hint_snapshot() -> Dictionary:
 	_ensure_onboarding_journey_hint()
+	var rect := _onboarding_journey_hint_panel.get_global_rect()
 	return {
 		"visible": _onboarding_journey_hint_panel.visible,
-		"title": _onboarding_journey_hint_title.text,
-		"body": _onboarding_journey_hint_body.text,
-		"rect": _onboarding_journey_hint_panel.get_global_rect(),
+		"variant": &"objective_ribbon",
+		"title": _onboarding_journey_hint_action.text,
+		"body": _onboarding_journey_hint_detail.text,
+		"detail": _onboarding_journey_hint_detail.text,
+		"action": _onboarding_journey_hint_action.text,
+		"rect": rect,
+		"screen_coverage": OnboardingVisualTokens.screen_coverage([rect], MobileSafeArea.DESIGN_VIEWPORT),
 		"mouse_filter": _onboarding_journey_hint_panel.mouse_filter,
 	}
+
+
+func _journey_visual_copy(title: String, body: String) -> Dictionary:
+	match title:
+		"첫 전투":
+			return {"detail": "적 처치", "action": "길 열기"}
+		"친구 조우":
+			return {"detail": "기절 → 접근", "action": "정화"}
+	return {"detail": body, "action": title}
 
 
 func set_map_name(text: String) -> void:
@@ -401,10 +414,9 @@ func get_reward_choice_snapshot() -> Dictionary:
 		"has_outer_panel": false,
 		"has_title": _reward_choice_title_label != null and is_instance_valid(_reward_choice_title_label) and _reward_choice_title_label.text != "",
 		"title": _reward_choice_title_label.text if _reward_choice_title_label != null and is_instance_valid(_reward_choice_title_label) else "",
-		"onboarding_hint_visible": _is_reward_choice_onboarding_hint_visible(),
-		"onboarding_hint_title": _reward_choice_onboarding_title_label.text if _reward_choice_onboarding_title_label != null and is_instance_valid(_reward_choice_onboarding_title_label) else "",
-		"onboarding_hint_body": _reward_choice_onboarding_body_label.text if _reward_choice_onboarding_body_label != null and is_instance_valid(_reward_choice_onboarding_body_label) else "",
-		"onboarding_hint_target_count": _reward_choice_cards.size() if _is_reward_choice_onboarding_hint_visible() else 0,
+		"onboarding_eyebrow_visible": _is_reward_choice_onboarding_hint_visible(),
+		"onboarding_eyebrow_text": _reward_choice_onboarding_eyebrow.text if _reward_choice_onboarding_eyebrow != null and is_instance_valid(_reward_choice_onboarding_eyebrow) else "",
+		"onboarding_hint_panel_exists": false,
 	}
 
 
@@ -447,32 +459,29 @@ func _ensure_onboarding_journey_hint() -> void:
 	_onboarding_journey_hint_panel.offset_top = ONBOARDING_JOURNEY_HINT_TOP
 	_onboarding_journey_hint_panel.offset_right = ONBOARDING_JOURNEY_HINT_CENTER_OFFSET_X + ONBOARDING_JOURNEY_HINT_SIZE.x * 0.5
 	_onboarding_journey_hint_panel.offset_bottom = ONBOARDING_JOURNEY_HINT_TOP + ONBOARDING_JOURNEY_HINT_SIZE.y
-	_onboarding_journey_hint_panel.add_theme_stylebox_override(
-		"panel",
-		DungeonUiTheme.panel_style(Color(0.035, 0.047, 0.071, 0.92), DungeonUiTheme.COLOR_GOLD_DIM, 2, 18.0, 10.0, 8)
-	)
-	var stack := VBoxContainer.new()
-	stack.name = "JourneyHintStack"
-	stack.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	stack.add_theme_constant_override("separation", 3)
-	_onboarding_journey_hint_panel.add_child(stack)
-	_onboarding_journey_hint_title = Label.new()
-	_onboarding_journey_hint_title.name = "JourneyHintTitle"
-	_onboarding_journey_hint_title.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_onboarding_journey_hint_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_onboarding_journey_hint_title.add_theme_font_size_override("font_size", 18)
-	_onboarding_journey_hint_title.add_theme_color_override("font_color", Color(1.0, 0.88, 0.42, 1.0))
-	FontRoles.apply_title(_onboarding_journey_hint_title)
-	stack.add_child(_onboarding_journey_hint_title)
-	_onboarding_journey_hint_body = Label.new()
-	_onboarding_journey_hint_body.name = "JourneyHintBody"
-	_onboarding_journey_hint_body.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_onboarding_journey_hint_body.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_onboarding_journey_hint_body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_onboarding_journey_hint_body.add_theme_font_size_override("font_size", 16)
-	_onboarding_journey_hint_body.add_theme_color_override("font_color", Color(0.94, 0.96, 1.0, 0.96))
-	FontRoles.apply_pixel(_onboarding_journey_hint_body)
-	stack.add_child(_onboarding_journey_hint_body)
+	_onboarding_journey_hint_panel.add_theme_stylebox_override("panel", OnboardingVisualTokens.coach_style(&"info"))
+	var row := HBoxContainer.new()
+	row.name = "JourneyHintRow"
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 10)
+	_onboarding_journey_hint_panel.add_child(row)
+	_onboarding_journey_hint_detail = Label.new()
+	_onboarding_journey_hint_detail.name = "JourneyHintDetail"
+	_onboarding_journey_hint_detail.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_onboarding_journey_hint_detail.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_onboarding_journey_hint_detail.add_theme_font_size_override("font_size", 14)
+	_onboarding_journey_hint_detail.add_theme_color_override("font_color", OnboardingVisualTokens.PAPER_TEXT)
+	FontRoles.apply_pixel(_onboarding_journey_hint_detail)
+	row.add_child(_onboarding_journey_hint_detail)
+	_onboarding_journey_hint_action = Label.new()
+	_onboarding_journey_hint_action.name = "JourneyHintAction"
+	_onboarding_journey_hint_action.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_onboarding_journey_hint_action.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_onboarding_journey_hint_action.add_theme_font_size_override("font_size", 20)
+	_onboarding_journey_hint_action.add_theme_color_override("font_color", OnboardingVisualTokens.GOLD_INFO)
+	FontRoles.apply_title(_onboarding_journey_hint_action)
+	row.add_child(_onboarding_journey_hint_action)
 	_onboarding_journey_hint_panel.visible = false
 	root.add_child(_onboarding_journey_hint_panel)
 
@@ -517,58 +526,27 @@ func _ensure_reward_choice_overlay() -> void:
 	_reward_choice_title_label.offset_bottom = REWARD_CHOICE_TITLE_OFFSET_BOTTOM
 	_reward_choice_overlay.add_child(_reward_choice_title_label)
 
-	_reward_choice_onboarding_panel = PanelContainer.new()
-	_reward_choice_onboarding_panel.name = "RewardChoiceOnboardingHint"
-	_reward_choice_onboarding_panel.visible = false
-	_reward_choice_onboarding_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_reward_choice_onboarding_panel.custom_minimum_size = REWARD_CHOICE_ONBOARDING_SIZE
-	_reward_choice_onboarding_panel.anchor_left = 0.5
-	_reward_choice_onboarding_panel.anchor_top = 0.5
-	_reward_choice_onboarding_panel.anchor_right = 0.5
-	_reward_choice_onboarding_panel.anchor_bottom = 0.5
-	_reward_choice_onboarding_panel.offset_left = -REWARD_CHOICE_ONBOARDING_SIZE.x * 0.5
-	_reward_choice_onboarding_panel.offset_top = REWARD_CHOICE_ONBOARDING_OFFSET_TOP
-	_reward_choice_onboarding_panel.offset_right = REWARD_CHOICE_ONBOARDING_SIZE.x * 0.5
-	_reward_choice_onboarding_panel.offset_bottom = REWARD_CHOICE_ONBOARDING_OFFSET_TOP + REWARD_CHOICE_ONBOARDING_SIZE.y
-	_reward_choice_onboarding_panel.add_theme_stylebox_override("panel", _reward_choice_onboarding_hint_style())
-	_reward_choice_overlay.add_child(_reward_choice_onboarding_panel)
-
-	var hint_margin := MarginContainer.new()
-	hint_margin.name = "RewardChoiceOnboardingMargin"
-	hint_margin.add_theme_constant_override("margin_left", 16)
-	hint_margin.add_theme_constant_override("margin_top", 8)
-	hint_margin.add_theme_constant_override("margin_right", 16)
-	hint_margin.add_theme_constant_override("margin_bottom", 8)
-	_reward_choice_onboarding_panel.add_child(hint_margin)
-
-	var hint_stack := VBoxContainer.new()
-	hint_stack.name = "RewardChoiceOnboardingText"
-	hint_stack.add_theme_constant_override("separation", 0)
-	hint_margin.add_child(hint_stack)
-
-	_reward_choice_onboarding_title_label = Label.new()
-	_reward_choice_onboarding_title_label.name = "RewardChoiceOnboardingTitle"
-	_reward_choice_onboarding_title_label.text = REWARD_CHOICE_ONBOARDING_TITLE
-	_reward_choice_onboarding_title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_reward_choice_onboarding_title_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_reward_choice_onboarding_title_label.add_theme_font_size_override("font_size", 17)
-	FontRoles.apply_title(_reward_choice_onboarding_title_label)
-	_reward_choice_onboarding_title_label.add_theme_color_override("font_color", Color(1.0, 0.88, 0.36, 1.0))
-	_reward_choice_onboarding_title_label.add_theme_color_override("font_outline_color", Color(0.0, 0.0, 0.0, 0.82))
-	_reward_choice_onboarding_title_label.add_theme_constant_override("outline_size", 2)
-	_reward_choice_onboarding_title_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	hint_stack.add_child(_reward_choice_onboarding_title_label)
-
-	_reward_choice_onboarding_body_label = Label.new()
-	_reward_choice_onboarding_body_label.name = "RewardChoiceOnboardingBody"
-	_reward_choice_onboarding_body_label.text = REWARD_CHOICE_ONBOARDING_BODY
-	_reward_choice_onboarding_body_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_reward_choice_onboarding_body_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_reward_choice_onboarding_body_label.add_theme_font_size_override("font_size", 14)
-	FontRoles.apply_pixel(_reward_choice_onboarding_body_label)
-	_reward_choice_onboarding_body_label.add_theme_color_override("font_color", Color(0.92, 0.94, 0.98, 1.0))
-	_reward_choice_onboarding_body_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	hint_stack.add_child(_reward_choice_onboarding_body_label)
+	_reward_choice_onboarding_eyebrow = Label.new()
+	_reward_choice_onboarding_eyebrow.name = "RewardChoiceOnboardingEyebrow"
+	_reward_choice_onboarding_eyebrow.text = REWARD_CHOICE_ONBOARDING_EYEBROW
+	_reward_choice_onboarding_eyebrow.visible = false
+	_reward_choice_onboarding_eyebrow.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_reward_choice_onboarding_eyebrow.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_reward_choice_onboarding_eyebrow.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_reward_choice_onboarding_eyebrow.add_theme_font_size_override("font_size", 15)
+	_reward_choice_onboarding_eyebrow.add_theme_color_override("font_color", OnboardingVisualTokens.GOLD_INFO)
+	_reward_choice_onboarding_eyebrow.add_theme_color_override("font_outline_color", OnboardingVisualTokens.SOFT_SHADOW)
+	_reward_choice_onboarding_eyebrow.add_theme_constant_override("outline_size", 2)
+	FontRoles.apply_pixel(_reward_choice_onboarding_eyebrow)
+	_reward_choice_onboarding_eyebrow.anchor_left = 0.5
+	_reward_choice_onboarding_eyebrow.anchor_top = 0.5
+	_reward_choice_onboarding_eyebrow.anchor_right = 0.5
+	_reward_choice_onboarding_eyebrow.anchor_bottom = 0.5
+	_reward_choice_onboarding_eyebrow.offset_left = -REWARD_CHOICE_ONBOARDING_EYEBROW_SIZE.x * 0.5
+	_reward_choice_onboarding_eyebrow.offset_top = REWARD_CHOICE_ONBOARDING_EYEBROW_TOP
+	_reward_choice_onboarding_eyebrow.offset_right = REWARD_CHOICE_ONBOARDING_EYEBROW_SIZE.x * 0.5
+	_reward_choice_onboarding_eyebrow.offset_bottom = REWARD_CHOICE_ONBOARDING_EYEBROW_TOP + REWARD_CHOICE_ONBOARDING_EYEBROW_SIZE.y
+	_reward_choice_overlay.add_child(_reward_choice_onboarding_eyebrow)
 
 	_reward_choice_row = HBoxContainer.new()
 	_reward_choice_row.name = "RewardChoiceRow"
@@ -656,9 +634,9 @@ func _render_reward_choices() -> void:
 
 
 func _update_reward_choice_onboarding_hint() -> void:
-	if _reward_choice_onboarding_panel == null or not is_instance_valid(_reward_choice_onboarding_panel):
+	if _reward_choice_onboarding_eyebrow == null or not is_instance_valid(_reward_choice_onboarding_eyebrow):
 		return
-	_reward_choice_onboarding_panel.visible = (
+	_reward_choice_onboarding_eyebrow.visible = (
 		_reward_choice_onboarding_hint_enabled
 		and is_reward_choice_visible()
 		and not _reward_choice_cards.is_empty()
@@ -667,9 +645,9 @@ func _update_reward_choice_onboarding_hint() -> void:
 
 func _is_reward_choice_onboarding_hint_visible() -> bool:
 	return (
-		_reward_choice_onboarding_panel != null
-		and is_instance_valid(_reward_choice_onboarding_panel)
-		and _reward_choice_onboarding_panel.visible
+		_reward_choice_onboarding_eyebrow != null
+		and is_instance_valid(_reward_choice_onboarding_eyebrow)
+		and _reward_choice_onboarding_eyebrow.visible
 	)
 
 
@@ -803,17 +781,6 @@ func _apply_reward_choice_card_style(button: Button) -> void:
 	button.add_theme_color_override("font_focus_color", Color(1.0, 0.984314, 0.878431, 1.0))
 	button.add_theme_color_override("font_pressed_color", Color(0.831373, 0.705882, 0.388235, 1.0))
 	button.add_theme_color_override("font_disabled_color", Color(0.72, 0.67, 0.52, 1.0))
-
-
-func _reward_choice_onboarding_hint_style() -> StyleBoxFlat:
-	return DungeonUiTheme.panel_style(
-		Color(0.045, 0.055, 0.075, 0.9),
-		DungeonUiTheme.COLOR_GOLD_DIM,
-		2,
-		10.0,
-		8.0,
-		6
-	)
 
 
 func _reward_choice_card_snapshot_text(card: Button) -> String:

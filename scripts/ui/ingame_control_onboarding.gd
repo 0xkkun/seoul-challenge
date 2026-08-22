@@ -5,15 +5,14 @@ const UiFontRoles = preload("res://scripts/ui/ui_font_roles.gd")
 const RenderLayers = preload("res://scripts/constants/render_layers.gd")
 const MobileSafeArea = preload("res://scripts/ui/mobile_safe_area.gd")
 const PixelButtonStyle = preload("res://scripts/ui/pixel_button_style.gd")
+const OnboardingCoachMarkScript = preload("res://scripts/ui/onboarding_coach_mark.gd")
+const OnboardingVisualTokens = preload("res://scripts/ui/onboarding_visual_tokens.gd")
 
 signal completed
 signal skipped
 signal gate_released
 
 const FLOW_ID := &"first_ingame_controls"
-const DIM_ALPHA := 0.58
-const SPOTLIGHT_PADDING := 14.0
-const SPOTLIGHT_MIN_SIZE := Vector2(96.0, 96.0)
 const MOVE_DISTANCE_REQUIRED := 96.0
 const SKIP_REVEAL_SECONDS := 5.0
 const SKIP_BUTTON_SIZE := Vector2(168.0, 48.0)
@@ -25,45 +24,49 @@ const ONBOARDING_START_ROOM_ID := &"start"
 const CAMERA_ZOOM_TARGET := 1.06
 const CAMERA_ZOOM_SECONDS := 0.18
 const CAMERA_RESTORE_SECONDS := 0.14
-const LABEL_SIZE := Vector2(270.0, 82.0)
-const LABEL_MARGIN := 18.0
 const VIEWPORT_FALLBACK := MobileSafeArea.DESIGN_VIEWPORT
 
 const TOUCH_STEPS: Array[Dictionary] = [
 	{
 		"id": &"move",
-		"title": "이동",
-		"body": "왼쪽 스틱으로 96px 이동",
+		"key_label": "스틱",
+		"action": "이동",
+		"detail": "96px",
 		"targets": ["Joystick"],
 	},
 	{
 		"id": &"attack",
-		"title": "기본공격",
-		"body": "공격 버튼으로 가까운 적을 공격",
+		"key_label": "공격 버튼",
+		"action": "공격",
+		"detail": "가까운 적",
 		"targets": ["AttackButton"],
 	},
 	{
 		"id": &"dash",
-		"title": "대시",
-		"body": "대시 버튼으로 짧게 회피",
+		"key_label": "대시 버튼",
+		"action": "회피",
+		"detail": "짧게",
 		"targets": ["SkillButton"],
 	},
 	{
 		"id": &"power_attack",
-		"title": "강공격",
-		"body": "대시 직후 공격 버튼으로 강공격",
+		"key_label": "대시 → 공격",
+		"action": "강공격",
+		"detail": "연속 입력",
 		"targets": ["SkillButton", "AttackButton"],
 	},
 	{
 		"id": &"minimap",
-		"title": "지도",
-		"body": "오른쪽 위 지도를 탭해 펼치기",
+		"key_label": "미니맵 탭",
+		"action": "지도 펼치기",
+		"detail": "오른쪽 위",
 		"targets": ["Minimap"],
 	},
 	{
 		"id": &"exit",
-		"title": "출구",
-		"body": "열린 문으로 이동",
+		"key_label": "",
+		"action": "열린 문 통과",
+		"detail": "",
 		"targets": [],
 	},
 ]
@@ -71,38 +74,44 @@ const TOUCH_STEPS: Array[Dictionary] = [
 const DESKTOP_STEPS: Array[Dictionary] = [
 	{
 		"id": &"move",
-		"title": "이동",
-		"body": "WASD 또는 방향키로 96px 이동",
+		"key_label": "WASD",
+		"action": "이동",
+		"detail": "96px",
 		"targets": [],
 	},
 	{
 		"id": &"attack",
-		"title": "기본공격",
-		"body": "좌클릭으로 가까운 적을 공격",
+		"key_label": "LMB",
+		"action": "공격",
+		"detail": "가까운 적",
 		"targets": [],
 	},
 	{
 		"id": &"dash",
-		"title": "대시",
-		"body": "SPACE로 짧게 회피",
+		"key_label": "SPACE",
+		"action": "회피",
+		"detail": "짧게",
 		"targets": [],
 	},
 	{
 		"id": &"power_attack",
-		"title": "강공격",
-		"body": "SPACE 직후 좌클릭으로 강공격",
+		"key_label": "SPACE → LMB",
+		"action": "강공격",
+		"detail": "연속 입력",
 		"targets": [],
 	},
 	{
 		"id": &"minimap",
-		"title": "지도",
-		"body": "오른쪽 위 지도를 클릭해 펼치기",
+		"key_label": "미니맵 클릭",
+		"action": "지도 펼치기",
+		"detail": "오른쪽 위",
 		"targets": ["Minimap"],
 	},
 	{
 		"id": &"exit",
-		"title": "출구",
-		"body": "열린 문으로 이동",
+		"key_label": "",
+		"action": "열린 문 통과",
+		"detail": "",
 		"targets": [],
 	},
 ]
@@ -124,13 +133,9 @@ var _skipped_emitted := false
 var _original_camera_zoom := Vector2.ONE
 var _camera_zoom_active := false
 var _camera_tween: Tween = null
-var _pulse_time := 0.0
 var _root: Control = null
-var _dim_rects: Array[ColorRect] = []
-var _spotlight_frame: Panel = null
-var _label_panel: PanelContainer = null
-var _title_label: Label = null
-var _body_label: Label = null
+var _coach_mark: OnboardingCoachMark = null
+var _pending_visual_refresh := false
 var _skip_button: Button = null
 var _compact_legend: PanelContainer = null
 var _legend_label: Label = null
@@ -152,6 +157,8 @@ func configure(touch_controls: Node, camera: Camera2D = null, player: Node = nul
 	_player = player
 	_minimap_target = minimap_target
 	_connect_player_events()
+	if _coach_mark != null:
+		_coach_mark.configure(_camera, _is_reduced_motion())
 	if _legend_label != null:
 		_legend_label.text = _compact_legend_text()
 	if _camera != null:
@@ -167,6 +174,7 @@ func start() -> void:
 	_gate_released_emitted = false
 	_completed_emitted = false
 	_skipped_emitted = false
+	_pending_visual_refresh = false
 	_active = true
 	visible = true
 	set_process(true)
@@ -204,9 +212,11 @@ func get_visual_contract() -> Dictionary:
 		"flow": FLOW_ID,
 		"input_mode": _input_mode(),
 		"blocks_gameplay": false,
-		"uses_dim_cutout": _uses_touch_guidance(),
-		"dim_alpha": DIM_ALPHA,
-		"spotlight_padding": SPOTLIGHT_PADDING,
+		"uses_dim_cutout": false,
+		"uses_fullscreen_dim": false,
+		"dim_alpha": 0.0,
+		"bracket_style": &"corners",
+		"screen_coverage_hard_cap": 0.25,
 		"camera_zoom_target": CAMERA_ZOOM_TARGET,
 		"move_distance_required": MOVE_DISTANCE_REQUIRED,
 		"skip_reveal_seconds": SKIP_REVEAL_SECONDS,
@@ -219,15 +229,23 @@ func get_visual_contract() -> Dictionary:
 func get_current_step_snapshot() -> Dictionary:
 	var step := _current_step()
 	var target_names := _current_target_names()
+	var coach_snapshot := _coach_mark.get_snapshot() if _coach_mark != null else {}
 	return {
 		"active": _active,
 		"input_mode": _input_mode(),
 		"step_id": step.get("id", &""),
-		"title": String(step.get("title", "")),
-		"body": String(step.get("body", "")),
+		"title": String(step.get("action", "")),
+		"body": String(step.get("detail", "")),
+		"key_label": String(step.get("key_label", "")),
+		"action": String(step.get("action", "")),
+		"detail": String(step.get("detail", "")),
 		"target_names": target_names,
 		"target_rect": _target_rect_for_names(target_names),
-		"dim_alpha": DIM_ALPHA if _active else 0.0,
+		"coach_rect": coach_snapshot.get("label_rect", Rect2()),
+		"screen_coverage": coach_snapshot.get("screen_coverage", 0.0),
+		"bracket_style": coach_snapshot.get("bracket_style", &"corners"),
+		"reduced_motion": coach_snapshot.get("reduced_motion", _is_reduced_motion()),
+		"dim_alpha": 0.0,
 		"movement_distance": _movement_distance,
 		"gate_released": _gate_released_emitted,
 		"skip_visible": _skip_button != null and _skip_button.visible,
@@ -326,14 +344,12 @@ func skip_guidance() -> void:
 func _process(delta: float) -> void:
 	if not _active:
 		return
-	_pulse_time += maxf(0.0, delta)
 	_active_elapsed += maxf(0.0, delta)
 	if _skip_button != null:
 		_skip_button.visible = _active_elapsed >= SKIP_REVEAL_SECONDS and not _gate_released_emitted
 	var player_2d := _player as Node2D
 	if player_2d != null:
 		record_player_position(player_2d.global_position)
-	_refresh_step()
 
 
 func _build_ui() -> void:
@@ -342,46 +358,11 @@ func _build_ui() -> void:
 	_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_root.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(_root)
-	for index in range(4):
-		var rect := ColorRect.new()
-		rect.name = "DimRect%d" % index
-		rect.color = Color(0.0, 0.0, 0.0, DIM_ALPHA)
-		rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		_root.add_child(rect)
-		_dim_rects.append(rect)
-	_spotlight_frame = Panel.new()
-	_spotlight_frame.name = "SpotlightFrame"
-	_spotlight_frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_spotlight_frame.add_theme_stylebox_override("panel", _spotlight_style())
-	_root.add_child(_spotlight_frame)
-	_label_panel = PanelContainer.new()
-	_label_panel.name = "HintPanel"
-	_label_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_label_panel.custom_minimum_size = LABEL_SIZE
-	_label_panel.add_theme_stylebox_override("panel", _hint_panel_style())
-	_root.add_child(_label_panel)
-	var box := VBoxContainer.new()
-	box.name = "HintText"
-	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	box.add_theme_constant_override("separation", 4)
-	_label_panel.add_child(box)
-	_title_label = Label.new()
-	_title_label.name = "TitleLabel"
-	_title_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	_title_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_title_label.add_theme_font_size_override("font_size", 22)
-	_title_label.add_theme_color_override("font_color", Color(1.0, 0.92, 0.58, 1.0))
-	UiFontRoles.apply_title(_title_label)
-	box.add_child(_title_label)
-	_body_label = Label.new()
-	_body_label.name = "BodyLabel"
-	_body_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_body_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_body_label.add_theme_font_size_override("font_size", 16)
-	_body_label.add_theme_color_override("font_color", Color(0.94, 0.96, 1.0, 1.0))
-	UiFontRoles.apply_pixel(_body_label)
-	box.add_child(_body_label)
+	_coach_mark = OnboardingCoachMarkScript.new() as OnboardingCoachMark
+	_coach_mark.name = "CoachMark"
+	add_child(_coach_mark)
+	_coach_mark.exit_finished.connect(_on_coach_exit_finished)
+	_coach_mark.configure(_camera, _is_reduced_motion())
 	_skip_button = Button.new()
 	_skip_button.name = "SkipGuidanceButton"
 	_skip_button.text = "안내 건너뛰기"
@@ -408,13 +389,13 @@ func _build_ui() -> void:
 	_compact_legend.offset_top = COMPACT_LEGEND_TOP
 	_compact_legend.offset_right = COMPACT_LEGEND_LEFT + COMPACT_LEGEND_SIZE.x
 	_compact_legend.offset_bottom = COMPACT_LEGEND_TOP + COMPACT_LEGEND_SIZE.y
-	_compact_legend.add_theme_stylebox_override("panel", _hint_panel_style())
+	_compact_legend.add_theme_stylebox_override("panel", OnboardingVisualTokens.coach_style(&"info"))
 	_legend_label = Label.new()
 	_legend_label.name = "LegendLabel"
 	_legend_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_legend_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_legend_label.add_theme_font_size_override("font_size", 14)
-	_legend_label.add_theme_color_override("font_color", Color(0.94, 0.96, 1.0, 0.96))
+	_legend_label.add_theme_color_override("font_color", OnboardingVisualTokens.PAPER_TEXT)
 	UiFontRoles.apply_pixel(_legend_label)
 	_legend_label.text = _compact_legend_text()
 	_compact_legend.add_child(_legend_label)
@@ -423,85 +404,48 @@ func _build_ui() -> void:
 
 
 func _refresh_step() -> void:
-	if not _active or _root == null:
+	if not _active or _coach_mark == null:
 		return
 	var step := _current_step()
-	_title_label.text = String(step.get("title", ""))
-	_body_label.text = String(step.get("body", ""))
-	_label_panel.visible = true
 	var target_names := _current_target_names()
-	if target_names.is_empty() or (not _uses_touch_guidance() and StringName(step.get("id", &"")) != &"minimap"):
-		_layout_desktop_hint()
-		return
-	var focus_rect := _spotlight_rect_for_names(target_names)
-	_spotlight_frame.visible = true
-	_layout_dim_cutout(focus_rect)
-	_layout_spotlight(focus_rect)
-	_layout_label(focus_rect)
-
-
-func _layout_desktop_hint() -> void:
-	var viewport_size := _viewport_size()
-	_spotlight_frame.visible = false
-	for index in range(_dim_rects.size()):
-		_dim_rects[index].visible = true
-		var rect := Rect2(Vector2.ZERO, viewport_size) if index == 0 else Rect2()
-		_apply_control_rect(_dim_rects[index], rect)
-	var centered_position := (viewport_size - LABEL_SIZE) * 0.5
-	_apply_control_rect(_label_panel, Rect2(centered_position, LABEL_SIZE))
-
-
-func _layout_dim_cutout(focus_rect: Rect2) -> void:
-	var viewport_rect := Rect2(Vector2.ZERO, _viewport_size())
-	var safe_focus := focus_rect.intersection(viewport_rect)
-	var top_rect := Rect2(Vector2.ZERO, Vector2(viewport_rect.size.x, safe_focus.position.y))
-	var bottom_rect := Rect2(Vector2(0.0, safe_focus.end.y), Vector2(viewport_rect.size.x, viewport_rect.size.y - safe_focus.end.y))
-	var left_rect := Rect2(Vector2(0.0, safe_focus.position.y), Vector2(safe_focus.position.x, safe_focus.size.y))
-	var right_rect := Rect2(Vector2(safe_focus.end.x, safe_focus.position.y), Vector2(viewport_rect.size.x - safe_focus.end.x, safe_focus.size.y))
-	var rects := [top_rect, bottom_rect, left_rect, right_rect]
-	for index in range(_dim_rects.size()):
-		_dim_rects[index].visible = true
-		_apply_control_rect(_dim_rects[index], rects[index])
-
-
-func _layout_spotlight(focus_rect: Rect2) -> void:
-	_apply_control_rect(_spotlight_frame, focus_rect)
-	var pulse := 0.82 + (0.18 * (0.5 + 0.5 * sin(_pulse_time * TAU * 1.4)))
-	_spotlight_frame.modulate = Color(1.0, 1.0, 1.0, pulse)
-
-
-func _layout_label(focus_rect: Rect2) -> void:
-	var viewport_size := _viewport_size()
-	var desired := Vector2(focus_rect.position.x, focus_rect.position.y - LABEL_SIZE.y - LABEL_MARGIN)
-	if desired.y < MobileSafeArea.MIN_TOP:
-		desired.y = focus_rect.end.y + LABEL_MARGIN
-	if focus_rect.get_center().x > viewport_size.x * 0.5:
-		desired.x = focus_rect.end.x - LABEL_SIZE.x
-	desired.x = clampf(desired.x, MobileSafeArea.MIN_LEFT, viewport_size.x - MobileSafeArea.MIN_RIGHT - LABEL_SIZE.x)
-	desired.y = clampf(desired.y, MobileSafeArea.MIN_TOP, viewport_size.y - MobileSafeArea.MIN_BOTTOM - LABEL_SIZE.y)
-	_apply_control_rect(_label_panel, Rect2(desired, LABEL_SIZE))
-
-
-func _spotlight_rect_for_names(target_names: Array) -> Rect2:
-	var rect := _target_rect_for_names(target_names)
-	if rect.size == Vector2.ZERO:
-		rect = Rect2((_viewport_size() - SPOTLIGHT_MIN_SIZE) * 0.5, SPOTLIGHT_MIN_SIZE)
-	var focus := rect.grow(SPOTLIGHT_PADDING)
-	focus.size.x = maxf(focus.size.x, SPOTLIGHT_MIN_SIZE.x)
-	focus.size.y = maxf(focus.size.y, SPOTLIGHT_MIN_SIZE.y)
-	return focus
+	var target_kind: StringName = &"none"
+	var target: Node = null
+	var targets: Array[Control] = []
+	var placement: StringName = &"auto"
+	if target_names.size() == 1:
+		target = _target_control_for_name(String(target_names[0]))
+		target_kind = &"control" if target != null else &"none"
+	elif target_names.size() > 1:
+		for target_name: Variant in target_names:
+			var control := _target_control_for_name(String(target_name))
+			if control != null:
+				targets.append(control)
+	if target_names.is_empty() and StringName(step.get("id", &"")) != &"exit" and _player is Node2D:
+		target = _player
+		target_kind = &"world"
+	if StringName(step.get("id", &"")) == &"exit":
+		placement = &"ribbon"
+	_coach_mark.configure(_camera, _is_reduced_motion())
+	_coach_mark.show_prompt({
+		"id": step.get("id", &""),
+		"tone": &"info",
+		"key_label": String(step.get("key_label", "")),
+		"action": String(step.get("action", "")),
+		"detail": String(step.get("detail", "")),
+		"target_kind": target_kind,
+		"target": target,
+		"targets": targets,
+		"placement": placement,
+		"persistent": true,
+	})
 
 
 func _target_rect_for_names(target_names: Array) -> Rect2:
 	var rect := Rect2()
 	var found := false
 	for target_name: String in target_names:
-		var control: Control = null
-		if target_name == "Minimap":
-			control = _minimap_target
-		elif _touch_controls != null:
-			control = _touch_controls.get_node_or_null(NodePath(target_name)) as Control
-		if control == null or not control.visible:
+		var control := _target_control_for_name(target_name)
+		if control == null:
 			continue
 		var control_rect := control.get_global_rect()
 		if not found:
@@ -510,6 +454,14 @@ func _target_rect_for_names(target_names: Array) -> Rect2:
 		else:
 			rect = rect.merge(control_rect)
 	return rect if found else Rect2()
+
+
+func _target_control_for_name(target_name: String) -> Control:
+	if target_name == "Minimap":
+		return _minimap_target
+	if _touch_controls == null:
+		return null
+	return _touch_controls.get_node_or_null(NodePath(target_name)) as Control
 
 
 func _advance_step() -> void:
@@ -522,7 +474,21 @@ func _advance_step() -> void:
 		_release_gate()
 		if _skip_button != null:
 			_skip_button.visible = false
-	_refresh_step()
+	_pending_visual_refresh = true
+	if _coach_mark != null and _coach_mark.is_active():
+		_coach_mark.configure(_camera, _is_reduced_motion())
+		_coach_mark.complete()
+	else:
+		_pending_visual_refresh = false
+		_refresh_step()
+
+
+func _on_coach_exit_finished(_prompt_id: StringName, kind: StringName) -> void:
+	if kind != &"complete" or not _pending_visual_refresh:
+		return
+	_pending_visual_refresh = false
+	if _active:
+		_refresh_step()
 
 
 func _release_gate() -> void:
@@ -571,29 +537,21 @@ func _on_player_power_attack_executed(payload: Dictionary = {}) -> void:
 
 
 func _show_step_ui() -> void:
-	for dim_rect: ColorRect in _dim_rects:
-		dim_rect.visible = true
-	if _spotlight_frame != null:
-		_spotlight_frame.visible = true
-	if _label_panel != null:
-		_label_panel.visible = true
+	pass
 
 
 func _hide_step_ui() -> void:
-	for dim_rect: ColorRect in _dim_rects:
-		dim_rect.visible = false
-	if _spotlight_frame != null:
-		_spotlight_frame.visible = false
-	if _label_panel != null:
-		_label_panel.visible = false
+	_pending_visual_refresh = false
+	if _coach_mark != null:
+		_coach_mark.dismiss(true)
 	if _skip_button != null:
 		_skip_button.visible = false
 
 
 func _compact_legend_text() -> String:
 	if _uses_touch_guidance():
-		return "조작표\n이동  왼쪽 스틱\n공격  공격 버튼\n대시  대시 버튼\n지도  오른쪽 위 탭"
-	return "조작표\n이동  WASD\n공격  좌클릭\n대시  SPACE\n지도  오른쪽 위 클릭"
+		return "조작표\n스틱  이동\n공격 버튼  공격\n대시 버튼  회피\n미니맵 탭  지도"
+	return "조작표\nWASD  이동\nLMB  공격\nSPACE  회피\n미니맵 클릭  지도"
 
 
 func _apply_camera_zoom() -> void:
@@ -604,6 +562,9 @@ func _apply_camera_zoom() -> void:
 	_camera_zoom_active = true
 	_camera.zoom = _original_camera_zoom * lerpf(1.0, CAMERA_ZOOM_TARGET, 0.45)
 	_kill_camera_tween()
+	if _is_reduced_motion():
+		_camera.zoom = _original_camera_zoom * CAMERA_ZOOM_TARGET
+		return
 	_camera_tween = create_tween()
 	_camera_tween.tween_property(_camera, ^"zoom", _original_camera_zoom * CAMERA_ZOOM_TARGET, CAMERA_ZOOM_SECONDS)
 
@@ -613,6 +574,9 @@ func _restore_camera_zoom() -> void:
 		return
 	_camera_zoom_active = false
 	_kill_camera_tween()
+	if _is_reduced_motion():
+		_camera.zoom = _original_camera_zoom
+		return
 	_camera_tween = create_tween()
 	_camera_tween.tween_property(_camera, ^"zoom", _original_camera_zoom, CAMERA_RESTORE_SECONDS)
 
@@ -660,36 +624,5 @@ func _input_mode() -> StringName:
 	return &"touch" if _uses_touch_guidance() else &"desktop"
 
 
-func _viewport_size() -> Vector2:
-	var viewport := get_viewport()
-	if viewport == null:
-		return VIEWPORT_FALLBACK
-	var size := viewport.get_visible_rect().size
-	return size if size.x > 0.0 and size.y > 0.0 else VIEWPORT_FALLBACK
-
-
-func _apply_control_rect(control: Control, rect: Rect2) -> void:
-	if control == null:
-		return
-	control.set_anchors_preset(Control.PRESET_TOP_LEFT)
-	control.position = rect.position
-	control.size = Vector2(maxf(0.0, rect.size.x), maxf(0.0, rect.size.y))
-
-
-func _spotlight_style() -> StyleBoxFlat:
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(1.0, 1.0, 1.0, 0.04)
-	style.border_color = Color(1.0, 0.86, 0.36, 0.95)
-	style.set_border_width_all(4)
-	style.set_corner_radius_all(18)
-	return style
-
-
-func _hint_panel_style() -> StyleBoxFlat:
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.05, 0.07, 0.10, 0.88)
-	style.border_color = Color(1.0, 0.84, 0.36, 0.72)
-	style.set_border_width_all(2)
-	style.set_corner_radius_all(8)
-	style.set_content_margin_all(14.0)
-	return style
+func _is_reduced_motion() -> bool:
+	return has_node("/root/Settings") and Settings.is_reduced_motion_enabled()

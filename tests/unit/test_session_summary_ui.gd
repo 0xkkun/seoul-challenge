@@ -388,20 +388,19 @@ func test_reward_choice_onboarding_hint_explains_first_combat_reward() -> void:
 	])
 
 	var snapshot: Dictionary = _ui.get_reward_choice_snapshot()
-	_runner.assert_true(snapshot.has("onboarding_hint_visible"), "reward snapshot exposes onboarding hint visibility")
-	_runner.assert_true(snapshot.has("onboarding_hint_title"), "reward snapshot exposes onboarding hint title")
-	_runner.assert_true(snapshot.has("onboarding_hint_body"), "reward snapshot exposes onboarding hint body")
-	_runner.assert_true(snapshot.has("onboarding_hint_target_count"), "reward snapshot exposes how many cards the hint covers")
-	if not snapshot.has("onboarding_hint_visible"):
+	_runner.assert_true(snapshot.has("onboarding_eyebrow_visible"), "reward snapshot exposes the compact eyebrow")
+	_runner.assert_true(snapshot.has("onboarding_eyebrow_text"), "reward snapshot exposes eyebrow copy")
+	_runner.assert_true(snapshot.has("onboarding_hint_panel_exists"), "reward snapshot proves the old explanation panel is gone")
+	if not snapshot.has("onboarding_eyebrow_visible"):
 		return
-	_runner.assert_true(snapshot["onboarding_hint_visible"], "first reward onboarding hint is visible when enabled")
-	_runner.assert_eq(snapshot.get("onboarding_hint_title", ""), "전투 보상", "hint title names the new reward moment")
-	_runner.assert_true(String(snapshot.get("onboarding_hint_body", "")).contains("하나"), "hint body tells the player to choose one card")
-	_runner.assert_eq(int(snapshot.get("onboarding_hint_target_count", 0)), 3, "hint points at the visible reward cards")
+	_runner.assert_true(snapshot["onboarding_eyebrow_visible"], "first reward eyebrow is visible when enabled")
+	_runner.assert_eq(snapshot.get("onboarding_eyebrow_text", ""), "첫 강화 · 1장 선택", "eyebrow makes the one-card action scannable")
+	_runner.assert_false(bool(snapshot.get("onboarding_hint_panel_exists", true)), "reward no longer creates a second framed card")
+	_runner.assert_eq(int(snapshot.get("visible_card_count", 0)), 3, "eyebrow sits above the three real cards")
 
 	_ui.hide_reward_choices()
 	var hidden_snapshot: Dictionary = _ui.get_reward_choice_snapshot()
-	_runner.assert_false(bool(hidden_snapshot.get("onboarding_hint_visible", true)), "hiding rewards hides the onboarding hint too")
+	_runner.assert_false(bool(hidden_snapshot.get("onboarding_eyebrow_visible", true)), "hiding rewards hides the eyebrow too")
 
 
 func test_reward_choice_open_starts_slide_fade_animation() -> void:

@@ -1,8 +1,9 @@
 # 2026-08-21 개선 명세 반영 현황
 
-기준 코드: `origin/main@31f8ba1`
+기준 코드: `origin/main@76301ed`
 사용자 제공 자료: `요괴뎐_개선안_2026-08-21`
 프로그램 설계: `docs/superpowers/specs/2026-08-22-first-five-minutes-onboarding-design.md`
+시각 재설계: `docs/superpowers/specs/2026-08-22-onboarding-coachmark-redesign.md`
 
 ## 상태 정의
 
@@ -13,7 +14,7 @@
 
 ## 요약
 
-현재 main에서 확실히 완료된 축은 PC 입력 경로, 데스크톱 터치 UI 비노출, 플랫폼별 계속 안내, bounded 인트로 자동 진행, 성공 기반 첫 방 6단계·미니맵·skip escape, 보상→정화→학교 대화 contextual 여정, 기본 키 안내, 일부 카메라·햅틱·보상·보물방 기반이다. 첫 3~5분 품질을 결정하는 패링 성공 연출, 일반 히트스톱, 전투 반응음, 피격 비네트, 실제 웨이브, 포탈 재시도는 미구현 또는 부분 상태다.
+현재 main에서 확실히 완료된 축은 PC 입력 경로, 데스크톱 터치 UI 비노출, bounded 인트로, 성공 기반 첫 방 6단계, 보상→정화→학교 대화 contextual 여정, 반복 가능한 패링 학습, 기본 키 안내, 일부 카메라·햅틱·보상·보물방 기반이다. #513은 이 기능들을 중앙 대형 카드에서 공통 coachmark·objective ribbon·reward eyebrow로 시각 재설계한다. 패링 성공 연출, 일반 히트스톱, 전투 반응음, 피격 비네트, 실제 웨이브, 포탈 재시도는 미구현 또는 부분 상태다.
 
 ## P — PC 대응
 
@@ -21,7 +22,7 @@
 |---|---|---|---|
 | P1 온보딩 입력 소스 통합 | 완료 | `IngameControlOnboarding._runtime_input_state`, #497 | 성공 이벤트 방식으로 강화 |
 | P2 터치 UI 데스크톱 자동 숨김 | 완료 | `touch_controls.gd`, platform feature tests, #497 | 회귀 유지 |
-| P3 스포트라이트 좌표 대응 | 완료 | 터치 버튼·정화 대상·외부 minimap Control target, #507 | 대상 없는 exit 빈 spotlight 회귀 유지 |
+| P3 스포트라이트 좌표 대응 | 완료 | 터치 버튼·정화 대상·외부 minimap target #507; corner bracket·safe clamp #513 | 대상 없는 exit와 modal 복원 회귀 유지 |
 | P4 키 조작 안내 | 완료 | 좌클릭·SPACE·E 문구와 `InputPromptPolicy`, #499/#501/#505 | 후속 copy 회귀 유지 |
 | P5 마우스 조준 | 보류 | `aim_direction()`은 이동 방향 fallback | 웨이브·난이도 확정 뒤 재승인 |
 | P6 미니맵 온보딩 | 완료 | `minimap_expanded_changed`, map→exit gate, desktop/mobile Web, #507 | emulated touch+mouse pair 회귀 유지 |
@@ -125,11 +126,12 @@
 
 | 항목 | 상태 | 현재 근거 | 실행 계약 |
 |---|---|---|---|
-| PC `클릭하여 계속` | 완료 | desktop/mobile 분기를 `InputPromptPolicy`로 통일, #505 | unit 526/526 + PC/mobile Web 캡처 |
+| PC 계속 안내 | 완료 | #505의 클릭/탭 분기 뒤 #513 승인으로 `LMB  계속` / `탭  계속` key chip 적용 | bounded intro와 PC/mobile Web 캡처 |
 | 인트로 무입력 자동 진행 | 완료 | 정상·autoplay 차단·음성 고착에 bounded line scheduling 적용, #505 | blocked 24,753ms·stuck 39,121ms Web UAT |
 | 완전 검은 화면 장기 유지 방지 | 완료 | plate 초기 alpha와 transition 단축, #505 | 960x540·1920x900 release Web UAT |
 | 성공 기반 전체 온보딩 | 완료 | 첫 방 6단계·실제 action/minimap/room transition은 #507, reward/purify/talk·PC E/mobile prompt는 #509 | Task 2·3 release Web UAT와 자동 회귀 유지 |
 | 패링 안내와 성공 학습 | 완료 | #510의 `enemy_spawned`·`dash_state_changed`·`parry_succeeded`, miss/death/next-wolf/success lifecycle tests | Task 5가 성공 시청각 피드백을 추가 |
+| 온보딩 시각 품질 | 완료 | #513의 공통 token/coachmark, corner bracket, objective ribbon, reward eyebrow, reduced-motion toggle | release Web 11 mode, Design C→A, AI slop C→A |
 | 요구사항 추적 | 이 문서로 시작 | 이전에는 mapping 없음 | 모든 하위 이슈/PR에 이 표 갱신 |
 
 ## 승인된 실행 큐
@@ -140,7 +142,8 @@
 |---|---|---|
 | Q1 인트로·계속 문구 (완료) | 새 피드백: 자동 진행, 검은 공백, 클릭/탭 분기 | #504/#505, merge `0e87117`; blocked 24,753ms·stuck 39,121ms, UI 캡처 3개, CI·Codex 통과 |
 | Q2 첫 방·첫 런 여정 (완료) | P3, P6, 이동·공격·대시·강공격·지도·출구 #507; 보상·정화·말 걸기 #509 | Task 2 merge `5a4f667`; Task 3 merge `31f8ba1`; PC/mobile journey UAT |
-| Q3 패링 학습·성공 피드백 (진행 중) | #510에서 반복 가능한 첫 늑대 학습·성공 이벤트; F2, F4, S7, T1, T2, T6 시청각 피드백은 Task 5 | miss/death/next-wolf/success Web UAT와 복구 테스트 |
+| Q2b 온보딩 시각 재설계 (진행 중) | #513에서 첫 조작·objective·reward·정화·패링·인트로를 diegetic coachmark로 통일 | unit 544/544, integration 116/116, release Web 12 mode, PR/CI 예정 |
+| Q3 패링 학습·성공 피드백 (진행 중) | #510에서 반복 가능한 첫 늑대 학습 완료; F2, F4, S7, T1, T2, T6 시청각 피드백은 #512에서 재개 | Task 4 merge `76301ed`; miss/death/next-wolf/success Web UAT |
 | Q4 안정성 | B1, B3, B4 | 포탈 pause-overlap 재시도와 종료 matrix |
 | Q5 전투 흐름 | L1 | configured wave별 spawn 테스트와 Web play |
 | Q6 적 압박 | M6a | 악귀 단독 변경 전후 encounter UAT |
@@ -154,6 +157,7 @@
 | Task 1 인트로 자동 진행·플랫폼 안내 | #504 / #505 | `0e87117` | unit 526/526, integration 107/107, quick/full, 최신 CI green, Codex 👍 | release WebGL2 PC 960x540·1920x900/mobile 960x540; blocked 24,753ms, stuck 39,121ms; console error 0 |
 | Task 2 성공 기반 첫 방 조작·지도 | #506 / #507 | `5a4f667` | unit 531/531, integration 109/109, quick/full, PR UI capture·Quick·Rooms·Web Preview green, Codex P1 해결 + 👍 | release WebGL2 PC/mobile 6단계→첫 전투방, PC/mobile skip→compact legend; console/page/request error 0 |
 | Task 3 첫 런 보상·정화·대화 안내 | #508 / #509 | `31f8ba1` | unit 532/532, integration 111/111, quick/full, PR UI capture·Quick·Rooms·Web Preview green, Codex major issue 0 + 👍 | 실제 PC combat→reward→friend→purify intro, deterministic PC/mobile groggy·talk·bat popup; WebGL2=true, error 0 |
+| Task 4 첫 늑대 패링 학습 | #510 / #511 | `76301ed` | unit 535/535, integration 115/115, quick/full, PR UI capture·Quick·Rooms·Web Preview green, Challenger/Codex issue 0 | release WebGL2 PC/touch prepare, miss, next-wolf retry, success; console/network error 0 |
 
 ## 장부 유지 규칙
 

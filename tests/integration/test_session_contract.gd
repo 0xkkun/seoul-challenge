@@ -217,9 +217,12 @@ func test_session_starts_control_onboarding_only_for_first_baseball_run() -> voi
 			var snapshot: Dictionary = onboarding.call("get_current_step_snapshot")
 			_runner.assert_eq(snapshot.get("step_id"), &"move", "control onboarding starts by teaching movement")
 			_runner.assert_eq(snapshot.get("input_mode"), &"desktop", "headless desktop session uses keyboard onboarding guidance")
-			_runner.assert_eq(snapshot.get("body"), "WASD 또는 방향키로 96px 이동", "desktop session names the real movement keys and success distance")
+			_runner.assert_eq(snapshot.get("key_label"), "WASD", "desktop session names the real movement key")
+			_runner.assert_eq(snapshot.get("action"), "이동", "desktop session uses a compact movement action")
+			_runner.assert_eq(snapshot.get("detail"), "96px", "movement success distance stays visible as detail")
 			_runner.assert_eq(snapshot.get("target_names", []), [], "desktop session does not highlight a hidden joystick")
-			_runner.assert_true(float(snapshot.get("dim_alpha", 0.0)) > 0.0, "movement step dims non-target gameplay")
+			_runner.assert_eq(float(snapshot.get("dim_alpha", -1.0)), 0.0, "movement coach leaves the playfield undimmed")
+			_runner.assert_true(float(snapshot.get("screen_coverage", 1.0)) <= 0.25, "movement coach protects the playfield")
 	_runner.assert_false(get_tree().paused, "control onboarding does not pause first-room input")
 	_runner.assert_false(touch_controls.visible, "desktop session hides touch controls")
 	_runner.assert_true(player_camera.zoom.x > 1.0, "control onboarding applies a subtle camera zoom-in")
@@ -265,8 +268,11 @@ func test_baseball_onboarding_journey_snapshot_tracks_existing_night_events() ->
 		session.queue_free()
 		return
 	var hint_snapshot: Dictionary = session_ui.call("get_onboarding_journey_hint_snapshot")
-	_runner.assert_true(bool(hint_snapshot.get("visible", false)), "first combat shows a non-blocking contextual card")
-	_runner.assert_eq(hint_snapshot.get("body"), "적을 쓰러뜨리면 다음 길이 열린다", "combat card renders the journey instruction")
+	_runner.assert_true(bool(hint_snapshot.get("visible", false)), "first combat shows a non-blocking objective ribbon")
+	_runner.assert_eq(hint_snapshot.get("variant"), &"objective_ribbon", "combat uses the compact ribbon variant")
+	_runner.assert_eq(hint_snapshot.get("detail"), "적 처치", "combat ribbon leads with the trigger")
+	_runner.assert_eq(hint_snapshot.get("action"), "길 열기", "combat ribbon ends with the next result")
+	_runner.assert_true(float(hint_snapshot.get("screen_coverage", 1.0)) <= 0.25, "objective ribbon protects the playfield")
 	var hint_rect := hint_snapshot.get("rect", Rect2()) as Rect2
 	var touch_controls := session.get_node("%TouchControls") as CanvasLayer
 	_runner.assert_true(MobileSafeArea.meets_landscape_minimum(hint_rect), "contextual card stays inside the 960x540 safe-area")
@@ -282,6 +288,9 @@ func test_baseball_onboarding_journey_snapshot_tracks_existing_night_events() ->
 	_runner.assert_eq(session.call("get_onboarding_journey_snapshot").get("phase"), &"reward", "hidden reward action leaves reward pending")
 	_runner.assert_true(session.call("flush_pending_reward_choice_for_tests"), "test opens the real reward card surface")
 	var reward_snapshot: Dictionary = session_ui.call("get_reward_choice_snapshot")
+	_runner.assert_true(bool(reward_snapshot.get("onboarding_eyebrow_visible", false)), "first reward uses a compact eyebrow")
+	_runner.assert_eq(reward_snapshot.get("onboarding_eyebrow_text", ""), "첫 강화 · 1장 선택", "reward eyebrow states the action in one line")
+	_runner.assert_false(bool(reward_snapshot.get("onboarding_hint_panel_exists", true)), "reward removes the duplicate explanation card")
 	var choice_ids: Array = reward_snapshot.get("choice_ids", []) as Array
 	_runner.assert_true(not choice_ids.is_empty(), "reward surface exposes at least one real choice")
 	if choice_ids.is_empty():
@@ -290,8 +299,10 @@ func test_baseball_onboarding_journey_snapshot_tracks_existing_night_events() ->
 	_runner.assert_true(session_ui.call("select_reward_choice", choice_ids[0]), "real reward selection advances the journey")
 	_runner.assert_eq(session.call("get_onboarding_journey_snapshot").get("phase"), &"friend_intro", "reward success advances to friend encounter")
 	hint_snapshot = session_ui.call("get_onboarding_journey_hint_snapshot")
-	_runner.assert_true(bool(hint_snapshot.get("visible", false)), "friend approach reuses the contextual card")
-	_runner.assert_eq(hint_snapshot.get("body"), "공격해 기절시킨 뒤 가까이 다가가 정화", "friend card explains the next real capability")
+	_runner.assert_true(bool(hint_snapshot.get("visible", false)), "friend approach reuses the objective ribbon")
+	_runner.assert_eq(hint_snapshot.get("variant"), &"objective_ribbon", "friend hint keeps the shared ribbon grammar")
+	_runner.assert_eq(hint_snapshot.get("detail"), "기절 → 접근", "friend ribbon compresses the prerequisite chain")
+	_runner.assert_eq(hint_snapshot.get("action"), "정화", "friend ribbon makes the final verb dominant")
 
 	_runner.assert_true(manager.enter_room(&"friend_1"), "journey enters the captain room")
 	session.call("_on_friend_purified", {"friend_id": &"baseball_captain", "room_id": &"friend_1"})
@@ -360,20 +371,56 @@ func test_parry_tutorial_surface_is_touch_aware_short_and_non_blocking() -> void
 	tutorial.show_for_wolf(wolf, &"touch")
 	var snapshot: Dictionary = tutorial.get_snapshot()
 	var contract: Dictionary = tutorial.get_visual_contract()
-	_runner.assert_eq(snapshot.get("message"), "늑대가 돌진할 때 공격 버튼으로 배트를 휘둘러 받아치기", "touch copy names the real attack button")
+	_runner.assert_eq(snapshot.get("key_label"), "공격 버튼", "touch coach names the real attack button")
+	_runner.assert_eq(snapshot.get("action"), "받아치기", "parry action is the visual anchor")
+	_runner.assert_eq(snapshot.get("detail"), "늑대가 달려들 때", "timing detail stays on one short line")
+	_runner.assert_eq(snapshot.get("bracket_style"), &"corners", "wolf uses cyan corner brackets")
+	_runner.assert_eq(float(snapshot.get("dim_alpha", -1.0)), 0.0, "parry coach never dims combat")
 	_runner.assert_false(bool(snapshot.get("blocks_gameplay", true)), "touch parry card is non-blocking")
 	_runner.assert_eq(contract.get("mouse_filter"), Control.MOUSE_FILTER_IGNORE, "every parry surface passes combat pointer input through")
 	_runner.assert_false(get_tree().paused, "showing the short reveal never pauses the tree")
 	var panel_rect := snapshot.get("panel_rect", Rect2()) as Rect2
 	_runner.assert_true(MobileSafeArea.meets_landscape_minimum(panel_rect), "parry card stays inside landscape safe area: %s" % panel_rect)
-	tutorial.call("_process", 0.59)
-	_runner.assert_false(bool(tutorial.get_snapshot().get("reveal_complete")), "spotlight reveal keeps its authored 0.6 second beat")
+	_runner.assert_true(float(snapshot.get("screen_coverage", 1.0)) <= 0.25, "parry coach protects the playfield")
+	tutorial.call("_process", 0.21)
+	_runner.assert_false(bool(tutorial.get_snapshot().get("reveal_complete")), "bracket reveal keeps its authored 0.22 second beat")
 	tutorial.call("_process", 0.01)
-	_runner.assert_true(bool(tutorial.get_snapshot().get("reveal_complete")), "reveal finishes at 0.6 seconds without blocking gameplay")
-	tutorial.call("_process", 2.81)
+	_runner.assert_true(bool(tutorial.get_snapshot().get("reveal_complete")), "bracket reveal finishes without blocking gameplay")
+	tutorial.call("_process", 2.99)
 	_runner.assert_false(tutorial.is_active(), "short card auto-dismisses after its bounded display window")
+	var coach := tutorial.get_node("CoachMark") as OnboardingCoachMark
+	_runner.assert_true(tutorial.visible, "normal-motion wrapper stays visible while the 140ms dismiss plays")
+	_runner.assert_true(coach.is_active(), "shared coach remains active during its normal dismiss")
+	coach.finish_motion_for_tests(&"parry")
+	_runner.assert_false(tutorial.visible, "wrapper hides after the shared dismiss finishes")
 	tutorial.queue_free()
 	wolf.queue_free()
+
+
+func test_parry_dismiss_freezes_the_last_target_layout_after_wolf_deletion() -> void:
+	var tutorial := ParryOnboarding.new()
+	var wolf := Node2D.new()
+	wolf.name = "DismissingWolf"
+	add_child(wolf)
+	add_child(tutorial)
+	tutorial.show_for_wolf(wolf, &"desktop")
+	var coach := tutorial.get_node("CoachMark") as OnboardingCoachMark
+	var panel := coach.get_node("Root/CoachPanel") as Control
+	var bracket := coach.get_node("Root/BracketPart0") as Control
+	var panel_before := panel.get_global_rect()
+	var bracket_before := bracket.get_global_rect()
+
+	_runner.assert_true(tutorial.dismiss_for_wolf(wolf), "wolf defeat starts the normal dismiss")
+	var dismissing_model := (coach.get("_model") as Dictionary).duplicate(true)
+	dismissing_model["target"] = null
+	coach.set("_model", dismissing_model)
+	coach.call("_process", 0.0)
+	_runner.assert_eq(panel.get_global_rect(), panel_before, "dismissing panel keeps its last target-relative position")
+	_runner.assert_eq(bracket.get_global_rect(), bracket_before, "dismissing brackets keep their last target rect")
+	coach.finish_motion_for_tests(&"parry")
+	_runner.assert_false(tutorial.visible, "wrapper hides after the frozen dismiss finishes")
+	wolf.queue_free()
+	tutorial.queue_free()
 
 
 func test_parry_tutorial_retries_next_wolf_and_completes_only_on_success() -> void:
@@ -407,7 +454,8 @@ func test_parry_tutorial_retries_next_wolf_and_completes_only_on_success() -> vo
 	session.call("_on_wolf_dash_state_changed", &"prepare", first_wolf)
 	var snapshot: Dictionary = tutorial.call("get_snapshot")
 	_runner.assert_true(bool(snapshot.get("active")), "first eligible wolf prepare shows the tutorial")
-	_runner.assert_eq(snapshot.get("message"), "늑대가 돌진할 때 좌클릭으로 배트를 휘둘러 받아치기", "desktop prompt names the real attack input")
+	_runner.assert_eq(snapshot.get("key_label"), "LMB", "desktop prompt names the real attack key")
+	_runner.assert_eq(snapshot.get("action"), "받아치기", "desktop prompt keeps the action compact")
 	_runner.assert_false(bool(snapshot.get("blocks_gameplay", true)), "parry card never blocks combat input")
 	_runner.assert_false(get_tree().paused, "parry reveal does not pause the encounter")
 
@@ -718,6 +766,9 @@ func test_baseball_onboarding_friend_room_opens_yokai_captain_dialogue_first() -
 	var snapshot: Dictionary = session.call("get_purify_onboarding_snapshot")
 	_runner.assert_eq(snapshot.get("step_id"), &"intro", "first purification spotlight is the intro step")
 	_runner.assert_eq(snapshot.get("message"), "공격해 기절시킨 뒤 가까이 다가가 정화", "first purification spotlight explains the stun and approach sequence")
+	_runner.assert_eq(snapshot.get("action"), "기절시키기", "first purification visual makes the action dominant")
+	_runner.assert_eq(snapshot.get("detail"), "공격 · 가까이 가면 정화 시작", "first purification visual compresses the chain")
+	_runner.assert_eq(snapshot.get("bracket_style"), &"corners", "first purification visual uses corner brackets")
 	_runner.assert_true(get_tree().paused, "purification spotlight keeps gameplay paused")
 	_runner.assert_false(touch_controls.visible, "purification spotlight keeps touch controls hidden")
 	_runner.assert_true(bool(session.call("dismiss_purify_onboarding_for_tests")), "tap dismissal closes the purification spotlight")
@@ -754,6 +805,8 @@ func test_baseball_onboarding_friend_groggy_spotlight_teaches_proximity_purify()
 	var snapshot: Dictionary = session.call("get_purify_onboarding_snapshot")
 	_runner.assert_eq(snapshot.get("step_id"), &"groggy", "second purification spotlight is the groggy step")
 	_runner.assert_eq(snapshot.get("message"), "친구 곁에서 정화가 끝날 때까지 지키기", "groggy spotlight explains the purification completion condition")
+	_runner.assert_eq(snapshot.get("action"), "곁을 지켜 정화", "groggy visual makes the completion action dominant")
+	_runner.assert_eq(snapshot.get("detail"), "범위를 벗어나면 처음부터", "groggy visual names the reset condition")
 	_runner.assert_true(String(snapshot.get("target_name", "")).contains("baseball_captain"), "groggy spotlight targets the captain")
 	_runner.assert_true(get_tree().paused, "groggy spotlight pauses gameplay")
 	_runner.assert_false(touch_controls.visible, "groggy spotlight hides combat controls")
@@ -789,10 +842,10 @@ func test_baseball_onboarding_combat_reward_explains_first_reward_choice() -> vo
 
 	var snapshot: Dictionary = session_ui.call("get_reward_choice_snapshot")
 	_runner.assert_true(bool(snapshot.get("visible", false)), "reward choice overlay is visible")
-	_runner.assert_true(bool(snapshot.get("onboarding_hint_visible", false)), "first onboarding combat reward includes reward-choice guidance")
-	_runner.assert_eq(snapshot.get("onboarding_hint_title", ""), "전투 보상", "reward onboarding title names the moment")
-	_runner.assert_true(String(snapshot.get("onboarding_hint_body", "")).contains("하나"), "reward onboarding tells the player to choose one card")
-	_runner.assert_eq(int(snapshot.get("onboarding_hint_target_count", 0)), 3, "reward onboarding points at all three reward cards")
+	_runner.assert_true(bool(snapshot.get("onboarding_eyebrow_visible", false)), "first onboarding combat reward includes the eyebrow")
+	_runner.assert_eq(snapshot.get("onboarding_eyebrow_text", ""), "첫 강화 · 1장 선택", "reward eyebrow names the moment and one-card action")
+	_runner.assert_false(bool(snapshot.get("onboarding_hint_panel_exists", true)), "reward onboarding does not stack a second card")
+	_runner.assert_eq(int(snapshot.get("visible_card_count", 0)), 3, "eyebrow orients the player to all three cards")
 
 	var choice_ids: Array = snapshot.get("choice_ids", []) as Array
 	if not choice_ids.is_empty():
