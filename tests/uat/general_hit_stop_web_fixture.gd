@@ -58,6 +58,10 @@ func _run_mode() -> void:
 			_actor.call("take_damage", 2)
 			_freeze_active_hit_stop()
 			_emit_marker()
+		"lethal":
+			_actor.set("_health", 1)
+			_actor.call("take_damage", 1)
+			_emit_marker()
 		"rejected":
 			_enemy.call("take_damage", 1)
 			AudioManager.reset()
@@ -112,6 +116,8 @@ func _emit_marker(elapsed_ms: float = 0.0) -> void:
 			valid = active and is_equal_approx(remaining, 0.06) and is_equal_approx(scale, 0.08) and camera_offset.length() > 0.0
 		"player_hurt_active":
 			valid = active and is_equal_approx(remaining, 0.05) and is_equal_approx(scale, 0.10) and bool(vignette_snapshot.get("damage_pulse_active", false)) and played == [&"player_hit"]
+		"lethal":
+			valid = not active and is_equal_approx(engine_scale, 1.0) and not GameManager.is_session_active() and GameManager.get_last_result().get("outcome", "") == "death" and get_tree().paused
 		"rejected":
 			valid = not active and is_equal_approx(engine_scale, 1.0) and camera_offset == Vector2.ZERO and played == [&"bat_swing"]
 		"parry_priority":

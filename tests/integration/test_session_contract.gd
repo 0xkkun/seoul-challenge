@@ -2114,6 +2114,29 @@ func test_player_death_shows_game_over_summary_without_immediate_transition() ->
 	session.queue_free()
 
 
+func test_lethal_player_damage_keeps_death_summary_at_normal_time_scale() -> void:
+	GameManager.start_session({
+		"source": "lethal_hurt_hit_stop_cleanup",
+		SceneTransition.RUN_CONFIG_LAYOUT_SEED: 526,
+	})
+	var session := (load("res://scenes/session/session_root.tscn") as PackedScene).instantiate()
+	add_child(session)
+	var actor := session.get_node("%Player") as Node
+	actor.set("_health", 1)
+	HitStopManager.restore()
+
+	var applied_damage: Variant = actor.call("take_damage", 1)
+
+	_runner.assert_eq(applied_damage, 1, "lethal player damage is still accepted")
+	_runner.assert_false(GameManager.is_session_active(), "lethal health event finishes the active run")
+	_runner.assert_eq(GameManager.get_last_result().get("outcome", ""), "death", "lethal health event records the death outcome")
+	_runner.assert_true(get_tree().paused, "lethal health event pauses gameplay for the death summary")
+	_runner.assert_false(HitStopManager.is_active(), "death cleanup remains the final hit-stop owner")
+	_runner.assert_eq(Engine.time_scale, 1.0, "death summary never inherits the hurt slow scale")
+	get_tree().paused = false
+	session.queue_free()
+
+
 func test_room_change_configures_player_bounds_and_clears_motion() -> void:
 	var packed := load("res://scenes/session/session_root.tscn") as PackedScene
 	var session := packed.instantiate()

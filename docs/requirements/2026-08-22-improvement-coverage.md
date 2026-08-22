@@ -165,7 +165,7 @@
 | Task 8 악귀 추적 압박 | #520 / #521 | `5d8bb48` | unit 568/568, integration 126/126, performance 5/5, functional 1/1, quick/full, latest-head CI·Codex green | release WebGL2 PC 1280x720/mobile 960x540; 일반 1.717s·온보딩 2.617s 첫 접촉 health 4; physical keyboard 99.4px·touch drag 96.6px full-health 회피; console/network error 0 |
 | Task 9 전투 반응음·쿨다운 | #522 / #523 | `1743c36` | unit 577/577, integration 126/126, functional 1/1, quick/full, Codex P2 gesture gate 해결·latest-head CI green | release WebGL2 gesture 전 WAITING/READY 없음→gesture 후 multi-hit 3체/accepted 3/player 3, reaction mix player 3; deterministic -5.9/-2.4dBFS, console/network error 0 |
 | Task 10 플레이어 피격 비네트 | #524 / #525 | `57c3f94` | unit 582/582, integration 127/127; damage/heal/critical/off-on/pause/exit·max-health reset·실시간 fade·full payload·signal lifecycle 회귀 | release WebGL2 11 mode valid; fade midpoint alpha 0.258·pause 후 alpha 0·max reset pulse false; layer5/mouse-ignore, settings actual rect safe, console/network error 0 |
-| Task 11 일반 타격 히트스톱 | #526 / PR 준비 | 검증 대상 | unit 592/592, integration 127/127; 5종 적 applied delta·player accepted/rejected·mixed target·parry priority·session cleanup 회귀 | release WebGL2 7 mode valid; normal 0.03/0.15, power 0.06/0.08, hurt 0.05/0.10+vignette, reject 0회, parry 0.10/0.05, recovery 106.9ms·exit scale 1.0 |
+| Task 11 일반 타격 히트스톱 | #526 / PR 준비 | 검증 대상 | unit 592/592, integration 128/128; 5종 적 applied delta·player accepted/rejected/lethal·mixed target·parry priority·session cleanup 회귀 | release WebGL2 8 mode valid; normal 0.03/0.15, power 0.06/0.08, hurt 0.05/0.10+vignette, reject 0회, parry 0.10/0.05, recovery 106.9ms·lethal/exit scale 1.0 |
 
 ## 장부 유지 규칙
 

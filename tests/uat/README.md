@@ -179,11 +179,12 @@ SettingsUI for the five-row mobile-safe capture.
 Temporarily export with `res://tests/uat/general_hit_stop_web_fixture.tscn` as
 the main scene and restore `project.godot` after the release export. Use
 `uat_general_hit_stop_mode` with `normal_active`, `power_active`,
-`player_hurt_active`, `rejected`, `parry_priority`, `recovery`, or `scene_exit`.
+`player_hurt_active`, `lethal`, `rejected`, `parry_priority`, `recovery`, or
+`scene_exit`.
 
 Every valid state prints `UAT_GENERAL_HIT_STOP_READY`. The fixture uses the real
 SessionRoot, Player, and Wolf, asserts exact duration/scale profiles, verifies
 that rejected overlap produces no hit stop, preserves the longer parry profile,
-and checks real-time recovery plus scene-exit restoration. The active modes also
+and checks real-time recovery plus lethal/scene-exit restoration. The active modes also
 record camera, combat SFX, and damage-vignette state so concurrent feedback stays
 coordinated.

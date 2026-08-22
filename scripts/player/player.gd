@@ -480,8 +480,8 @@ func take_damage(amount: int) -> int:
 	AudioManager.play_sfx(AudioManager.PLAYER_HIT)
 	_invuln_timer = invuln_time
 	_trigger_hit_reaction(invuln_time)
-	_broadcast_health()
 	_request_hit_stop(hit_stop_profile(false, true))
+	_broadcast_health()
 	return applied_damage
 
 
