@@ -268,8 +268,11 @@ func test_baseball_onboarding_journey_snapshot_tracks_existing_night_events() ->
 		session.queue_free()
 		return
 	var hint_snapshot: Dictionary = session_ui.call("get_onboarding_journey_hint_snapshot")
-	_runner.assert_true(bool(hint_snapshot.get("visible", false)), "first combat shows a non-blocking contextual card")
-	_runner.assert_eq(hint_snapshot.get("body"), "적을 쓰러뜨리면 다음 길이 열린다", "combat card renders the journey instruction")
+	_runner.assert_true(bool(hint_snapshot.get("visible", false)), "first combat shows a non-blocking objective ribbon")
+	_runner.assert_eq(hint_snapshot.get("variant"), &"objective_ribbon", "combat uses the compact ribbon variant")
+	_runner.assert_eq(hint_snapshot.get("detail"), "적 처치", "combat ribbon leads with the trigger")
+	_runner.assert_eq(hint_snapshot.get("action"), "길 열기", "combat ribbon ends with the next result")
+	_runner.assert_true(float(hint_snapshot.get("screen_coverage", 1.0)) <= 0.25, "objective ribbon protects the playfield")
 	var hint_rect := hint_snapshot.get("rect", Rect2()) as Rect2
 	var touch_controls := session.get_node("%TouchControls") as CanvasLayer
 	_runner.assert_true(MobileSafeArea.meets_landscape_minimum(hint_rect), "contextual card stays inside the 960x540 safe-area")
@@ -285,6 +288,9 @@ func test_baseball_onboarding_journey_snapshot_tracks_existing_night_events() ->
 	_runner.assert_eq(session.call("get_onboarding_journey_snapshot").get("phase"), &"reward", "hidden reward action leaves reward pending")
 	_runner.assert_true(session.call("flush_pending_reward_choice_for_tests"), "test opens the real reward card surface")
 	var reward_snapshot: Dictionary = session_ui.call("get_reward_choice_snapshot")
+	_runner.assert_true(bool(reward_snapshot.get("onboarding_eyebrow_visible", false)), "first reward uses a compact eyebrow")
+	_runner.assert_eq(reward_snapshot.get("onboarding_eyebrow_text", ""), "첫 강화 · 1장 선택", "reward eyebrow states the action in one line")
+	_runner.assert_false(bool(reward_snapshot.get("onboarding_hint_panel_exists", true)), "reward removes the duplicate explanation card")
 	var choice_ids: Array = reward_snapshot.get("choice_ids", []) as Array
 	_runner.assert_true(not choice_ids.is_empty(), "reward surface exposes at least one real choice")
 	if choice_ids.is_empty():
@@ -293,8 +299,10 @@ func test_baseball_onboarding_journey_snapshot_tracks_existing_night_events() ->
 	_runner.assert_true(session_ui.call("select_reward_choice", choice_ids[0]), "real reward selection advances the journey")
 	_runner.assert_eq(session.call("get_onboarding_journey_snapshot").get("phase"), &"friend_intro", "reward success advances to friend encounter")
 	hint_snapshot = session_ui.call("get_onboarding_journey_hint_snapshot")
-	_runner.assert_true(bool(hint_snapshot.get("visible", false)), "friend approach reuses the contextual card")
-	_runner.assert_eq(hint_snapshot.get("body"), "공격해 기절시킨 뒤 가까이 다가가 정화", "friend card explains the next real capability")
+	_runner.assert_true(bool(hint_snapshot.get("visible", false)), "friend approach reuses the objective ribbon")
+	_runner.assert_eq(hint_snapshot.get("variant"), &"objective_ribbon", "friend hint keeps the shared ribbon grammar")
+	_runner.assert_eq(hint_snapshot.get("detail"), "기절 → 접근", "friend ribbon compresses the prerequisite chain")
+	_runner.assert_eq(hint_snapshot.get("action"), "정화", "friend ribbon makes the final verb dominant")
 
 	_runner.assert_true(manager.enter_room(&"friend_1"), "journey enters the captain room")
 	session.call("_on_friend_purified", {"friend_id": &"baseball_captain", "room_id": &"friend_1"})
@@ -792,10 +800,10 @@ func test_baseball_onboarding_combat_reward_explains_first_reward_choice() -> vo
 
 	var snapshot: Dictionary = session_ui.call("get_reward_choice_snapshot")
 	_runner.assert_true(bool(snapshot.get("visible", false)), "reward choice overlay is visible")
-	_runner.assert_true(bool(snapshot.get("onboarding_hint_visible", false)), "first onboarding combat reward includes reward-choice guidance")
-	_runner.assert_eq(snapshot.get("onboarding_hint_title", ""), "전투 보상", "reward onboarding title names the moment")
-	_runner.assert_true(String(snapshot.get("onboarding_hint_body", "")).contains("하나"), "reward onboarding tells the player to choose one card")
-	_runner.assert_eq(int(snapshot.get("onboarding_hint_target_count", 0)), 3, "reward onboarding points at all three reward cards")
+	_runner.assert_true(bool(snapshot.get("onboarding_eyebrow_visible", false)), "first onboarding combat reward includes the eyebrow")
+	_runner.assert_eq(snapshot.get("onboarding_eyebrow_text", ""), "첫 강화 · 1장 선택", "reward eyebrow names the moment and one-card action")
+	_runner.assert_false(bool(snapshot.get("onboarding_hint_panel_exists", true)), "reward onboarding does not stack a second card")
+	_runner.assert_eq(int(snapshot.get("visible_card_count", 0)), 3, "eyebrow orients the player to all three cards")
 
 	var choice_ids: Array = snapshot.get("choice_ids", []) as Array
 	if not choice_ids.is_empty():
