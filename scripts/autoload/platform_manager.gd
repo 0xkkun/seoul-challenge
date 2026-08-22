@@ -14,5 +14,7 @@ func get_feature_flags() -> Dictionary:
 		"platform": get_platform_name(),
 		"touch_input": has_touch_input(),
 		"web": OS.has_feature("web"),
+		"web_android": OS.has_feature("web_android"),
+		"web_ios": OS.has_feature("web_ios"),
 		"mobile": OS.has_feature("mobile"),
 	}

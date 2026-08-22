@@ -1,6 +1,7 @@
 extends Node
 
 const NightIntroCutsceneScript := preload("res://scripts/cutscene/night_intro_cutscene.gd")
+const MobileSafeArea := preload("res://scripts/ui/mobile_safe_area.gd")
 
 var _runner: Node
 
@@ -169,6 +170,48 @@ func test_skip_finishes_immediately_before_playing() -> void:
 	_runner.assert_eq(finished_count[0], 1, "skip emits finished exactly once")
 	intro.skip()
 	_runner.assert_eq(finished_count[0], 1, "a second skip does not re-emit finished")
+	intro.free()
+
+
+func test_intro_line_auto_advance_covers_audio_and_web_fallbacks() -> void:
+	var should_advance := Callable(NightIntroCutsceneScript, "should_advance_line")
+	_runner.assert_true(should_advance.is_valid(), "인트로 줄 자동 진행 정책을 노출한다")
+	if not should_advance.is_valid():
+		return
+	_runner.assert_false(
+		bool(should_advance.call(true, true, 1.0, 0.0, true)),
+		"음성 재생 중 조기 클릭은 버퍼링하되 즉시 끊지 않는다"
+	)
+	_runner.assert_true(
+		bool(should_advance.call(true, false, 2.0, 0.35, false)),
+		"음성 종료 grace 뒤 자동 진행한다"
+	)
+	_runner.assert_true(
+		bool(should_advance.call(false, false, 2.2, 0.0, false)),
+		"autoplay 차단 시 읽기 fallback으로 진행한다"
+	)
+	_runner.assert_true(
+		bool(should_advance.call(true, true, 4.0, 0.0, false)),
+		"고착 음성도 hard max에서 진행한다"
+	)
+
+
+func test_intro_controls_use_desktop_copy_and_mobile_safe_area() -> void:
+	var intro := NightIntroCutsceneScript.new()
+	add_child(intro)
+	var hint := intro.get_node("AdvanceHint") as Label
+	var skip_button := intro.get_node("SkipButton") as Button
+	var viewport_size := intro.get_viewport().get_visible_rect().size
+
+	_runner.assert_eq(hint.text, "클릭하여 계속", "데스크톱 인트로는 클릭 안내를 표시한다")
+	_runner.assert_true(
+		MobileSafeArea.meets_landscape_minimum(skip_button.get_global_rect(), viewport_size),
+		"인트로 건너뛰기는 top/right safe-area 안쪽에 있다"
+	)
+	_runner.assert_true(
+		MobileSafeArea.meets_landscape_minimum(hint.get_global_rect(), viewport_size),
+		"인트로 계속 안내는 right/bottom safe-area 안쪽에 있다"
+	)
 	intro.free()
 
 

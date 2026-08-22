@@ -4,6 +4,7 @@ extends CanvasLayer
 const UiFontRoles = preload("res://scripts/ui/ui_font_roles.gd")
 const RenderLayers = preload("res://scripts/constants/render_layers.gd")
 const MobileSafeArea = preload("res://scripts/ui/mobile_safe_area.gd")
+const InputPromptPolicy := preload("res://scripts/ui/input_prompt_policy.gd")
 
 signal dismissed(step_id: StringName)
 
@@ -167,7 +168,7 @@ func _build_ui() -> void:
 	box.add_child(_message_label)
 	_hint_label = Label.new()
 	_hint_label.name = "HintLabel"
-	_hint_label.text = "탭해서 시작"
+	_hint_label.text = _action_hint(&"start")
 	_hint_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_hint_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	_hint_label.add_theme_font_size_override("font_size", 14)
@@ -180,13 +181,23 @@ func _refresh() -> void:
 	if _root == null:
 		return
 	_message_label.text = _message
-	_hint_label.text = "탭해서 시작" if _step_id == &"intro" else "탭해서 계속"
+	_hint_label.text = _action_hint(&"start" if _step_id == &"intro" else &"continue")
 	var focus_rect := _spotlight_rect()
 	_layout_dim_cutout(focus_rect)
 	_apply_control_rect(_spotlight_frame, focus_rect)
 	var pulse := 0.82 + (0.18 * (0.5 + 0.5 * sin(_pulse_time * TAU * 1.25)))
 	_spotlight_frame.modulate = Color(1.0, 1.0, 1.0, pulse)
 	_layout_panel(focus_rect)
+
+
+func _action_hint(action: StringName) -> String:
+	var features := {}
+	if has_node("/root/PlatformManager"):
+		features = PlatformManager.get_feature_flags()
+	return InputPromptPolicy.action_hint(
+		action,
+		InputPromptPolicy.input_mode_from_features(features)
+	)
 
 
 func _layout_dim_cutout(focus_rect: Rect2) -> void:

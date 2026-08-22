@@ -5,6 +5,8 @@ const HUB_DIALOGUE_SCENE := preload("res://scenes/ui/hub_dialogue_ui.tscn")
 const HUB_DIALOGUE_SCRIPT := preload("res://scripts/ui/hub_dialogue_ui.gd")
 const MobileSafeArea := preload("res://scripts/ui/mobile_safe_area.gd")
 const PEOPLE2_TEXTURE := preload("res://assets/characters/school/people2.png")
+const INPUT_PROMPT_POLICY_PATH := "res://scripts/ui/input_prompt_policy.gd"
+const PromptPolicy := preload("res://scripts/ui/input_prompt_policy.gd")
 
 var _runner: Node
 # HubDialogueUi 글로벌 클래스 등록(에디터 import) 순서에 의존하지 않도록 타입 주석 없이 둔다.
@@ -56,6 +58,49 @@ func test_dialogue_content_updates_from_data() -> void:
 	_runner.assert_eq(_ui.get_speaker_name(), "과학부 선배", "NPC 이름이 데이터로 갱신된다")
 	_runner.assert_eq(_ui.get_dialogue_text(), "\"이 유리병은 밤마다 혼자 흔들려.\"", "대사가 데이터로 갱신된다")
 	_runner.assert_eq(_ui.get_memory_text(), "기억: 실험실 싱크대의 물방울", "기억 플레이버 텍스트가 데이터로 갱신된다")
+
+
+func test_continue_hint_matches_active_input_mode() -> void:
+	_runner.assert_true(
+		ResourceLoader.exists(INPUT_PROMPT_POLICY_PATH),
+		"플랫폼 문구 정책이 존재한다"
+	)
+	if not ResourceLoader.exists(INPUT_PROMPT_POLICY_PATH):
+		return
+	var policy := load(INPUT_PROMPT_POLICY_PATH)
+	_runner.assert_eq(policy.continue_hint(&"desktop"), "클릭하여 계속", "PC는 클릭 표현을 쓴다")
+	_runner.assert_eq(policy.continue_hint(&"touch"), "탭하여 계속", "터치는 탭 표현을 쓴다")
+	_runner.assert_eq(policy.action_hint(&"start", &"desktop"), "클릭하여 시작", "PC 시작 안내도 클릭 표현을 쓴다")
+	_runner.assert_eq(policy.action_hint(&"start", &"touch"), "탭하여 시작", "터치 시작 안내는 탭 표현을 쓴다")
+	_runner.assert_eq(
+		policy.input_mode_from_features({
+			"web": true,
+			"web_android": false,
+			"web_ios": false,
+			"mobile": false,
+			"touch_input": true,
+		}),
+		&"desktop",
+		"마우스 터치 에뮬레이션은 PC를 모바일로 오분류하지 않는다"
+	)
+	_runner.assert_eq(
+		policy.input_mode_from_features({"web_ios": true}),
+		&"touch",
+		"모바일 Web은 touch 문구를 쓴다"
+	)
+
+
+func test_unlock_continue_hint_uses_desktop_click_copy() -> void:
+	var items: Array[Dictionary] = []
+	_ui.show_unlock("새 기억", "보상", items)
+	var hint := _ui.get_node("%UnlockContinueHint") as Label
+	_runner.assert_eq(hint.text, "클릭하여 계속", "데스크톱 해금 팝업은 클릭 안내를 표시한다")
+
+
+func test_platform_manager_exposes_mobile_web_features() -> void:
+	var features := PlatformManager.get_feature_flags()
+	_runner.assert_true(features.has("web_android"), "플랫폼 flag는 Android Web을 구분한다")
+	_runner.assert_true(features.has("web_ios"), "플랫폼 flag는 iOS Web을 구분한다")
 
 
 func test_dialogue_supports_bold_bbcode_without_polluting_plain_text() -> void:
@@ -129,7 +174,7 @@ func test_nameplate_does_not_overlap_stage_row() -> void:
 
 func test_choice_buttons_keep_mobile_touch_size() -> void:
 	var choices: Array[Dictionary] = [
-		{"id": &"next", "text": HUB_DIALOGUE_SCRIPT.CONTINUE_HINT_TOUCH, "tap_to_continue": true, "test_id": "dialogue.next_button", "uat_action": "dialogue.next"},
+		{"id": &"next", "text": PromptPolicy.continue_hint(&"touch"), "tap_to_continue": true, "test_id": "dialogue.next_button", "uat_action": "dialogue.next"},
 		{"id": &"close", "text": "나가기", "emphasized": true, "test_id": "dialogue.close_button", "uat_action": "dialogue.close"},
 	]
 	_ui.set_choices(choices)
@@ -148,7 +193,7 @@ func test_tap_to_continue_choice_advances_from_any_dialogue_tap() -> void:
 	_ui.choice_selected.connect(func(choice_id: StringName) -> void: selected_ids.append(choice_id))
 	_ui.visible = true
 	var choices: Array[Dictionary] = [
-		{"id": &"next", "text": HUB_DIALOGUE_SCRIPT.CONTINUE_HINT_TOUCH, "tap_to_continue": true},
+		{"id": &"next", "text": PromptPolicy.continue_hint(&"touch"), "tap_to_continue": true},
 	]
 	_ui.set_choices(choices)
 

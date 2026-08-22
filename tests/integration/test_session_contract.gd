@@ -380,6 +380,8 @@ func test_baseball_onboarding_friend_room_opens_yokai_captain_dialogue_first() -
 	_runner.assert_true(manager.enter_room(&"friend_1"), "test enters the onboarding friend room")
 	_runner.assert_true(bool(session.call("is_encounter_dialogue_visible")), "first yokai captain encounter opens dialogue")
 	_runner.assert_eq(session.call("get_encounter_dialogue_speaker"), "요괴 야구부 주장", "first friend encounter speaker is the yokai captain")
+	var encounter_ui: Variant = session.call("_active_encounter_dialogue_ui")
+	_runner.assert_eq(encounter_ui.get_choice_texts(), ["클릭하여 계속"], "데스크톱 전투 대화는 클릭 진행 안내를 표시한다")
 	_runner.assert_true(String(session.call("get_encounter_dialogue_text")).contains("타석"), "요괴 주장이 야구부 타석 톤을 맡는다")
 	_runner.assert_true(String(session.call("get_encounter_dialogue_text")).contains("서"), "first line invites the player into the confrontation")
 	_runner.assert_true(get_tree().paused, "friend intro pauses gameplay until the player advances the dialogue")

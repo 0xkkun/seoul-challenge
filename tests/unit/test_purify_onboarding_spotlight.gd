@@ -66,3 +66,17 @@ func test_purify_onboarding_spotlight_targets_world_node_and_dismisses_on_tap() 
 	_runner.assert_true(bool(dismissed["seen"]), "dismiss는 dismissed 시그널을 낸다")
 	_runner.assert_eq(dismissed["step"], &"intro", "dismissed 시그널은 닫힌 단계 id를 포함한다")
 	_runner.assert_false(bool(spotlight.call("is_active")), "닫힌 뒤 active가 false다")
+
+
+func test_purify_onboarding_spotlight_uses_desktop_click_copy() -> void:
+	var spotlight := (load(SPOTLIGHT_SCRIPT_PATH) as Script).new() as CanvasLayer
+	var target := Node2D.new()
+	add_child(target)
+	add_child(spotlight)
+
+	spotlight.call("show_step", &"intro", "정화 시작", target)
+	var hint := spotlight.get_node("Root/MessagePanel/MessageStack/HintLabel") as Label
+	_runner.assert_eq(hint.text, "클릭하여 시작", "데스크톱 정화 시작은 클릭 안내를 표시한다")
+
+	spotlight.call("show_step", &"groggy", "정화 계속", target)
+	_runner.assert_eq(hint.text, "클릭하여 계속", "데스크톱 정화 후속 안내도 클릭 표현을 쓴다")

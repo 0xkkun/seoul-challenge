@@ -36,6 +36,7 @@ const BASEBALL_CAPTAIN_DESKTOP_PROMPT_TEXT := "[E]  야구부 주장에게 말 �
 const BASEBALL_CAPTAIN_TOUCH_PROMPT_TEXT := "야구부 주장  말 걸기"
 const BASEBALL_CAPTAIN_REWARD_CALLOUT_TEXT := "!  야구부 주장"
 const BASEBALL_CAPTAIN_BOSS_RESULT_CALLOUT_TEXT := "!  야구부 주장"
+const InputPromptPolicy := preload("res://scripts/ui/input_prompt_policy.gd")
 const REWARD_BAT_ID := &"cracked_bat"
 const REWARD_BAT_NAME := "마지막 시즌의 배트"
 const REWARD_BAT_POPUP_SUBTITLE := "야구부 주장이 건넨 기억 무기"
@@ -1156,7 +1157,7 @@ func _show_dialogue_line(line_index: int) -> void:
 	_hub_dialogue_ui.set_choices([
 		{
 			"id": CHOICE_CLOSE if is_last_line else CHOICE_NEXT,
-			"text": HubDialogueUi.CONTINUE_HINT_TOUCH,
+			"text": _continue_hint(),
 			"tap_to_continue": true,
 			"test_id": TEST_ID_DIALOGUE_CLOSE if is_last_line else TEST_ID_DIALOGUE_NEXT,
 			"uat_action": ACTION_DIALOGUE_CLOSE if is_last_line else ACTION_DIALOGUE_NEXT,
@@ -1170,6 +1171,15 @@ func _show_dialogue_line(line_index: int) -> void:
 		"memory": memory_text,
 		"source": &"day_corridor",
 	})
+
+
+func _continue_hint() -> String:
+	var features := {}
+	if has_node("/root/PlatformManager"):
+		features = PlatformManager.get_feature_flags()
+	return InputPromptPolicy.continue_hint(
+		InputPromptPolicy.input_mode_from_features(features)
+	)
 
 
 func _on_hub_dialogue_choice_selected(choice_id: StringName) -> void:

@@ -3,7 +3,7 @@ extends CanvasLayer
 ## 밤 인트로 콜드오픈. 첫 밤 진입 직전 1회 재생되는 시네마틱 인트로.
 ##
 ## 거의 검은 화면(경복궁 플레이트를 어둡게 깔고) 중앙에 한글 내레이션을
-## 인터타이틀처럼 띄우고 탭으로 진행한다. 마지막 비트는 자막이 사라지며
+## 인터타이틀처럼 띄우고 자동 진행하며 클릭/탭으로 앞당길 수 있다. 마지막 비트는 자막이 사라지며
 ## 경복궁이 가득 드러난 뒤 암전되고, finished 를 방출해 호출부가 밤 세션으로
 ## 잇는다. 자막 문구는 BEATS 에 모여 있어 따로 교체하기 쉽다.
 
@@ -12,15 +12,23 @@ signal finished
 ## SceneTransition 페이드 오버레이(레이어 230)보다 아래로 깔아, 세션 전환 페이드가
 ## 인트로 위를 덮을 수 있게 한다.
 const LAYER_INDEX := 120
-const PLATE_FADE_SECONDS := 0.9
-const SUBTITLE_FADE_SECONDS := 0.5
-const PLATE_FADE_OUT_SECONDS := 0.6
+const PLATE_FADE_SECONDS := 0.35
+const SUBTITLE_FADE_SECONDS := 0.2
+const PLATE_FADE_OUT_SECONDS := 0.25
 ## 내레이션 비트에서 플레이트는 어둡게(거의 검정) 깔려 배경 역할만 한다.
 const BACKDROP_ALPHA := 0.4
 ## 마지막 리빌: 자막이 사라지며 플레이트가 풀로 차오르고, 잠시 머문 뒤 암전.
-const REVEAL_RISE_SECONDS := 1.1
-const REVEAL_HOLD_SECONDS := 1.6
+const REVEAL_RISE_SECONDS := 0.5
+const REVEAL_HOLD_SECONDS := 0.8
+const AUTO_ADVANCE_AFTER_NARRATION_SECONDS := 0.35
+const VOICELESS_READING_SECONDS := 2.2
+const HARD_MAX_LINE_SECONDS := 4.0
+const PLATE_START_ALPHA := 0.04
+const SKIP_BUTTON_SIZE := Vector2(168.0, 48.0)
+const ADVANCE_HINT_SIZE := Vector2(400.0, 30.0)
 const FontRoles := preload("res://scripts/ui/ui_font_roles.gd")
+const InputPromptPolicy := preload("res://scripts/ui/input_prompt_policy.gd")
+const MobileSafeArea := preload("res://scripts/ui/mobile_safe_area.gd")
 const FINALE_SFX := &"night_intro_transition_cd"
 
 ## 플레이트 순서는 확정 스토리보드 기준: B → A → C → D.
@@ -93,6 +101,24 @@ func is_finished() -> bool:
 	return _finished
 
 
+func get_skip_button_reference_rect() -> Rect2:
+	_ensure_built()
+	return _skip_button.get_global_rect()
+
+
+func get_advance_hint_reference_rect() -> Rect2:
+	_ensure_built()
+	return _hint.get_global_rect()
+
+
+func _continue_hint() -> String:
+	var features := {}
+	if has_node("/root/PlatformManager"):
+		features = PlatformManager.get_feature_flags()
+	var input_mode := InputPromptPolicy.input_mode_from_features(features)
+	return InputPromptPolicy.continue_hint(input_mode)
+
+
 ## 콜드오픈을 재생한다. 한 번만 시작되며, 끝나면 finished 를 방출한다.
 func play() -> void:
 	if _started or _finished:
@@ -120,17 +146,17 @@ func play() -> void:
 			if pre > 0.0:
 				_set_subtitle("")
 				await _hold(pre)
-				if _skip:
-					break
+			if _skip:
+				break
 			_set_subtitle(String(line["text"]))
-			_play_line_narration(line)
+			var narration_started := _play_line_narration(line)
 			# 자막/힌트가 떠오르는 "그 순간"부터 탭을 받기 시작한다(버퍼링).
 			# 페이드가 끝난 뒤에야 무장하던 기존 흐름엔 힌트는 보이는데 탭이
 			# 먹지 않는 사각지대가 있었다. 무장만 앞당기고, 실제 진행은 여전히
 			# 나레이션이 끝난 뒤로 게이트한다(아래 _wait_for_advance).
 			_arm_advance()
 			await _fade_subtitle_in()
-			await _wait_for_advance()
+			await _wait_for_advance(narration_started)
 		if _skip:
 			break
 		if i == last_index:
@@ -208,13 +234,17 @@ func _build_ui() -> void:
 	# 진행 힌트: 작게, 우하단 구석. 자막 흐름을 방해하지 않는다.
 	_hint = Label.new()
 	_hint.name = "AdvanceHint"
-	_hint.anchor_left = 0.5
-	_hint.anchor_right = 0.93
-	_hint.anchor_top = 0.92
-	_hint.anchor_bottom = 0.975
+	_hint.anchor_left = 1.0
+	_hint.anchor_right = 1.0
+	_hint.anchor_top = 1.0
+	_hint.anchor_bottom = 1.0
+	_hint.offset_left = -MobileSafeArea.MIN_RIGHT - ADVANCE_HINT_SIZE.x
+	_hint.offset_right = -MobileSafeArea.MIN_RIGHT
+	_hint.offset_top = -MobileSafeArea.MIN_BOTTOM - ADVANCE_HINT_SIZE.y
+	_hint.offset_bottom = -MobileSafeArea.MIN_BOTTOM
 	_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	_hint.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_hint.text = "탭해서 계속"
+	_hint.text = _continue_hint()
 	_hint.add_theme_font_size_override("font_size", 15)
 	FontRoles.apply_pixel(_hint)
 	_hint.add_theme_color_override("font_color", Color(0.78, 0.80, 0.86, 0.55))
@@ -223,6 +253,13 @@ func _build_ui() -> void:
 	_hint.modulate = Color(1.0, 1.0, 1.0, 0.0)
 	_hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_hint)
+	MobileSafeArea.apply_edge_offsets(
+		_hint,
+		-1.0,
+		-1.0,
+		MobileSafeArea.MIN_RIGHT,
+		MobileSafeArea.MIN_BOTTOM
+	)
 
 	_narration = AudioStreamPlayer.new()
 	_narration.name = "Narration"
@@ -232,10 +269,14 @@ func _build_ui() -> void:
 	# 즉시 finished 로 잇는다. 자식 순서상 맨 위에 두어 입력을 먼저 받는다.
 	_skip_button = Button.new()
 	_skip_button.name = "SkipButton"
-	_skip_button.anchor_left = 0.80
-	_skip_button.anchor_right = 0.975
-	_skip_button.anchor_top = 0.03
-	_skip_button.anchor_bottom = 0.10
+	_skip_button.anchor_left = 1.0
+	_skip_button.anchor_right = 1.0
+	_skip_button.anchor_top = 0.0
+	_skip_button.anchor_bottom = 0.0
+	_skip_button.offset_left = -MobileSafeArea.MIN_RIGHT - SKIP_BUTTON_SIZE.x
+	_skip_button.offset_right = -MobileSafeArea.MIN_RIGHT
+	_skip_button.offset_top = MobileSafeArea.MIN_TOP
+	_skip_button.offset_bottom = MobileSafeArea.MIN_TOP + SKIP_BUTTON_SIZE.y
 	_skip_button.text = "건너뛰기  ▶"
 	_skip_button.focus_mode = Control.FOCUS_NONE
 	_skip_button.mouse_filter = Control.MOUSE_FILTER_STOP
@@ -251,6 +292,12 @@ func _build_ui() -> void:
 	_skip_button.add_theme_stylebox_override("pressed", _skip_button_style(0.46))
 	_skip_button.pressed.connect(skip)
 	add_child(_skip_button)
+	MobileSafeArea.apply_edge_offsets(
+		_skip_button,
+		-1.0,
+		MobileSafeArea.MIN_TOP,
+		MobileSafeArea.MIN_RIGHT
+	)
 
 
 ## 스킵 버튼용 반투명 라운드 배경. 알파만 바꿔 normal/hover/pressed 를 구성한다.
@@ -268,20 +315,21 @@ func _skip_button_style(bg_alpha: float) -> StyleBoxFlat:
 
 
 ## 줄에 음성이 있으면 재생한다(다음 줄에서 새 음성이 play() 로 교체됨).
-func _play_line_narration(line: Dictionary) -> void:
+func _play_line_narration(line: Dictionary) -> bool:
 	if _narration == null or not line.has("audio"):
-		return
+		return false
 	var stream := load(String(line["audio"])) as AudioStream
 	if stream == null:
-		return
+		return false
 	_narration.stream = stream
 	_narration.play()
+	return _narration.playing
 
 
 func _show_plate(plate_index: int, target_alpha: float) -> void:
 	var path := PLATES[plate_index]
 	_plate.texture = load(path)
-	_plate.modulate.a = 0.0
+	_plate.modulate.a = minf(target_alpha, PLATE_START_ALPHA)
 	_set_subtitle("")
 	_hint.modulate.a = 0.0
 	var tween := create_tween()
@@ -362,14 +410,46 @@ func _arm_advance() -> void:
 	_advance_ready = true
 
 
-## 다음 줄로 넘어가는 조건: 탭이 들어왔고 + 현재 줄의 나레이션이 끝났을 때.
-## 빨리 누른 탭은 버퍼링되어 음성이 끝나는 즉시 넘어가므로, 탭으로 음성을
-## 끊어 호흡이 빨라지는 일이 없다(한 줄=한 단위로 차분히 진행).
-func _wait_for_advance() -> void:
+static func should_advance_line(
+		narration_started: bool,
+		narration_playing: bool,
+		line_elapsed: float,
+		narration_finished_elapsed: float,
+		user_requested: bool
+) -> bool:
+	if line_elapsed >= HARD_MAX_LINE_SECONDS:
+		return true
+	if not narration_started:
+		return user_requested or line_elapsed >= VOICELESS_READING_SECONDS
+	if narration_playing:
+		return false
+	return user_requested or narration_finished_elapsed >= AUTO_ADVANCE_AFTER_NARRATION_SECONDS
+
+
+## 음성 종료 뒤 자동 진행하며, autoplay 차단과 고착 음성도 bounded fallback으로
+## 빠져나온다. 음성 중 클릭/탭은 버퍼링되지만 현재 음성을 끊지는 않는다.
+func _wait_for_advance(narration_started: bool) -> void:
 	if _skip:
 		return
+	var line_started_at := Time.get_ticks_msec() / 1000.0
+	var narration_finished_at := -1.0
 	while not _skip:
-		if _advance_requested and not _is_narration_playing():
+		var now_seconds := Time.get_ticks_msec() / 1000.0
+		var narration_playing := _is_narration_playing()
+		if narration_started and not narration_playing and narration_finished_at < 0.0:
+			narration_finished_at = now_seconds
+		var narration_finished_elapsed := (
+			maxf(0.0, now_seconds - narration_finished_at)
+			if narration_finished_at >= 0.0
+			else 0.0
+		)
+		if should_advance_line(
+			narration_started,
+			narration_playing,
+			maxf(0.0, now_seconds - line_started_at),
+			narration_finished_elapsed,
+			_advance_requested
+		):
 			break
 		await get_tree().process_frame
 	_advance_ready = false
