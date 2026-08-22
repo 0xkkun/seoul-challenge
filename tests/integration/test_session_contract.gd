@@ -1908,6 +1908,50 @@ func test_session_pause_modal_exit_opens_abandon_confirmation() -> void:
 	session.queue_free()
 
 
+func test_session_damage_vignette_binds_real_player_and_disconnects_cleanly() -> void:
+	var packed := load("res://scenes/session/session_root.tscn") as PackedScene
+	var session := packed.instantiate()
+	add_child(session)
+
+	var vignette := session.get_node_or_null("%DamageVignette")
+	_runner.assert_not_null(vignette, "real session mounts the damage vignette")
+	if vignette == null:
+		session.queue_free()
+		return
+	var player := session.get_node("%Player")
+	_runner.assert_true(vignette.has_method("bind_player"), "damage vignette exposes the player binding contract")
+	_runner.assert_true(vignette.has_method("get_snapshot"), "damage vignette exposes state evidence")
+	if not vignette.has_method("bind_player") or not vignette.has_method("get_snapshot"):
+		session.queue_free()
+		return
+
+	var initial: Dictionary = vignette.call("get_snapshot")
+	_runner.assert_eq(int(initial.get("current_health", -1)), int(player.call("get_health")), "bind synchronizes real initial health")
+	_runner.assert_eq(int(initial.get("max_health", -1)), int(player.get("max_health")), "bind synchronizes real max health")
+	var health_callback := Callable(vignette, "_on_player_health_changed")
+	var settings_callback := Callable(vignette, "_on_settings_changed")
+	_runner.assert_true(EventBus.player_health_changed.is_connected(health_callback), "vignette subscribes to health exactly through EventBus")
+	_runner.assert_true(EventBus.settings_changed.is_connected(settings_callback), "vignette subscribes to settings exactly through EventBus")
+
+	vignette.call("bind_player", player)
+	var health_connection_count := 0
+	for connection: Dictionary in EventBus.player_health_changed.get_connections():
+		if connection.get("callable") == health_callback:
+			health_connection_count += 1
+	_runner.assert_eq(health_connection_count, 1, "repeated bind cannot duplicate the health subscription")
+
+	player.call("take_damage", 1)
+	var damaged: Dictionary = vignette.call("get_snapshot")
+	_runner.assert_true(bool(damaged.get("damage_pulse_active", false)), "real player damage reaches the vignette through EventBus")
+	_runner.assert_eq(int(damaged.get("current_health", -1)), int(player.call("get_health")), "vignette caches the emitted real health")
+
+	session.remove_child(vignette)
+	vignette.free()
+	_runner.assert_false(EventBus.player_health_changed.is_connected(health_callback), "free disconnects the health subscription")
+	_runner.assert_false(EventBus.settings_changed.is_connected(settings_callback), "free disconnects the settings subscription")
+	session.queue_free()
+
+
 func test_session_render_layer_contract() -> void:
 	var packed := load("res://scenes/session/session_root.tscn") as PackedScene
 	var session := packed.instantiate()
@@ -1918,6 +1962,7 @@ func test_session_render_layer_contract() -> void:
 	var actor_layer := session.get_node("ActorLayer") as Node2D
 	var interactable_layer := session.get_node("%InteractableLayer") as Node2D
 	var pooled_object_layer := session.get_node("%PooledObjectLayer") as Node2D
+	var damage_vignette := session.get_node("%DamageVignette") as CanvasLayer
 	var session_ui := session.get_node("%SessionUIRoot") as CanvasLayer
 
 	_runner.assert_eq(world_layer.z_index, RenderLayers.WORLD_BACKGROUND_Z)
@@ -1925,6 +1970,7 @@ func test_session_render_layer_contract() -> void:
 	_runner.assert_eq(actor_layer.z_index, RenderLayers.WORLD_ACTOR_Z)
 	_runner.assert_eq(interactable_layer.z_index, RenderLayers.WORLD_INTERACTABLE_Z)
 	_runner.assert_eq(pooled_object_layer.z_index, RenderLayers.WORLD_EFFECT_Z)
+	_runner.assert_eq(damage_vignette.layer, RenderLayers.UI_SESSION_LAYER - 5)
 	_runner.assert_eq(session_ui.layer, RenderLayers.UI_SESSION_LAYER)
 
 	session.queue_free()

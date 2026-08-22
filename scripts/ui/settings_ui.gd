@@ -5,11 +5,13 @@ const TEST_ID_BGM_TOGGLE := "settings.bgm_toggle"
 const TEST_ID_SFX_TOGGLE := "settings.sfx_toggle"
 const TEST_ID_HAPTIC_TOGGLE := "settings.haptic_toggle"
 const TEST_ID_REDUCED_MOTION_TOGGLE := "settings.reduced_motion_toggle"
+const TEST_ID_SCREEN_EFFECTS_TOGGLE := "settings.screen_effects_toggle"
 const TEST_ID_CLOSE := "settings.close_button"
 const ACTION_BGM_TOGGLE := "settings.bgm.toggle"
 const ACTION_SFX_TOGGLE := "settings.sfx.toggle"
 const ACTION_HAPTIC_TOGGLE := "settings.haptic.toggle"
 const ACTION_REDUCED_MOTION_TOGGLE := "settings.reduced_motion.toggle"
+const ACTION_SCREEN_EFFECTS_TOGGLE := "settings.screen_effects.toggle"
 const ACTION_CLOSE := "settings.close"
 
 const _OPEN_DURATION := 0.14
@@ -22,6 +24,8 @@ const _SOUND_ON_ICON := preload("res://assets/ui/icons/settings/sound.png")
 const _SOUND_OFF_ICON := preload("res://assets/ui/icons/settings/sound_off.png")
 const _HAPTIC_ON_ICON := preload("res://assets/ui/icons/settings/haptic.png")
 const _HAPTIC_OFF_ICON := preload("res://assets/ui/icons/settings/haptic_off.png")
+const _SCREEN_EFFECTS_ON_ICON := preload("res://assets/ui/icons/settings/screen_effects.svg")
+const _SCREEN_EFFECTS_OFF_ICON := preload("res://assets/ui/icons/settings/screen_effects_off.svg")
 const FontRoles := preload("res://scripts/ui/ui_font_roles.gd")
 
 @onready var _root: Control = $Root
@@ -136,7 +140,7 @@ func _build_rows() -> void:
 func _make_toggle_row(row: Dictionary) -> Control:
 	var container := PanelContainer.new()
 	container.name = "%sRow" % _node_suffix_for_key(String(row["key"]))
-	container.custom_minimum_size = Vector2(0.0, 58.0)
+	container.custom_minimum_size = Vector2(0.0, 52.0)
 	container.mouse_filter = Control.MOUSE_FILTER_STOP
 	var row_style := StyleBoxFlat.new()
 	row_style.bg_color = Color(0.047, 0.067, 0.098, 0.92)
@@ -153,9 +157,9 @@ func _make_toggle_row(row: Dictionary) -> Control:
 
 	var margin := MarginContainer.new()
 	margin.add_theme_constant_override("margin_left", 16)
-	margin.add_theme_constant_override("margin_top", 6)
+	margin.add_theme_constant_override("margin_top", 4)
 	margin.add_theme_constant_override("margin_right", 14)
-	margin.add_theme_constant_override("margin_bottom", 6)
+	margin.add_theme_constant_override("margin_bottom", 4)
 	container.add_child(margin)
 
 	var hbox := HBoxContainer.new()
@@ -210,6 +214,8 @@ func _on_toggle_pressed(key: String) -> void:
 			Settings.set_haptic_enabled(next_value)
 		Settings.KEY_REDUCED_MOTION:
 			Settings.set_reduced_motion_enabled(next_value)
+		Settings.KEY_SCREEN_EFFECTS:
+			Settings.set_screen_effects_enabled(next_value)
 		_:
 			Settings.set_value(key, next_value)
 	_sync_toggle_button(key)
@@ -274,6 +280,14 @@ func _toggle_rows() -> Array[Dictionary]:
 			"action": ACTION_REDUCED_MOTION_TOGGLE,
 			"icon_on": _HAPTIC_ON_ICON,
 			"icon_off": _HAPTIC_OFF_ICON,
+		},
+		{
+			"key": Settings.KEY_SCREEN_EFFECTS,
+			"label": "화면 효과",
+			"test_id": TEST_ID_SCREEN_EFFECTS_TOGGLE,
+			"action": ACTION_SCREEN_EFFECTS_TOGGLE,
+			"icon_on": _SCREEN_EFFECTS_ON_ICON,
+			"icon_off": _SCREEN_EFFECTS_OFF_ICON,
 		},
 	]
 

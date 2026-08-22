@@ -47,9 +47,9 @@ anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
 offset_left = -260.0
-offset_top = -220.0
+offset_top = -246.0
 offset_right = 260.0
-offset_bottom = 220.0
+offset_bottom = 236.0
 grow_horizontal = 2
 grow_vertical = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_settings_panel")
@@ -63,7 +63,7 @@ theme_override_constants/margin_bottom = 22
 
 [node name="Stack" type="VBoxContainer" parent="Root/Panel/Margin"]
 layout_mode = 2
-theme_override_constants/separation = 16
+theme_override_constants/separation = 10
 
 [node name="TitleLabel" type="Label" parent="Root/Panel/Margin/Stack"]
 layout_mode = 2
@@ -76,7 +76,7 @@ vertical_alignment = 1
 [node name="Rows" type="VBoxContainer" parent="Root/Panel/Margin/Stack"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_constants/separation = 10
+theme_override_constants/separation = 6
 
 [node name="CloseButton" type="Button" parent="Root/Panel/Margin/Stack"]
 unique_name_in_owner = true

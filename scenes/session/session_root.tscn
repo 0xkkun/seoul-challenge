@@ -1,4 +1,4 @@
-[gd_scene load_steps=16 format=3]
+[gd_scene load_steps=17 format=3]
 
 [ext_resource type="Script" path="res://scripts/session/session_root.gd" id="1_session"]
 [ext_resource type="PackedScene" path="res://scenes/player/player.tscn" id="2_actor"]
@@ -15,6 +15,7 @@
 [ext_resource type="Script" path="res://scripts/ui/purify_onboarding_spotlight.gd" id="13_purify_spotlight"]
 [ext_resource type="Script" path="res://scripts/ui/parry_onboarding.gd" id="14_parry_onboarding"]
 [ext_resource type="Script" path="res://scripts/combat/parry_feedback_controller.gd" id="15_parry_feedback"]
+[ext_resource type="Script" path="res://scripts/ui/damage_vignette.gd" id="16_damage_vignette"]
 
 [node name="SessionRoot" type="Node2D"]
 script = ExtResource("1_session")
@@ -80,6 +81,10 @@ script = ExtResource("9_death_return")
 
 [node name="CombatHud" parent="." instance=ExtResource("8_combat_hud")]
 unique_name_in_owner = true
+
+[node name="DamageVignette" type="CanvasLayer" parent="."]
+unique_name_in_owner = true
+script = ExtResource("16_damage_vignette")
 
 [node name="SessionUIRoot" parent="." instance=ExtResource("4_ui")]
 unique_name_in_owner = true

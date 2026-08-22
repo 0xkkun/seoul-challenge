@@ -30,6 +30,9 @@ func test_settings_default_audio_and_haptic_flags_are_on() -> void:
 	_runner.assert_true(Settings.has_method("is_reduced_motion_enabled"), "settings exposes reduced-motion state")
 	if Settings.has_method("is_reduced_motion_enabled"):
 		_runner.assert_false(bool(Settings.call("is_reduced_motion_enabled")), "reduced onboarding motion defaults off")
+	_runner.assert_true(Settings.has_method("is_screen_effects_enabled"), "settings exposes screen-effects state")
+	if Settings.has_method("is_screen_effects_enabled"):
+		_runner.assert_true(bool(Settings.call("is_screen_effects_enabled")), "screen effects default on")
 
 
 func test_reduced_motion_setting_emits_the_updated_snapshot() -> void:
@@ -78,6 +81,20 @@ func test_settings_changed_signal_emits_snapshot() -> void:
 
 	_runner.assert_eq(_settings_payloads.size(), 1, "settings change emits once")
 	_runner.assert_eq(_settings_payloads[0][Settings.KEY_BGM_ENABLED], false, "payload includes updated BGM flag")
+
+
+func test_screen_effects_setter_emits_one_complete_settings_snapshot() -> void:
+	Settings.set_haptic_enabled(false)
+	_settings_payloads.clear()
+	_runner.assert_true(Settings.has_method("set_screen_effects_enabled"), "settings exposes screen-effects setter")
+	if not Settings.has_method("set_screen_effects_enabled"):
+		return
+	Settings.call("set_screen_effects_enabled", false)
+	_runner.assert_eq(_settings_payloads.size(), 1, "typed screen-effects setter emits exactly once")
+	if _settings_payloads.size() != 1:
+		return
+	_runner.assert_false(bool(_settings_payloads[0].get("screen_effects_enabled", true)), "payload includes disabled screen effects")
+	_runner.assert_false(bool(_settings_payloads[0].get(Settings.KEY_HAPTIC_ENABLED, true)), "payload preserves the existing disabled haptic flag")
 
 
 func _record_settings_payload(payload: Dictionary) -> void:

@@ -25,7 +25,7 @@ func after_each() -> void:
 	Settings.reset_defaults()
 
 
-func test_settings_ui_starts_hidden_and_opens_with_four_safe_toggles() -> void:
+func test_settings_ui_starts_hidden_and_opens_with_five_safe_toggles() -> void:
 	_runner.assert_false(_settings_ui.is_open(), "settings popup starts closed")
 
 	_settings_ui.open()
@@ -36,6 +36,8 @@ func test_settings_ui_starts_hidden_and_opens_with_four_safe_toggles() -> void:
 	_runner.assert_not_null(UiTestHarness.find_by_test_id(_settings_ui, SettingsUI.TEST_ID_HAPTIC_TOGGLE), "haptic toggle exists")
 	var motion_toggle := UiTestHarness.find_by_test_id(_settings_ui, "settings.reduced_motion_toggle")
 	_runner.assert_not_null(motion_toggle, "reduced motion toggle exists")
+	var screen_effects_toggle := UiTestHarness.find_by_test_id(_settings_ui, "settings.screen_effects_toggle")
+	_runner.assert_not_null(screen_effects_toggle, "screen effects toggle exists")
 	_runner.assert_not_null(UiTestHarness.find_by_test_id(_settings_ui, SettingsUI.TEST_ID_CLOSE), "close button exists")
 	if motion_toggle == null:
 		return
@@ -51,7 +53,7 @@ func test_settings_ui_starts_hidden_and_opens_with_four_safe_toggles() -> void:
 			reference_size.y * (panel.anchor_bottom - panel.anchor_top) + panel.offset_bottom - panel.offset_top
 		)
 	)
-	_runner.assert_true(MobileSafeArea.meets_landscape_minimum(panel_rect), "four-row settings panel stays inside 960x540 safe area: %s" % panel_rect)
+	_runner.assert_true(MobileSafeArea.meets_landscape_minimum(panel_rect), "five-row settings panel stays inside 960x540 safe area: %s" % panel_rect)
 	var motion_row := _settings_ui.get_node_or_null("Root/Panel/Margin/Stack/Rows/ReducedMotionRow") as Control
 	_runner.assert_not_null(motion_row, "reduced motion row is named predictably")
 	if motion_row == null:
@@ -60,6 +62,13 @@ func test_settings_ui_starts_hidden_and_opens_with_four_safe_toggles() -> void:
 	_runner.assert_true(not labels.is_empty(), "reduced motion row has a visible label")
 	if not labels.is_empty():
 		_runner.assert_eq((labels[0] as Label).text, "온보딩 모션 줄이기", "reduced motion label uses direct language")
+	var screen_row := _settings_ui.get_node_or_null("Root/Panel/Margin/Stack/Rows/ScreenEffectsEnabledRow") as Control
+	_runner.assert_not_null(screen_row, "screen effects row is named predictably")
+	if screen_row != null:
+		var screen_labels := screen_row.find_children("*", "Label", true, false)
+		_runner.assert_true(not screen_labels.is_empty(), "screen effects row has a visible label")
+		if not screen_labels.is_empty():
+			_runner.assert_eq((screen_labels[0] as Label).text, "화면 효과", "screen effects label uses compact language")
 
 
 func test_settings_ui_toggles_bgm_sfx_and_haptic() -> void:
@@ -104,6 +113,12 @@ func test_settings_ui_toggles_bgm_sfx_and_haptic() -> void:
 		return
 	_runner.assert_true(bool(Settings.call("is_reduced_motion_enabled")), "reduced motion toggle updates setting")
 	_runner.assert_eq(_settings_ui.get_toggle_text("reduced_motion"), "ON", "reduced motion row renders enabled state")
+
+	var screen_pressed := UiTestHarness.press_by_uat_action(_settings_ui, "settings.screen_effects.toggle")
+	_runner.assert_true(screen_pressed, "screen effects action is pressable")
+	if screen_pressed:
+		_runner.assert_false(bool(Settings.call("is_screen_effects_enabled")), "screen effects toggle updates setting")
+		_runner.assert_eq(_settings_ui.get_toggle_text("screen_effects_enabled"), "OFF", "screen effects row renders disabled state")
 
 
 func test_settings_ui_close_button_starts_close_animation() -> void:
