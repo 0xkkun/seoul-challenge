@@ -101,7 +101,7 @@ func _run_mode() -> void:
 
 
 func _observe_text_before_hit_stop(_position: Vector2, _text: String, style: StringName) -> void:
-	if style != &"ordinary" or _ordering["observed"]:
+	if style != StringName(_mode) or _ordering["observed"]:
 		return
 	_ordering["observed"] = true
 	_ordering["text_ready"] = PoolManager.get_active_count(TEXT_POOL_ID) == 1
@@ -119,14 +119,14 @@ func _emit_marker() -> void:
 		"ordinary":
 			valid = active_count == 1 and _has_text(snapshots, "2", &"ordinary") and bool(_ordering["text_ready"]) and bool(_ordering["hit_stop_inactive"]) and HitStopManager.is_active() and is_equal_approx(HitStopManager.get_active_scale(), 0.15)
 		"power":
-			valid = active_count == 1 and _has_text(snapshots, "3", &"power") and HitStopManager.is_active() and is_equal_approx(HitStopManager.get_active_scale(), 0.08)
+			valid = active_count == 1 and _has_text(snapshots, "3", &"power") and bool(_ordering["text_ready"]) and bool(_ordering["hit_stop_inactive"]) and HitStopManager.is_active() and is_equal_approx(HitStopManager.get_active_scale(), 0.08)
 		"player_damage":
 			player_text_screen_position = _player_text_screen_position()
 			var player_text_nodes: Array = (PoolManager.get("_active") as Dictionary).get(TEXT_POOL_ID, [])
 			player_screen_space = not player_text_nodes.is_empty() and (player_text_nodes[0] as Node).get_parent() == _session.get_node("%CombatHud")
 			var health_panel := _session.get_node("%CombatHud").get_node("Root/HealthPanel") as Control
 			var expected_position := Vector2(health_panel.get_global_rect().end.x + 24.0, health_panel.get_global_rect().get_center().y)
-			valid = active_count == 1 and _has_text(snapshots, "2", &"player_damage") and player_screen_space and player_text_screen_position.distance_to(expected_position) < 1.0 and HitStopManager.is_active() and is_equal_approx(HitStopManager.get_active_scale(), 0.10) and bool((_session.get_node("%DamageVignette") as DamageVignette).get_snapshot().get("damage_pulse_active", false))
+			valid = active_count == 1 and _has_text(snapshots, "2", &"player_damage") and bool(_ordering["text_ready"]) and bool(_ordering["hit_stop_inactive"]) and player_screen_space and player_text_screen_position.distance_to(expected_position) < 1.0 and HitStopManager.is_active() and is_equal_approx(HitStopManager.get_active_scale(), 0.10) and bool((_session.get_node("%DamageVignette") as DamageVignette).get_snapshot().get("damage_pulse_active", false))
 		"cap":
 			valid = active_count == 20 and available_count == 0
 		"reuse":
