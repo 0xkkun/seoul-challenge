@@ -128,6 +128,32 @@ func test_parry_style_is_readable_and_bounded() -> void:
 	_runner.assert_true((style.get("color", Color.TRANSPARENT) as Color).a > 0.99, "parry text stays fully readable")
 
 
+func test_default_style_and_lifetime_progress_cover_punch_rise_and_fade() -> void:
+	_runner.assert_true(ResourceLoader.exists(FLOATING_TEXT_SCENE_PATH), "floating combat text scene exists")
+	if not ResourceLoader.exists(FLOATING_TEXT_SCENE_PATH):
+		return
+	var text_node := (load(FLOATING_TEXT_SCENE_PATH) as PackedScene).instantiate() as Node2D
+	add_child(text_node)
+	var style: Dictionary = text_node.call("style_for", &"damage")
+	_runner.assert_eq(style.get("font_size"), 24, "unknown styles use the readable default size")
+	_runner.assert_eq(style.get("duration"), 0.8, "default style keeps a bounded lifetime")
+	_runner.assert_eq(style.get("rise"), 16.0, "default style uses the compact rise distance")
+	_runner.assert_eq(style.get("punch_scale"), 1.16, "default style keeps a smaller punch than parry")
+
+	text_node.call("activate_from_pool")
+	var start := Vector2(40.0, 60.0)
+	text_node.call("initialize", start, "7", &"damage")
+	var generation := int(text_node.get("_activation_generation"))
+	_runner.assert_true(bool(text_node.call("get_snapshot").get("tween_active")), "initialize owns one real lifetime tween")
+	text_node.call("_apply_lifetime_progress", 0.10, start, style, generation)
+	_runner.assert_true(text_node.scale.x > 1.0, "early lifetime applies the punch scale")
+	_runner.assert_true(text_node.position.y < start.y, "lifetime progress raises text upward")
+	text_node.call("_apply_lifetime_progress", 0.80, start, style, generation)
+	_runner.assert_true(text_node.modulate.a > 0.0 and text_node.modulate.a < 1.0, "late lifetime fades without disappearing early")
+	_runner.assert_eq(text_node.scale, Vector2.ONE, "late lifetime settles punch scale to rest")
+	text_node.call("reset_for_pool")
+
+
 func test_stale_lifetime_callback_cannot_release_a_reused_text() -> void:
 	var controller := _new_controller()
 	if controller == null:

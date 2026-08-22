@@ -65,6 +65,24 @@ func test_restore_always_forces_normal_time_and_clears_remaining() -> void:
 	_runner.assert_eq(Engine.time_scale, 1.0, "restore is idempotent")
 
 
+func test_request_rejects_nonpositive_duration_and_clamps_extremes() -> void:
+	var manager := _new_manager()
+	if manager == null:
+		return
+	_runner.assert_false(bool(manager.call("request", 0.0, 0.0)), "zero duration cannot start hit stop")
+	_runner.assert_false(bool(manager.call("request", -0.1, -1.0)), "negative duration cannot start hit stop")
+	_runner.assert_eq(Engine.time_scale, 1.0, "rejected requests cannot change global time")
+
+	_runner.assert_true(bool(manager.call("request", 2.0, -1.0)), "positive request starts after invalid requests")
+	_runner.assert_eq(float(manager.call("get_remaining_real_seconds")), 1.0, "duration is capped at one real second")
+	_runner.assert_eq(float(manager.call("get_active_scale")), 0.01, "scale is clamped to the safe lower bound")
+	manager.call("restore")
+
+	_runner.assert_true(bool(manager.call("request", 0.5, 3.0)), "upper-scale request starts")
+	_runner.assert_eq(float(manager.call("get_active_scale")), 1.0, "scale is clamped to normal time")
+	manager.call("restore")
+
+
 func _new_manager() -> Node:
 	_runner.assert_true(ResourceLoader.exists(HIT_STOP_MANAGER_PATH), "hit stop manager script exists")
 	if not ResourceLoader.exists(HIT_STOP_MANAGER_PATH):
