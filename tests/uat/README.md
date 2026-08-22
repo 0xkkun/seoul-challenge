@@ -103,3 +103,15 @@ main scene, restore `project.godot`, then open:
 
 Every valid state prints `UAT_SESSION_CLEANUP_READY`. Pass/fail uses the marker
 and browser errors; screenshots are visual evidence only.
+
+## Authored combat wave fixture
+
+Temporarily export with `res://tests/uat/combat_wave_web_fixture.tscn` as the
+main scene, restore `project.godot`, then open:
+
+- `?uat_combat_wave_mode=wave_one` — authored `combat_2` starts with 3 active and 3 pending enemies.
+- `?uat_combat_wave_mode=wave_two` — after wave one reaches zero, the remaining 3 spawn and the room stays uncleared.
+- `?uat_combat_wave_mode=cleared` — wave two reaches zero, all 6 spawn events are accounted for, and the room clears.
+
+Every valid state prints `UAT_COMBAT_WAVE_READY`. Pass/fail uses the marker and
+browser errors; screenshots are visual evidence only.

@@ -1,6 +1,6 @@
 # 2026-08-21 개선 명세 반영 현황
 
-기준 코드: `origin/main@ab2ec465` + #516 검증 대상
+기준 코드: `origin/main@839281ec` + #518 검증 대상
 사용자 제공 자료: `요괴뎐_개선안_2026-08-21`
 프로그램 설계: `docs/superpowers/specs/2026-08-22-first-five-minutes-onboarding-design.md`
 시각 재설계: `docs/superpowers/specs/2026-08-22-onboarding-coachmark-redesign.md`
@@ -14,7 +14,7 @@
 
 ## 요약
 
-현재 검증 대상에서 확실히 완료된 축은 PC 입력 경로, 데스크톱 터치 UI 비노출, bounded 인트로, 성공 기반 첫 방 6단계, 보상→정화→학교 대화 contextual 여정, 반복 가능한 패링 학습, 기본 키 안내, 공통 coachmark·objective ribbon·reward eyebrow, 패링 성공 연출, 포탈 실패 재시도와 세션 종료 cleanup, 일부 카메라·햅틱·보상·보물방 기반이다. 일반 타격 히트스톱, 일반 전투 반응음, 피격 비네트, 실제 웨이브는 미구현 또는 부분 상태다.
+현재 검증 대상에서 확실히 완료된 축은 PC 입력 경로, 데스크톱 터치 UI 비노출, bounded 인트로, 성공 기반 첫 방 6단계, 보상→정화→학교 대화 contextual 여정, 반복 가능한 패링 학습, 기본 키 안내, 공통 coachmark·objective ribbon·reward eyebrow, 패링 성공 연출, 포탈 실패 재시도와 세션 종료 cleanup, 실제 순차 웨이브, 일부 카메라·햅틱·보상·보물방 기반이다. 일반 타격 히트스톱, 일반 전투 반응음, 피격 비네트는 미구현 또는 부분 상태다.
 
 ## P — PC 대응
 
@@ -40,7 +40,7 @@
 
 | ID | 상태 | 현재 근거 | 다음 계약 |
 |---|---|---|---|
-| L1 웨이브 스폰 살리기 | 미구현 | `_spawn_next_wave()`가 pending queue 전체를 while loop로 소진; 기존 test가 full spawn을 기대 | 웨이브 PR |
+| L1 웨이브 스폰 살리기 | 완료 | #518 ceiling partition 6/2→3+3·5/2→3+2, final wave 전 clear 금지, 모든 `enemy_spawned` 1회 | authored combat_2 Web 회귀 유지 |
 | L2 난이도 티어 3단 분리 | 미구현 | generator의 `>=0.7`과 `>=0.4` config 동일 | 웨이브 플레이 후 별도 PR |
 | L3 엘리트 배치 켜기 | 미구현 | layout/generator의 `elite_*_count=0` | L2 뒤 별도 PR |
 | L4 스폰 위치 지터 | 미구현 | 고정 factor 배열 기반 | L3 뒤 별도 PR |
@@ -144,8 +144,8 @@
 | Q2 첫 방·첫 런 여정 (완료) | P3, P6, 이동·공격·대시·강공격·지도·출구 #507; 보상·정화·말 걸기 #509 | Task 2 merge `5a4f667`; Task 3 merge `31f8ba1`; PC/mobile journey UAT |
 | Q2b 온보딩 시각 재설계 (완료) | #513에서 첫 조작·objective·reward·정화·패링·인트로를 diegetic coachmark로 통일 | #513/#514 merge `e424012`; unit 544/544, integration 116/116, release Web 12 mode, Design C→A |
 | Q3 패링 학습·성공 피드백 (완료) | #510에서 반복 가능한 첫 늑대 학습 완료; #512에서 F2, F4, S7, T1, T2, T6 완성 | #510/#511 merge `76301ed`; #512/#515 merge `ab2ec465`; coverage 100%, release Web 5상태 UAT |
-| Q4 안정성 (진행 중) | #516에서 B1, B3, B4 구현 | unit 560/560, integration 123/123; release Web portal blocked/retry·death before/after·next-session 5상태, PR 예정 |
-| Q5 전투 흐름 | L1 | configured wave별 spawn 테스트와 Web play |
+| Q4 안정성 (완료) | #516에서 B1, B3, B4 구현 | #516/#517 merge `839281ec`; unit 560/560, integration 125/125, coverage 100%, release Web 5상태 |
+| Q5 전투 흐름 (진행 중) | #518에서 L1 구현 | 6/2·5/2 partition unit, second-wave wolf event, performance 4/4; authored combat_2 Web UAT 예정 |
 | Q6 적 압박 | M6a | 악귀 단독 변경 전후 encounter UAT |
 | Q7 전투 반응 | S1, S3, S4, F7 | cooldown·asset·피격 시청각 테스트와 Web UAT |
 | Q8 일반 타격 정보 | F3, T3, T4 | hitstop 복구·20 cap·설정 토글 테스트 |
@@ -160,6 +160,7 @@
 | Task 4 첫 늑대 패링 학습 | #510 / #511 | `76301ed` | unit 535/535, integration 115/115, quick/full, PR UI capture·Quick·Rooms·Web Preview green, Challenger/Codex issue 0 | release WebGL2 PC/touch prepare, miss, next-wolf retry, success; console/network error 0 |
 | Task 4b 온보딩 코치마크 시각 재설계 | #513 / #514 | `e424012` | unit 544/544, integration 116/116, quick/full, PR UI capture·Quick·Rooms·Web Preview green, Challenger/Codex issue 0 + 👍 | release WebGL2 12 mode, Design C→A, AI slop C→A, console error 0 |
 | Task 5 패링 성공 피드백 | #512 / #515 | `ab2ec465` | unit 559/559, integration 120/120, functional 1/1, coverage 100%, PR UI capture·Quick·Rooms·Web Preview green, Codex P2 RED→GREEN + latest-head major issue 0 | release WebGL2 before/impact/recovery/repeated/teardown; impact camera `(-7, 0)`, console/network error 0 |
+| Task 6 포탈 재시도·온보딩 종료 정리 | #516 / #517 | `839281ec` | unit 560/560, integration 125/125, functional 1/1, coverage 100%, PR UI capture·Quick·Rooms·Web Preview green, Challenger 0, Codex latest-head major issue 0 | release WebGL2 portal blocked/retry·death before/after·next session; console/network error 0 |
 
 ## 장부 유지 규칙
 
