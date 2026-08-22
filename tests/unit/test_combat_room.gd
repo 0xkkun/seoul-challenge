@@ -312,7 +312,9 @@ func test_combat_room_spawn_failures_resolve_without_stuck_pending_state() -> vo
 	_runner.assert_eq(null_scene_room.call("get_wave_snapshot").get("pending"), 0, "failed null scene entry is consumed once")
 
 	var non_node_scene := PackedScene.new()
-	_runner.assert_eq(non_node_scene.pack(Node.new()), OK, "fixture packs a non-Node2D scene")
+	var non_node_root := Node.new()
+	_runner.assert_eq(non_node_scene.pack(non_node_root), OK, "fixture packs a non-Node2D scene")
+	non_node_root.free()
 	var wrong_type_room := _instantiate_combat_room()
 	if wrong_type_room == null:
 		return
