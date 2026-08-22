@@ -88,6 +88,19 @@ func test_continue_hint_matches_active_input_mode() -> void:
 		&"touch",
 		"모바일 Web은 touch 문구를 쓴다"
 	)
+	_runner.assert_true(policy.has_method("should_accept_pointer_event"), "플랫폼 정책은 emulated pointer event source를 한 번만 고른다")
+	if not policy.has_method("should_accept_pointer_event"):
+		return
+	var mouse := InputEventMouseButton.new()
+	mouse.button_index = MOUSE_BUTTON_LEFT
+	mouse.pressed = true
+	var touch := InputEventScreenTouch.new()
+	touch.index = 0
+	touch.pressed = true
+	_runner.assert_true(policy.should_accept_pointer_event(&"desktop", mouse), "desktop은 실제 mouse event를 소비한다")
+	_runner.assert_false(policy.should_accept_pointer_event(&"desktop", touch), "desktop은 emulated touch 복제를 무시한다")
+	_runner.assert_true(policy.should_accept_pointer_event(&"touch", touch), "mobile은 실제 touch event를 소비한다")
+	_runner.assert_false(policy.should_accept_pointer_event(&"touch", mouse), "mobile은 emulated mouse 복제를 무시한다")
 
 
 func test_unlock_continue_hint_uses_desktop_click_copy() -> void:

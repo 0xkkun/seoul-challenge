@@ -32,8 +32,8 @@ const BOSS_REPORT_ARROW_TEXT := "<<<"
 const RETURN_TO_LOBBY_MESSAGE := "로비로 돌아갈까요? 진행 상황은 자동으로 저장됩니다."
 const QUIT_GAME_MESSAGE := "게임을 종료할까요?"
 const BASEBALL_CAPTAIN_DISPLAY_NAME := "야구부 주장"
-const BASEBALL_CAPTAIN_DESKTOP_PROMPT_TEXT := "[E]  야구부 주장에게 말 걸기"
-const BASEBALL_CAPTAIN_TOUCH_PROMPT_TEXT := "야구부 주장  말 걸기"
+const BASEBALL_CAPTAIN_DESKTOP_PROMPT_TEXT := "[E] 야구부 주장에게 말 걸기"
+const BASEBALL_CAPTAIN_TOUCH_PROMPT_TEXT := "야구부 주장 말 걸기"
 const BASEBALL_CAPTAIN_REWARD_CALLOUT_TEXT := "!  야구부 주장"
 const BASEBALL_CAPTAIN_BOSS_RESULT_CALLOUT_TEXT := "!  야구부 주장"
 const InputPromptPolicy := preload("res://scripts/ui/input_prompt_policy.gd")
@@ -63,6 +63,15 @@ const BOSS_RESULT_REPORT_LINES := [
 		"text": "지금은 여기까지야. 다음 단서가 생길 때까지 준비해 두자.",
 		"memory": "",
 	},
+]
+const ONBOARDING_JOURNEY_PHASES: Array[StringName] = [
+	&"combat",
+	&"reward",
+	&"friend_intro",
+	&"purify",
+	&"talk",
+	&"bat_reward",
+	&"complete",
 ]
 
 @export var corridor_size := Vector2(2172.0, 720.0)
@@ -156,10 +165,14 @@ var _last_maintenance_edge := &""
 var _is_maintenance_requested := false
 var return_to_lobby_callable: Callable
 var quit_game_callable: Callable
+var _onboarding_journey_phase: StringName = &"complete"
+var _completed_onboarding_phases: Array[StringName] = []
+var _onboarding_journey_input_mode_latch: StringName = &"desktop"
 
 
 func _ready() -> void:
 	SceneTransition.configure_exit_requests()
+	_configure_onboarding_journey()
 	AudioManager.play_bgm(AudioManager.SCHOOL_HALLWAY_BGM)
 	_touch_controls_visible_before_dialogue = _touch_controls.visible
 	_disable_combat_output()
@@ -220,6 +233,53 @@ func _process(delta: float) -> void:
 	_update_interaction_prompt()
 	_process_dialogue_input()
 	_update_ambient_rumor_labels(delta)
+
+
+func get_onboarding_journey_snapshot() -> Dictionary:
+	return {
+		"phase": _onboarding_journey_phase,
+		"completed_phases": _completed_onboarding_phases.duplicate(),
+		"current_instruction": _onboarding_journey_instruction(_onboarding_journey_phase),
+		"input_mode": _onboarding_journey_input_mode(),
+	}
+
+
+func _configure_onboarding_journey() -> void:
+	_onboarding_journey_input_mode_latch = &"touch" if _touch_controls != null and _touch_controls.visible else &"desktop"
+	_completed_onboarding_phases.clear()
+	if _has_claimed_baseball_reward():
+		_completed_onboarding_phases.assign([&"combat", &"reward", &"friend_intro", &"purify", &"talk", &"bat_reward"])
+		_onboarding_journey_phase = &"complete"
+		return
+	if _needs_baseball_reward_dialogue():
+		_completed_onboarding_phases.assign([&"combat", &"reward", &"friend_intro", &"purify"])
+		_onboarding_journey_phase = &"talk"
+		return
+	_onboarding_journey_phase = &"complete"
+
+
+func _advance_onboarding_journey(expected: StringName, next_phase: StringName) -> bool:
+	if _onboarding_journey_phase != expected:
+		return false
+	if not ONBOARDING_JOURNEY_PHASES.has(next_phase):
+		return false
+	if expected != &"complete" and not _completed_onboarding_phases.has(expected):
+		_completed_onboarding_phases.append(expected)
+	_onboarding_journey_phase = next_phase
+	return true
+
+
+func _onboarding_journey_instruction(phase: StringName) -> String:
+	match phase:
+		&"talk":
+			return BASEBALL_CAPTAIN_TOUCH_PROMPT_TEXT if _onboarding_journey_input_mode() == &"touch" else BASEBALL_CAPTAIN_DESKTOP_PROMPT_TEXT
+		&"bat_reward":
+			return "대화를 끝까지 듣고 배트를 받기"
+	return ""
+
+
+func _onboarding_journey_input_mode() -> StringName:
+	return _onboarding_journey_input_mode_latch
 
 
 func get_reference_viewport_size() -> Vector2:
@@ -1164,6 +1224,8 @@ func _show_dialogue_line(line_index: int) -> void:
 		},
 	])
 	_maybe_show_baseball_reward_pickup_popup()
+	if _dialogue_claims_baseball_reward and _dialogue_line_index == 0:
+		_advance_onboarding_journey(&"talk", &"bat_reward")
 	dialogue_requested.emit({
 		"count": _dialogue_count,
 		"line": line_text,
@@ -1417,6 +1479,7 @@ func _claim_baseball_reward_dialogue() -> void:
 	if not has_node(^"/root/SaveManager"):
 		return
 	SaveManager.set_flag(SceneTransition.FLAG_BASEBALL_CAPTAIN_REWARD_CLAIMED, true)
+	_advance_onboarding_journey(&"bat_reward", &"complete")
 
 
 func _play_dialogue_open_sfx() -> void:

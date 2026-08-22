@@ -35,12 +35,21 @@ const ROOM_ENTRY_SPAWN_INSET := Vector2(140.0, 96.0)
 const TOP_LEFT_HUD_GAP := 8.0
 const BASEBALL_ONBOARDING_LAYOUT_ID := &"onboarding_baseball_captain"
 const REWARD_CHOICE_DELAY_SECONDS := 1.0
-const PURIFY_ONBOARDING_INTRO_MESSAGE := "요괴에 씌인 친구를 정화시켜주세요"
-const PURIFY_ONBOARDING_GROGGY_MESSAGE := "친구에게 다가가면 정화의식이 시작돼요!"
+const PURIFY_ONBOARDING_INTRO_MESSAGE := "공격해 기절시킨 뒤 가까이 다가가 정화"
+const PURIFY_ONBOARDING_GROGGY_MESSAGE := "친구 곁에서 정화가 끝날 때까지 지키기"
 const PURIFY_ONBOARDING_TARGET_SIZE := Vector2(148.0, 170.0)
 const PURIFY_ONBOARDING_TARGET_OFFSET := Vector2(0.0, -54.0)
 const UAT_ACTION_MINIMAP_EXPAND := "session.minimap.expand"
 const UAT_ACTION_SKIP_GUIDANCE := "onboarding.skip_guidance"
+const ONBOARDING_JOURNEY_PHASES: Array[StringName] = [
+	&"combat",
+	&"reward",
+	&"friend_intro",
+	&"purify",
+	&"talk",
+	&"bat_reward",
+	&"complete",
+]
 
 @onready var world_layer: Node2D = $WorldLayer
 @onready var room_layer: Node2D = %RoomLayer
@@ -79,6 +88,8 @@ var _friend_ids: Array[StringName] = []
 var _baseball_onboarding_run_latch := 0
 var _unlocks: Array[StringName] = []
 var _camera_feedback_tween: Tween = null
+var _room_fade_tween: Tween = null
+var _room_fade_processes_while_paused := false
 var _rewarded_room_ids := {}
 var _room_clear_modifier_room_ids := {}
 var _pending_reward_room_id: StringName = &""
@@ -98,6 +109,8 @@ var _purify_onboarding_intro_shown := false
 var _purify_onboarding_groggy_shown := false
 var _paused_before_purify_onboarding := false
 var _touch_controls_visible_before_purify_onboarding := true
+var _onboarding_journey_phase: StringName = &"complete"
+var _completed_onboarding_phases: Array[StringName] = []
 
 
 func _ready() -> void:
@@ -105,6 +118,7 @@ func _ready() -> void:
 	_apply_render_layers()
 	if not GameManager.is_session_active():
 		GameManager.start_session({"source": "session_root"})
+	_configure_onboarding_journey()
 	AudioManager.play_bgm(AudioManager.NIGHT_RUN_SUSPENSE_BGM)
 	_apply_session_loadout()
 	_connect_player_weapon_events()
@@ -261,6 +275,76 @@ func dismiss_purify_onboarding_for_tests() -> bool:
 	if dismissed:
 		_finish_purify_onboarding_spotlight()
 	return dismissed
+
+
+func get_onboarding_journey_snapshot() -> Dictionary:
+	return {
+		"phase": _onboarding_journey_phase,
+		"completed_phases": _completed_onboarding_phases.duplicate(),
+		"current_instruction": _onboarding_journey_instruction(_onboarding_journey_phase),
+		"input_mode": _onboarding_journey_input_mode(),
+	}
+
+
+func _configure_onboarding_journey() -> void:
+	_completed_onboarding_phases.clear()
+	_onboarding_journey_phase = &"combat" if _is_baseball_onboarding_run() else &"complete"
+
+
+func _advance_onboarding_journey(expected: StringName, next_phase: StringName) -> bool:
+	if _onboarding_journey_phase != expected:
+		return false
+	if not ONBOARDING_JOURNEY_PHASES.has(next_phase):
+		return false
+	if expected != &"complete" and not _completed_onboarding_phases.has(expected):
+		_completed_onboarding_phases.append(expected)
+	_onboarding_journey_phase = next_phase
+	return true
+
+
+func _onboarding_journey_instruction(phase: StringName) -> String:
+	match phase:
+		&"combat":
+			return "적을 쓰러뜨리면 다음 길이 열린다"
+		&"reward":
+			return "카드 하나를 골라 이번 탐험을 강화"
+		&"friend_intro":
+			return PURIFY_ONBOARDING_INTRO_MESSAGE
+		&"purify":
+			return PURIFY_ONBOARDING_GROGGY_MESSAGE
+		&"talk":
+			return "야구부 주장 말 걸기" if _onboarding_journey_input_mode() == &"touch" else "[E] 야구부 주장에게 말 걸기"
+		&"bat_reward":
+			return "대화를 끝까지 듣고 배트를 받기"
+	return ""
+
+
+func _onboarding_journey_input_mode() -> StringName:
+	var features := {}
+	if has_node("/root/PlatformManager"):
+		features = PlatformManager.get_feature_flags()
+	return InputPromptPolicy.input_mode_from_features(features)
+
+
+func _sync_onboarding_journey_surface() -> void:
+	if session_ui_root == null or not session_ui_root.has_method("set_onboarding_journey_hint"):
+		return
+	var title := ""
+	var enabled := false
+	var contextual_surface_clear := not _baseball_friend_intro_active and not _is_purify_onboarding_spotlight_active()
+	if _is_baseball_onboarding_run() and contextual_surface_clear:
+		if _onboarding_journey_phase == &"combat" and room_manager != null and room_manager.current_room_id == &"combat_1":
+			title = "첫 전투"
+			enabled = true
+		elif _onboarding_journey_phase == &"friend_intro":
+			title = "친구 조우"
+			enabled = true
+	session_ui_root.call(
+		"set_onboarding_journey_hint",
+		title,
+		_onboarding_journey_instruction(_onboarding_journey_phase),
+		enabled
+	)
 
 
 func _build_run_layout() -> RoomLayout:
@@ -587,6 +671,9 @@ func _on_room_cleared_for_reward(payload: Dictionary) -> void:
 	if _build_reward_choice_models(room_id).is_empty():
 		return
 	_pending_reward_room_id = room_id
+	if _is_baseball_onboarding_run() and room_id == &"combat_1":
+		_advance_onboarding_journey(&"combat", &"reward")
+	_sync_onboarding_journey_surface()
 	_start_reward_choice_delay()
 
 
@@ -698,6 +785,9 @@ func _on_reward_choice_selected(item_id: StringName) -> void:
 	var room_id := _pending_reward_room_id
 	_pending_reward_room_id = &""
 	_rewarded_room_ids[room_id] = true
+	if _is_baseball_onboarding_run() and room_id == &"combat_1":
+		_advance_onboarding_journey(&"reward", &"friend_intro")
+	_sync_onboarding_journey_surface()
 	var applied := false
 	if actor != null and actor.has_method("apply_run_modifier"):
 		applied = bool(actor.call("apply_run_modifier", item_id))
@@ -830,8 +920,17 @@ func _on_friend_purified(payload: Dictionary) -> void:
 	var friend_id := StringName(payload.get("friend_id", &""))
 	if friend_id == &"" or _friend_ids.has(friend_id):
 		return
+	if (
+		_is_baseball_onboarding_run()
+		and friend_id == &"baseball_captain"
+		and _onboarding_journey_phase != &"purify"
+	):
+		return
 	_friend_ids.append(friend_id)
 	if _is_baseball_onboarding_run() and friend_id == &"baseball_captain":
+		if not _advance_onboarding_journey(&"purify", &"talk"):
+			return
+		_sync_onboarding_journey_surface()
 		_finish_baseball_onboarding(payload)
 
 
@@ -973,6 +1072,7 @@ func _on_room_changed(room_id: StringName, room_type: StringName) -> void:
 		_configure_actor_for_room(current_room)
 	_connect_boss_room(current_room)
 	_connect_friend_room(current_room)
+	_sync_onboarding_journey_surface()
 
 
 func _configure_actor_for_room(room: Node2D) -> void:
@@ -1072,6 +1172,8 @@ func _on_onboarding_friend_stunned(friend: Node) -> void:
 		return
 	if friend == null or not is_instance_valid(friend):
 		return
+	_advance_onboarding_journey(&"friend_intro", &"purify")
+	_sync_onboarding_journey_surface()
 	_play_purify_onboarding_spotlight(&"groggy", friend)
 
 
@@ -1149,6 +1251,7 @@ func _play_baseball_friend_intro() -> void:
 		return
 	_baseball_friend_intro_shown = true
 	_baseball_friend_intro_active = true
+	_sync_onboarding_journey_surface()
 	_paused_before_baseball_friend_intro = get_tree().paused
 	_release_combat_touch_inputs()
 	_hide_touch_controls_for_reward_choice()
@@ -1179,6 +1282,7 @@ func _finish_baseball_friend_intro() -> void:
 	if tree != null:
 		tree.paused = _paused_before_baseball_friend_intro
 	_restore_touch_controls_after_reward_choice()
+	_sync_onboarding_journey_surface()
 
 
 func _should_play_purify_intro_spotlight() -> bool:
@@ -1210,6 +1314,7 @@ func _play_purify_onboarding_spotlight(step_id: StringName, target: Node) -> voi
 	if purify_onboarding_spotlight == null or not is_instance_valid(purify_onboarding_spotlight):
 		return
 	_purify_onboarding_active = true
+	_sync_onboarding_journey_surface()
 	if step_id == &"intro":
 		_purify_onboarding_intro_shown = true
 	elif step_id == &"groggy":
@@ -1243,6 +1348,7 @@ func _finish_purify_onboarding_spotlight() -> void:
 		tree.paused = _paused_before_purify_onboarding
 	if touch_controls != null:
 		touch_controls.visible = _touch_controls_visible_before_purify_onboarding
+	_sync_onboarding_journey_surface()
 
 
 func _is_purify_onboarding_spotlight_active() -> bool:
@@ -1426,8 +1532,19 @@ func _play_room_fade() -> void:
 	if _fade_rect == null:
 		return
 	_fade_rect.color.a = 1.0
-	var tween := create_tween()
-	tween.tween_property(_fade_rect, "color:a", 0.0, 0.35)
+	if _room_fade_tween != null and _room_fade_tween.is_valid():
+		_room_fade_tween.kill()
+	_room_fade_tween = create_tween()
+	_room_fade_tween.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
+	_room_fade_processes_while_paused = true
+	_room_fade_tween.tween_property(_fade_rect, "color:a", 0.0, 0.35)
+
+
+func get_room_fade_snapshot() -> Dictionary:
+	return {
+		"alpha": _fade_rect.color.a if _fade_rect != null else 0.0,
+		"processes_while_paused": _room_fade_processes_while_paused,
+	}
 
 
 func _notification(what: int) -> void:

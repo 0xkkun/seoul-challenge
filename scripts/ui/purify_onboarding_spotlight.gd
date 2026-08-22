@@ -32,6 +32,7 @@ var _spotlight_frame: Panel = null
 var _panel: PanelContainer = null
 var _message_label: Label = null
 var _hint_label: Label = null
+var _shown_process_frame := -1
 
 
 func _ready() -> void:
@@ -59,6 +60,7 @@ func show_step(
 	_target_world_size = target_world_size
 	_target_world_offset = target_world_offset
 	_active = true
+	_shown_process_frame = Engine.get_process_frames()
 	visible = true
 	set_process(true)
 	_pulse_time = 0.0
@@ -89,8 +91,8 @@ func get_visual_contract() -> Dictionary:
 		"dim_alpha": DIM_ALPHA,
 		"spotlight_padding": SPOTLIGHT_PADDING,
 		"step_ids": [&"intro", &"groggy"],
-		"intro_message": "요괴에 씌인 친구를 정화시켜주세요",
-		"groggy_message": "친구에게 다가가면 정화의식이 시작돼요!",
+		"intro_message": "공격해 기절시킨 뒤 가까이 다가가 정화",
+		"groggy_message": "친구 곁에서 정화가 끝날 때까지 지키기",
 		"tap_to_continue": true,
 	}
 
@@ -119,12 +121,12 @@ func _process(delta: float) -> void:
 func _input(event: InputEvent) -> void:
 	if not _active:
 		return
-	if event is InputEventScreenTouch and (event as InputEventScreenTouch).pressed:
-		get_viewport().set_input_as_handled()
-		dismiss()
-	elif event is InputEventMouseButton and (event as InputEventMouseButton).pressed:
-		get_viewport().set_input_as_handled()
-		dismiss()
+	if Engine.get_process_frames() <= _shown_process_frame:
+		return
+	if not InputPromptPolicy.should_accept_pointer_event(_input_mode(), event):
+		return
+	get_viewport().set_input_as_handled()
+	dismiss()
 
 
 func _build_ui() -> void:
@@ -191,13 +193,14 @@ func _refresh() -> void:
 
 
 func _action_hint(action: StringName) -> String:
+	return InputPromptPolicy.action_hint(action, _input_mode())
+
+
+func _input_mode() -> StringName:
 	var features := {}
 	if has_node("/root/PlatformManager"):
 		features = PlatformManager.get_feature_flags()
-	return InputPromptPolicy.action_hint(
-		action,
-		InputPromptPolicy.input_mode_from_features(features)
-	)
+	return InputPromptPolicy.input_mode_from_features(features)
 
 
 func _layout_dim_cutout(focus_rect: Rect2) -> void:

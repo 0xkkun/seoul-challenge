@@ -346,6 +346,63 @@ func test_day_corridor_dialogue_signal_updates_state() -> void:
 		_runner.assert_eq(payloads[0]["line_index"], 0, "dialogue payload includes the current line index")
 
 
+func test_day_corridor_journey_reconstructs_talk_and_reward_across_scene_reload() -> void:
+	ProgressionSystem.record_friend_purified(&"baseball_captain")
+	SaveManager.set_flag(SceneTransition.FLAG_ONBOARDING_BASEBALL_COMPLETE, true)
+	SaveManager.set_flag(SceneTransition.FLAG_BASEBALL_CAPTAIN_REWARD_CLAIMED, false)
+	var scene := DayCorridorScene.instantiate()
+	add_child(scene)
+	_runner.assert_true(scene.has_method("get_onboarding_journey_snapshot"), "day corridor exposes the contextual journey snapshot")
+	if not scene.has_method("get_onboarding_journey_snapshot"):
+		return
+	var snapshot: Dictionary = scene.call("get_onboarding_journey_snapshot")
+	_runner.assert_eq(snapshot.get("phase"), &"talk", "fresh school scene reconstructs pending captain talk")
+	_runner.assert_eq(snapshot.get("completed_phases", []), [&"combat", &"reward", &"friend_intro", &"purify"], "school reconstructs durable night completion without copied state")
+	_runner.assert_eq(snapshot.get("current_instruction"), "[E] 야구부 주장에게 말 걸기", "desktop talk instruction names the real key")
+	_runner.assert_eq(snapshot.get("input_mode"), &"desktop", "hidden touch controls select desktop copy")
+	_runner.assert_false(scene.perform_uat_action("day_corridor.dialogue.open"), "range 밖 early dialogue UAT cannot skip talk")
+	_runner.assert_eq(scene.call("get_onboarding_journey_snapshot").get("phase"), &"talk", "rejected early dialogue leaves talk pending")
+
+	var player := scene.get_node("%Player") as CharacterBody2D
+	var talk_target := scene.get_node("%TalkTarget") as Node2D
+	var touch_controls := scene.get_node("%TouchControls") as CanvasLayer
+	player.global_position = talk_target.global_position + Vector2(16.0, 0.0)
+	touch_controls.visible = true
+	scene.call("_configure_onboarding_journey")
+	snapshot = scene.call("get_onboarding_journey_snapshot")
+	_runner.assert_eq(snapshot.get("input_mode"), &"touch", "visible touch controls select mobile copy")
+	_runner.assert_eq(snapshot.get("current_instruction"), "야구부 주장 말 걸기", "touch talk instruction omits keyboard copy")
+	_runner.assert_true(scene.perform_uat_action("day_corridor.dialogue.open"), "stable UAT action starts the real captain dialogue")
+	snapshot = scene.call("get_onboarding_journey_snapshot")
+	_runner.assert_eq(snapshot.get("phase"), &"bat_reward", "dialogue_requested advances talk to bat reward")
+	_runner.assert_eq(snapshot.get("input_mode"), &"touch", "dialogue modal hiding touch controls does not flip the latched input mode")
+	_runner.assert_true((snapshot.get("completed_phases", []) as Array).has(&"talk"), "actual dialogue records talk completion")
+
+	remove_child(scene)
+	scene.free()
+	var reloaded_before_claim := DayCorridorScene.instantiate()
+	add_child(reloaded_before_claim)
+	_runner.assert_eq(reloaded_before_claim.call("get_onboarding_journey_snapshot").get("phase"), &"talk", "reload before reward claim safely returns to talk")
+	player = reloaded_before_claim.get_node("%Player") as CharacterBody2D
+	talk_target = reloaded_before_claim.get_node("%TalkTarget") as Node2D
+	player.global_position = talk_target.global_position + Vector2(16.0, 0.0)
+	_runner.assert_true(reloaded_before_claim.perform_uat_action("day_corridor.dialogue.open"), "reloaded scene reopens the captain reward dialogue")
+	_runner.assert_true(UiTestHarness.press_by_uat_action(reloaded_before_claim, "day_corridor.dialogue.next"), "reward dialogue advances to bat line")
+	_runner.assert_true(reloaded_before_claim.perform_uat_action("day_corridor.dialogue.dismiss_unlock"), "UAT dismisses the bat popup")
+	_runner.assert_true(UiTestHarness.press_by_uat_action(reloaded_before_claim, "day_corridor.dialogue.next"), "reward dialogue advances to clue line")
+	_runner.assert_true(UiTestHarness.press_by_uat_action(reloaded_before_claim, "day_corridor.dialogue.close"), "actual close claims the captain reward")
+	snapshot = reloaded_before_claim.call("get_onboarding_journey_snapshot")
+	_runner.assert_eq(snapshot.get("phase"), &"complete", "reward claim completes the first-run journey")
+	_runner.assert_eq(snapshot.get("completed_phases", []), [&"combat", &"reward", &"friend_intro", &"purify", &"talk", &"bat_reward"], "complete snapshot contains every prior phase once")
+	_runner.assert_true(SaveManager.get_flag(SceneTransition.FLAG_BASEBALL_CAPTAIN_REWARD_CLAIMED), "complete phase is persisted by the existing reward flag")
+
+	remove_child(reloaded_before_claim)
+	reloaded_before_claim.free()
+	var reloaded_after_claim := DayCorridorScene.instantiate()
+	add_child(reloaded_after_claim)
+	_runner.assert_eq(reloaded_after_claim.call("get_onboarding_journey_snapshot").get("phase"), &"complete", "reload after reward claim reconstructs complete")
+
+
 func test_day_corridor_onboarding_reward_dialogue_grants_bat_and_clue() -> void:
 	SaveManager.set_flag(SceneTransition.FLAG_ONBOARDING_BASEBALL_COMPLETE, true)
 	SaveManager.set_flag(SceneTransition.FLAG_BASEBALL_CAPTAIN_REWARD_CLAIMED, false)
@@ -521,6 +578,7 @@ func test_day_corridor_onboarding_reward_marks_baseball_captain_as_talk_target()
 	_runner.assert_true(interaction_prompt.text.contains("야구부 주장"), "interaction prompt names the captain")
 	_runner.assert_true(interaction_prompt.text.contains("말 걸기"), "interaction prompt tells the player they can talk")
 	_runner.assert_true(interaction_prompt.text.contains("[E]"), "interaction prompt names the PC talk key")
+	_runner.assert_eq(interaction_prompt.text, "[E] 야구부 주장에게 말 걸기", "PC prompt uses the approved exact instruction")
 
 
 func test_day_corridor_talk_prompt_keeps_mobile_guidance_touch_friendly() -> void:
@@ -541,6 +599,7 @@ func test_day_corridor_talk_prompt_keeps_mobile_guidance_touch_friendly() -> voi
 	scene.call("_update_interaction_prompt")
 	_runner.assert_true(interaction_prompt.text.contains("말 걸기"), "mobile prompt still explains the touch action")
 	_runner.assert_false(interaction_prompt.text.contains("[E]"), "mobile prompt does not advertise an unavailable keyboard key")
+	_runner.assert_eq(interaction_prompt.text, "야구부 주장 말 걸기", "mobile prompt uses the approved exact instruction")
 
 
 func test_day_corridor_onboarding_reward_bat_line_shows_last_season_bat_pickup_popup() -> void:

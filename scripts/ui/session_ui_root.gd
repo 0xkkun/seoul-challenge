@@ -37,6 +37,9 @@ const REWARD_CHOICE_CARD_TITLE_OUTLINE := 4
 const REWARD_CHOICE_CARD_EFFECT_OUTLINE := 1
 const REWARD_CHOICE_CARD_TITLE_COLOR := Color(1.0, 0.835294, 0.258824, 1.0)
 const REWARD_CHOICE_CARD_EFFECT_COLOR := Color(0.88, 0.86, 0.66, 0.94)
+const ONBOARDING_JOURNEY_HINT_SIZE := Vector2(320.0, 82.0)
+const ONBOARDING_JOURNEY_HINT_TOP := 24.0
+const ONBOARDING_JOURNEY_HINT_CENTER_OFFSET_X := -16.0
 const SUMMARY_RECORD_TITLE_COLOR := DungeonUiTheme.COLOR_TEXT
 const STUDENTS_RECORD_NUMBER_COLOR := Color(0.596078, 0.811765, 0.490196, 1.0)
 const ROOMS_RECORD_NUMBER_COLOR := Color(0.760784, 0.462745, 0.956863, 1.0)
@@ -77,12 +80,16 @@ var _reward_choice_room_id: StringName = &""
 var _reward_choice_models: Array[Dictionary] = []
 var _reward_choice_open_tween: Tween = null
 var _reward_choice_onboarding_hint_enabled := false
+var _onboarding_journey_hint_panel: PanelContainer = null
+var _onboarding_journey_hint_title: Label = null
+var _onboarding_journey_hint_body: Label = null
 
 
 func _ready() -> void:
 	layer = RenderLayers.UI_SESSION_LAYER
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	_ensure_reward_choice_overlay()
+	_ensure_onboarding_journey_hint()
 	map_tab_button.set_meta("test_id", MAP_TAB_TEST_ID)
 	map_tab_button.set_meta("uat_action", MAP_TAB_ACTION)
 	return_button.set_meta("test_id", "session.return_button")
@@ -208,6 +215,24 @@ func _apply_font_roles() -> void:
 
 func set_status(text: String) -> void:
 	status_label.text = text
+
+
+func set_onboarding_journey_hint(title: String, body: String, enabled: bool) -> void:
+	_ensure_onboarding_journey_hint()
+	_onboarding_journey_hint_title.text = title
+	_onboarding_journey_hint_body.text = body
+	_onboarding_journey_hint_panel.visible = enabled and not body.is_empty()
+
+
+func get_onboarding_journey_hint_snapshot() -> Dictionary:
+	_ensure_onboarding_journey_hint()
+	return {
+		"visible": _onboarding_journey_hint_panel.visible,
+		"title": _onboarding_journey_hint_title.text,
+		"body": _onboarding_journey_hint_body.text,
+		"rect": _onboarding_journey_hint_panel.get_global_rect(),
+		"mouse_filter": _onboarding_journey_hint_panel.mouse_filter,
+	}
 
 
 func set_map_name(text: String) -> void:
@@ -406,6 +431,50 @@ func _apply_button_styles() -> void:
 	PixelButtonStyle.apply(map_tab_button, PixelButtonStyle.VARIANT_PRIMARY, Vector2(144.0, 50.0))
 	PixelButtonStyle.apply(return_button, PixelButtonStyle.VARIANT_DANGER, Vector2(0.0, 52.0))
 	PixelButtonStyle.apply(retry_button, PixelButtonStyle.VARIANT_SECONDARY, Vector2(0.0, 52.0))
+
+
+func _ensure_onboarding_journey_hint() -> void:
+	if _onboarding_journey_hint_panel != null and is_instance_valid(_onboarding_journey_hint_panel):
+		return
+	var root := get_node_or_null("Root") as Control
+	if root == null:
+		return
+	_onboarding_journey_hint_panel = PanelContainer.new()
+	_onboarding_journey_hint_panel.name = "OnboardingJourneyHint"
+	_onboarding_journey_hint_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_onboarding_journey_hint_panel.set_anchors_preset(Control.PRESET_CENTER_TOP)
+	_onboarding_journey_hint_panel.offset_left = ONBOARDING_JOURNEY_HINT_CENTER_OFFSET_X - ONBOARDING_JOURNEY_HINT_SIZE.x * 0.5
+	_onboarding_journey_hint_panel.offset_top = ONBOARDING_JOURNEY_HINT_TOP
+	_onboarding_journey_hint_panel.offset_right = ONBOARDING_JOURNEY_HINT_CENTER_OFFSET_X + ONBOARDING_JOURNEY_HINT_SIZE.x * 0.5
+	_onboarding_journey_hint_panel.offset_bottom = ONBOARDING_JOURNEY_HINT_TOP + ONBOARDING_JOURNEY_HINT_SIZE.y
+	_onboarding_journey_hint_panel.add_theme_stylebox_override(
+		"panel",
+		DungeonUiTheme.panel_style(Color(0.035, 0.047, 0.071, 0.92), DungeonUiTheme.COLOR_GOLD_DIM, 2, 18.0, 10.0, 8)
+	)
+	var stack := VBoxContainer.new()
+	stack.name = "JourneyHintStack"
+	stack.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	stack.add_theme_constant_override("separation", 3)
+	_onboarding_journey_hint_panel.add_child(stack)
+	_onboarding_journey_hint_title = Label.new()
+	_onboarding_journey_hint_title.name = "JourneyHintTitle"
+	_onboarding_journey_hint_title.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_onboarding_journey_hint_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_onboarding_journey_hint_title.add_theme_font_size_override("font_size", 18)
+	_onboarding_journey_hint_title.add_theme_color_override("font_color", Color(1.0, 0.88, 0.42, 1.0))
+	FontRoles.apply_title(_onboarding_journey_hint_title)
+	stack.add_child(_onboarding_journey_hint_title)
+	_onboarding_journey_hint_body = Label.new()
+	_onboarding_journey_hint_body.name = "JourneyHintBody"
+	_onboarding_journey_hint_body.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_onboarding_journey_hint_body.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_onboarding_journey_hint_body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_onboarding_journey_hint_body.add_theme_font_size_override("font_size", 16)
+	_onboarding_journey_hint_body.add_theme_color_override("font_color", Color(0.94, 0.96, 1.0, 0.96))
+	FontRoles.apply_pixel(_onboarding_journey_hint_body)
+	stack.add_child(_onboarding_journey_hint_body)
+	_onboarding_journey_hint_panel.visible = false
+	root.add_child(_onboarding_journey_hint_panel)
 
 
 func _ensure_reward_choice_overlay() -> void:

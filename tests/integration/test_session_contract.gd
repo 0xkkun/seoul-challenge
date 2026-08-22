@@ -2,6 +2,7 @@ extends Node
 
 const RenderLayers = preload("res://scripts/constants/render_layers.gd")
 const RoomPalette = preload("res://scripts/constants/room_palette.gd")
+const MobileSafeArea = preload("res://scripts/ui/mobile_safe_area.gd")
 const UiTestHarness := preload("res://tests/support/ui_test_harness.gd")
 const UatCommandBridge := preload("res://scripts/dev/uat_command_bridge.gd")
 
@@ -242,6 +243,84 @@ func test_session_starts_control_onboarding_only_for_first_baseball_run() -> voi
 	regular_session.queue_free()
 
 
+func test_baseball_onboarding_journey_snapshot_tracks_existing_night_events() -> void:
+	var session := _instantiate_baseball_onboarding_session()
+	_runner.assert_true(session.has_method("get_onboarding_journey_snapshot"), "night run exposes the contextual journey snapshot")
+	if not session.has_method("get_onboarding_journey_snapshot"):
+		session.queue_free()
+		return
+	var manager := session.get_node("%RoomManager") as RoomManager
+	var session_ui := session.get_node("%SessionUIRoot") as CanvasLayer
+	var snapshot: Dictionary = session.call("get_onboarding_journey_snapshot")
+	_runner.assert_eq(snapshot.get("phase"), &"combat", "first contextual phase teaches combat")
+	_runner.assert_eq(snapshot.get("completed_phases", []), [], "night journey starts without fake completion")
+	_runner.assert_eq(snapshot.get("current_instruction"), "적을 쓰러뜨리면 다음 길이 열린다", "combat instruction explains the locked route")
+	_runner.assert_eq(snapshot.get("input_mode"), &"desktop", "headless night fixture uses desktop copy")
+
+	session.call("_on_room_cleared_for_reward", {"room_id": &"friend_1", "room_type": &"friend"})
+	_runner.assert_eq(session.call("get_onboarding_journey_snapshot").get("phase"), &"combat", "unrelated room clear cannot skip combat")
+	_runner.assert_true(manager.enter_room(&"combat_1"), "journey enters the first combat room")
+	_runner.assert_true(session_ui.has_method("get_onboarding_journey_hint_snapshot"), "existing SessionUIRoot exposes the contextual hint surface")
+	if not session_ui.has_method("get_onboarding_journey_hint_snapshot"):
+		session.queue_free()
+		return
+	var hint_snapshot: Dictionary = session_ui.call("get_onboarding_journey_hint_snapshot")
+	_runner.assert_true(bool(hint_snapshot.get("visible", false)), "first combat shows a non-blocking contextual card")
+	_runner.assert_eq(hint_snapshot.get("body"), "적을 쓰러뜨리면 다음 길이 열린다", "combat card renders the journey instruction")
+	var hint_rect := hint_snapshot.get("rect", Rect2()) as Rect2
+	var touch_controls := session.get_node("%TouchControls") as CanvasLayer
+	_runner.assert_true(MobileSafeArea.meets_landscape_minimum(hint_rect), "contextual card stays inside the 960x540 safe-area")
+	for control_name: String in ["Joystick", "SkillButton", "AttackButton"]:
+		var touch_control := touch_controls.get_node(control_name) as Control
+		_runner.assert_false(hint_rect.intersects(touch_control.get_global_rect()), "contextual card does not overlap %s" % control_name)
+	session.call("_on_room_cleared_for_reward", {"room_id": &"combat_1", "room_type": &"combat"})
+	snapshot = session.call("get_onboarding_journey_snapshot")
+	_runner.assert_eq(snapshot.get("phase"), &"reward", "first combat clear advances to reward")
+	_runner.assert_eq(snapshot.get("current_instruction"), "카드 하나를 골라 이번 탐험을 강화", "reward instruction matches the real cards")
+	_runner.assert_false(bool(session_ui.call("get_onboarding_journey_hint_snapshot").get("visible", true)), "reward cards replace the contextual card")
+	_runner.assert_false(session_ui.call("select_reward_choice", &"damage_talisman"), "hidden reward action cannot advance the journey")
+	_runner.assert_eq(session.call("get_onboarding_journey_snapshot").get("phase"), &"reward", "hidden reward action leaves reward pending")
+	_runner.assert_true(session.call("flush_pending_reward_choice_for_tests"), "test opens the real reward card surface")
+	var reward_snapshot: Dictionary = session_ui.call("get_reward_choice_snapshot")
+	var choice_ids: Array = reward_snapshot.get("choice_ids", []) as Array
+	_runner.assert_true(not choice_ids.is_empty(), "reward surface exposes at least one real choice")
+	if choice_ids.is_empty():
+		session.queue_free()
+		return
+	_runner.assert_true(session_ui.call("select_reward_choice", choice_ids[0]), "real reward selection advances the journey")
+	_runner.assert_eq(session.call("get_onboarding_journey_snapshot").get("phase"), &"friend_intro", "reward success advances to friend encounter")
+	hint_snapshot = session_ui.call("get_onboarding_journey_hint_snapshot")
+	_runner.assert_true(bool(hint_snapshot.get("visible", false)), "friend approach reuses the contextual card")
+	_runner.assert_eq(hint_snapshot.get("body"), "공격해 기절시킨 뒤 가까이 다가가 정화", "friend card explains the next real capability")
+
+	_runner.assert_true(manager.enter_room(&"friend_1"), "journey enters the captain room")
+	session.call("_on_friend_purified", {"friend_id": &"baseball_captain", "room_id": &"friend_1"})
+	_runner.assert_eq(session.call("get_onboarding_journey_snapshot").get("phase"), &"friend_intro", "early purification cannot skip the stun lesson")
+	_runner.assert_false(SaveManager.get_flag(SceneTransition.FLAG_ONBOARDING_BASEBALL_COMPLETE), "early purification cannot persist completion")
+	_drain_active_encounter_dialogue(session)
+	_runner.assert_true(bool(session.call("dismiss_purify_onboarding_for_tests")), "test dismisses the friend intro spotlight")
+	var friends: Array = manager.current_room.call("get_active_friends")
+	_runner.assert_eq(friends.size(), 1, "captain room exposes the purification target")
+	if friends.size() != 1:
+		session.queue_free()
+		return
+	var friend := friends[0] as Node
+	friend.call("take_damage", int(friend.get("max_stun")))
+	snapshot = session.call("get_onboarding_journey_snapshot")
+	_runner.assert_eq(snapshot.get("phase"), &"purify", "actual stun success advances to purification")
+	_runner.assert_eq(snapshot.get("current_instruction"), "친구 곁에서 정화가 끝날 때까지 지키기", "purify instruction explains proximity completion")
+	_runner.assert_false(bool(session_ui.call("get_onboarding_journey_hint_snapshot").get("visible", true)), "purify spotlight replaces the contextual card")
+	_runner.assert_true(bool(session.call("dismiss_purify_onboarding_for_tests")), "test dismisses the groggy spotlight")
+	friend.emit_signal("purified", friend)
+	snapshot = session.call("get_onboarding_journey_snapshot")
+	_runner.assert_eq(snapshot.get("phase"), &"talk", "actual purification hands off to school talk")
+	_runner.assert_false(bool(session_ui.call("get_onboarding_journey_hint_snapshot").get("visible", true)), "school handoff hides the night contextual card")
+	_runner.assert_eq(snapshot.get("completed_phases", []), [&"combat", &"reward", &"friend_intro", &"purify"], "night journey records each completed capability once")
+	_runner.assert_true(SaveManager.get_flag(SceneTransition.FLAG_ONBOARDING_BASEBALL_COMPLETE), "purification persists the cross-scene handoff")
+	_runner.assert_false(SaveManager.get_flag(SceneTransition.FLAG_BASEBALL_CAPTAIN_REWARD_CLAIMED), "captain reward remains pending for school")
+	session.queue_free()
+
+
 func test_onboarding_start_room_exit_waits_for_success_capabilities_and_real_transition() -> void:
 	var session := _instantiate_baseball_onboarding_session()
 	var manager := session.get_node("%RoomManager") as RoomManager
@@ -418,6 +497,8 @@ func test_baseball_onboarding_friend_purification_finishes_run_and_sets_reward_f
 	var manager := session.get_node("%RoomManager") as RoomManager
 	var touch_controls: CanvasLayer = session.get_node("%TouchControls")
 	touch_controls.visible = true
+	_runner.assert_true(session.call("_advance_onboarding_journey", &"combat", &"reward"), "focused friend fixture marks combat prerequisite")
+	_runner.assert_true(session.call("_advance_onboarding_journey", &"reward", &"friend_intro"), "focused friend fixture marks reward prerequisite")
 	_runner.assert_true(manager.enter_room(&"friend_1"), "test enters the onboarding friend room")
 	_drain_active_encounter_dialogue(session)
 	_runner.assert_true(bool(session.call("is_purify_onboarding_spotlight_visible")), "friend intro is followed by the purification purpose spotlight")
@@ -461,8 +542,12 @@ func test_baseball_onboarding_friend_room_opens_yokai_captain_dialogue_first() -
 	var manager := session.get_node("%RoomManager") as RoomManager
 	var touch_controls: CanvasLayer = session.get_node("%TouchControls")
 	touch_controls.visible = true
+	_runner.assert_true(session.call("_advance_onboarding_journey", &"combat", &"reward"), "focused dialogue fixture marks combat prerequisite")
+	_runner.assert_true(session.call("_advance_onboarding_journey", &"reward", &"friend_intro"), "focused dialogue fixture marks reward prerequisite")
 	_runner.assert_true(manager.enter_room(&"friend_1"), "test enters the onboarding friend room")
 	_runner.assert_true(bool(session.call("is_encounter_dialogue_visible")), "first yokai captain encounter opens dialogue")
+	var session_ui := session.get_node("%SessionUIRoot") as CanvasLayer
+	_runner.assert_false(bool(session_ui.call("get_onboarding_journey_hint_snapshot").get("visible", true)), "encounter dialogue replaces the contextual card")
 	_runner.assert_eq(session.call("get_encounter_dialogue_speaker"), "요괴 야구부 주장", "first friend encounter speaker is the yokai captain")
 	var encounter_ui: Variant = session.call("_active_encounter_dialogue_ui")
 	_runner.assert_eq(encounter_ui.get_choice_texts(), ["클릭하여 계속"], "데스크톱 전투 대화는 클릭 진행 안내를 표시한다")
@@ -470,19 +555,25 @@ func test_baseball_onboarding_friend_room_opens_yokai_captain_dialogue_first() -
 	_runner.assert_true(String(session.call("get_encounter_dialogue_text")).contains("서"), "first line invites the player into the confrontation")
 	_runner.assert_true(get_tree().paused, "friend intro pauses gameplay until the player advances the dialogue")
 	_runner.assert_false(touch_controls.visible, "friend intro hides combat touch controls while dialogue is active")
+	_runner.assert_true(session.has_method("get_room_fade_snapshot"), "session exposes the room fade pause contract")
+	if session.has_method("get_room_fade_snapshot"):
+		var fade_snapshot: Dictionary = session.call("get_room_fade_snapshot")
+		_runner.assert_true(bool(fade_snapshot.get("processes_while_paused", false)), "friend intro pause cannot freeze the room fade on black")
 
 	_runner.assert_true(bool(session.call("advance_encounter_dialogue_for_tests")), "first beat can advance")
 	_runner.assert_true(String(session.call("get_encounter_dialogue_text")).contains("배트"), "bat-related line belongs to the yokai captain encounter")
 	_drain_active_encounter_dialogue(session)
 	_runner.assert_false(bool(session.call("is_encounter_dialogue_visible")), "friend intro closes after all beats")
 	_runner.assert_true(bool(session.call("is_purify_onboarding_spotlight_visible")), "friend intro opens the purification spotlight before combat starts")
+	_runner.assert_false(bool(session_ui.call("get_onboarding_journey_hint_snapshot").get("visible", true)), "purify spotlight replaces the contextual card")
 	var snapshot: Dictionary = session.call("get_purify_onboarding_snapshot")
 	_runner.assert_eq(snapshot.get("step_id"), &"intro", "first purification spotlight is the intro step")
-	_runner.assert_eq(snapshot.get("message"), "요괴에 씌인 친구를 정화시켜주세요", "first purification spotlight explains why to purify")
+	_runner.assert_eq(snapshot.get("message"), "공격해 기절시킨 뒤 가까이 다가가 정화", "first purification spotlight explains the stun and approach sequence")
 	_runner.assert_true(get_tree().paused, "purification spotlight keeps gameplay paused")
 	_runner.assert_false(touch_controls.visible, "purification spotlight keeps touch controls hidden")
 	_runner.assert_true(bool(session.call("dismiss_purify_onboarding_for_tests")), "tap dismissal closes the purification spotlight")
 	_runner.assert_false(bool(session.call("is_purify_onboarding_spotlight_visible")), "purification spotlight closes after tap")
+	_runner.assert_true(bool(session_ui.call("get_onboarding_journey_hint_snapshot").get("visible", false)), "friend approach card returns after the intro spotlight")
 	_runner.assert_false(get_tree().paused, "purification spotlight restores gameplay after dismissal")
 	_runner.assert_true(touch_controls.visible, "purification spotlight restores touch controls after dismissal")
 
@@ -513,7 +604,7 @@ func test_baseball_onboarding_friend_groggy_spotlight_teaches_proximity_purify()
 	_runner.assert_true(bool(session.call("is_purify_onboarding_spotlight_visible")), "groggy state opens proximity purification spotlight")
 	var snapshot: Dictionary = session.call("get_purify_onboarding_snapshot")
 	_runner.assert_eq(snapshot.get("step_id"), &"groggy", "second purification spotlight is the groggy step")
-	_runner.assert_eq(snapshot.get("message"), "친구에게 다가가면 정화의식이 시작돼요!", "groggy spotlight explains proximity purification")
+	_runner.assert_eq(snapshot.get("message"), "친구 곁에서 정화가 끝날 때까지 지키기", "groggy spotlight explains the purification completion condition")
 	_runner.assert_true(String(snapshot.get("target_name", "")).contains("baseball_captain"), "groggy spotlight targets the captain")
 	_runner.assert_true(get_tree().paused, "groggy spotlight pauses gameplay")
 	_runner.assert_false(touch_controls.visible, "groggy spotlight hides combat controls")
