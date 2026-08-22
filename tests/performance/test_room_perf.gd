@@ -9,6 +9,7 @@ const GENERATED_LAYOUT_BUDGET_USEC := 200000
 # 1회성 방 전환(페이드 중)이라 지연이 게임플레이에 무관하므로 여유 있는 예산을 둔다.
 const REQUEST_NEXT_ROOM_BUDGET_USEC := 40000
 const LAYOUT_VALIDATION_BUDGET_USEC := 20000
+const TWO_WAVE_RESOLVE_BUDGET_USEC := 200000
 
 var _runner: Node
 
@@ -103,6 +104,32 @@ func test_room_manager_runtime_walks_fixed_route() -> void:
 	_runner.assert_false(manager.request_next_room(), "runtime reports route completion after final")
 	_runner.assert_eq(completed_layouts, [&"gyeongbokgung"], "runtime emits layout completion")
 	manager.layout_completed.disconnect(on_layout_completed)
+
+
+func test_two_wave_spawn_and_resolve_stays_under_budget() -> void:
+	var packed := load("res://scenes/interactables/combat_room.tscn") as PackedScene
+	_runner.assert_not_null(packed, "combat room scene loads for wave performance")
+	if packed == null:
+		return
+	var room := packed.instantiate() as CombatRoom
+	room.apply_room_config({
+		"chaser_count": 4,
+		"ranged_count": 0,
+		"wolf_count": 2,
+		"elite_chaser_count": 0,
+		"elite_ranged_count": 0,
+		"elite_wolf_count": 0,
+		"wave_count": 2,
+	})
+	add_child(room)
+	var started_at := Time.get_ticks_usec()
+	room.enter()
+	_defeat_all_combat_waves(room)
+	var elapsed := Time.get_ticks_usec() - started_at
+
+	_runner.assert_true(room.is_cleared(), "two-wave performance fixture resolves both batches")
+	_runner.assert_eq(room.get_wave_snapshot(), {"configured": 2, "spawned": 2, "pending": 0, "active": 0}, "performance fixture keeps final wave contract")
+	_runner.assert_true(elapsed <= TWO_WAVE_RESOLVE_BUDGET_USEC, "two-wave spawn and resolve took %dus, budget %dus" % [elapsed, TWO_WAVE_RESOLVE_BUDGET_USEC])
 
 
 func _load_layout() -> RoomLayout:

@@ -204,9 +204,11 @@ func test_combat_room_spawns_six_enemies_as_two_three_enemy_waves() -> void:
 		"wave_count": 2,
 	})
 	var spawned_payloads: Array[Dictionary] = []
+	var remaining_counts: Array[int] = []
 	room.enemy_spawned.connect(func(enemy: Node, enemy_type: StringName, wave_index: int) -> void:
 		spawned_payloads.append({"enemy": enemy, "enemy_type": enemy_type, "wave_index": wave_index})
 	)
+	room.enemy_count_changed.connect(func(remaining: int) -> void: remaining_counts.append(remaining))
 	add_child(room)
 
 	room.enter()
@@ -221,6 +223,7 @@ func test_combat_room_spawns_six_enemies_as_two_three_enemy_waves() -> void:
 	_runner.assert_eq(room.call("get_remaining_enemy_count"), 3, "first wave spawns only half the encounter")
 	_runner.assert_eq(wave_snapshot, {"configured": 2, "spawned": 1, "pending": 3, "active": 3}, "first wave snapshot distinguishes active and pending enemies")
 	_runner.assert_eq(spawned_payloads.size(), 3, "first batch emits three tracked spawns")
+	_runner.assert_eq(remaining_counts, [3], "first batch publishes its active count")
 	for payload: Dictionary in spawned_payloads:
 		_runner.assert_eq(payload.get("wave_index"), 0, "first batch emits wave index zero")
 
@@ -231,6 +234,7 @@ func test_combat_room_spawns_six_enemies_as_two_three_enemy_waves() -> void:
 	wave_snapshot = room.call("get_wave_snapshot")
 	_runner.assert_eq(wave_snapshot, {"configured": 2, "spawned": 2, "pending": 0, "active": 3}, "second wave consumes the remaining budget")
 	_runner.assert_eq(spawned_payloads.size(), 6, "every enemy emits exactly one spawn event")
+	_runner.assert_eq(remaining_counts, [3, 2, 1, 3], "first wave counts down without publishing an empty-room zero before wave two")
 	var second_wave_wolf_count := 0
 	for payload: Dictionary in spawned_payloads.slice(3):
 		_runner.assert_eq(payload.get("wave_index"), 1, "second batch emits wave index one")
@@ -242,6 +246,7 @@ func test_combat_room_spawns_six_enemies_as_two_three_enemy_waves() -> void:
 
 	_runner.assert_true(room.call("is_cleared"), "combat clears only after wave two is defeated")
 	_runner.assert_eq(room.call("get_remaining_enemy_count"), 0, "final wave leaves no active enemies")
+	_runner.assert_eq(remaining_counts, [3, 2, 1, 3, 2, 1, 0, 0], "final wave reaches the existing resolved zero contract")
 	_runner.assert_false(CurrencySystem.has_method("get_ingame"), "combat cannot accrue removed ingame yeopjeon balance")
 
 
@@ -268,6 +273,87 @@ func test_combat_room_partitions_five_enemies_as_three_then_two() -> void:
 	_runner.assert_false(room.call("is_cleared"), "uneven encounter stays uncleared before final wave")
 	_defeat_active_enemies(room)
 	_runner.assert_true(room.call("is_cleared"), "uneven encounter clears after both waves")
+
+
+func test_combat_room_with_more_waves_than_enemies_avoids_phantom_waves() -> void:
+	var room := _instantiate_combat_room()
+	if room == null:
+		return
+	room.call("apply_room_config", {
+		"chaser_count": 1,
+		"ranged_count": 0,
+		"wolf_count": 0,
+		"elite_chaser_count": 0,
+		"elite_ranged_count": 0,
+		"elite_wolf_count": 0,
+		"wave_count": 5,
+	})
+	add_child(room)
+
+	room.enter()
+
+	_runner.assert_eq(room.call("get_wave_snapshot"), {"configured": 5, "spawned": 1, "pending": 0, "active": 1}, "one real enemy creates one real wave even when five are configured")
+	_defeat_active_enemies(room)
+	_runner.assert_true(room.call("is_cleared"), "no phantom empty wave delays the final clear")
+	_runner.assert_eq(room.call("get_wave_snapshot"), {"configured": 5, "spawned": 1, "pending": 0, "active": 0}, "clear snapshot keeps the real spawned-wave count")
+
+
+func test_combat_room_spawn_failures_resolve_without_stuck_pending_state() -> void:
+	var null_scene_room := _instantiate_combat_room()
+	if null_scene_room == null:
+		return
+	null_scene_room.chaser_scene = null
+	null_scene_room.chaser_count = 1
+	null_scene_room.ranged_count = 0
+	null_scene_room.wolf_count = 0
+	add_child(null_scene_room)
+	null_scene_room.enter()
+	_runner.assert_true(null_scene_room.call("is_cleared"), "null spawn scene cannot leave an empty uncleared room")
+	_runner.assert_eq(null_scene_room.call("get_wave_snapshot").get("pending"), 0, "failed null scene entry is consumed once")
+
+	var non_node_scene := PackedScene.new()
+	_runner.assert_eq(non_node_scene.pack(Node.new()), OK, "fixture packs a non-Node2D scene")
+	var wrong_type_room := _instantiate_combat_room()
+	if wrong_type_room == null:
+		return
+	wrong_type_room.chaser_scene = non_node_scene
+	wrong_type_room.chaser_count = 1
+	wrong_type_room.ranged_count = 0
+	wrong_type_room.wolf_count = 0
+	add_child(wrong_type_room)
+	wrong_type_room.enter()
+	_runner.assert_true(wrong_type_room.call("is_cleared"), "non-Node2D spawn cannot leave pending combat")
+
+	var empty_factor_room := _instantiate_combat_room()
+	if empty_factor_room == null:
+		return
+	add_child(empty_factor_room)
+	var before_count := int(empty_factor_room.call("get_remaining_enemy_count"))
+	empty_factor_room.call("_spawn_enemy_instance", empty_factor_room.chaser_scene, [] as Array[Vector2], "EmptyFactor", 0, false, &"chaser")
+	_runner.assert_eq(empty_factor_room.call("get_remaining_enemy_count"), before_count, "empty spawn factors reject allocation without tracking a ghost")
+
+
+func test_restore_cleared_state_discards_partial_wave_tracking() -> void:
+	var room := _instantiate_combat_room()
+	if room == null:
+		return
+	room.call("apply_room_config", {
+		"chaser_count": 4,
+		"ranged_count": 0,
+		"wolf_count": 2,
+		"elite_chaser_count": 0,
+		"elite_ranged_count": 0,
+		"elite_wolf_count": 0,
+		"wave_count": 2,
+	})
+	add_child(room)
+	room.enter()
+	_runner.assert_eq(room.call("get_wave_snapshot"), {"configured": 2, "spawned": 1, "pending": 3, "active": 3}, "restore fixture starts mid-encounter")
+
+	room.call("restore_cleared_state")
+
+	_runner.assert_true(room.call("is_cleared"), "restored room is resolved")
+	_runner.assert_eq(room.call("get_wave_snapshot"), {"configured": 2, "spawned": 0, "pending": 0, "active": 0}, "restore drops every pending and active wave reference")
 
 
 func test_combat_room_ignores_duplicate_defeat_reward_for_same_enemy() -> void:
