@@ -1091,6 +1091,7 @@ func _attack_melee(dir: Vector2) -> void:
 		rng *= dash_power_attack_range_multiplier
 		knockback_distance *= dash_power_attack_knockback_multiplier
 	var hit_count := 0
+	var parried_any := false
 	for enemy: Node in get_tree().get_nodes_in_group(&"enemy"):
 		var e := enemy as Node2D
 		if e == null or not is_instance_valid(e):
@@ -1103,6 +1104,7 @@ func _attack_melee(dir: Vector2) -> void:
 			if _has_bat and enemy.has_method("parry_dash"):
 				parried = bool(enemy.call("parry_dash", dir))
 			if parried:
+				parried_any = true
 				parry_succeeded.emit({
 					"direction": dir,
 					"player_position": global_position,
@@ -1141,7 +1143,8 @@ func _attack_melee(dir: Vector2) -> void:
 	if hit_count > 0:
 		if _has_bat:
 			_play_bat_hit_sfx()
-		_emit_combat_feedback(&"melee_hit", dir, hit_count, _melee_feedback_intensity(power_attack))
+		if not parried_any:
+			_emit_combat_feedback(&"melee_hit", dir, hit_count, _melee_feedback_intensity(power_attack))
 
 
 func _clamp_knockback_position(position: Vector2, body: Node2D) -> Vector2:
