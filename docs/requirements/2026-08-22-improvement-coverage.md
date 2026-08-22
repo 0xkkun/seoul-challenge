@@ -57,8 +57,8 @@
 | F6 적 사망 셰이크·방 클리어 정적 | 미구현 | 공통 death event 없음 | D3 이후 |
 | F7 피격 붉은 비네트 | 완료 | #524 실제 Player damage 감소에서 edge pulse, heal/setting/pause/exit lifecycle 회귀 | 일반 hitstop과 동시 조율 유지 |
 | F7b 저체력 상시 비네트 | 완료 | #524 `current/max <= 0.25` persistent edge, heal 해제·setting 재계산 | max-health modifier 회귀 유지 |
-| F7c 화면 효과 설정 토글 | 완료 | #524 full settings snapshot·즉시 tween cancel·5행 mobile-safe SettingsUI | 새 screen effect가 같은 key를 준수 |
-| F8 효과 동시 조율 | 미구현 | hitstop/vignette/combat SFX 기반 자체가 없음 | 관련 축 merge 뒤 UAT |
+| F7c 화면 효과 설정 토글 | 완료 | #524 full settings snapshot·즉시 pulse cancel·5행 mobile-safe SettingsUI | 새 screen effect가 같은 key를 준수 |
+| F8 효과 동시 조율 | 부분 | HitStopManager·피격 비네트·combat SFX 기반은 완료됐으나 일반 타격 hitstop과의 동시 재생은 미검증 | Task 11에서 통합 UAT |
 
 ## S — 사운드
 
