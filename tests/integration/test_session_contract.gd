@@ -50,6 +50,8 @@ func test_session_interaction_and_summary() -> void:
 	_runner.assert_eq(result["rooms_cleared"], 1, "session summary includes cleared rooms")
 	_runner.assert_eq(result["memory_reward"], 1, "session summary includes permanent reward delta")
 	_runner.assert_eq(result["current_room_id"], &"start", "session summary includes current room")
+	_runner.assert_true(result.has("onboarding_kind"), "every result carries an explicit onboarding kind")
+	_runner.assert_eq(result.get("onboarding_kind"), &"", "regular run result keeps onboarding kind empty")
 	_runner.assert_false(GameManager.is_session_active(), "session is no longer active")
 	_runner.assert_eq(AudioManager.get_played_sfx(), [AudioManager.RUN_VICTORY], "finishing an in-game run plays the victory SFX")
 
@@ -656,6 +658,65 @@ func test_finish_all_onboarding_ui_is_idempotent_and_clears_every_surface() -> v
 	session.call("_finish_all_onboarding_ui")
 
 	_assert_all_onboarding_cleanup_state(session, fixture, "boundary", false)
+	session.queue_free()
+
+
+func test_cleanup_finishes_nested_dialogue_and_reward_surfaces() -> void:
+	var session := _new_onboarding_cleanup_session("cleanup_nested_surfaces")
+	var touch_controls := session.get_node("%TouchControls") as CanvasLayer
+	var session_ui := session.get_node("%SessionUIRoot") as CanvasLayer
+	session.set("_touch_controls_initially_visible", true)
+	var boss_ui := (load("res://scenes/ui/hub_dialogue_ui.tscn") as PackedScene).instantiate() as HubDialogueUi
+	boss_ui.battle_mode = true
+	session.add_child(boss_ui)
+	var friend_ui := (load("res://scenes/ui/hub_dialogue_ui.tscn") as PackedScene).instantiate() as HubDialogueUi
+	friend_ui.battle_mode = true
+	session.add_child(friend_ui)
+	session.set("_boss_intro_active", true)
+	session.set("_boss_intro_ui", boss_ui)
+	session.set("_paused_before_boss_intro", false)
+	session.set("_baseball_friend_intro_active", true)
+	session.set("_baseball_friend_intro_ui", friend_ui)
+	session.set("_paused_before_baseball_friend_intro", false)
+	session.set("_pending_reward_room_id", &"combat_1")
+	session.set("_touch_controls_visible_before_reward_choice", true)
+	session_ui.call("show_reward_choices", &"combat_1", [{
+		"item_id": &"cleanup_reward",
+		"display_name": "정리 보상",
+		"effect": "종료 시 제거",
+	}])
+	touch_controls.visible = false
+	get_tree().paused = true
+
+	session.call("_finish_all_onboarding_ui")
+
+	_runner.assert_false(bool(session.get("_boss_intro_active")), "cleanup finishes boss intro")
+	_runner.assert_eq(session.get("_boss_intro_ui"), null, "cleanup releases boss intro UI")
+	_runner.assert_false(bool(session.get("_baseball_friend_intro_active")), "cleanup finishes friend intro")
+	_runner.assert_eq(session.get("_baseball_friend_intro_ui"), null, "cleanup releases friend intro UI")
+	_runner.assert_eq(session.get("_pending_reward_room_id"), &"", "cleanup clears pending reward room")
+	_runner.assert_false(bool(session_ui.call("is_reward_choice_visible")), "cleanup hides reward choices")
+	_runner.assert_true(touch_controls.visible, "nested cleanup restores mobile touch baseline")
+	_runner.assert_false(get_tree().paused, "nested cleanup releases modal pause")
+	session.queue_free()
+
+
+func test_cleanup_preserves_hidden_desktop_touch_baseline() -> void:
+	GameManager.start_session({"source": "cleanup_desktop", SceneTransition.RUN_CONFIG_LAYOUT_SEED: 518})
+	var session := (load("res://scenes/session/session_root.tscn") as PackedScene).instantiate()
+	add_child(session)
+	var touch_controls := session.get_node("%TouchControls") as CanvasLayer
+	var control_onboarding := session.get_node("%IngameControlOnboarding") as CanvasLayer
+	_runner.assert_false(touch_controls.visible, "headless desktop starts without touch controls")
+	_runner.assert_false(bool(session.get("_touch_controls_initially_visible")), "session latches the hidden desktop baseline")
+	control_onboarding.call("start")
+	get_tree().paused = true
+
+	session.call("_finish_all_onboarding_ui")
+
+	_runner.assert_false(touch_controls.visible, "cleanup cannot reveal touch controls on desktop")
+	_runner.assert_false(get_tree().paused, "desktop cleanup releases pause")
+	_runner.assert_eq((session.get_node("%PlayerCamera") as Camera2D).zoom, Vector2.ONE, "desktop cleanup restores zoom")
 	session.queue_free()
 
 
