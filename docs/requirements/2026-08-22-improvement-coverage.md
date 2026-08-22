@@ -1,6 +1,6 @@
 # 2026-08-21 개선 명세 반영 현황
 
-기준 코드: `origin/main@e424012` + #512 검증 대상
+기준 코드: `origin/main@ab2ec465` + #516 검증 대상
 사용자 제공 자료: `요괴뎐_개선안_2026-08-21`
 프로그램 설계: `docs/superpowers/specs/2026-08-22-first-five-minutes-onboarding-design.md`
 시각 재설계: `docs/superpowers/specs/2026-08-22-onboarding-coachmark-redesign.md`
@@ -14,7 +14,7 @@
 
 ## 요약
 
-현재 검증 대상에서 확실히 완료된 축은 PC 입력 경로, 데스크톱 터치 UI 비노출, bounded 인트로, 성공 기반 첫 방 6단계, 보상→정화→학교 대화 contextual 여정, 반복 가능한 패링 학습, 기본 키 안내, 공통 coachmark·objective ribbon·reward eyebrow, 패링 성공 연출과 일부 카메라·햅틱·보상·보물방 기반이다. 일반 타격 히트스톱, 일반 전투 반응음, 피격 비네트, 실제 웨이브, 포탈 재시도는 미구현 또는 부분 상태다.
+현재 검증 대상에서 확실히 완료된 축은 PC 입력 경로, 데스크톱 터치 UI 비노출, bounded 인트로, 성공 기반 첫 방 6단계, 보상→정화→학교 대화 contextual 여정, 반복 가능한 패링 학습, 기본 키 안내, 공통 coachmark·objective ribbon·reward eyebrow, 패링 성공 연출, 포탈 실패 재시도와 세션 종료 cleanup, 일부 카메라·햅틱·보상·보물방 기반이다. 일반 타격 히트스톱, 일반 전투 반응음, 피격 비네트, 실제 웨이브는 미구현 또는 부분 상태다.
 
 ## P — PC 대응
 
@@ -31,10 +31,10 @@
 
 | ID | 상태 | 현재 근거 | 다음 계약 |
 |---|---|---|---|
-| B1 포탈 edge 소비 결함 | 미구현 | `check_transition_for_actor()`가 request 실패 전 `_was_actor_overlapping=true` 설정 | 포탈 안정성 PR |
+| B1 포탈 edge 소비 결함 | 완료 | #516에서 request 성공 후에만 latch 소비; pause-overlap 실패→actor 이동 없는 재시도→성공 1회 unit test | Web pause-over-portal 회귀 유지 |
 | B2 포탈 레벨 트리거 전환 | 미구현 | point sampling과 entered callback 혼재 | B1 검증 후 필요성 재판정 |
-| B3 온보딩 다시하기 원인 판정 | 부분 | 완료 결과 marker test는 있으나 사망/이탈 전체 경로 증거 없음 | 세션 종료 matrix PR |
-| B4 marker 일원화 + `finish()` 방어 | 부분 | 완료 path는 marker 기록, 모든 종료 path의 `finish()` 방어 없음 | 포탈·온보딩 종료 안정성 PR |
+| B3 온보딩 다시하기 원인 판정 | 완료 | #516 completion·death가 latch 기반 `onboarding_kind`를 보존하고 retry UI 판정에 사용 | 결과 copy 회귀 유지 |
+| B4 marker 일원화 + `finish()` 방어 | 완료 | #516 `_finish_all_onboarding_ui()`가 완료·사망·포기·retry·return·scene exit를 멱등 정리 | 새 종료 경로 추가 시 matrix 확장 |
 
 ## L — 레벨 디자인
 
@@ -143,8 +143,8 @@
 | Q1 인트로·계속 문구 (완료) | 새 피드백: 자동 진행, 검은 공백, 클릭/탭 분기 | #504/#505, merge `0e87117`; blocked 24,753ms·stuck 39,121ms, UI 캡처 3개, CI·Codex 통과 |
 | Q2 첫 방·첫 런 여정 (완료) | P3, P6, 이동·공격·대시·강공격·지도·출구 #507; 보상·정화·말 걸기 #509 | Task 2 merge `5a4f667`; Task 3 merge `31f8ba1`; PC/mobile journey UAT |
 | Q2b 온보딩 시각 재설계 (완료) | #513에서 첫 조작·objective·reward·정화·패링·인트로를 diegetic coachmark로 통일 | #513/#514 merge `e424012`; unit 544/544, integration 116/116, release Web 12 mode, Design C→A |
-| Q3 패링 학습·성공 피드백 (진행 중) | #510에서 반복 가능한 첫 늑대 학습 완료; #512에서 F2, F4, S7, T1, T2, T6를 완성 | Task 4 merge `76301ed`; #512 unit 559/559, integration 120/120, release Web before/impact/recovery/repeated/teardown UAT |
-| Q4 안정성 | B1, B3, B4 | 포탈 pause-overlap 재시도와 종료 matrix |
+| Q3 패링 학습·성공 피드백 (완료) | #510에서 반복 가능한 첫 늑대 학습 완료; #512에서 F2, F4, S7, T1, T2, T6 완성 | #510/#511 merge `76301ed`; #512/#515 merge `ab2ec465`; coverage 100%, release Web 5상태 UAT |
+| Q4 안정성 (진행 중) | #516에서 B1, B3, B4 구현 | portal retry unit, 6-path cleanup matrix, next-session 20-slot pool integration; Web UAT·PR 예정 |
 | Q5 전투 흐름 | L1 | configured wave별 spawn 테스트와 Web play |
 | Q6 적 압박 | M6a | 악귀 단독 변경 전후 encounter UAT |
 | Q7 전투 반응 | S1, S3, S4, F7 | cooldown·asset·피격 시청각 테스트와 Web UAT |
@@ -159,6 +159,7 @@
 | Task 3 첫 런 보상·정화·대화 안내 | #508 / #509 | `31f8ba1` | unit 532/532, integration 111/111, quick/full, PR UI capture·Quick·Rooms·Web Preview green, Codex major issue 0 + 👍 | 실제 PC combat→reward→friend→purify intro, deterministic PC/mobile groggy·talk·bat popup; WebGL2=true, error 0 |
 | Task 4 첫 늑대 패링 학습 | #510 / #511 | `76301ed` | unit 535/535, integration 115/115, quick/full, PR UI capture·Quick·Rooms·Web Preview green, Challenger/Codex issue 0 | release WebGL2 PC/touch prepare, miss, next-wolf retry, success; console/network error 0 |
 | Task 4b 온보딩 코치마크 시각 재설계 | #513 / #514 | `e424012` | unit 544/544, integration 116/116, quick/full, PR UI capture·Quick·Rooms·Web Preview green, Challenger/Codex issue 0 + 👍 | release WebGL2 12 mode, Design C→A, AI slop C→A, console error 0 |
+| Task 5 패링 성공 피드백 | #512 / #515 | `ab2ec465` | unit 559/559, integration 120/120, functional 1/1, coverage 100%, PR UI capture·Quick·Rooms·Web Preview green, Codex P2 RED→GREEN + latest-head major issue 0 | release WebGL2 before/impact/recovery/repeated/teardown; impact camera `(-7, 0)`, console/network error 0 |
 
 ## 장부 유지 규칙
 

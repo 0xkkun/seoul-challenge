@@ -99,6 +99,7 @@ var _paused_before_reward_choice := false
 var _pause_modal_open := false
 var _reward_choice_delay_timer: Timer = null
 var _touch_controls_visible_before_reward_choice := true
+var _touch_controls_initially_visible := false
 var _boss_intro_active := false
 var _paused_before_boss_intro := false
 var _boss_intro_ui: HubDialogueUi = null
@@ -121,6 +122,7 @@ var _prompted_parry_wolf_ids := {}
 func _ready() -> void:
 	SceneTransition.configure_exit_requests()
 	_apply_render_layers()
+	_touch_controls_initially_visible = touch_controls != null and touch_controls.visible
 	if not GameManager.is_session_active():
 		GameManager.start_session({"source": "session_root"})
 	_configure_onboarding_journey()
@@ -236,20 +238,39 @@ func _reset_parry_feedback_state(teardown := false) -> void:
 		player_camera.offset = Vector2.ZERO
 
 
-func _exit_tree() -> void:
-	# (e) 보스 인트로 도중 세션이 끝나면 pause/터치 입력을 복원한다(스턱 pause 방지).
+func _finish_all_onboarding_ui() -> void:
 	_finish_boss_intro()
 	_finish_baseball_friend_intro()
 	_finish_purify_onboarding_spotlight()
+	_disconnect_parry_room_events()
+	_disconnect_player_parry_events()
+	if ingame_control_onboarding != null and ingame_control_onboarding.has_method("finish"):
+		ingame_control_onboarding.call("finish")
+	if parry_onboarding != null:
+		parry_onboarding.dismiss()
+		parry_onboarding.visible = false
+	if session_ui_root != null and session_ui_root.has_method("finish_onboarding_ui"):
+		session_ui_root.call("finish_onboarding_ui")
+	_clear_pending_reward_choice()
 	_reset_parry_feedback_state(true)
-	_cancel_reward_choice_delay()
+	_release_combat_touch_inputs()
+	if touch_controls != null:
+		touch_controls.visible = _touch_controls_initially_visible
+	var tree := get_tree()
+	if tree != null:
+		tree.paused = false
+	if player_camera != null:
+		player_camera.zoom = Vector2.ONE
+		player_camera.offset = Vector2.ZERO
+
+
+func _exit_tree() -> void:
+	_finish_all_onboarding_ui()
 	if room_manager != null:
 		room_manager.transition_blocked_callable = Callable()
 	_disconnect_progression_events()
 	_disconnect_combat_feedback_events()
 	_disconnect_run_reward_events()
-	_disconnect_player_parry_events()
-	_disconnect_parry_room_events()
 	_disconnect_player_weapon_events()
 	if has_node("/root/PoolManager"):
 		PoolManager.clear_all()
@@ -558,8 +579,7 @@ func _sync_combat_hud_health() -> void:
 
 
 func finish_session(overrides: Dictionary = {}) -> Dictionary:
-	_clear_pending_reward_choice()
-	_reset_parry_feedback_state(true)
+	_finish_all_onboarding_ui()
 	var result := _build_session_result(overrides)
 	GameManager.finish_session(result)
 	_play_run_victory_sfx()
@@ -582,6 +602,7 @@ func _build_session_result(overrides: Dictionary = {}) -> Dictionary:
 		"friends_purified": _friend_ids.size(),
 		"friend_ids": _friend_ids.duplicate(),
 		"unlocks": _build_result_unlocks(),
+		"onboarding_kind": SceneTransition.ONBOARDING_KIND_BASEBALL_CAPTAIN if _is_baseball_onboarding_run() else &"",
 	}
 	if not overrides.is_empty():
 		result.merge(overrides, true)
@@ -597,10 +618,7 @@ func _build_death_result() -> Dictionary:
 
 
 func _show_death_summary(result: Dictionary) -> void:
-	_disconnect_parry_room_events()
-	_disconnect_player_parry_events()
-	_reset_parry_feedback_state(true)
-	_clear_pending_reward_choice()
+	_finish_all_onboarding_ui()
 	get_tree().paused = true
 	session_ui_root.set_status("쓰러짐")
 	session_ui_root.show_summary(result)
@@ -1066,7 +1084,7 @@ func _on_finish_requested() -> void:
 
 
 func _on_return_requested() -> void:
-	get_tree().paused = false
+	_finish_all_onboarding_ui()
 	if return_to_school_callable.is_valid():
 		return_to_school_callable.call()
 	else:
@@ -1074,9 +1092,9 @@ func _on_return_requested() -> void:
 
 
 func _on_retry_requested() -> void:
-	get_tree().paused = false
-	_handoff_session_on_exit = true
 	var config := GameManager.get_active_config()
+	_finish_all_onboarding_ui()
+	_handoff_session_on_exit = true
 	config["source"] = "session_result_retry"
 	var result: Variant = OK
 	if retry_session_callable.is_valid():
@@ -1753,8 +1771,8 @@ func _request_abandon_run() -> void:
 
 func _abandon_run_to_school() -> void:
 	_exit_modal_from_pause_menu = false
-	get_tree().paused = false
 	var force_lobby := _should_force_lobby_for_incomplete_onboarding_exit()
+	_finish_all_onboarding_ui()
 	if has_node("/root/GameManager"):
 		GameManager.reset_session()
 	if force_lobby:
@@ -1794,7 +1812,7 @@ func _request_quit_game() -> void:
 
 
 func _quit_game() -> void:
-	get_tree().paused = false
+	_finish_all_onboarding_ui()
 	if quit_game_callable.is_valid():
 		quit_game_callable.call()
 	else:

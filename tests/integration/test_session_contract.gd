@@ -641,6 +641,206 @@ func _assert_parry_feedback_cleared(session: Node, controller: CanvasLayer, path
 	_runner.assert_eq((session.get_node("%PlayerCamera") as Camera2D).offset, Vector2.ZERO, "%s restores camera offset" % path_name)
 
 
+func test_finish_all_onboarding_ui_is_idempotent_and_clears_every_surface() -> void:
+	var session := _new_onboarding_cleanup_session("cleanup_boundary")
+	var fixture := _arm_all_onboarding_cleanup_surfaces(session)
+	_runner.assert_true(session.has_method("_finish_all_onboarding_ui"), "session exposes one onboarding cleanup boundary")
+	if not session.has_method("_finish_all_onboarding_ui"):
+		get_tree().paused = false
+		HitStopManager.restore()
+		PoolManager.clear_all()
+		session.queue_free()
+		return
+
+	session.call("_finish_all_onboarding_ui")
+	session.call("_finish_all_onboarding_ui")
+
+	_assert_all_onboarding_cleanup_state(session, fixture, "boundary", false)
+	session.queue_free()
+
+
+func test_all_session_termination_paths_use_the_cleanup_boundary() -> void:
+	var termination_paths: Array[StringName] = [
+		&"completion",
+		&"death",
+		&"abandon",
+		&"retry",
+		&"return",
+		&"scene_exit",
+	]
+	for termination_path: StringName in termination_paths:
+		_reset_cleanup_matrix_globals()
+		var session := _new_onboarding_cleanup_session("cleanup_%s" % String(termination_path))
+		var fixture := _arm_all_onboarding_cleanup_surfaces(session)
+		var handoff_count := {"return": 0, "retry": 0}
+		session.return_to_school_callable = func() -> void: handoff_count["return"] += 1
+		session.return_to_lobby_callable = func() -> void: handoff_count["return"] += 1
+		session.retry_session_callable = func(config: Dictionary) -> Error:
+			handoff_count["retry"] += 1
+			GameManager.start_session(config)
+			return OK
+
+		match termination_path:
+			&"completion":
+				var result: Dictionary = session.call("finish_session")
+				_runner.assert_eq(result.get("onboarding_kind", &""), SceneTransition.ONBOARDING_KIND_BASEBALL_CAPTAIN, "completion preserves onboarding kind")
+			&"death":
+				(session.get_node("%DeathReturnController") as DeathReturnController).trigger_death_return()
+				_runner.assert_eq(GameManager.get_last_result().get("onboarding_kind", &""), SceneTransition.ONBOARDING_KIND_BASEBALL_CAPTAIN, "death preserves onboarding kind")
+			&"abandon":
+				SaveManager.set_flag(SceneTransition.FLAG_ONBOARDING_BASEBALL_COMPLETE, true)
+				session.call("_abandon_run_to_school")
+				_runner.assert_eq(handoff_count["return"], 1, "abandon performs one handoff")
+			&"retry":
+				session.call("_on_retry_requested")
+				_runner.assert_eq(handoff_count["retry"], 1, "retry starts one replacement session")
+			&"return":
+				session.call("_on_return_requested")
+				_runner.assert_eq(handoff_count["return"], 1, "return performs one school handoff")
+			&"scene_exit":
+				session.call("_exit_tree")
+
+		_assert_all_onboarding_cleanup_state(session, fixture, String(termination_path), termination_path == &"death")
+		get_tree().paused = false
+		remove_child(session)
+		session.free()
+
+
+func test_cleanup_allows_next_session_to_rebuild_full_combat_text_pool() -> void:
+	var first_session := _new_onboarding_cleanup_session("cleanup_first_session")
+	_arm_all_onboarding_cleanup_surfaces(first_session)
+	_runner.assert_true(first_session.has_method("_finish_all_onboarding_ui"), "session exposes cleanup before replacement")
+	if not first_session.has_method("_finish_all_onboarding_ui"):
+		get_tree().paused = false
+		HitStopManager.restore()
+		PoolManager.clear_all()
+		first_session.queue_free()
+		return
+	first_session.call("_finish_all_onboarding_ui")
+	remove_child(first_session)
+	first_session.free()
+
+	GameManager.reset_session()
+	GameManager.start_session({"source": "cleanup_replacement", SceneTransition.RUN_CONFIG_LAYOUT_SEED: 517})
+	var next_session := (load("res://scenes/session/session_root.tscn") as PackedScene).instantiate()
+	add_child(next_session)
+	_runner.assert_eq(PoolManager.get_available_count(&"floating_combat_text"), 20, "replacement session prewarms a fresh full text pool")
+	var next_controller := next_session.get_node("%ParryFeedbackController") as ParryFeedbackController
+	for index: int in range(21):
+		next_controller.present({
+			"player_position": Vector2(float(index), 0.0),
+			"enemy_position": Vector2(float(index) + 10.0, 0.0),
+			"direction": Vector2.RIGHT,
+		})
+	_runner.assert_eq(PoolManager.get_active_count(&"floating_combat_text"), 20, "replacement session can use all 20 slots and still enforces the cap")
+	next_session.call("_finish_all_onboarding_ui")
+	next_session.queue_free()
+
+
+func _new_onboarding_cleanup_session(source: String) -> Node:
+	GameManager.start_session({
+		"source": source,
+		SceneTransition.RUN_CONFIG_LAYOUT_SEED: 516,
+		SceneTransition.RUN_CONFIG_SELECTED_WEAPON_ID: &"bat",
+		SceneTransition.RUN_CONFIG_ONBOARDING_KIND: SceneTransition.ONBOARDING_KIND_BASEBALL_CAPTAIN,
+	})
+	var session := (load("res://scenes/session/session_root.tscn") as PackedScene).instantiate()
+	add_child(session)
+	return session
+
+
+func _arm_all_onboarding_cleanup_surfaces(session: Node) -> Dictionary:
+	var camera := session.get_node("%PlayerCamera") as Camera2D
+	var touch_controls := session.get_node("%TouchControls") as CanvasLayer
+	var control_onboarding := session.get_node("%IngameControlOnboarding") as CanvasLayer
+	var purify_spotlight := session.get_node("%PurifyOnboardingSpotlight") as PurifyOnboardingSpotlight
+	var parry_hint := session.get_node("%ParryOnboarding") as ParryOnboarding
+	var parry_feedback := session.get_node("%ParryFeedbackController") as ParryFeedbackController
+	var session_ui := session.get_node("%SessionUIRoot") as CanvasLayer
+	if _has_property(session, "_touch_controls_initially_visible"):
+		session.set("_touch_controls_initially_visible", true)
+	touch_controls.visible = true
+	control_onboarding.call("start")
+
+	var purify_target := Node2D.new()
+	purify_target.name = "CleanupPurifyTarget"
+	session.add_child(purify_target)
+	session.set("_purify_onboarding_active", true)
+	session.set("_paused_before_purify_onboarding", false)
+	session.set("_touch_controls_visible_before_purify_onboarding", true)
+	purify_spotlight.show_step(&"cleanup", "정리 대상", purify_target)
+
+	var parry_target := Node2D.new()
+	parry_target.name = "CleanupParryTarget"
+	session.add_child(parry_target)
+	parry_hint.show_for_wolf(parry_target, &"desktop")
+	parry_feedback.present({
+		"player_position": Vector2(10.0, 20.0),
+		"enemy_position": Vector2(30.0, 20.0),
+		"direction": Vector2.RIGHT,
+	})
+	session_ui.call("set_onboarding_journey_hint", "첫 전투", "정리 전", true)
+	touch_controls.visible = false
+	get_tree().paused = true
+
+	_runner.assert_true(bool(control_onboarding.call("is_active")), "cleanup fixture starts control onboarding")
+	_runner.assert_true(purify_spotlight.is_active(), "cleanup fixture starts purify spotlight")
+	_runner.assert_true(parry_hint.is_active(), "cleanup fixture starts parry hint")
+	_runner.assert_true(bool(parry_feedback.get_flash_snapshot().get("visible")), "cleanup fixture starts white flash")
+	_runner.assert_true(HitStopManager.is_active(), "cleanup fixture starts hit stop")
+	_runner.assert_true(PoolManager.has_pool(&"floating_combat_text"), "cleanup fixture registers floating text pool")
+	_runner.assert_true(camera.zoom.x > 1.0, "cleanup fixture starts onboarding zoom")
+	_runner.assert_true(camera.offset.length() > 0.0, "cleanup fixture starts camera feedback")
+	_runner.assert_not_null(session.get("_camera_feedback_tween"), "cleanup fixture owns a camera feedback tween")
+	_runner.assert_true(bool(session_ui.call("get_onboarding_journey_hint_snapshot").get("visible")), "cleanup fixture starts contextual UI")
+	return {
+		"control": control_onboarding,
+		"purify": purify_spotlight,
+		"parry_hint": parry_hint,
+		"parry_feedback": parry_feedback,
+		"session_ui": session_ui,
+		"camera": camera,
+		"touch_controls": touch_controls,
+	}
+
+
+func _assert_all_onboarding_cleanup_state(session: Node, fixture: Dictionary, path_name: String, expected_paused: bool) -> void:
+	var control_onboarding := fixture["control"] as CanvasLayer
+	var purify_spotlight := fixture["purify"] as PurifyOnboardingSpotlight
+	var parry_hint := fixture["parry_hint"] as ParryOnboarding
+	var parry_feedback := fixture["parry_feedback"] as ParryFeedbackController
+	var session_ui := fixture["session_ui"] as CanvasLayer
+	var camera := fixture["camera"] as Camera2D
+	var touch_controls := fixture["touch_controls"] as CanvasLayer
+	var actor := session.get_node("%Player") as Node
+	_runner.assert_false(bool(control_onboarding.call("is_active")), "%s finishes control onboarding" % path_name)
+	_runner.assert_false(control_onboarding.visible, "%s hides control onboarding" % path_name)
+	_runner.assert_false(purify_spotlight.is_active(), "%s dismisses purify spotlight" % path_name)
+	_runner.assert_false(purify_spotlight.visible, "%s hides purify spotlight" % path_name)
+	_runner.assert_false(parry_hint.is_active(), "%s dismisses parry hint" % path_name)
+	_runner.assert_false(parry_hint.visible, "%s hides parry hint immediately" % path_name)
+	_runner.assert_false(bool(parry_feedback.get_flash_snapshot().get("visible")), "%s clears white flash" % path_name)
+	_runner.assert_false(PoolManager.has_pool(&"floating_combat_text"), "%s clears the targeted text pool" % path_name)
+	_runner.assert_false(HitStopManager.is_active(), "%s clears hit stop" % path_name)
+	_runner.assert_eq(Engine.time_scale, 1.0, "%s restores global time" % path_name)
+	_runner.assert_eq(camera.zoom, Vector2.ONE, "%s restores camera zoom" % path_name)
+	_runner.assert_eq(camera.offset, Vector2.ZERO, "%s restores camera offset" % path_name)
+	_runner.assert_eq(session.get("_camera_feedback_tween"), null, "%s kills and clears camera feedback tween" % path_name)
+	_runner.assert_true(touch_controls.visible, "%s restores the session-start touch visibility" % path_name)
+	_runner.assert_false(bool(session_ui.call("get_onboarding_journey_hint_snapshot").get("visible")), "%s hides contextual onboarding UI" % path_name)
+	_runner.assert_false(actor.is_connected(&"parry_succeeded", Callable(session, "_on_player_parry_succeeded")), "%s disconnects late parry success callbacks" % path_name)
+	_runner.assert_eq(get_tree().paused, expected_paused, "%s leaves the intended pause state" % path_name)
+
+
+func _reset_cleanup_matrix_globals() -> void:
+	get_tree().paused = false
+	HitStopManager.restore()
+	PoolManager.clear_all()
+	GameManager.reset_session()
+	SaveManager.reset_profile()
+	ProgressionSystem.reset_for_tests()
+
+
 func test_parry_tutorial_miss_never_blocks_room_clear() -> void:
 	SaveManager.set_flag(SceneTransition.FLAG_BASEBALL_CAPTAIN_REWARD_CLAIMED, true)
 	GameManager.start_session({

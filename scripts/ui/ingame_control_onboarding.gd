@@ -625,4 +625,6 @@ func _input_mode() -> StringName:
 
 
 func _is_reduced_motion() -> bool:
+	if not is_inside_tree():
+		return false
 	return has_node("/root/Settings") and Settings.is_reduced_motion_enabled()
