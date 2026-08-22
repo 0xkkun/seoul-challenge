@@ -170,7 +170,7 @@
 
 ## Task 13 fresh-main 최종 통합 검수
 
-- 추적: #530, 기준 `origin/main@7ae36d8`, 새 worktree와 headed Chromium에서 수행.
+- 추적: #530 / #531, 기준 `origin/main@7ae36d8`, 새 worktree와 headed Chromium에서 수행.
 - 자동 게이트: unit 598/598, integration 130/130, functional 1/1, tooling 4/4, script coverage 77/78(98.72%), quick/full green.
 - 인터페이스 철자 감사: 승인 계획 Tasks 1–12의 produced/consumed 이름 37/37이 production에 정확히 존재한다. 35개는 test에서도 같은 이름으로 직접 참조하고, `get_advance_hint_reference_rect`·`set_tutorial_gate_active` 2개는 각각 실제 hint rect safe-area와 start-room exit gate 통합 테스트로 간접 실행된다.
 - release WebGL2 결정론 상태: 65/65 valid. 최종 판정 로그의 console/page error 0, HTTP 4xx/5xx 0. 시각 전용 fixture의 사용자 gesture 전 AudioContext 경고만 허용하고, SFX fixture는 WAITING 상태 뒤 실제 canvas click으로 재개.
