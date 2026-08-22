@@ -1,6 +1,6 @@
 # 2026-08-21 개선 명세 반영 현황
 
-기준 코드: `origin/main@5a4f667`
+기준 코드: `origin/main@31f8ba1`
 사용자 제공 자료: `요괴뎐_개선안_2026-08-21`
 프로그램 설계: `docs/superpowers/specs/2026-08-22-first-five-minutes-onboarding-design.md`
 
@@ -13,7 +13,7 @@
 
 ## 요약
 
-현재 main에서 확실히 완료된 축은 PC 입력 경로, 데스크톱 터치 UI 비노출, 플랫폼별 계속 안내, bounded 인트로 자동 진행, 성공 기반 첫 방 6단계·미니맵·skip escape, 기본 키 안내, 일부 카메라·햅틱·보상·보물방 기반이다. 첫 3~5분 품질을 결정하는 contextual 첫 런 여정, 패링 피드백, 일반 히트스톱, 전투 반응음, 피격 비네트, 실제 웨이브, 포탈 재시도는 미구현 또는 부분 상태다.
+현재 main에서 확실히 완료된 축은 PC 입력 경로, 데스크톱 터치 UI 비노출, 플랫폼별 계속 안내, bounded 인트로 자동 진행, 성공 기반 첫 방 6단계·미니맵·skip escape, 보상→정화→학교 대화 contextual 여정, 기본 키 안내, 일부 카메라·햅틱·보상·보물방 기반이다. 첫 3~5분 품질을 결정하는 패링 성공 연출, 일반 히트스톱, 전투 반응음, 피격 비네트, 실제 웨이브, 포탈 재시도는 미구현 또는 부분 상태다.
 
 ## P — PC 대응
 
@@ -51,7 +51,7 @@
 | F1 피격 카메라 셰이크 | 부분 | `combat_feedback` 카메라 경로는 있으나 플레이어 `take_damage`가 feedback을 emit하지 않음 | 피격 피드백 PR |
 | F2 히트스톱 매니저 | 미구현 | `Engine.time_scale` manager 없음 | 패링 기반 PR |
 | F3 일반 타격 히트스톱 | 미구현 | melee feedback은 camera뿐 | 일반 히트스톱 PR |
-| F4 패링 성공 연출 | 미구현 | `parry_dash()` bool 반환을 player가 폐기, 햅틱 외 feedback 없음 | 패링 이벤트·피드백 PR |
+| F4 패링 성공 연출 | 부분 | #510에서 `parry_dash()` true를 `parry_succeeded`로 보존; 텍스트·hit stop·flash·shake·SFX는 아직 없음 | 패링 피드백 PR |
 | F5 넉백 트윈 | 미구현 | player가 적 위치를 즉시 대입 | 후순위 PR |
 | F6 적 사망 셰이크·방 클리어 정적 | 미구현 | 공통 death event 없음 | D3 이후 |
 | F7 피격 붉은 비네트 | 미구현 | vignette UI/contract 없음 | 피격 피드백 PR |
@@ -128,8 +128,8 @@
 | PC `클릭하여 계속` | 완료 | desktop/mobile 분기를 `InputPromptPolicy`로 통일, #505 | unit 526/526 + PC/mobile Web 캡처 |
 | 인트로 무입력 자동 진행 | 완료 | 정상·autoplay 차단·음성 고착에 bounded line scheduling 적용, #505 | blocked 24,753ms·stuck 39,121ms Web UAT |
 | 완전 검은 화면 장기 유지 방지 | 완료 | plate 초기 alpha와 transition 단축, #505 | 960x540·1920x900 release Web UAT |
-| 성공 기반 전체 온보딩 | 부분 | 첫 방 6단계·실제 action/minimap/room transition은 #507 완료, reward/purify/talk는 분산 | #508 contextual 여정 PR |
-| 패링 안내와 성공 학습 | 미구현 | 안내·성공 signal 없음 | 패링 이벤트·피드백 PR |
+| 성공 기반 전체 온보딩 | 완료 | 첫 방 6단계·실제 action/minimap/room transition은 #507, reward/purify/talk·PC E/mobile prompt는 #509 | Task 2·3 release Web UAT와 자동 회귀 유지 |
+| 패링 안내와 성공 학습 | 완료 | #510의 `enemy_spawned`·`dash_state_changed`·`parry_succeeded`, miss/death/next-wolf/success lifecycle tests | Task 5가 성공 시청각 피드백을 추가 |
 | 요구사항 추적 | 이 문서로 시작 | 이전에는 mapping 없음 | 모든 하위 이슈/PR에 이 표 갱신 |
 
 ## 승인된 실행 큐
@@ -139,8 +139,8 @@
 | 순서 | 포함 요구 | 완료 증거 |
 |---|---|---|
 | Q1 인트로·계속 문구 (완료) | 새 피드백: 자동 진행, 검은 공백, 클릭/탭 분기 | #504/#505, merge `0e87117`; blocked 24,753ms·stuck 39,121ms, UI 캡처 3개, CI·Codex 통과 |
-| Q2 첫 방·첫 런 여정 (진행 중) | P3, P6, 이동·공격·대시·강공격·지도·출구는 #506/#507 완료; 보상·정화·말 걸기는 #508 진행 중 | Task 2 merge `5a4f667`; Task 3 신호 기반 integration + 전체 journey UAT 예정 |
-| Q3 패링 학습·성공 피드백 | F2, F4, S7, T1, T2, T6 | 첫 늑대 실제 parry UAT와 복구 테스트 |
+| Q2 첫 방·첫 런 여정 (완료) | P3, P6, 이동·공격·대시·강공격·지도·출구 #507; 보상·정화·말 걸기 #509 | Task 2 merge `5a4f667`; Task 3 merge `31f8ba1`; PC/mobile journey UAT |
+| Q3 패링 학습·성공 피드백 (진행 중) | #510에서 반복 가능한 첫 늑대 학습·성공 이벤트; F2, F4, S7, T1, T2, T6 시청각 피드백은 Task 5 | miss/death/next-wolf/success Web UAT와 복구 테스트 |
 | Q4 안정성 | B1, B3, B4 | 포탈 pause-overlap 재시도와 종료 matrix |
 | Q5 전투 흐름 | L1 | configured wave별 spawn 테스트와 Web play |
 | Q6 적 압박 | M6a | 악귀 단독 변경 전후 encounter UAT |
@@ -153,6 +153,7 @@
 |---|---|---|---|---|
 | Task 1 인트로 자동 진행·플랫폼 안내 | #504 / #505 | `0e87117` | unit 526/526, integration 107/107, quick/full, 최신 CI green, Codex 👍 | release WebGL2 PC 960x540·1920x900/mobile 960x540; blocked 24,753ms, stuck 39,121ms; console error 0 |
 | Task 2 성공 기반 첫 방 조작·지도 | #506 / #507 | `5a4f667` | unit 531/531, integration 109/109, quick/full, PR UI capture·Quick·Rooms·Web Preview green, Codex P1 해결 + 👍 | release WebGL2 PC/mobile 6단계→첫 전투방, PC/mobile skip→compact legend; console/page/request error 0 |
+| Task 3 첫 런 보상·정화·대화 안내 | #508 / #509 | `31f8ba1` | unit 532/532, integration 111/111, quick/full, PR UI capture·Quick·Rooms·Web Preview green, Codex major issue 0 + 👍 | 실제 PC combat→reward→friend→purify intro, deterministic PC/mobile groggy·talk·bat popup; WebGL2=true, error 0 |
 
 ## 장부 유지 규칙
 

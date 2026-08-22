@@ -20,10 +20,11 @@ class StubResistantEnemy extends StubEnemy:
 class StubParryEnemy extends StubEnemy:
 	var parry_count: int = 0
 	var parried_dir: Vector2 = Vector2.ZERO
+	var parry_result := true
 	func parry_dash(direction: Vector2) -> bool:
 		parry_count += 1
 		parried_dir = direction
-		return true
+		return parry_result
 
 
 class StubBoundedEnemy extends StubEnemy:
@@ -473,6 +474,40 @@ func test_bat_swing_parries_dash_enemy_in_arc() -> void:
 
 	_runner.assert_eq(e.parry_count, 1, "배트 스윙은 정면 돌진 적을 패링한다")
 	_runner.assert_eq(e.parried_dir, Vector2.RIGHT, "패링 방향은 배트 스윙 방향을 따른다")
+	e.free()
+	p.free()
+
+
+func test_bat_emits_parry_success_only_when_dash_parry_returns_true() -> void:
+	var p = PlayerScript.new()
+	add_child(p)
+	p.position = Vector2(12.0, 8.0)
+	p.equip_bat()
+	var payloads: Array[Dictionary] = []
+	if p.has_signal("parry_succeeded"):
+		p.connect(&"parry_succeeded", func(payload: Dictionary) -> void: payloads.append(payload))
+	var e := StubParryEnemy.new()
+	e.position = Vector2(52.0, 8.0)
+	e.parry_result = false
+	e.add_to_group(&"enemy")
+	add_child(e)
+
+	p._attack_melee(Vector2.RIGHT)
+	_runner.assert_eq(payloads.size(), 0, "비돌진 늑대의 false 반환은 패링 성공을 발행하지 않는다")
+
+	e.position = Vector2(52.0, 8.0)
+	e.parry_result = true
+	p._attack_melee(Vector2.RIGHT)
+	_runner.assert_eq(payloads.size(), 1, "실제 dash parry 성공은 이벤트를 정확히 한 번 발행한다")
+	if payloads.size() == 1:
+		_runner.assert_eq(payloads[0].get("direction"), Vector2.RIGHT, "패링 성공 payload는 스윙 방향을 포함한다")
+		_runner.assert_eq(payloads[0].get("player_position"), p.global_position, "패링 성공 payload는 플레이어 위치를 포함한다")
+		_runner.assert_eq(payloads[0].get("enemy_position"), Vector2(52.0, 8.0), "패링 성공 payload는 넉백 전 충돌 위치를 포함한다")
+
+	e.position = Vector2(52.0, 8.0)
+	e.parry_result = false
+	p._attack_melee(Vector2.RIGHT)
+	_runner.assert_eq(payloads.size(), 1, "recovery에서 반복 호출된 false는 성공을 재발행하지 않는다")
 	e.free()
 	p.free()
 

@@ -315,6 +315,24 @@ func test_wolf_dash_can_be_parried_into_recovery() -> void:
 	_runner.assert_eq(target.damage_taken, 0, "parried wolf dash cannot damage after being stopped")
 
 
+func test_wolf_emits_each_dash_state_transition_once() -> void:
+	var enemy := (load(WOLF_SCENE_PATH) as PackedScene).instantiate()
+	add_child(enemy)
+	var states: Array[StringName] = []
+	if enemy.has_signal("dash_state_changed"):
+		enemy.connect(&"dash_state_changed", func(state: StringName) -> void: states.append(state))
+
+	enemy.call("tick_dash_ai", 0.01, Vector2.ZERO, Vector2.RIGHT * 8.0)
+	enemy.call("tick_dash_ai", 0.01, Vector2.ZERO, Vector2.RIGHT * 8.0)
+	_runner.assert_eq(states, [&"prepare"], "prepare 전이는 같은 상태 tick에서 중복 발행되지 않는다")
+	enemy.call("tick_dash_ai", enemy.dash_windup_time, Vector2.ZERO, Vector2.RIGHT * 8.0)
+	_runner.assert_eq(states, [&"prepare", &"dash"], "windup 종료는 dash 전이를 발행한다")
+	_runner.assert_true(bool(enemy.call("parry_dash", Vector2.LEFT)), "테스트는 실제 dash를 패링한다")
+	_runner.assert_eq(states, [&"prepare", &"dash", &"recover"], "패링은 recover 전이를 발행한다")
+	enemy.call("tick_dash_ai", enemy.parried_recover_time, Vector2.ZERO, Vector2.RIGHT * 8.0)
+	_runner.assert_eq(states, [&"prepare", &"dash", &"recover", &"chase"], "회복 종료는 chase 전이를 발행한다")
+
+
 func test_wolf_dash_parry_vibrates() -> void:
 	_runner.assert_true(ResourceLoader.exists(WOLF_SCENE_PATH), "wolf dash enemy scene exists")
 	if not ResourceLoader.exists(WOLF_SCENE_PATH):

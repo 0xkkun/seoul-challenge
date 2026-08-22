@@ -321,6 +321,155 @@ func test_baseball_onboarding_journey_snapshot_tracks_existing_night_events() ->
 	session.queue_free()
 
 
+func test_parry_tutorial_stays_hidden_before_bat_reward() -> void:
+	var transition_source := FileAccess.get_file_as_string("res://scripts/autoload/scene_transition.gd")
+	_runner.assert_true(transition_source.contains("const FLAG_PARRY_TUTORIAL_COMPLETE := &\"parry_tutorial_complete\""), "parry tutorial completion has a named durable flag contract")
+	GameManager.start_session({
+		"source": "parry_tutorial_locked",
+		SceneTransition.RUN_CONFIG_LAYOUT_SEED: 510,
+		SceneTransition.RUN_CONFIG_SELECTED_WEAPON_ID: &"bat",
+	})
+	var session := (load("res://scenes/session/session_root.tscn") as PackedScene).instantiate()
+	add_child(session)
+	var tutorial := session.get_node_or_null("%ParryOnboarding") as CanvasLayer
+	_runner.assert_not_null(tutorial, "session mounts the reusable parry onboarding surface")
+	if tutorial == null:
+		session.queue_free()
+		return
+	var manager := session.get_node("%RoomManager") as RoomManager
+	var combat_def := _first_room_of_type(manager.layout, RoomLayout.TYPE_COMBAT)
+	_runner.assert_not_null(combat_def, "regular run has an eligible combat room")
+	if combat_def == null:
+		session.queue_free()
+		return
+	_runner.assert_true(manager.enter_room(combat_def.room_id), "test enters the real combat room")
+	var wolf := _first_enemy_named(manager.current_room, "Wolf")
+	_runner.assert_not_null(wolf, "regular combat guarantees a wolf")
+	if wolf != null:
+		session.call("_on_wolf_dash_state_changed", &"prepare", wolf)
+	_runner.assert_false(bool(tutorial.call("is_active")), "selected bat alone cannot unlock tutorial before captain reward flag")
+	session.queue_free()
+
+
+func test_parry_tutorial_surface_is_touch_aware_short_and_non_blocking() -> void:
+	var tutorial := ParryOnboarding.new()
+	var wolf := Node2D.new()
+	wolf.name = "TouchWolf"
+	add_child(wolf)
+	add_child(tutorial)
+	tutorial.show_for_wolf(wolf, &"touch")
+	var snapshot: Dictionary = tutorial.get_snapshot()
+	var contract: Dictionary = tutorial.get_visual_contract()
+	_runner.assert_eq(snapshot.get("message"), "늑대가 돌진할 때 공격 버튼으로 배트를 휘둘러 받아치기", "touch copy names the real attack button")
+	_runner.assert_false(bool(snapshot.get("blocks_gameplay", true)), "touch parry card is non-blocking")
+	_runner.assert_eq(contract.get("mouse_filter"), Control.MOUSE_FILTER_IGNORE, "every parry surface passes combat pointer input through")
+	_runner.assert_false(get_tree().paused, "showing the short reveal never pauses the tree")
+	var panel_rect := snapshot.get("panel_rect", Rect2()) as Rect2
+	_runner.assert_true(MobileSafeArea.meets_landscape_minimum(panel_rect), "parry card stays inside landscape safe area: %s" % panel_rect)
+	tutorial.call("_process", 0.59)
+	_runner.assert_false(bool(tutorial.get_snapshot().get("reveal_complete")), "spotlight reveal keeps its authored 0.6 second beat")
+	tutorial.call("_process", 0.01)
+	_runner.assert_true(bool(tutorial.get_snapshot().get("reveal_complete")), "reveal finishes at 0.6 seconds without blocking gameplay")
+	tutorial.call("_process", 2.81)
+	_runner.assert_false(tutorial.is_active(), "short card auto-dismisses after its bounded display window")
+	tutorial.queue_free()
+	wolf.queue_free()
+
+
+func test_parry_tutorial_retries_next_wolf_and_completes_only_on_success() -> void:
+	SaveManager.set_flag(SceneTransition.FLAG_BASEBALL_CAPTAIN_REWARD_CLAIMED, true)
+	GameManager.start_session({
+		"source": "parry_tutorial_lifecycle",
+		SceneTransition.RUN_CONFIG_LAYOUT_SEED: 511,
+		SceneTransition.RUN_CONFIG_SELECTED_WEAPON_ID: &"bat",
+	})
+	var session := (load("res://scenes/session/session_root.tscn") as PackedScene).instantiate()
+	add_child(session)
+	var tutorial := session.get_node_or_null("%ParryOnboarding") as CanvasLayer
+	_runner.assert_not_null(tutorial, "eligible session mounts parry onboarding")
+	if tutorial == null:
+		session.queue_free()
+		return
+	var manager := session.get_node("%RoomManager") as RoomManager
+	var combat_def := _first_room_of_type(manager.layout, RoomLayout.TYPE_COMBAT)
+	_runner.assert_not_null(combat_def, "eligible run has a combat room")
+	if combat_def == null:
+		session.queue_free()
+		return
+	_runner.assert_true(manager.enter_room(combat_def.room_id), "room_changed wiring runs before actual encounter spawn")
+	var room := manager.current_room
+	var first_wolf := _first_enemy_named(room, "Wolf")
+	_runner.assert_not_null(first_wolf, "initial spawn includes a wolf")
+	if first_wolf == null:
+		session.queue_free()
+		return
+	_runner.assert_true(first_wolf.is_connected(&"dash_state_changed", Callable(session, "_on_wolf_dash_state_changed").bind(first_wolf)), "initial wolf is subscribed through enemy_spawned before enter returns")
+	session.call("_on_wolf_dash_state_changed", &"prepare", first_wolf)
+	var snapshot: Dictionary = tutorial.call("get_snapshot")
+	_runner.assert_true(bool(snapshot.get("active")), "first eligible wolf prepare shows the tutorial")
+	_runner.assert_eq(snapshot.get("message"), "늑대가 돌진할 때 좌클릭으로 배트를 휘둘러 받아치기", "desktop prompt names the real attack input")
+	_runner.assert_false(bool(snapshot.get("blocks_gameplay", true)), "parry card never blocks combat input")
+	_runner.assert_false(get_tree().paused, "parry reveal does not pause the encounter")
+
+	first_wolf.call("take_damage", 99)
+	_runner.assert_false(SaveManager.get_flag(&"parry_tutorial_complete"), "wolf death without parry keeps tutorial incomplete")
+	room.call("_spawn_enemy_entry", {"enemy_type": &"wolf", "elite_variant": false, "sequence": 99})
+	var second_wolf := _last_enemy_named(room, "Wolf")
+	_runner.assert_not_null(second_wolf, "later wave can spawn another wolf")
+	if second_wolf == null:
+		session.queue_free()
+		return
+	session.call("_on_wolf_dash_state_changed", &"prepare", second_wolf)
+	_runner.assert_true(bool(tutorial.call("is_active")), "next wolf prepare shows the tutorial again after a miss/death")
+
+	var actor := session.get_node("%Player") as Node2D
+	actor.global_position = Vector2(100.0, 100.0)
+	second_wolf.global_position = Vector2(140.0, 100.0)
+	second_wolf.call("tick_dash_ai", 0.01, second_wolf.global_position, actor.global_position)
+	second_wolf.call("tick_dash_ai", second_wolf.get("dash_windup_time"), second_wolf.global_position, actor.global_position)
+	actor.call("_attack_melee", Vector2.RIGHT)
+	_runner.assert_true(SaveManager.get_flag(&"parry_tutorial_complete"), "actual parry success persists completion")
+	_runner.assert_false(bool(tutorial.call("is_active")), "success dismisses the tutorial")
+
+	room.call("_spawn_enemy_entry", {"enemy_type": &"wolf", "elite_variant": false, "sequence": 100})
+	var third_wolf := _last_enemy_named(room, "Wolf")
+	if third_wolf != null:
+		session.call("_on_wolf_dash_state_changed", &"prepare", third_wolf)
+	_runner.assert_false(bool(tutorial.call("is_active")), "completion flag prevents every later prompt")
+	second_wolf.call("tick_hit_reaction", 1.0)
+	_defeat_all_combat_waves(room)
+	_runner.assert_true(bool(room.call("is_cleared")), "completed tutorial does not interpose on the room clear contract")
+	session.queue_free()
+
+
+func test_parry_tutorial_miss_never_blocks_room_clear() -> void:
+	SaveManager.set_flag(SceneTransition.FLAG_BASEBALL_CAPTAIN_REWARD_CLAIMED, true)
+	GameManager.start_session({
+		"source": "parry_tutorial_non_blocking_clear",
+		SceneTransition.RUN_CONFIG_LAYOUT_SEED: 512,
+		SceneTransition.RUN_CONFIG_SELECTED_WEAPON_ID: &"bat",
+	})
+	var session := (load("res://scenes/session/session_root.tscn") as PackedScene).instantiate()
+	add_child(session)
+	var manager := session.get_node("%RoomManager") as RoomManager
+	var tutorial := session.get_node("%ParryOnboarding") as CanvasLayer
+	var combat_def := _first_room_of_type(manager.layout, RoomLayout.TYPE_COMBAT)
+	_runner.assert_not_null(combat_def, "non-blocking fixture has a combat room")
+	if combat_def == null:
+		session.queue_free()
+		return
+	_runner.assert_true(manager.enter_room(combat_def.room_id), "non-blocking fixture enters combat")
+	var wolf := _first_enemy_named(manager.current_room, "Wolf")
+	_runner.assert_not_null(wolf, "non-blocking fixture has a wolf")
+	if wolf != null:
+		session.call("_on_wolf_dash_state_changed", &"prepare", wolf)
+	_runner.assert_true(bool(tutorial.call("is_active")), "miss fixture first shows guidance")
+	_defeat_all_combat_waves(manager.current_room)
+	_runner.assert_true(bool(manager.current_room.call("is_cleared")), "room clears even when no parry succeeded")
+	_runner.assert_false(SaveManager.get_flag(&"parry_tutorial_complete"), "room clear cannot fake tutorial success")
+	session.queue_free()
+
+
 func test_onboarding_start_room_exit_waits_for_success_capabilities_and_real_transition() -> void:
 	var session := _instantiate_baseball_onboarding_session()
 	var manager := session.get_node("%RoomManager") as RoomManager
@@ -1356,12 +1505,33 @@ func test_session_result_actions_unpause_and_preserve_retry_config() -> void:
 
 
 func test_player_death_shows_game_over_summary_without_immediate_transition() -> void:
+	SaveManager.set_flag(SceneTransition.FLAG_BASEBALL_CAPTAIN_REWARD_CLAIMED, true)
+	GameManager.start_session({
+		"source": "death_during_parry_tutorial",
+		SceneTransition.RUN_CONFIG_LAYOUT_SEED: 513,
+		SceneTransition.RUN_CONFIG_SELECTED_WEAPON_ID: &"bat",
+	})
 	var packed := load("res://scenes/session/session_root.tscn") as PackedScene
 	var session := packed.instantiate()
 	var action_counts := {"returned": 0}
 	session.return_to_school_callable = func() -> void:
 		action_counts["returned"] += 1
 	add_child(session)
+	var manager := session.get_node("%RoomManager") as RoomManager
+	var combat_def := _first_room_of_type(manager.layout, RoomLayout.TYPE_COMBAT)
+	_runner.assert_not_null(combat_def, "death teardown fixture has a combat room")
+	if combat_def == null:
+		session.queue_free()
+		return
+	_runner.assert_true(manager.enter_room(combat_def.room_id), "death teardown fixture enters combat")
+	var wolf := _first_enemy_named(manager.current_room, "Wolf")
+	var tutorial := session.get_node("%ParryOnboarding") as ParryOnboarding
+	var actor := session.get_node("%Player") as Node
+	_runner.assert_not_null(wolf, "death teardown fixture has a wolf")
+	if wolf != null:
+		session.call("_on_wolf_dash_state_changed", &"prepare", wolf)
+	_runner.assert_true(tutorial.is_active(), "death occurs while the parry card is active")
+	_runner.assert_true(actor.is_connected(&"parry_succeeded", Callable(session, "_on_player_parry_succeeded")), "eligible session listens for parry success before death")
 
 	var death_controller: DeathReturnController = session.get_node("%DeathReturnController")
 	death_controller.trigger_death_return()
@@ -1374,6 +1544,9 @@ func test_player_death_shows_game_over_summary_without_immediate_transition() ->
 	_runner.assert_eq(GameManager.get_last_result().get("outcome", ""), "death", "death result is saved")
 	_runner.assert_eq(action_counts["returned"], 0, "death does not immediately transition to school")
 	_runner.assert_true(get_tree().paused, "gameplay freezes under the game over summary")
+	_runner.assert_false(tutorial.is_active(), "death summary dismisses the parry card")
+	_runner.assert_eq(session.get("_parry_combat_room"), null, "death summary releases the combat room callback")
+	_runner.assert_false(actor.is_connected(&"parry_succeeded", Callable(session, "_on_player_parry_succeeded")), "death summary releases the player parry callback")
 
 	get_tree().paused = false
 	session.queue_free()
@@ -1684,6 +1857,26 @@ func _drain_active_encounter_dialogue(session: Node) -> void:
 	while bool(session.call("is_encounter_dialogue_visible")) and guard < 8:
 		session.call("advance_encounter_dialogue_for_tests")
 		guard += 1
+
+
+func _first_enemy_named(room: Node, name_fragment: String) -> Node:
+	if room == null or not room.has_method("get_active_enemies"):
+		return null
+	for enemy: Node in room.call("get_active_enemies"):
+		if String(enemy.name).contains(name_fragment):
+			return enemy
+	return null
+
+
+func _last_enemy_named(room: Node, name_fragment: String) -> Node:
+	if room == null or not room.has_method("get_active_enemies"):
+		return null
+	var enemies: Array = room.call("get_active_enemies")
+	for index: int in range(enemies.size() - 1, -1, -1):
+		var enemy := enemies[index] as Node
+		if enemy != null and String(enemy.name).contains(name_fragment):
+			return enemy
+	return null
 
 
 func _first_connected_room_id(layout: RoomLayout, room_id: StringName) -> StringName:

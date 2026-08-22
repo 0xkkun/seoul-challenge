@@ -1,4 +1,4 @@
-[gd_scene load_steps=14 format=3]
+[gd_scene load_steps=15 format=3]
 
 [ext_resource type="Script" path="res://scripts/session/session_root.gd" id="1_session"]
 [ext_resource type="PackedScene" path="res://scenes/player/player.tscn" id="2_actor"]
@@ -13,6 +13,7 @@
 [ext_resource type="PackedScene" path="res://scenes/ui/confirm_modal.tscn" id="11_confirm"]
 [ext_resource type="Script" path="res://scripts/ui/ingame_control_onboarding.gd" id="12_onboarding"]
 [ext_resource type="Script" path="res://scripts/ui/purify_onboarding_spotlight.gd" id="13_purify_spotlight"]
+[ext_resource type="Script" path="res://scripts/ui/parry_onboarding.gd" id="14_parry_onboarding"]
 
 [node name="SessionRoot" type="Node2D"]
 script = ExtResource("1_session")
@@ -32,6 +33,10 @@ script = ExtResource("12_onboarding")
 [node name="PurifyOnboardingSpotlight" type="CanvasLayer" parent="."]
 unique_name_in_owner = true
 script = ExtResource("13_purify_spotlight")
+
+[node name="ParryOnboarding" type="CanvasLayer" parent="."]
+unique_name_in_owner = true
+script = ExtResource("14_parry_onboarding")
 
 [node name="ActorLayer" type="Node2D" parent="."]
 
