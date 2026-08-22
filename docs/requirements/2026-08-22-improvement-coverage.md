@@ -1,6 +1,6 @@
 # 2026-08-21 개선 명세 반영 현황
 
-기준 코드: `origin/main@57c3f94` + #526 검증 대상
+기준 코드: `origin/main@0db03b0` + #528 검증 대상
 사용자 제공 자료: `요괴뎐_개선안_2026-08-21`
 프로그램 설계: `docs/superpowers/specs/2026-08-22-first-five-minutes-onboarding-design.md`
 시각 재설계: `docs/superpowers/specs/2026-08-22-onboarding-coachmark-redesign.md`
@@ -14,7 +14,7 @@
 
 ## 요약
 
-현재 검증 대상에서 확실히 완료된 축은 PC 입력 경로, 데스크톱 터치 UI 비노출, bounded 인트로, 성공 기반 첫 방 6단계, 보상→정화→학교 대화 contextual 여정, 반복 가능한 패링 학습, 기본 키 안내, 공통 coachmark·objective ribbon·reward eyebrow, 패링 성공 연출, 포탈 실패 재시도와 세션 종료 cleanup, 실제 순차 웨이브, 악귀 추적 압박, 쿨다운 기반 일반 전투 반응음, 피격·저체력 비네트, 실제 적용 피해 기반 일반·파워·플레이어 피격 히트스톱, 일부 카메라·햅틱·보상·보물방 기반이다.
+현재 검증 대상에서 확실히 완료된 축은 PC 입력 경로, 데스크톱 터치 UI 비노출, bounded 인트로, 성공 기반 첫 방 6단계, 보상→정화→학교 대화 contextual 여정, 반복 가능한 패링 학습, 기본 키 안내, 공통 coachmark·objective ribbon·reward eyebrow, 패링 성공 연출, 포탈 실패 재시도와 세션 종료 cleanup, 실제 순차 웨이브, 악귀 추적 압박, 쿨다운 기반 일반 전투 반응음, 피격·저체력 비네트, 실제 적용 피해 기반 일반·파워·플레이어 피격 히트스톱과 데미지 숫자, 일부 카메라·햅틱·보상·보물방 기반이다.
 
 ## P — PC 대응
 
@@ -58,7 +58,7 @@
 | F7 피격 붉은 비네트 | 완료 | #524 실제 Player damage 감소에서 edge pulse, heal/setting/pause/exit lifecycle 회귀 | 일반 hitstop과 동시 조율 유지 |
 | F7b 저체력 상시 비네트 | 완료 | #524 `current/max <= 0.25` persistent edge, heal 해제·setting 재계산 | max-health modifier 회귀 유지 |
 | F7c 화면 효과 설정 토글 | 완료 | #524 full settings snapshot·즉시 pulse cancel·5행 mobile-safe SettingsUI | 새 screen effect가 같은 key를 준수 |
-| F8 효과 동시 조율 | 완료 | #526 release Web에서 일반/파워 camera+SFX, 플레이어 피격 vignette+SFX, 패링 0.10/0.05 우선, recovery/exit scale 1.0 동시 검증 | 데미지 숫자 추가 뒤 4축 UAT 확장 |
+| F8 효과 동시 조율 | 완료 | #526/#528 release Web에서 text→hitstop→camera+SFX, player number+vignette, 패링 우선, recovery/exit scale 1.0 동시 검증 | 신규 combat feedback도 같은 ordering 준수 |
 
 ## S — 사운드
 
@@ -80,11 +80,11 @@
 |---|---|---|---|
 | T1 floating text + pool | 완료 | `FloatingCombatText`와 `PoolManager` warm/release/reset/generation guard, #512 | 일반 데미지 숫자 재사용 |
 | T2 활성 20개 cap | 완료 | 사전 준비 20개·21번째 거절·반복 Web UAT `text_count=20`, #512 | 다종 텍스트 합산 cap 설계 |
-| T3 적 데미지 숫자 | 미구현 | enemy damage text 없음 | 일반 전투 피드백 PR |
-| T4 설정 토글 | 미구현 | Settings key/UI 없음 | T3과 같은 PR |
-| T5 강공격 스타일 | 미구현 | power attack floating text 없음 | T3 뒤 |
+| T3 적 데미지 숫자 | 완료 | #528 positive applied delta만 18pt white·40px rise·0.8s, overkill clamp·Yokai stun·reject 0회 | 신규 damage source도 단일 반환값 재사용 |
+| T4 설정 토글 | 완료 | #528 default-true full settings payload·OFF acquire 0회·6행 scroll SettingsUI | pool 활성 중 토글 회귀 유지 |
+| T5 강공격 스타일 | 완료 | #528 power 24pt yellow·80px head offset·40px rise·0.8s, Web slash 위 가독성 확인 | 신규 power attack도 style id 재사용 |
 | T6 `받아쳤다` | 완료 | 패링 접점 중점에 32pt cyan/white glow·1.0초·20px rise, #512 | 실전 가독성 회귀 유지 |
-| T7 플레이어 피격 숫자 | 미구현 | player damage text 없음 | 피격 피드백 PR |
+| T7 플레이어 피격 숫자 | 완료 | #528 accepted previous-current만 20pt red+pale outline·20px rise·0.5s, 하트 HUD 옆 screen anchor | lethal cleanup·vignette 동시 회귀 유지 |
 
 ## D — 사망 연출
 
@@ -148,7 +148,7 @@
 | Q5 전투 흐름 (완료) | #518에서 L1 구현 | #518/#519 merge `040276e`; 6/2·5/2 partition, failed-batch recovery, authored combat_2 release Web UAT |
 | Q6 적 압박 (완료) | #520에서 M6a 구현 | #520/#521 merge `5d8bb48`; 일반 140·온보딩 92, 첫 접촉 1.717s/2.617s, keyboard 99.4px·touch 96.6px 무피격 회피 |
 | Q7 전투 반응 (완료) | #522에서 S1, S3, S4, S5, #524에서 F7/F7b/F7c 구현 | cooldown·volume·damage/critical/settings tests와 release Web mix·vignette UAT |
-| Q8 일반 타격 정보 (진행 중) | #526에서 F3 완료, T3/T4 대기 | applied damage·hitstop 복구 완료; 데미지 숫자·설정 토글 후 종료 |
+| Q8 일반 타격 정보 (완료) | #526에서 F3, #528에서 T3/T4/T5/T7 완료 | applied damage 1회→text→hitstop ordering, cap/reuse/settings/reject release Web UAT |
 
 ## 병합 근거
 
@@ -165,7 +165,8 @@
 | Task 8 악귀 추적 압박 | #520 / #521 | `5d8bb48` | unit 568/568, integration 126/126, performance 5/5, functional 1/1, quick/full, latest-head CI·Codex green | release WebGL2 PC 1280x720/mobile 960x540; 일반 1.717s·온보딩 2.617s 첫 접촉 health 4; physical keyboard 99.4px·touch drag 96.6px full-health 회피; console/network error 0 |
 | Task 9 전투 반응음·쿨다운 | #522 / #523 | `1743c36` | unit 577/577, integration 126/126, functional 1/1, quick/full, Codex P2 gesture gate 해결·latest-head CI green | release WebGL2 gesture 전 WAITING/READY 없음→gesture 후 multi-hit 3체/accepted 3/player 3, reaction mix player 3; deterministic -5.9/-2.4dBFS, console/network error 0 |
 | Task 10 플레이어 피격 비네트 | #524 / #525 | `57c3f94` | unit 582/582, integration 127/127; damage/heal/critical/off-on/pause/exit·max-health reset·실시간 fade·full payload·signal lifecycle 회귀 | release WebGL2 11 mode valid; fade midpoint alpha 0.258·pause 후 alpha 0·max reset pulse false; layer5/mouse-ignore, settings actual rect safe, console/network error 0 |
-| Task 11 일반 타격 히트스톱 | #526 / PR 준비 | 검증 대상 | unit 592/592, integration 128/128; 5종 적 applied delta·player accepted/rejected/lethal·mixed target·parry priority·session cleanup 회귀 | release WebGL2 8 mode valid; normal 0.03/0.15, power 0.06/0.08, hurt 0.05/0.10+vignette, reject 0회, parry 0.10/0.05, recovery 106.9ms·lethal/exit scale 1.0 |
+| Task 11 일반 타격 히트스톱 | #526 / #527 | `0db03b0` | unit 592/592, integration 128/128; 5종 적 applied delta·player accepted/rejected/lethal·mixed target·parry priority·session cleanup 회귀 | release WebGL2 8 mode valid; normal 0.03/0.15, power 0.06/0.08, hurt 0.05/0.10+vignette, reject 0회, parry 0.10/0.05, recovery 106.9ms·lethal/exit scale 1.0 |
+| Task 12 데미지 숫자·표시 설정 | #528 / PR 준비 | 검증 대상 | unit 598/598, integration 130/130; ordinary/power/player/Yokai exact delta·text-before-hitstop·20 cap·expiry reuse·OFF no-acquire·cleanup 회귀 | release WebGL2 8 mode valid; white 2/yellow 3/red 2, HUD anchor (312,96), active20, reuse same node, disabled/rejected 0, settings safe+content fit |
 
 ## 장부 유지 규칙
 

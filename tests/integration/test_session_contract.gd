@@ -574,7 +574,13 @@ func test_session_actual_parry_presents_every_feedback_surface_once() -> void:
 	AudioManager.reset()
 	actor.call("_attack_melee", Vector2.RIGHT)
 
-	_runner.assert_eq(PoolManager.get_active_count(&"floating_combat_text"), 1, "actual parry spawns one floating text")
+	_runner.assert_eq(PoolManager.get_active_count(&"floating_combat_text"), 2, "actual parry spawns parry copy and accepted damage text")
+	var active_texts: Array = (PoolManager.get("_active") as Dictionary).get(&"floating_combat_text", [])
+	var active_styles: Array[StringName] = []
+	for text_node: Node in active_texts:
+		active_styles.append(StringName((text_node.call("get_snapshot") as Dictionary).get("style", &"")))
+	_runner.assert_true(active_styles.has(&"parry"), "actual parry keeps the dedicated parry copy")
+	_runner.assert_true(active_styles.has(&"ordinary"), "actual parry also shows its accepted ordinary damage")
 	_runner.assert_true(HitStopManager.is_active(), "actual parry starts hit stop")
 	_runner.assert_true(is_equal_approx(HitStopManager.get_remaining_real_seconds(), 0.10), "general melee request cannot shorten the active parry duration")
 	_runner.assert_true(is_equal_approx(HitStopManager.get_active_scale(), 0.05), "general melee request cannot weaken the active parry scale")
@@ -849,6 +855,60 @@ func test_cleanup_allows_next_session_to_rebuild_full_combat_text_pool() -> void
 	next_session.queue_free()
 
 
+func test_session_damage_text_pool_caps_reuses_and_respects_setting() -> void:
+	var session := (load("res://scenes/session/session_root.tscn") as PackedScene).instantiate()
+	add_child(session)
+	_runner.assert_true(session.has_method("spawn_combat_text"), "session exposes shared combat text spawning")
+	if not session.has_method("spawn_combat_text"):
+		session.queue_free()
+		return
+	_runner.assert_eq(PoolManager.get_available_count(&"floating_combat_text"), 20, "session starts with the shared 20-slot pool")
+	for index: int in range(20):
+		_runner.assert_true(bool(session.call("spawn_combat_text", Vector2(float(index), 0.0), str(index), &"ordinary")), "slot %d is acquired" % index)
+	_runner.assert_eq(PoolManager.get_active_count(&"floating_combat_text"), 20, "all 20 shared slots can become active")
+	_runner.assert_false(bool(session.call("spawn_combat_text", Vector2.ZERO, "overflow", &"ordinary")), "21st concurrent text is rejected")
+	_runner.assert_eq(PoolManager.get_active_count(&"floating_combat_text"), 20, "overflow rejection does not allocate")
+	_runner.assert_eq(PoolManager.get_available_count(&"floating_combat_text"), 0, "overflow rejection leaves no hidden allocation")
+	var active_nodes: Array = (PoolManager.get("_active") as Dictionary).get(&"floating_combat_text", [])
+	var expired := active_nodes[0] as Node
+	expired.call("_on_lifetime_finished", int(expired.get("_activation_generation")))
+	_runner.assert_eq(PoolManager.get_active_count(&"floating_combat_text"), 19, "expired text releases one active slot")
+	_runner.assert_true(bool(session.call("spawn_combat_text", Vector2.ONE, "reused", &"power")), "21st sequential text reuses the expired slot")
+	_runner.assert_true((PoolManager.get("_active") as Dictionary).get(&"floating_combat_text", []).has(expired), "expired node instance is reused")
+	Settings.set_value("damage_numbers_enabled", false)
+	var active_before_disabled := PoolManager.get_active_count(&"floating_combat_text")
+	var available_before_disabled := PoolManager.get_available_count(&"floating_combat_text")
+	_runner.assert_false(bool(session.call("spawn_combat_text", Vector2.ZERO, "disabled", &"ordinary")), "disabled setting rejects text")
+	_runner.assert_eq(PoolManager.get_active_count(&"floating_combat_text"), active_before_disabled, "disabled rejection does not acquire an active node")
+	_runner.assert_eq(PoolManager.get_available_count(&"floating_combat_text"), available_before_disabled, "disabled rejection does not consume an available node")
+	session.queue_free()
+
+
+func test_session_player_damage_text_appears_beside_health_hud() -> void:
+	var session := (load("res://scenes/session/session_root.tscn") as PackedScene).instantiate()
+	add_child(session)
+	_runner.assert_true(session.has_method("spawn_combat_text"), "session exposes combat text spawning")
+	if not session.has_method("spawn_combat_text"):
+		session.queue_free()
+		return
+	var actor := session.get_node("%Player") as Node
+	actor.call("take_damage", 2)
+	_runner.assert_eq(PoolManager.get_active_count(&"floating_combat_text"), 1, "accepted player damage spawns one text")
+	var active_nodes: Array = (PoolManager.get("_active") as Dictionary).get(&"floating_combat_text", [])
+	if active_nodes.is_empty():
+		session.queue_free()
+		return
+	var text_node := active_nodes[0] as Node2D
+	var snapshot: Dictionary = text_node.call("get_snapshot")
+	_runner.assert_eq(snapshot.get("text"), "2", "player damage text uses the exact accepted delta")
+	_runner.assert_eq(snapshot.get("style"), &"player_damage", "player damage uses the red HUD style")
+	var health_panel := session.get_node("%CombatHud").get_node("Root/HealthPanel") as Control
+	var expected_screen_position := Vector2(health_panel.get_global_rect().end.x + 24.0, health_panel.get_global_rect().get_center().y)
+	var actual_screen_position: Vector2 = get_viewport().get_canvas_transform() * text_node.global_position
+	_runner.assert_true(actual_screen_position.distance_to(expected_screen_position) < 1.0, "player damage text is anchored beside the health HUD")
+	session.queue_free()
+
+
 func _new_onboarding_cleanup_session(source: String) -> Node:
 	GameManager.start_session({
 		"source": source,
@@ -941,6 +1001,7 @@ func _assert_all_onboarding_cleanup_state(session: Node, fixture: Dictionary, pa
 	_runner.assert_true(touch_controls.visible, "%s restores the session-start touch visibility" % path_name)
 	_runner.assert_false(bool(session_ui.call("get_onboarding_journey_hint_snapshot").get("visible")), "%s hides contextual onboarding UI" % path_name)
 	_runner.assert_false(actor.is_connected(&"parry_succeeded", Callable(session, "_on_player_parry_succeeded")), "%s disconnects late parry success callbacks" % path_name)
+	_runner.assert_false(actor.is_connected(&"combat_text_requested", Callable(session, "_on_actor_combat_text_requested")), "%s disconnects late combat text callbacks" % path_name)
 	_runner.assert_eq(get_tree().paused, expected_paused, "%s leaves the intended pause state" % path_name)
 
 

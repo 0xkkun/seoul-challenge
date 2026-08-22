@@ -73,10 +73,18 @@ text = "설정"
 horizontal_alignment = 1
 vertical_alignment = 1
 
-[node name="Rows" type="VBoxContainer" parent="Root/Panel/Margin/Stack"]
+[node name="RowsScroll" type="ScrollContainer" parent="Root/Panel/Margin/Stack"]
+custom_minimum_size = Vector2(0, 284)
+layout_mode = 2
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+vertical_scroll_mode = 2
+
+[node name="Rows" type="VBoxContainer" parent="Root/Panel/Margin/Stack/RowsScroll"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_constants/separation = 6
+size_flags_horizontal = 3
+theme_override_constants/separation = 4
 
 [node name="CloseButton" type="Button" parent="Root/Panel/Margin/Stack"]
 unique_name_in_owner = true
