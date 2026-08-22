@@ -5,6 +5,7 @@ extends Node
 const HUB_DIALOGUE_SCENE := preload("res://scenes/ui/hub_dialogue_ui.tscn")
 const PalaceBossIntro := preload("res://resources/dialogue/palace_boss_intro.gd")
 const BOSS_TEXTURE := preload("res://resources/dialogue/gyeongbokgung_boss_portrait.tres")
+const InputPromptPolicy := preload("res://scripts/ui/input_prompt_policy.gd")
 
 var _runner: Node
 var _ui
@@ -104,7 +105,7 @@ func test_battle_dialogue_advances_on_tap_to_continue() -> void:
 	var portrait_scale: Vector2 = beat["portrait_scale"]
 	_ui.set_dialogue("도깨비왕", String(beat["text"]), "", _ui.PORTRAIT_COLOR, BOSS_TEXTURE, 0, false)
 	_ui.set_portrait_layout(portrait_scale, float(beat["portrait_y"]))
-	var choices: Array[Dictionary] = [{"id": &"continue", "tap_to_continue": true, "text": _ui.CONTINUE_HINT_TOUCH}]
+	var choices: Array[Dictionary] = [{"id": &"continue", "tap_to_continue": true, "text": InputPromptPolicy.continue_hint(&"touch")}]
 	_ui.set_choices(choices)
 	_runner.assert_eq(_ui.get_portrait_position().y, PalaceBossIntro.BOSS_PORTRAIT_Y, "보스 대화 포트레이트는 전용 y 위치를 적용한다")
 	_runner.assert_true(_ui.is_tap_to_continue_active(), "탭하여계속이 활성화돼 시그널이 방출될 수 있다(없으면 소프트락)")

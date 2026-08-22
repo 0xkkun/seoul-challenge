@@ -17,7 +17,6 @@ const UNLOCK_POPUP_CENTER_OFFSET := Vector2(0.0, -58.0)
 const DIALOGUE_LINE_SEPARATION := 7
 const DEFAULT_PORTRAIT_SCALE := Vector2(2.55, 2.55)
 const DEFAULT_PORTRAIT_Y := 173.0
-const CONTINUE_HINT_TOUCH := "탭하여 계속"
 const CHOICE_ASK := &"ask"
 const CHOICE_ACCEPT := &"accept"
 const STAGE_STATE_COMPLETED := "completed"

@@ -215,5 +215,5 @@ columns = 2
 [node name="UnlockContinueHint" type="Label" parent="Root/UnlockOverlay/UnlockPopup/PopupMargin/PopupStack"]
 unique_name_in_owner = true
 layout_mode = 2
-text = "▼ 탭하여 계속 ▼"
+text = "계속"
 horizontal_alignment = 1

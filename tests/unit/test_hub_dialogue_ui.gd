@@ -6,6 +6,7 @@ const HUB_DIALOGUE_SCRIPT := preload("res://scripts/ui/hub_dialogue_ui.gd")
 const MobileSafeArea := preload("res://scripts/ui/mobile_safe_area.gd")
 const PEOPLE2_TEXTURE := preload("res://assets/characters/school/people2.png")
 const INPUT_PROMPT_POLICY_PATH := "res://scripts/ui/input_prompt_policy.gd"
+const PromptPolicy := preload("res://scripts/ui/input_prompt_policy.gd")
 
 var _runner: Node
 # HubDialogueUi 글로벌 클래스 등록(에디터 import) 순서에 의존하지 않도록 타입 주석 없이 둔다.
@@ -173,7 +174,7 @@ func test_nameplate_does_not_overlap_stage_row() -> void:
 
 func test_choice_buttons_keep_mobile_touch_size() -> void:
 	var choices: Array[Dictionary] = [
-		{"id": &"next", "text": HUB_DIALOGUE_SCRIPT.CONTINUE_HINT_TOUCH, "tap_to_continue": true, "test_id": "dialogue.next_button", "uat_action": "dialogue.next"},
+		{"id": &"next", "text": PromptPolicy.continue_hint(&"touch"), "tap_to_continue": true, "test_id": "dialogue.next_button", "uat_action": "dialogue.next"},
 		{"id": &"close", "text": "나가기", "emphasized": true, "test_id": "dialogue.close_button", "uat_action": "dialogue.close"},
 	]
 	_ui.set_choices(choices)
@@ -192,7 +193,7 @@ func test_tap_to_continue_choice_advances_from_any_dialogue_tap() -> void:
 	_ui.choice_selected.connect(func(choice_id: StringName) -> void: selected_ids.append(choice_id))
 	_ui.visible = true
 	var choices: Array[Dictionary] = [
-		{"id": &"next", "text": HUB_DIALOGUE_SCRIPT.CONTINUE_HINT_TOUCH, "tap_to_continue": true},
+		{"id": &"next", "text": PromptPolicy.continue_hint(&"touch"), "tap_to_continue": true},
 	]
 	_ui.set_choices(choices)
 
