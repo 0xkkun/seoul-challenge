@@ -73,6 +73,8 @@ Tasks 7 and 8 both affect difficulty. Do not combine them; play and merge Task 7
 - Produces: `NightIntroCutscene.should_advance_line(narration_started: bool, narration_playing: bool, line_elapsed: float, narration_finished_elapsed: float, user_requested: bool) -> bool`.
 - Produces: `NightIntroCutscene.get_skip_button_reference_rect() -> Rect2` for
   safe-area/UAT assertions at the canonical 960x540 viewport.
+- Produces: `NightIntroCutscene.get_advance_hint_reference_rect() -> Rect2` for
+  the same mobile safe-area contract.
 - Preserves: `NightIntroCutscene.finished`, `skip()`, `HubDialogueUi` choice ids and UAT metadata.
 
 - [ ] **Step 1: Create the platform-copy RED tests**
@@ -187,6 +189,11 @@ at 960x540. Add a real-control unit assertion that
 `MobileSafeArea.meets_landscape_minimum(get_skip_button_reference_rect())` is
 true; do not validate this by source-text grep.
 
+Re-anchor `AdvanceHint` to a fixed bottom-right rect as well and apply at least
+`right=60` and `bottom=34`. Assert
+`MobileSafeArea.meets_landscape_minimum(get_advance_hint_reference_rect())`;
+the current 0.975 bottom anchor leaves only 13.5px and must not survive.
+
 - [ ] **Step 7: Replace every runtime continue hint**
 
 Use `InputPromptPolicy.continue_hint(InputPromptPolicy.input_mode_from_features(PlatformManager.get_feature_flags()))` in:
@@ -224,7 +231,8 @@ Export release Web and serve it locally. In fresh browser contexts verify:
 - PC 960x540 and 1920x900 display `클릭하여 계속`.
 - Mobile Web 960x540 displays `탭하여 계속`.
 - Mobile Web 960x540 keeps the visible `건너뛰기` button at least 24px from the
-  top and 60px from the right; assert its rect and capture it.
+  top and 60px from the right, and `탭하여 계속` at least 60px from the right
+  and 34px above the bottom; assert both real rects and capture them together.
 - No input: normal and autoplay-blocked fixtures reach the lobby/session within 30 seconds.
 - A stuck-audio fixture reaches the lobby/session within 45 seconds.
 - No fully black frame persists longer than 1.5 seconds.
