@@ -1,6 +1,6 @@
 # 2026-08-21 개선 명세 반영 현황
 
-기준 코드: `origin/main@839281ec` + #518 검증 대상
+기준 코드: `origin/main@040276e` + #520 검증 대상
 사용자 제공 자료: `요괴뎐_개선안_2026-08-21`
 프로그램 설계: `docs/superpowers/specs/2026-08-22-first-five-minutes-onboarding-design.md`
 시각 재설계: `docs/superpowers/specs/2026-08-22-onboarding-coachmark-redesign.md`
@@ -111,7 +111,7 @@
 
 | ID | 상태 | 현재 근거 | 다음 계약 |
 |---|---|---|---|
-| M6a 악귀 90→140 | 미구현 | `chaser.gd move_speed=90` | 웨이브와 별도 밸런스 PR |
+| M6a 악귀 90→140 | 완료 | #520에서 기본·AkGwi scene 140, 첫 야구부장 전투만 명시적 92; regular/teaching 실스폰·접촉 시간 회귀 | 일반 방 override 누락과 온보딩 92 예외 회귀 유지 |
 | M1a treasure index 복구 | 완료 | authored layout에 `treasure_1` 존재 | 회귀 유지 |
 | M1b 보물방 scene 배선 | 완료 | `treasure_room.tscn` 사용 | 회귀 유지 |
 | M3a 클리어 시간 측정 | 미구현 | run duration 계측 없음 | 맵 밸런스 PR |
@@ -145,8 +145,8 @@
 | Q2b 온보딩 시각 재설계 (완료) | #513에서 첫 조작·objective·reward·정화·패링·인트로를 diegetic coachmark로 통일 | #513/#514 merge `e424012`; unit 544/544, integration 116/116, release Web 12 mode, Design C→A |
 | Q3 패링 학습·성공 피드백 (완료) | #510에서 반복 가능한 첫 늑대 학습 완료; #512에서 F2, F4, S7, T1, T2, T6 완성 | #510/#511 merge `76301ed`; #512/#515 merge `ab2ec465`; coverage 100%, release Web 5상태 UAT |
 | Q4 안정성 (완료) | #516에서 B1, B3, B4 구현 | #516/#517 merge `839281ec`; unit 560/560, integration 125/125, coverage 100%, release Web 5상태 |
-| Q5 전투 흐름 (진행 중) | #518에서 L1 구현 | 6/2·5/2 partition unit, second-wave wolf event, performance 4/4; authored combat_2 Web UAT 예정 |
-| Q6 적 압박 | M6a | 악귀 단독 변경 전후 encounter UAT |
+| Q5 전투 흐름 (완료) | #518에서 L1 구현 | #518/#519 merge `040276e`; 6/2·5/2 partition, failed-batch recovery, authored combat_2 release Web UAT |
+| Q6 적 압박 (진행 중) | #520에서 M6a 구현 | baseline 90/serialized 92 RED → 일반 140·온보딩 92; release Web 첫 접촉 1.717s/2.617s, keyboard 99.4px·touch 96.6px 무피격 회피 |
 | Q7 전투 반응 | S1, S3, S4, F7 | cooldown·asset·피격 시청각 테스트와 Web UAT |
 | Q8 일반 타격 정보 | F3, T3, T4 | hitstop 복구·20 cap·설정 토글 테스트 |
 
@@ -161,6 +161,8 @@
 | Task 4b 온보딩 코치마크 시각 재설계 | #513 / #514 | `e424012` | unit 544/544, integration 116/116, quick/full, PR UI capture·Quick·Rooms·Web Preview green, Challenger/Codex issue 0 + 👍 | release WebGL2 12 mode, Design C→A, AI slop C→A, console error 0 |
 | Task 5 패링 성공 피드백 | #512 / #515 | `ab2ec465` | unit 559/559, integration 120/120, functional 1/1, coverage 100%, PR UI capture·Quick·Rooms·Web Preview green, Codex P2 RED→GREEN + latest-head major issue 0 | release WebGL2 before/impact/recovery/repeated/teardown; impact camera `(-7, 0)`, console/network error 0 |
 | Task 6 포탈 재시도·온보딩 종료 정리 | #516 / #517 | `839281ec` | unit 560/560, integration 125/125, functional 1/1, coverage 100%, PR UI capture·Quick·Rooms·Web Preview green, Challenger 0, Codex latest-head major issue 0 | release WebGL2 portal blocked/retry·death before/after·next session; console/network error 0 |
+| Task 7 실제 순차 전투 웨이브 | #518 / #519 | `040276e` | unit 565/565, integration 125/125, performance 5/5, quick/full, latest-head CI·Codex green | release WebGL2 wave one/two/cleared; 3+3 spawn event 보존, console/network error 0 |
+| Task 8 악귀 추적 압박 | #520 / PR 준비 | 검증 대상 | unit 568/568, integration 126/126, performance 5/5, functional 1/1, quick/full; 기본 140·온보딩 92·elite 배율·음수/비유한 override 회귀 | release WebGL2 PC 1280x720/mobile 960x540; 일반 1.717s·온보딩 2.617s 첫 접촉 health 4; physical keyboard 99.4px·touch drag 96.6px full-health 회피; console/network error 0 |
 
 ## 장부 유지 규칙
 

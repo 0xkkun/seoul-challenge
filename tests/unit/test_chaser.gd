@@ -27,6 +27,26 @@ func test_chase_points_toward_target() -> void:
 	e.free()
 
 
+func test_default_chaser_pressure_is_140_without_changing_chase_math() -> void:
+	var enemy = ChaserScene.instantiate()
+	_runner.assert_eq(enemy.move_speed, 140.0, "기본 체이서 추적 압박은 140px/s")
+	var velocity: Vector2 = enemy.chase_velocity(
+		Vector2.ZERO,
+		Vector2(300.0, 400.0),
+		enemy.move_speed
+	)
+	_runner.assert_true(
+		is_equal_approx(velocity.length(), 140.0),
+		"기본 추적 벡터는 상향된 속도로 정규화된다"
+	)
+	_runner.assert_eq(
+		enemy.chase_velocity(Vector2.ZERO, Vector2.RIGHT * 20.0, enemy.move_speed, enemy.contact_range),
+		Vector2.ZERO,
+		"추적 압박을 높여도 접촉 거리 안 정지 계약은 유지된다"
+	)
+	enemy.free()
+
+
 func test_chase_zero_on_same_position() -> void:
 	var e = ChaserScene.instantiate()
 	var v: Vector2 = e.chase_velocity(Vector2(5.0, 5.0), Vector2(5.0, 5.0), 50.0)

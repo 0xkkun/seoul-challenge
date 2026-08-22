@@ -48,6 +48,7 @@ signal enemy_spawned(enemy: Node, enemy_type: StringName, wave_index: int)
 @export_range(0, 6, 1) var elite_contact_damage_bonus := 1
 @export_range(0.0, 2.0, 0.05) var spawn_fade_time := 0.35
 
+var chaser_speed_override := 0.0
 var _combat_started := false
 var _combat_resolved := false
 var _active_enemies: Array[Node] = []
@@ -86,6 +87,7 @@ func apply_room_config(config: Dictionary) -> void:
 	elite_ranged_count = _config_count(config, "elite_ranged_count", elite_ranged_count)
 	elite_wolf_count = _config_count(config, "elite_wolf_count", elite_wolf_count)
 	wave_count = _config_wave_count(config, "wave_count", wave_count)
+	chaser_speed_override = _config_positive_float(config, "chaser_speed_override")
 
 
 func get_encounter_summary() -> Dictionary:
@@ -247,6 +249,7 @@ func _spawn_enemy_instance(
 	if not enemy is Node2D:
 		enemy.queue_free()
 		return
+	_apply_chaser_speed_override(enemy, enemy_type)
 	_apply_enemy_variant(enemy, elite_variant)
 	_enemy_layer.add_child(enemy)
 	enemy.name = "%s%d" % [name_prefix, sequence + 1]
@@ -258,6 +261,13 @@ func _spawn_enemy_instance(
 	_connect_enemy(enemy)
 	_active_enemies.append(enemy)
 	enemy_spawned.emit(enemy, enemy_type, _waves_spawned)
+
+
+func _apply_chaser_speed_override(enemy: Node, enemy_type: StringName) -> void:
+	if enemy_type != &"chaser" or chaser_speed_override <= 0.0:
+		return
+	if _has_property(enemy, "move_speed"):
+		enemy.set("move_speed", chaser_speed_override)
 
 
 func _apply_enemy_variant(enemy: Node, elite_variant: bool) -> void:
@@ -356,6 +366,13 @@ func _config_wave_count(config: Dictionary, key: String, fallback: int) -> int:
 	if not config.has(key):
 		return fallback
 	return clampi(int(config[key]), 1, 5)
+
+
+func _config_positive_float(config: Dictionary, key: String) -> float:
+	var value := float(config.get(key, 0.0))
+	if not is_finite(value) or value <= 0.0:
+		return 0.0
+	return value
 
 
 func _set_int_property(node: Node, property_name: String, value: int) -> void:

@@ -14,7 +14,7 @@ const FACING_DEADZONE := 0.01
 signal defeated(enemy)
 
 @export var max_hp: int = 3
-@export var move_speed: float = 90.0       ## 추적 속도 (px/s)
+@export var move_speed: float = 140.0      ## 추적 속도 (px/s)
 @export var contact_damage: int = 1        ## 접촉 시 플레이어 피해
 @export var contact_range: float = 28.0    ## 접촉 판정 거리 (px)
 @export var contact_cooldown: float = 0.6  ## 접촉 데미지 간격 (s)

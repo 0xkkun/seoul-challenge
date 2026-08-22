@@ -153,7 +153,45 @@ func test_session_root_uses_three_room_baseball_onboarding_layout() -> void:
 	_runner.assert_eq((manager.layout.get_room(&"combat_1") as RoomDef).room_type, RoomLayout.TYPE_COMBAT, "middle onboarding room teaches combat")
 	_runner.assert_eq((manager.layout.get_room(&"friend_1") as RoomDef).room_type, RoomLayout.TYPE_FRIEND, "final onboarding room is the purification target")
 	_runner.assert_eq((manager.layout.get_room(&"combat_1") as RoomDef).room_config.get("chaser_count", -1), 1, "onboarding combat keeps one close-range enemy")
+	_runner.assert_eq((manager.layout.get_room(&"combat_1") as RoomDef).room_config.get("chaser_speed_override", -1.0), 92.0, "onboarding authors its softer teaching pressure explicitly")
 	_runner.assert_false(actor.call("has_bat"), "onboarding starts before the bat reward is claimed")
+	_runner.assert_true(manager.enter_room(&"combat_1"), "onboarding fixture enters its authored combat room")
+	var onboarding_enemies: Array = manager.current_room.call("get_active_enemies")
+	_runner.assert_eq(onboarding_enemies.size(), 1, "onboarding combat spawns one real enemy")
+	if onboarding_enemies.size() == 1:
+		_runner.assert_eq(onboarding_enemies[0].move_speed, 92.0, "onboarding real spawn uses the 92px/s teaching override")
+
+	session.queue_free()
+
+
+func test_regular_session_combat_inherits_calibrated_chaser_speed() -> void:
+	GameManager.start_session({
+		"source": "regular_chaser_pressure_test",
+		SceneTransition.RUN_CONFIG_LAYOUT_SEED: 520,
+	})
+	var packed := load("res://scenes/session/session_root.tscn") as PackedScene
+	var session := packed.instantiate()
+	add_child(session)
+
+	var manager := session.get_node("%RoomManager") as RoomManager
+	var combat_def: RoomDef = null
+	for room_def: RoomDef in manager.layout.room_defs:
+		if (
+			room_def.room_type == RoomLayout.TYPE_COMBAT
+			and int(room_def.room_config.get("chaser_count", 0)) > 0
+		):
+			combat_def = room_def
+			break
+	_runner.assert_not_null(combat_def, "regular generated session has a chaser combat room")
+	if combat_def == null:
+		session.queue_free()
+		return
+	_runner.assert_false(combat_def.room_config.has("chaser_speed_override"), "regular session omits the teaching-only speed override")
+	_runner.assert_true(manager.enter_room(combat_def.room_id), "regular session enters the real combat room")
+	var regular_chaser := _first_enemy_named(manager.current_room, "Akgwi")
+	_runner.assert_not_null(regular_chaser, "regular session spawns a real AkGwi")
+	if regular_chaser != null:
+		_runner.assert_eq(regular_chaser.get("move_speed"), 140.0, "regular session real spawn inherits the 140px/s default")
 
 	session.queue_free()
 
