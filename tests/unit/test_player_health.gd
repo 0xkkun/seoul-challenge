@@ -5,6 +5,7 @@ extends Node
 const PlayerScript := preload("res://scripts/player/player.gd")
 const PlayerScene := preload("res://scenes/player/player.tscn")
 const L_MEDIUM := 1
+const DAMAGE_VIGNETTE_SCRIPT_PATH := "res://scripts/ui/damage_vignette.gd"
 
 var _runner: Node
 
@@ -35,6 +36,53 @@ func test_damaged_health_clamps_to_zero() -> void:
 	_runner.assert_eq(p.damaged_health(5, 2), 3, "5-2=3")
 	_runner.assert_eq(p.damaged_health(1, 5), 0, "0 미만은 클램프")
 	p.free()
+
+
+func test_damage_vignette_distinguishes_damage_heal_and_low_health() -> void:
+	_runner.assert_true(ResourceLoader.exists(DAMAGE_VIGNETTE_SCRIPT_PATH), "damage vignette script exists")
+	if not ResourceLoader.exists(DAMAGE_VIGNETTE_SCRIPT_PATH):
+		return
+	Settings.reset_defaults()
+	var vignette: Node = (load(DAMAGE_VIGNETTE_SCRIPT_PATH) as Script).new()
+	add_child(vignette)
+	vignette.call("on_health_changed", 5, 5)
+	vignette.call("on_health_changed", 3, 5)
+	_runner.assert_true(bool(vignette.call("get_snapshot")["damage_pulse_active"]), "damage pulses red")
+	vignette.call("on_health_changed", 1, 5)
+	_runner.assert_true(bool(vignette.call("get_snapshot")["low_health_visible"]), "critical health stays visible")
+	vignette.call("on_health_changed", 4, 5)
+	_runner.assert_false(bool(vignette.call("get_snapshot")["low_health_visible"]), "healing clears low-health state")
+	vignette.free()
+	Settings.reset_defaults()
+
+
+func test_damage_vignette_setting_hides_active_states_and_restores_cached_critical_health() -> void:
+	_runner.assert_true(ResourceLoader.exists(DAMAGE_VIGNETTE_SCRIPT_PATH), "damage vignette script exists for setting lifecycle")
+	if not ResourceLoader.exists(DAMAGE_VIGNETTE_SCRIPT_PATH):
+		return
+	Settings.reset_defaults()
+	var vignette: Node = (load(DAMAGE_VIGNETTE_SCRIPT_PATH) as Script).new()
+	var player := PlayerScript.new()
+	add_child(player)
+	add_child(vignette)
+	vignette.call("bind_player", player)
+	vignette.call("on_health_changed", 1, 5)
+	var active: Dictionary = vignette.call("get_snapshot")
+	_runner.assert_true(bool(active["damage_pulse_active"]), "critical damage starts a pulse")
+	_runner.assert_true(bool(active["low_health_visible"]), "critical damage enables persistent edges")
+
+	Settings.call("set_screen_effects_enabled", false)
+	var disabled: Dictionary = vignette.call("get_snapshot")
+	_runner.assert_false(bool(disabled["damage_pulse_active"]), "setting off cancels the active pulse")
+	_runner.assert_false(bool(disabled["low_health_visible"]), "setting off hides low-health state immediately")
+	_runner.assert_eq(float(disabled["pulse_alpha"]), 0.0, "setting off clears rendered pulse alpha")
+
+	Settings.call("set_screen_effects_enabled", true)
+	var restored: Dictionary = vignette.call("get_snapshot")
+	_runner.assert_true(bool(restored["low_health_visible"]), "setting on recomputes critical state from cached health")
+	vignette.free()
+	player.free()
+	Settings.reset_defaults()
 
 
 func test_take_damage_reduces_health() -> void:

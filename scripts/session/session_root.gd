@@ -63,6 +63,7 @@ const ONBOARDING_JOURNEY_PHASES: Array[StringName] = [
 @onready var death_return_controller: DeathReturnController = %DeathReturnController
 @onready var touch_controls: Node = %TouchControls
 @onready var combat_hud: CanvasLayer = %CombatHud
+@onready var damage_vignette: DamageVignette = %DamageVignette
 @onready var session_ui_root: CanvasLayer = %SessionUIRoot
 @onready var ingame_control_onboarding: CanvasLayer = %IngameControlOnboarding
 @onready var purify_onboarding_spotlight: PurifyOnboardingSpotlight = %PurifyOnboardingSpotlight
@@ -128,6 +129,7 @@ func _ready() -> void:
 	_configure_onboarding_journey()
 	AudioManager.play_bgm(AudioManager.NIGHT_RUN_SUSPENSE_BGM)
 	_apply_session_loadout()
+	damage_vignette.bind_player(actor)
 	_connect_player_weapon_events()
 	_sync_combat_hud_health()
 	PoolManager.register_scene(&"sample_marker", POOLED_MARKER_SCENE, 1, pooled_object_layer)

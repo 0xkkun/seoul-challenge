@@ -1,6 +1,6 @@
 # 2026-08-21 개선 명세 반영 현황
 
-기준 코드: `origin/main@5d8bb48` + #522 검증 대상
+기준 코드: `origin/main@1743c36` + #524 검증 대상
 사용자 제공 자료: `요괴뎐_개선안_2026-08-21`
 프로그램 설계: `docs/superpowers/specs/2026-08-22-first-five-minutes-onboarding-design.md`
 시각 재설계: `docs/superpowers/specs/2026-08-22-onboarding-coachmark-redesign.md`
@@ -55,9 +55,9 @@
 | F4 패링 성공 연출 | 완료 | #510의 실제 `parry_succeeded`에 #512가 `텍스트→히트스톱→플래시→셰이크→SFX→햅틱` 고정 순서 연결 | 실전 encounter 회귀 유지 |
 | F5 넉백 트윈 | 미구현 | player가 적 위치를 즉시 대입 | 후순위 PR |
 | F6 적 사망 셰이크·방 클리어 정적 | 미구현 | 공통 death event 없음 | D3 이후 |
-| F7 피격 붉은 비네트 | 미구현 | vignette UI/contract 없음 | 피격 피드백 PR |
-| F7b 저체력 상시 비네트 | 미구현 | low-health screen state 없음 | F7 뒤 |
-| F7c 화면 효과 설정 토글 | 미구현 | settings key/UI 없음 | F7 뒤 |
+| F7 피격 붉은 비네트 | 완료 | #524 실제 Player damage 감소에서 edge pulse, heal/setting/pause/exit lifecycle 회귀 | 일반 hitstop과 동시 조율 유지 |
+| F7b 저체력 상시 비네트 | 완료 | #524 `current/max <= 0.25` persistent edge, heal 해제·setting 재계산 | max-health modifier 회귀 유지 |
+| F7c 화면 효과 설정 토글 | 완료 | #524 full settings snapshot·즉시 tween cancel·5행 mobile-safe SettingsUI | 새 screen effect가 같은 key를 준수 |
 | F8 효과 동시 조율 | 미구현 | hitstop/vignette/combat SFX 기반 자체가 없음 | 관련 축 merge 뒤 UAT |
 
 ## S — 사운드
@@ -147,7 +147,7 @@
 | Q4 안정성 (완료) | #516에서 B1, B3, B4 구현 | #516/#517 merge `839281ec`; unit 560/560, integration 125/125, coverage 100%, release Web 5상태 |
 | Q5 전투 흐름 (완료) | #518에서 L1 구현 | #518/#519 merge `040276e`; 6/2·5/2 partition, failed-batch recovery, authored combat_2 release Web UAT |
 | Q6 적 압박 (완료) | #520에서 M6a 구현 | #520/#521 merge `5d8bb48`; 일반 140·온보딩 92, 첫 접촉 1.717s/2.617s, keyboard 99.4px·touch 96.6px 무피격 회피 |
-| Q7 전투 반응 (진행 중) | #522에서 S1, S3, S4, S5 구현; F7 후속 | cooldown·volume·accepted/rejected event tests와 release Web 2-mode mix UAT |
+| Q7 전투 반응 (진행 중) | #522에서 S1, S3, S4, S5, #524에서 F7/F7b/F7c 구현 | cooldown·volume·damage/critical/settings tests와 release Web mix·vignette UAT |
 | Q8 일반 타격 정보 | F3, T3, T4 | hitstop 복구·20 cap·설정 토글 테스트 |
 
 ## 병합 근거
@@ -163,7 +163,8 @@
 | Task 6 포탈 재시도·온보딩 종료 정리 | #516 / #517 | `839281ec` | unit 560/560, integration 125/125, functional 1/1, coverage 100%, PR UI capture·Quick·Rooms·Web Preview green, Challenger 0, Codex latest-head major issue 0 | release WebGL2 portal blocked/retry·death before/after·next session; console/network error 0 |
 | Task 7 실제 순차 전투 웨이브 | #518 / #519 | `040276e` | unit 565/565, integration 125/125, performance 5/5, quick/full, latest-head CI·Codex green | release WebGL2 wave one/two/cleared; 3+3 spawn event 보존, console/network error 0 |
 | Task 8 악귀 추적 압박 | #520 / #521 | `5d8bb48` | unit 568/568, integration 126/126, performance 5/5, functional 1/1, quick/full, latest-head CI·Codex green | release WebGL2 PC 1280x720/mobile 960x540; 일반 1.717s·온보딩 2.617s 첫 접촉 health 4; physical keyboard 99.4px·touch drag 96.6px full-health 회피; console/network error 0 |
-| Task 9 전투 반응음·쿨다운 | #522 / PR 준비 | 검증 대상 | unit 577/577, integration 126/126, functional 1/1, quick/full; cooldown·reset·volume·gesture gate·모든 accepted/rejected event 회귀 | release WebGL2 gesture 전 WAITING/READY 없음→gesture 후 multi-hit 3체/accepted 3/player 3, reaction mix player 3; deterministic -5.9/-2.4dBFS, console/network error 0 |
+| Task 9 전투 반응음·쿨다운 | #522 / #523 | `1743c36` | unit 577/577, integration 126/126, functional 1/1, quick/full, Codex P2 gesture gate 해결·latest-head CI green | release WebGL2 gesture 전 WAITING/READY 없음→gesture 후 multi-hit 3체/accepted 3/player 3, reaction mix player 3; deterministic -5.9/-2.4dBFS, console/network error 0 |
+| Task 10 플레이어 피격 비네트 | #524 / PR 준비 | 검증 대상 | unit 580/580, integration 127/127; damage/heal/critical/off-on/pause/exit·full payload·signal lifecycle 회귀 | release WebGL2 9 mode valid; layer5/mouse-ignore, settings actual rect safe, console/network error 0 |
 
 ## 장부 유지 규칙
 
