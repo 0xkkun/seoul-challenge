@@ -335,6 +335,34 @@ func test_combat_room_spawn_failures_resolve_without_stuck_pending_state() -> vo
 	_runner.assert_eq(empty_factor_room.call("get_remaining_enemy_count"), before_count, "empty spawn factors reject allocation without tracking a ghost")
 
 
+func test_combat_room_skips_empty_failed_batch_and_spawns_later_valid_wave() -> void:
+	var room := _instantiate_combat_room()
+	if room == null:
+		return
+	room.chaser_scene = null
+	room.call("apply_room_config", {
+		"chaser_count": 1,
+		"ranged_count": 1,
+		"wolf_count": 0,
+		"elite_chaser_count": 0,
+		"elite_ranged_count": 0,
+		"elite_wolf_count": 0,
+		"wave_count": 2,
+	})
+	var spawned_types: Array[StringName] = []
+	room.enemy_spawned.connect(func(_enemy: Node, enemy_type: StringName, _wave_index: int) -> void: spawned_types.append(enemy_type))
+	add_child(room)
+
+	room.enter()
+
+	_runner.assert_false(room.call("is_cleared"), "failed empty batch cannot clear while a valid later entry remains")
+	_runner.assert_eq(room.call("get_remaining_enemy_count"), 1, "later valid wave spawns in the same transition")
+	_runner.assert_eq(room.call("get_wave_snapshot"), {"configured": 2, "spawned": 2, "pending": 0, "active": 1}, "snapshot records the skipped failed batch and valid next batch")
+	_runner.assert_eq(spawned_types, [&"ranged"], "only the valid later entry emits a spawn event")
+	_defeat_active_enemies(room)
+	_runner.assert_true(room.call("is_cleared"), "room clears after the valid later enemy is defeated")
+
+
 func test_restore_cleared_state_discards_partial_wave_tracking() -> void:
 	var room := _instantiate_combat_room()
 	if room == null:

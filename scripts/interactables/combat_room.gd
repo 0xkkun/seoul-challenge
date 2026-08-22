@@ -184,14 +184,15 @@ func _spawn_next_wave() -> void:
 		enemy_count_changed.emit(_active_enemies.size())
 		return
 
-	var waves_left := maxi(1, wave_count - _waves_spawned)
-	var batch_size := ceili(float(_pending_spawn_entries.size()) / float(waves_left))
-	for _index: int in range(batch_size):
-		if _pending_spawn_entries.is_empty():
-			break
-		var entry: Dictionary = _pending_spawn_entries.pop_front()
-		_spawn_enemy_entry(entry)
-	_waves_spawned += 1
+	while _active_enemies.is_empty() and not _pending_spawn_entries.is_empty():
+		var waves_left := maxi(1, wave_count - _waves_spawned)
+		var batch_size := ceili(float(_pending_spawn_entries.size()) / float(waves_left))
+		for _index: int in range(batch_size):
+			if _pending_spawn_entries.is_empty():
+				break
+			var entry: Dictionary = _pending_spawn_entries.pop_front()
+			_spawn_enemy_entry(entry)
+		_waves_spawned += 1
 	enemy_count_changed.emit(_active_enemies.size())
 
 
