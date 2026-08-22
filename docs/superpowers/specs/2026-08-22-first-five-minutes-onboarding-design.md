@@ -1,8 +1,8 @@
 # 첫 5분 완성 프로그램 설계
 
-상태: 사용자 승인됨 (`A 승인`, 2026-08-22)  
-추적 이슈: #502  
-기준 코드: `origin/main@c6a2ac7`  
+상태: 사용자 승인됨 (`A 승인`, 2026-08-22)
+추적 이슈: #502
+기준 코드: `origin/main@c6a2ac7`
 요구사항 장부: `docs/requirements/2026-08-22-improvement-coverage.md`
 
 ## 목표
