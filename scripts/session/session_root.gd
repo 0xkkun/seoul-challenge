@@ -437,6 +437,7 @@ func _build_baseball_onboarding_layout() -> RoomLayout:
 			Vector2i(1, 0),
 			{
 				"chaser_count": 1,
+				"chaser_speed_override": 92.0,
 				"ranged_count": 0,
 				"wolf_count": 0,
 				"elite_chaser_count": 0,

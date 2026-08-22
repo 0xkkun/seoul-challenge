@@ -115,3 +115,28 @@ main scene, restore `project.godot`, then open:
 
 Every valid state prints `UAT_COMBAT_WAVE_READY`. Pass/fail uses the marker and
 browser errors; screenshots are visual evidence only.
+
+## Chaser pressure calibration fixture
+
+Temporarily export with `res://tests/uat/chaser_pressure_web_fixture.tscn` as
+the main scene, restore `project.godot`, then open the regular or teaching mode
+with `uat_chaser_mode=regular|teaching`. Use `uat_chaser_phase=start` for the
+spawn snapshot or `uat_chaser_phase=contact` for the first-contact survival and
+timing sample. Use `uat_chaser_phase=evade` with
+`uat_chaser_input=keyboard|touch` to hold a real movement input until the actor
+moves 96px while surviving the calibrated chaser.
+
+Every valid state prints `UAT_CHASER_PRESSURE_READY` with the spawned speed,
+initial distance, measured and expected contact times, surviving health, and a
+`valid=true` verdict. Pass/fail uses the marker and browser errors; screenshots
+are visual evidence only.
+
+The required release-Web matrix is:
+
+- PC `1280x720`, regular/contact and teaching/contact timing samples.
+- Mobile landscape `960x540`, regular/contact and teaching/contact timing samples.
+- PC regular/evade with a held physical keyboard direction until `>=96px`.
+- Mobile regular/evade with a held touch-joystick drag until `>=96px`.
+
+Both evade runs must keep full health and report `input_active=true`; this proves
+the balance sample remains playable through the actual platform input path.

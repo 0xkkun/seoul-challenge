@@ -171,6 +171,108 @@ func test_combat_room_applies_room_config_and_elite_variants() -> void:
 	_runner.assert_true(elite_chaser_hp > normal_chaser_hp, "elite chaser has more hp than normal chaser")
 
 
+func test_combat_room_applies_optional_chaser_speed_without_weakening_default() -> void:
+	var regular_room := _instantiate_combat_room()
+	if regular_room == null:
+		return
+	regular_room.call("apply_room_config", {
+		"chaser_count": 1,
+		"ranged_count": 0,
+		"wolf_count": 0,
+		"elite_chaser_count": 0,
+		"elite_ranged_count": 0,
+		"elite_wolf_count": 0,
+	})
+	add_child(regular_room)
+	regular_room.enter()
+	var regular_enemies: Array = regular_room.call("get_active_enemies")
+	_runner.assert_eq(regular_enemies.size(), 1, "regular fixture spawns one chaser")
+	if regular_enemies.size() == 1:
+		_runner.assert_eq(regular_enemies[0].move_speed, 140.0, "omitted override inherits the global 140px/s default")
+
+	var teaching_room := _instantiate_combat_room()
+	if teaching_room == null:
+		return
+	teaching_room.call("apply_room_config", {
+		"chaser_count": 1,
+		"ranged_count": 0,
+		"wolf_count": 0,
+		"elite_chaser_count": 0,
+		"elite_ranged_count": 0,
+		"elite_wolf_count": 0,
+		"chaser_speed_override": 92.0,
+	})
+	add_child(teaching_room)
+	teaching_room.enter()
+	var teaching_enemies: Array = teaching_room.call("get_active_enemies")
+	_runner.assert_eq(teaching_enemies.size(), 1, "teaching fixture spawns one chaser")
+	if teaching_enemies.size() == 1:
+		_runner.assert_eq(teaching_enemies[0].move_speed, 92.0, "positive override softens only the authored teaching room")
+
+	var elite_teaching_room := _instantiate_combat_room()
+	if elite_teaching_room == null:
+		return
+	elite_teaching_room.call("apply_room_config", {
+		"chaser_count": 0,
+		"ranged_count": 0,
+		"wolf_count": 0,
+		"elite_chaser_count": 1,
+		"elite_ranged_count": 0,
+		"elite_wolf_count": 0,
+		"chaser_speed_override": 92.0,
+	})
+	add_child(elite_teaching_room)
+	elite_teaching_room.enter()
+	var elite_teaching_enemies: Array = elite_teaching_room.call("get_active_enemies")
+	_runner.assert_eq(elite_teaching_enemies.size(), 1, "elite teaching fixture spawns one chaser")
+	if elite_teaching_enemies.size() == 1:
+		_runner.assert_true(
+			is_equal_approx(elite_teaching_enemies[0].move_speed, 92.0 * elite_teaching_room.elite_speed_multiplier),
+			"elite multiplier remains layered on top of the authored base speed"
+		)
+
+	var invalid_room := _instantiate_combat_room()
+	if invalid_room == null:
+		return
+	invalid_room.call("apply_room_config", {
+		"chaser_count": 1,
+		"ranged_count": 0,
+		"wolf_count": 0,
+		"elite_chaser_count": 0,
+		"elite_ranged_count": 0,
+		"elite_wolf_count": 0,
+		"chaser_speed_override": 0.0,
+	})
+	add_child(invalid_room)
+	invalid_room.enter()
+	var invalid_enemies: Array = invalid_room.call("get_active_enemies")
+	_runner.assert_eq(invalid_enemies.size(), 1, "nonpositive override fixture still spawns")
+	if invalid_enemies.size() == 1:
+		_runner.assert_eq(invalid_enemies[0].move_speed, 140.0, "nonpositive override cannot weaken the global default")
+
+
+func test_combat_room_rejects_negative_and_nonfinite_chaser_speed_overrides() -> void:
+	for invalid_override: float in [-12.0, INF, NAN]:
+		var room := _instantiate_combat_room()
+		if room == null:
+			return
+		room.call("apply_room_config", {
+			"chaser_count": 1,
+			"ranged_count": 0,
+			"wolf_count": 0,
+			"elite_chaser_count": 0,
+			"elite_ranged_count": 0,
+			"elite_wolf_count": 0,
+			"chaser_speed_override": invalid_override,
+		})
+		add_child(room)
+		room.enter()
+		var enemies: Array = room.call("get_active_enemies")
+		_runner.assert_eq(enemies.size(), 1, "invalid override fixture still spawns one chaser")
+		if enemies.size() == 1:
+			_runner.assert_eq(enemies[0].move_speed, 140.0, "negative and nonfinite overrides inherit the global default")
+
+
 func test_combat_room_does_not_emit_ingame_rewards_for_enemy_defeats_and_clear() -> void:
 	var room := _instantiate_combat_room()
 	if room == null:

@@ -124,6 +124,9 @@ func test_two_wave_spawn_and_resolve_stays_under_budget() -> void:
 	add_child(room)
 	var started_at := Time.get_ticks_usec()
 	room.enter()
+	for enemy: Node in room.get_active_enemies():
+		if String(enemy.name).contains("Akgwi"):
+			_runner.assert_eq(enemy.get("move_speed"), 140.0, "performance fixture exercises calibrated regular chasers")
 	_defeat_all_combat_waves(room)
 	var elapsed := Time.get_ticks_usec() - started_at
 

@@ -142,3 +142,6 @@ func test_combat_room_uses_akgwi_as_default_melee_enemy() -> void:
 	var room := (load(COMBAT_ROOM_SCENE_PATH) as PackedScene).instantiate()
 	add_child(room)
 	_runner.assert_eq(room.chaser_scene.resource_path, AKGWI_SCENE_PATH, "combat room default melee enemy is akgwi")
+	var enemy := (load(AKGWI_SCENE_PATH) as PackedScene).instantiate()
+	_runner.assert_eq(enemy.move_speed, 140.0, "akgwi scene inherits the calibrated chaser default")
+	enemy.free()
