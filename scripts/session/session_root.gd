@@ -1,5 +1,7 @@
 extends Node2D
 
+signal minimap_expanded_changed(expanded: bool)
+
 const RenderLayers = preload("res://scripts/constants/render_layers.gd")
 const POOLED_MARKER_SCENE = preload("res://scenes/interactables/sample_pooled_marker.tscn")
 const BOSS_SCENE = preload("res://scenes/enemies/boss.tscn")
@@ -37,6 +39,8 @@ const PURIFY_ONBOARDING_INTRO_MESSAGE := "요괴에 씌인 친구를 정화시�
 const PURIFY_ONBOARDING_GROGGY_MESSAGE := "친구에게 다가가면 정화의식이 시작돼요!"
 const PURIFY_ONBOARDING_TARGET_SIZE := Vector2(148.0, 170.0)
 const PURIFY_ONBOARDING_TARGET_OFFSET := Vector2(0.0, -54.0)
+const UAT_ACTION_MINIMAP_EXPAND := "session.minimap.expand"
+const UAT_ACTION_SKIP_GUIDANCE := "onboarding.skip_guidance"
 
 @onready var world_layer: Node2D = $WorldLayer
 @onready var room_layer: Node2D = %RoomLayer
@@ -161,7 +165,14 @@ func _configure_ingame_control_onboarding() -> void:
 	if ingame_control_onboarding == null:
 		return
 	if ingame_control_onboarding.has_method("configure"):
-		ingame_control_onboarding.call("configure", touch_controls, player_camera, actor)
+		ingame_control_onboarding.call("configure", touch_controls, player_camera, actor, _minimap)
+	if ingame_control_onboarding.has_signal("gate_released"):
+		var gate_callback := Callable(self, "_on_ingame_control_gate_released")
+		if not ingame_control_onboarding.is_connected("gate_released", gate_callback):
+			ingame_control_onboarding.connect("gate_released", gate_callback)
+	var minimap_callback := Callable(self, "_on_minimap_expanded_changed")
+	if not minimap_expanded_changed.is_connected(minimap_callback):
+		minimap_expanded_changed.connect(minimap_callback)
 	if _is_baseball_onboarding_run() and ingame_control_onboarding.has_method("start"):
 		ingame_control_onboarding.call("start")
 	else:
@@ -944,9 +955,20 @@ func _configure_player_camera() -> void:
 	player_camera.make_current()
 
 
-func _on_room_changed(_room_id: StringName, _room_type: StringName) -> void:
+func _on_room_changed(room_id: StringName, room_type: StringName) -> void:
 	_play_room_fade()
 	var current_room := room_manager.current_room
+	if (
+		room_id == &"start"
+		and current_room is StartRoom
+		and _is_baseball_onboarding_run()
+		and ingame_control_onboarding != null
+		and ingame_control_onboarding.has_method("is_active")
+		and bool(ingame_control_onboarding.call("is_active"))
+	):
+		(current_room as StartRoom).set_tutorial_gate_active(true)
+	if ingame_control_onboarding != null and ingame_control_onboarding.has_method("record_room_changed"):
+		ingame_control_onboarding.call("record_room_changed", room_id, room_type)
 	if current_room != null and actor != null:
 		_configure_actor_for_room(current_room)
 	_connect_boss_room(current_room)
@@ -1307,17 +1329,66 @@ func _final_room_id() -> StringName:
 
 
 func _input(event: InputEvent) -> void:
-	if not (event is InputEventScreenTouch and (event as InputEventScreenTouch).pressed):
+	var tap_pos := Vector2.ZERO
+	var mobile_runtime := _is_mobile_runtime()
+	if mobile_runtime and event is InputEventScreenTouch and (event as InputEventScreenTouch).pressed:
+		tap_pos = (event as InputEventScreenTouch).position
+	elif (
+		not mobile_runtime
+		and
+		event is InputEventMouseButton
+		and (event as InputEventMouseButton).pressed
+		and (event as InputEventMouseButton).button_index == MOUSE_BUTTON_LEFT
+	):
+		tap_pos = (event as InputEventMouseButton).position
+	else:
 		return
-	var tap_pos := (event as InputEventScreenTouch).position
 	if _minimap_full:
-		_minimap_full = false
-		_play_minimap_toggle_sfx()
-		_apply_minimap_layout()
+		_set_minimap_full(false)
 	elif _minimap.get_global_rect().has_point(tap_pos):
-		_minimap_full = true
-		_play_minimap_toggle_sfx()
-		_apply_minimap_layout()
+		_set_minimap_full(true)
+
+
+func _set_minimap_full(expanded: bool) -> bool:
+	if _minimap_full == expanded:
+		return false
+	_minimap_full = expanded
+	_play_minimap_toggle_sfx()
+	_apply_minimap_layout()
+	minimap_expanded_changed.emit(_minimap_full)
+	return true
+
+
+func is_minimap_expanded() -> bool:
+	return _minimap_full
+
+
+func perform_uat_action(action_name: String) -> bool:
+	match action_name:
+		UAT_ACTION_MINIMAP_EXPAND:
+			return _set_minimap_full(true)
+		UAT_ACTION_SKIP_GUIDANCE:
+			if ingame_control_onboarding == null or not ingame_control_onboarding.has_method("skip_guidance"):
+				return false
+			var was_active := bool(ingame_control_onboarding.call("is_active"))
+			ingame_control_onboarding.call("skip_guidance")
+			return was_active and not bool(ingame_control_onboarding.call("is_active"))
+	return false
+
+
+func _on_minimap_expanded_changed(expanded: bool) -> void:
+	if ingame_control_onboarding != null and ingame_control_onboarding.has_method("record_action"):
+		ingame_control_onboarding.call("record_action", &"minimap_expanded", {"expanded": expanded})
+
+
+func _on_ingame_control_gate_released() -> void:
+	var current_room := room_manager.current_room as StartRoom
+	if current_room != null:
+		current_room.set_tutorial_gate_active(false)
+
+
+func _is_mobile_runtime() -> bool:
+	return OS.has_feature("mobile") or OS.has_feature("web_android") or OS.has_feature("web_ios")
 
 
 func _play_minimap_toggle_sfx() -> void:

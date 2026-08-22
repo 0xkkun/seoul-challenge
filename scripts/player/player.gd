@@ -26,6 +26,10 @@ signal fired(muzzle_position: Vector2, direction: Vector2)
 signal weapon_changed(weapon_name: String)
 ## 특수 스킬 상태 변경 — HUD 표시용.
 signal special_skill_state_changed(payload: Dictionary)
+## 기본/원거리 공격이 실제 커밋됨 — 온보딩은 raw 입력 대신 이 성공 신호를 소비한다.
+signal attack_executed(payload: Dictionary)
+## 대시 charge가 소비되고 회피 상태가 실제 시작됨 — 온보딩 성공 판정용.
+signal dash_started(payload: Dictionary)
 ## 대시 직후 강화 근접 공격이 실제 실행됨 — 온보딩/피드백 동기화용.
 signal power_attack_executed(payload: Dictionary)
 ## 런 한정 맵 아이템 변경 — 보물방/상점방 표시용.
@@ -663,6 +667,8 @@ func _is_pointer_over_interactive_ui() -> bool:
 func is_interactive_mouse_control(control: Control) -> bool:
 	var current := control
 	while current != null:
+		if bool(current.get_meta("blocks_gameplay_attack", false)):
+			return true
 		if current is BaseButton or current is Range or current is LineEdit or current is TextEdit:
 			return true
 		current = current.get_parent() as Control
@@ -719,6 +725,11 @@ func try_start_special_skill(input_vector: Vector2 = Vector2.ZERO) -> bool:
 	_start_special_recharge_if_needed()
 	_play_dash_wind_sfx()
 	_broadcast_special_skill_state()
+	dash_started.emit({
+		"direction": _dodge_direction,
+		"position": global_position,
+		"special_id": special_skill_id,
+	})
 	return true
 
 
@@ -942,6 +953,11 @@ func _process_attack(delta: float, move_input: Vector2 = Vector2.ZERO) -> void:
 		_attack_timer = attack_cooldown
 	_show_attack_dust(dir, move_input)
 	_play_attack_anim(dir)
+	attack_executed.emit({
+		"direction": dir,
+		"position": global_position,
+		"attack_id": &"ranged" if ranged_enabled else &"melee",
+	})
 
 
 ## 공격 모션 재생(비반복). animation_finished 에서 _is_attacking 을 해제한다.

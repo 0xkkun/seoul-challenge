@@ -3,6 +3,7 @@ extends Node
 const RenderLayers = preload("res://scripts/constants/render_layers.gd")
 const RoomPalette = preload("res://scripts/constants/room_palette.gd")
 const UiTestHarness := preload("res://tests/support/ui_test_harness.gd")
+const UatCommandBridge := preload("res://scripts/dev/uat_command_bridge.gd")
 
 var _runner: Node
 
@@ -215,7 +216,7 @@ func test_session_starts_control_onboarding_only_for_first_baseball_run() -> voi
 			var snapshot: Dictionary = onboarding.call("get_current_step_snapshot")
 			_runner.assert_eq(snapshot.get("step_id"), &"move", "control onboarding starts by teaching movement")
 			_runner.assert_eq(snapshot.get("input_mode"), &"desktop", "headless desktop session uses keyboard onboarding guidance")
-			_runner.assert_eq(snapshot.get("body"), "WASD 또는 방향키로 움직이기", "desktop session names the real movement keys")
+			_runner.assert_eq(snapshot.get("body"), "WASD 또는 방향키로 96px 이동", "desktop session names the real movement keys and success distance")
 			_runner.assert_eq(snapshot.get("target_names", []), [], "desktop session does not highlight a hidden joystick")
 			_runner.assert_true(float(snapshot.get("dim_alpha", 0.0)) > 0.0, "movement step dims non-target gameplay")
 	_runner.assert_false(get_tree().paused, "control onboarding does not pause first-room input")
@@ -239,6 +240,89 @@ func test_session_starts_control_onboarding_only_for_first_baseball_run() -> voi
 	_runner.assert_true(regular_camera.zoom.is_equal_approx(Vector2.ONE), "regular runs keep the native camera zoom")
 
 	regular_session.queue_free()
+
+
+func test_onboarding_start_room_exit_waits_for_success_capabilities_and_real_transition() -> void:
+	var session := _instantiate_baseball_onboarding_session()
+	var manager := session.get_node("%RoomManager") as RoomManager
+	var start_room := manager.current_room as StartRoom
+	var onboarding := session.get_node("%IngameControlOnboarding") as IngameControlOnboarding
+	_runner.assert_not_null(start_room, "온보딩은 StartRoom에서 시작한다")
+	_runner.assert_false(start_room.is_cleared(), "성공 역량 전에는 시작 방 출구를 잠근다")
+	_runner.assert_false(manager.is_current_room_cleared(), "RoomManager도 gate 전에는 시작 방을 미완료로 본다")
+	_runner.assert_true(session.has_signal("minimap_expanded_changed"), "세션은 실제 지도 확대 상태 전환 신호를 노출한다")
+	if not session.has_signal("minimap_expanded_changed"):
+		session.queue_free()
+		return
+
+	var gate_count := [0]
+	var completed_count := [0]
+	var minimap_states: Array[bool] = []
+	onboarding.gate_released.connect(func() -> void: gate_count[0] += 1)
+	onboarding.completed.connect(func() -> void: completed_count[0] += 1)
+	session.connect(&"minimap_expanded_changed", func(expanded: bool) -> void: minimap_states.append(expanded))
+	_complete_control_success_steps(onboarding)
+	_runner.assert_eq(onboarding.get_current_step_snapshot().get("step_id"), &"minimap", "강공격 성공 뒤 실제 지도 확대를 기다린다")
+	_runner.assert_false(start_room.is_cleared(), "지도 성공 전까지 출구는 계속 잠겨 있다")
+
+	var minimap := session.get_node("MinimapLayer/Minimap") as Control
+	var emulated_touch := InputEventScreenTouch.new()
+	emulated_touch.index = 0
+	emulated_touch.pressed = true
+	emulated_touch.position = minimap.get_global_rect().get_center()
+	var click := InputEventMouseButton.new()
+	click.button_index = MOUSE_BUTTON_LEFT
+	click.pressed = true
+	click.position = minimap.get_global_rect().get_center()
+	session.call("_input", emulated_touch)
+	session.call("_input", click)
+
+	_runner.assert_eq(minimap_states, [true], "PC emulated touch+mouse 쌍은 expanded=true를 정확히 한 번 낸다")
+	_runner.assert_true(bool(session.call("is_minimap_expanded")), "PC 미니맵은 emulated event 뒤에도 열린 상태를 유지한다")
+	_runner.assert_eq(gate_count[0], 1, "지도 성공이 시작 방 gate를 정확히 한 번 연다")
+	_runner.assert_true(start_room.is_cleared(), "지도 확대 성공 뒤 시작 방 출구가 열린다")
+	_runner.assert_true(manager.is_current_room_cleared(), "gate 해제는 RoomManager cleared 상태에도 반영된다")
+	_runner.assert_eq(onboarding.get_current_step_snapshot().get("step_id"), &"exit", "문이 열린 뒤 실제 탈출을 안내한다")
+
+	_runner.assert_true(manager.request_next_room(&"combat_1"), "열린 실제 RoomManager 출구로 첫 전투방에 진입한다")
+	_runner.assert_eq(manager.current_room_id, &"combat_1", "실제 첫 전투방 전환이 일어났다")
+	_runner.assert_eq(completed_count[0], 1, "실제 다음 방 진입에서 온보딩을 정확히 한 번 완료한다")
+	_runner.assert_false(onboarding.is_active(), "완료된 controller는 비활성화된다")
+	_runner.assert_true(manager.enter_room(&"start"), "후속 방 변경 회귀를 위해 시작 방을 다시 연다")
+	_runner.assert_eq(completed_count[0], 1, "후속 방 변경은 completed를 재발행하지 않는다")
+	session.queue_free()
+
+
+func test_onboarding_skip_dispatcher_opens_gate_and_keeps_compact_legend() -> void:
+	var session := _instantiate_baseball_onboarding_session()
+	var manager := session.get_node("%RoomManager") as RoomManager
+	var start_room := manager.current_room as StartRoom
+	var onboarding := session.get_node("%IngameControlOnboarding") as IngameControlOnboarding
+	var bridge := UatCommandBridge.new()
+	session.add_child(bridge)
+	var skip_button := UiTestHarness.find_by_test_id(onboarding, "onboarding.skip_guidance_button") as Button
+	_runner.assert_not_null(skip_button, "세션은 stable id 건너뛰기 버튼을 마운트한다")
+	if skip_button == null:
+		session.queue_free()
+		return
+	_runner.assert_false(start_room.is_cleared(), "skip 전에는 시작 방 gate가 잠겨 있다")
+	onboarding.call("_process", 4.9)
+	_runner.assert_false(skip_button.visible, "4.9초에는 실제 skip control이 숨겨져 있다")
+	onboarding.call("_process", 0.1)
+	_runner.assert_true(skip_button.visible, "5.0초에는 실제 skip control이 보인다")
+
+	var skipped_count := [0]
+	onboarding.skipped.connect(func() -> void: skipped_count[0] += 1)
+	_runner.assert_true(bridge.press_by_test_id("onboarding.skip_guidance_button"), "in-process UAT dispatcher가 좌표 없이 skip을 누른다")
+	_runner.assert_eq(skipped_count[0], 1, "skip 신호는 정확히 한 번 나온다")
+	_runner.assert_true(start_room.is_cleared(), "skip은 시작 방 gate를 즉시 연다")
+	_runner.assert_true(manager.is_current_room_cleared(), "skip gate 해제가 RoomManager cleared 상태에도 반영된다")
+	_runner.assert_false(onboarding.is_active(), "skip 후 단계 controller는 멈춘다")
+	var compact_legend := onboarding.get_node("Root/CompactLegend") as Control
+	_runner.assert_true(compact_legend.visible, "skip 후 compact 조작표는 세션에 남는다")
+	_runner.assert_false(bridge.press_by_uat_action("onboarding.skip_guidance"), "숨겨진 skip control은 다시 실행되지 않는다")
+	_runner.assert_eq(skipped_count[0], 1, "반복 dispatcher 시도도 skipped를 재발행하지 않는다")
+	session.queue_free()
 
 
 func test_generated_session_rooms_never_enter_empty_uncleared_state() -> void:
@@ -1515,6 +1599,27 @@ func _first_connected_room_id(layout: RoomLayout, room_id: StringName) -> String
 	for connected_room_id: StringName in layout.get_connected_room_ids(room_id):
 		return connected_room_id
 	return &""
+
+
+func _instantiate_baseball_onboarding_session() -> Node:
+	GameManager.start_session({
+		"source": "success_onboarding_integration",
+		"stage_id": &"gyeongbokgung",
+		"stage_name": "경복궁",
+		SceneTransition.RUN_CONFIG_ONBOARDING_KIND: SceneTransition.ONBOARDING_KIND_BASEBALL_CAPTAIN,
+	})
+	var packed := load("res://scenes/session/session_root.tscn") as PackedScene
+	var session := packed.instantiate()
+	add_child(session)
+	return session
+
+
+func _complete_control_success_steps(onboarding: IngameControlOnboarding) -> void:
+	onboarding.record_player_position(Vector2.ZERO)
+	onboarding.record_player_position(Vector2(96.0, 0.0))
+	onboarding.record_action(&"attack_executed")
+	onboarding.record_action(&"dash_started")
+	onboarding.record_action(&"power_attack_executed")
 
 
 func _assert_actor_spawned_near_entry(actor: Node2D, room: Node2D, entry_dir: StringName) -> void:
