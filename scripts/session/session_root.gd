@@ -10,6 +10,7 @@ const BOSS_INTRO_DIALOG_LAYER := 200  # SessionUIRoot(10) 위, ConfirmModal(240)
 const RoomPalette = preload("res://scripts/constants/room_palette.gd")
 const MapItemCatalog = preload("res://scripts/items/map_item_catalog.gd")
 const MobileSafeArea = preload("res://scripts/ui/mobile_safe_area.gd")
+const InputPromptPolicy = preload("res://scripts/ui/input_prompt_policy.gd")
 
 const RUN_LAYOUT_SEED_MAX := 2147483647
 const RUN_LAYOUT_ROOM_COUNT := 15
@@ -1106,9 +1107,18 @@ func _set_encounter_beat(ui: HubDialogueUi, beat: Dictionary) -> void:
 	var continue_choice: Array[Dictionary] = [{
 		"id": &"continue",
 		"tap_to_continue": true,
-		"text": HubDialogueUi.CONTINUE_HINT_TOUCH,
+		"text": _continue_hint(),
 	}]
 	ui.set_choices(continue_choice)
+
+
+func _continue_hint() -> String:
+	var features := {}
+	if has_node("/root/PlatformManager"):
+		features = PlatformManager.get_feature_flags()
+	return InputPromptPolicy.continue_hint(
+		InputPromptPolicy.input_mode_from_features(features)
+	)
 
 
 func _play_baseball_friend_intro() -> void:

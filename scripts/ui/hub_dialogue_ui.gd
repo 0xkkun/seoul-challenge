@@ -17,7 +17,7 @@ const UNLOCK_POPUP_CENTER_OFFSET := Vector2(0.0, -58.0)
 const DIALOGUE_LINE_SEPARATION := 7
 const DEFAULT_PORTRAIT_SCALE := Vector2(2.55, 2.55)
 const DEFAULT_PORTRAIT_Y := 173.0
-const CONTINUE_HINT_TOUCH := "탭해서 계속"
+const CONTINUE_HINT_TOUCH := "탭하여 계속"
 const CHOICE_ASK := &"ask"
 const CHOICE_ACCEPT := &"accept"
 const STAGE_STATE_COMPLETED := "completed"
@@ -48,6 +48,7 @@ const BASEBALL_STAGE_3 := &"baseball_stage_3"
 const AWAKENED_BAT := &"awakened_bat"
 const MobileSafeArea := preload("res://scripts/ui/mobile_safe_area.gd")
 const FontRoles := preload("res://scripts/ui/ui_font_roles.gd")
+const InputPromptPolicy := preload("res://scripts/ui/input_prompt_policy.gd")
 const AWAKENED_BAT_ICON: Texture2D = preload("res://assets/ui/icons/seoul_challenge/baseball_bat.png")
 
 # 해금 팝업 등장("따란!") 연출 파라미터.
@@ -330,8 +331,17 @@ func show_unlock(title: String, subtitle: String, items: Array[Dictionary], hero
 		_unlock_items.append(item.duplicate(true))
 	_render_unlock_items()
 	_apply_unlock_chrome(hero)
-	_unlock_continue_hint.text = CONTINUE_HINT_TOUCH
+	_unlock_continue_hint.text = _continue_hint()
 	_play_unlock_reveal(hero)
+
+
+func _continue_hint() -> String:
+	var features := {}
+	if has_node("/root/PlatformManager"):
+		features = PlatformManager.get_feature_flags()
+	return InputPromptPolicy.continue_hint(
+		InputPromptPolicy.input_mode_from_features(features)
+	)
 
 
 func apply_baseball_progress(show_unlock_popup := false) -> void:

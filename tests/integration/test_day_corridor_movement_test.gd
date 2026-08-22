@@ -337,7 +337,7 @@ func test_day_corridor_dialogue_signal_updates_state() -> void:
 	_runner.assert_eq(scene.get_active_dialogue_text(), "몸 조심해. 무리하지 마.", "dialogue text is rendered without duplicating the speaker name")
 	_runner.assert_eq(scene.get_active_dialogue_memory_text(), "", "memory flavor line removed from captain dialogue")
 	_runner.assert_eq(scene.get_dialogue_choice_ids(), [&"next"], "dialogue UI exposes only the currently available action")
-	_runner.assert_eq(scene.get_node("%HubDialogueUi").get_choice_texts(), [HubDialogueScript.CONTINUE_HINT_TOUCH], "first dialogue line exposes a tap-to-continue hint")
+	_runner.assert_eq(scene.get_node("%HubDialogueUi").get_choice_texts(), ["클릭하여 계속"], "데스크톱 첫 대화는 클릭 진행 안내를 표시한다")
 	_runner.assert_true(scene.get_node("%HubDialogueUi").is_tap_to_continue_active(), "first dialogue line advances from any dialogue tap")
 	_runner.assert_not_null(UiTestHarness.find_by_test_id(scene, "day_corridor.dialogue.next_button"), "next choice exposes a stable test id")
 	_runner.assert_eq(payloads.size(), 1, "dialogue request signal emits once")
@@ -678,7 +678,7 @@ func test_day_corridor_dialogue_choices_advance_and_close_ui() -> void:
 	_runner.assert_eq(scene.get_dialogue_count(), 3, "second next advances the dialogue counter")
 	_runner.assert_eq(scene.get_active_dialogue_line_index(), 2, "second next advances to the final line")
 	_runner.assert_eq(scene.get_dialogue_choice_ids(), [&"close"], "final dialogue line exposes only close")
-	_runner.assert_eq(scene.get_node("%HubDialogueUi").get_choice_texts(), [HubDialogueScript.CONTINUE_HINT_TOUCH], "final dialogue line keeps the tap-to-continue affordance")
+	_runner.assert_eq(scene.get_node("%HubDialogueUi").get_choice_texts(), ["클릭하여 계속"], "데스크톱 마지막 대화도 클릭 진행 안내를 유지한다")
 	_runner.assert_not_null(UiTestHarness.find_by_test_id(scene, "day_corridor.dialogue.close_button"), "close choice exposes a stable test id on the final line")
 
 	_runner.assert_true(UiTestHarness.press_by_test_id(scene, "day_corridor.dialogue.close_button"), "harness presses close by test id")
