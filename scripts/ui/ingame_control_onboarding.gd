@@ -135,6 +135,7 @@ var _camera_zoom_active := false
 var _camera_tween: Tween = null
 var _root: Control = null
 var _coach_mark: OnboardingCoachMark = null
+var _pending_visual_refresh := false
 var _skip_button: Button = null
 var _compact_legend: PanelContainer = null
 var _legend_label: Label = null
@@ -173,6 +174,7 @@ func start() -> void:
 	_gate_released_emitted = false
 	_completed_emitted = false
 	_skipped_emitted = false
+	_pending_visual_refresh = false
 	_active = true
 	visible = true
 	set_process(true)
@@ -238,7 +240,7 @@ func get_current_step_snapshot() -> Dictionary:
 		"action": String(step.get("action", "")),
 		"detail": String(step.get("detail", "")),
 		"target_names": target_names,
-		"target_rect": coach_snapshot.get("target_rect", Rect2()),
+		"target_rect": _target_rect_for_names(target_names),
 		"coach_rect": coach_snapshot.get("label_rect", Rect2()),
 		"screen_coverage": coach_snapshot.get("screen_coverage", 0.0),
 		"bracket_style": coach_snapshot.get("bracket_style", &"corners"),
@@ -359,6 +361,7 @@ func _build_ui() -> void:
 	_coach_mark = OnboardingCoachMarkScript.new() as OnboardingCoachMark
 	_coach_mark.name = "CoachMark"
 	add_child(_coach_mark)
+	_coach_mark.exit_finished.connect(_on_coach_exit_finished)
 	_coach_mark.configure(_camera, _is_reduced_motion())
 	_skip_button = Button.new()
 	_skip_button.name = "SkipGuidanceButton"
@@ -407,13 +410,16 @@ func _refresh_step() -> void:
 	var target_names := _current_target_names()
 	var target_kind: StringName = &"none"
 	var target: Node = null
-	var target_rect := Rect2()
+	var targets: Array[Control] = []
 	var placement: StringName = &"auto"
 	if target_names.size() == 1:
 		target = _target_control_for_name(String(target_names[0]))
 		target_kind = &"control" if target != null else &"none"
 	elif target_names.size() > 1:
-		target_rect = _target_rect_for_names(target_names)
+		for target_name: Variant in target_names:
+			var control := _target_control_for_name(String(target_name))
+			if control != null:
+				targets.append(control)
 	if target_names.is_empty() and StringName(step.get("id", &"")) != &"exit" and _player is Node2D:
 		target = _player
 		target_kind = &"world"
@@ -428,7 +434,7 @@ func _refresh_step() -> void:
 		"detail": String(step.get("detail", "")),
 		"target_kind": target_kind,
 		"target": target,
-		"target_rect": target_rect,
+		"targets": targets,
 		"placement": placement,
 		"persistent": true,
 	})
@@ -459,8 +465,6 @@ func _target_control_for_name(target_name: String) -> Control:
 
 
 func _advance_step() -> void:
-	if _coach_mark != null:
-		_coach_mark.complete()
 	_step_index += 1
 	if _step_index >= _steps().size():
 		_step_index = _steps().size() - 1
@@ -470,7 +474,21 @@ func _advance_step() -> void:
 		_release_gate()
 		if _skip_button != null:
 			_skip_button.visible = false
-	_refresh_step()
+	_pending_visual_refresh = true
+	if _coach_mark != null and _coach_mark.is_active():
+		_coach_mark.configure(_camera, _is_reduced_motion())
+		_coach_mark.complete()
+	else:
+		_pending_visual_refresh = false
+		_refresh_step()
+
+
+func _on_coach_exit_finished(_prompt_id: StringName, kind: StringName) -> void:
+	if kind != &"complete" or not _pending_visual_refresh:
+		return
+	_pending_visual_refresh = false
+	if _active:
+		_refresh_step()
 
 
 func _release_gate() -> void:
@@ -523,6 +541,7 @@ func _show_step_ui() -> void:
 
 
 func _hide_step_ui() -> void:
+	_pending_visual_refresh = false
 	if _coach_mark != null:
 		_coach_mark.dismiss(true)
 	if _skip_button != null:

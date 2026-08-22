@@ -347,6 +347,60 @@ func test_ingame_control_onboarding_applies_reduced_motion_on_the_next_step() ->
 	onboarding.queue_free()
 
 
+func test_ingame_control_onboarding_finishes_success_motion_before_replacing_visual() -> void:
+	Settings.reset_defaults()
+	var script := load(INGAME_CONTROL_ONBOARDING_SCRIPT_PATH) as Script
+	var player := StubIntegratedInputPlayer.new()
+	var onboarding := script.new() as CanvasLayer
+	add_child(player)
+	add_child(onboarding)
+	onboarding.call("configure", null, null, player)
+	onboarding.call("start")
+	var coach := onboarding.get_node("CoachMark") as OnboardingCoachMark
+
+	onboarding.call("record_player_position", Vector2.ZERO)
+	onboarding.call("record_player_position", Vector2(96.0, 0.0))
+	_runner.assert_eq(onboarding.call("get_current_step_snapshot").get("step_id"), &"attack", "success advances the state machine immediately")
+	_runner.assert_eq(coach.get_snapshot().get("id"), &"move", "completed move visual remains during its success exit")
+	coach.finish_motion_for_tests(&"move")
+	_runner.assert_eq(coach.get_snapshot().get("id"), &"attack", "next visual appears only after success exit completes")
+	_runner.assert_true(coach.is_active(), "next visual is active after the handoff")
+
+	player.queue_free()
+	onboarding.queue_free()
+
+
+func test_power_attack_brackets_follow_both_controls_after_relayout() -> void:
+	var script := load(INGAME_CONTROL_ONBOARDING_SCRIPT_PATH) as Script
+	var touch := _create_visible_touch_controls()
+	var player := StubPowerAttackPlayer.new()
+	var onboarding := script.new() as CanvasLayer
+	add_child(player)
+	add_child(onboarding)
+	onboarding.call("configure", touch, null, player)
+	onboarding.call("start")
+	onboarding.call("record_player_position", Vector2.ZERO)
+	onboarding.call("record_player_position", Vector2(96.0, 0.0))
+	onboarding.call("record_action", &"attack_executed")
+	onboarding.call("record_action", &"dash_started")
+	var coach := onboarding.get_node("CoachMark") as OnboardingCoachMark
+	coach.finish_motion_for_tests(&"move")
+	coach.finish_motion_for_tests(&"attack")
+	coach.finish_motion_for_tests(&"dash")
+	var skill := touch.get_node("SkillButton") as Control
+	var attack := touch.get_node("AttackButton") as Control
+	skill.position += Vector2(-36.0, -18.0)
+	attack.position += Vector2(-20.0, -12.0)
+	coach.call("_process", 0.0)
+
+	var expected_rect := skill.get_global_rect().merge(attack.get_global_rect())
+	_runner.assert_eq(coach.get_snapshot().get("target_rect"), expected_rect, "power-attack brackets recompute the merged controls after relayout")
+
+	touch.queue_free()
+	player.queue_free()
+	onboarding.queue_free()
+
+
 func test_ingame_control_onboarding_advances_from_player_integrated_input_without_touch_controls() -> void:
 	var script := load(INGAME_CONTROL_ONBOARDING_SCRIPT_PATH) as Script
 	var player := StubIntegratedInputPlayer.new()

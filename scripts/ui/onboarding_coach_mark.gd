@@ -1,6 +1,8 @@
 class_name OnboardingCoachMark
 extends CanvasLayer
 
+signal exit_finished(prompt_id: StringName, kind: StringName)
+
 const UiFontRoles = preload("res://scripts/ui/ui_font_roles.gd")
 const MobileSafeArea = preload("res://scripts/ui/mobile_safe_area.gd")
 const Tokens = preload("res://scripts/ui/onboarding_visual_tokens.gd")
@@ -18,6 +20,7 @@ var _active := false
 var _generation := 0
 var _motion_tween: Tween = null
 var _pending_exit_generations := {}
+var _pending_exit_kinds := {}
 var _last_enter_duration := 0.0
 var _root: Control = null
 var _panel: PanelContainer = null
@@ -63,6 +66,7 @@ func dismiss(immediate: bool = false) -> void:
 	if not _active:
 		return
 	if immediate:
+		_register_pending_exit(&"dismiss")
 		_finish_exit(_generation)
 		return
 	_play_exit(&"dismiss")
@@ -115,7 +119,6 @@ func finish_motion_for_tests(prompt_id: StringName) -> void:
 	if not _pending_exit_generations.has(prompt_id):
 		return
 	var generation := int(_pending_exit_generations[prompt_id])
-	_pending_exit_generations.erase(prompt_id)
 	_finish_exit(generation)
 
 
@@ -231,6 +234,21 @@ func _desired_panel_size() -> Vector2:
 
 
 func _target_rect() -> Rect2:
+	var raw_targets: Variant = _model.get("targets", [])
+	if raw_targets is Array:
+		var merged := Rect2()
+		var found := false
+		for value: Variant in raw_targets as Array:
+			var control := value as Control
+			if control == null or not is_instance_valid(control):
+				continue
+			if not found:
+				merged = control.get_global_rect()
+				found = true
+			else:
+				merged = merged.merge(control.get_global_rect())
+		if found:
+			return merged
 	var rect_override: Variant = _model.get("target_rect")
 	if rect_override is Rect2 and (rect_override as Rect2).size != Vector2.ZERO:
 		return rect_override as Rect2
@@ -303,8 +321,7 @@ func _play_enter() -> void:
 func _play_exit(kind: StringName) -> void:
 	_kill_motion()
 	var generation := _generation
-	var prompt_id := StringName(_model.get("id", &""))
-	_pending_exit_generations[prompt_id] = generation
+	_register_pending_exit(kind)
 	var duration := Tokens.motion_duration(kind, _reduced_motion)
 	if duration <= 0.0 or not is_inside_tree():
 		_finish_exit(generation)
@@ -317,7 +334,10 @@ func _play_exit(kind: StringName) -> void:
 
 
 func _finish_exit(generation: int) -> void:
+	var prompt_id := _prompt_id_for_generation(generation)
+	var kind := StringName(_pending_exit_kinds.get(prompt_id, &"dismiss"))
 	if generation != _generation:
+		_clear_pending_exit(prompt_id)
 		return
 	_kill_motion()
 	_active = false
@@ -325,6 +345,26 @@ func _finish_exit(generation: int) -> void:
 	set_process(false)
 	_panel.modulate = Color.WHITE
 	_panel.scale = Vector2.ONE
+	_clear_pending_exit(prompt_id)
+	exit_finished.emit(prompt_id, kind)
+
+
+func _register_pending_exit(kind: StringName) -> void:
+	var prompt_id := StringName(_model.get("id", &""))
+	_pending_exit_generations[prompt_id] = _generation
+	_pending_exit_kinds[prompt_id] = kind
+
+
+func _prompt_id_for_generation(generation: int) -> StringName:
+	for prompt_id: Variant in _pending_exit_generations.keys():
+		if int(_pending_exit_generations[prompt_id]) == generation:
+			return StringName(prompt_id)
+	return StringName(_model.get("id", &""))
+
+
+func _clear_pending_exit(prompt_id: StringName) -> void:
+	_pending_exit_generations.erase(prompt_id)
+	_pending_exit_kinds.erase(prompt_id)
 
 
 func _kill_motion() -> void:
