@@ -165,8 +165,10 @@ signal minimap_expanded_changed(expanded: bool)
 
 - `NightIntroCutscene`: 자동 진행, 플랫폼별 계속 문구, 스킵.
 - `IngameControlOnboarding`: 첫 방의 이동·공격·대시·강공격·지도·출구 단계.
-- `SessionRoot`: 보상·정화·패링 학습의 맥락 연결과 세션 정리.
-- `DayCorridor`: 말 걸기와 배트 획득 안내.
+- `SessionRoot`: 보상·정화·패링 학습의 맥락 연결과 세션 정리. 정화 완료
+  시 기존 SaveManager 온보딩 완료 플래그를 기록한 뒤 학교로 전환한다.
+- `DayCorridor`: 기존 온보딩 완료·주장 보상 수령 플래그로 학교 단계
+  (`talk`/`complete`)를 재구성하고 말 걸기와 배트 획득 안내를 잇는다.
 - `ParryFeedbackController`: 텍스트·히트스톱·플래시·SFX·햅틱의 표현 순서.
 - `SaveManager`: `parry_tutorial_complete` 한 번성 플래그. 첫 방 조작 상태는 해당 세션 안에서만 유지한다.
 
@@ -235,11 +237,11 @@ signal minimap_expanded_changed(expanded: bool)
 |---|---|---|
 | 1 | 인트로 자동 진행과 계속 문구 | `area:ui` |
 | 2 | 첫 방 성공 기반 조작과 지도 | `area:ui`, `area:player` |
-| 3 | 보상·정화·말 걸기 여정 | `area:ui`, `area:session` |
+| 3 | 보상·정화·말 걸기 여정 | `area:ui`, `area:run` |
 | 4 | 패링 성공 이벤트 | `area:player`, `area:enemy` |
-| 5 | 패링 시청각 피드백 | `area:combat`, `area:audio`, `area:ui` |
-| 6 | 포탈·온보딩 종료 안정성 | `area:session` |
-| 7 | 웨이브와 적 속도 | 각각 별도 `area:room`/`area:enemy` |
+| 5 | 패링 시청각 피드백 | `area:combat`, `area:ui` |
+| 6 | 포탈·온보딩 종료 안정성 | `area:run` |
+| 7 | 웨이브와 적 속도 | 각각 별도 `area:rooms`/`area:enemy` |
 | 8 | 전투 SFX·비네트·일반 히트스톱·데미지 숫자 | 기능별 별도 PR |
 
 ## 완료 정의

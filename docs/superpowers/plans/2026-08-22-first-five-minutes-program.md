@@ -357,7 +357,7 @@ Commit message: `[UI] 첫 방 성공 기반 조작 온보딩`. Capture each plat
 
 ### Task 3: Contextual First-Run Journey
 
-**Issue contract:** `[UI] 첫 런 보상·정화·대화 안내 연결` with `P0`, `area:ui`, `area:session`.
+**Issue contract:** `[UI] 첫 런 보상·정화·대화 안내 연결` with `P0`, `area:ui`, `area:run`.
 
 **Files:**
 - Modify: `scripts/session/session_root.gd`
@@ -370,7 +370,11 @@ Commit message: `[UI] 첫 방 성공 기반 조작 온보딩`. Capture each plat
 
 **Interfaces:**
 - Consumes: existing `reward_choice_selected`, `friend_purified`, and `dialogue_requested` signals.
-- Produces: `SessionRoot.get_onboarding_journey_snapshot() -> Dictionary` for tests/UAT.
+- Produces: `SessionRoot.get_onboarding_journey_snapshot() -> Dictionary` for the night-run phases.
+- Produces: `DayCorridorMovementTest.get_onboarding_journey_snapshot() -> Dictionary` for the school phases.
+- Persists the cross-scene checkpoint through the existing
+  `SceneTransition.FLAG_ONBOARDING_BASEBALL_COMPLETE` and
+  `SceneTransition.FLAG_BASEBALL_CAPTAIN_REWARD_CLAIMED` SaveManager flags.
 
 - [ ] **Step 1: Write journey snapshot RED tests**
 
@@ -382,15 +386,28 @@ session.call("_on_room_cleared_for_reward", {"room_id": &"combat_1", "room_type"
 _runner.assert_eq(session.get_onboarding_journey_snapshot()["phase"], &"reward")
 ```
 
-Continue through reward selected, friend intro, groggy, and purification. In the day corridor fixture assert `[E]`/touch prompt and `dialogue_requested` complete the talk phase.
+Continue through reward selected, friend intro, groggy, and purification. After
+purification, free the session fixture, instantiate a fresh day-corridor fixture,
+and prove its snapshot reconstructs `talk` from SaveManager. Assert `[E]`/touch
+prompt and `dialogue_requested` advance to `bat_reward`; claiming the existing
+captain reward advances to `complete`. Reinstantiate the day corridor after each
+durable checkpoint to prove the phase survives scene replacement.
 
 - [ ] **Step 2: Run integration tests and confirm RED**
 
 Expected: missing `get_onboarding_journey_snapshot` and missing phase transitions.
 
-- [ ] **Step 3: Implement scene-local journey state**
+- [ ] **Step 3: Implement scene-local state with an existing SaveManager handoff**
 
-Add a session-local `StringName` phase and transition only from existing domain signals. Do not create a global manager. Expose a duplicate snapshot containing `phase`, `completed_phases`, `current_instruction`, and `input_mode`.
+Add a session-local `StringName` phase and transition only from existing domain
+signals. Do not create a global manager. At purification, keep the existing
+`FLAG_ONBOARDING_BASEBALL_COMPLETE=true` write as the durable handoff before
+`SceneTransition.go_to_day_lobby()` replaces `SessionRoot`. The fresh day
+corridor derives `talk` when onboarding is complete and the captain reward is
+unclaimed, keeps `bat_reward` as its local dialogue/reward phase, and derives
+`complete` when `FLAG_BASEBALL_CAPTAIN_REWARD_CLAIMED=true`. Expose the same
+duplicate snapshot schema from both scene roots: `phase`,
+`completed_phases`, `current_instruction`, and `input_mode`.
 
 ```gdscript
 const JOURNEY_PHASES: Array[StringName] = [
@@ -413,6 +430,11 @@ func get_onboarding_journey_snapshot() -> Dictionary:
 	}
 ```
 
+The day-corridor snapshot must reconstruct its completed phases from the two
+persisted flags rather than accepting a copied SessionRoot dictionary. Reloading
+before reward claim safely returns to `talk`; reloading after reward claim
+returns `complete`.
+
 Use these exact contextual instructions:
 
 ```text
@@ -430,7 +452,9 @@ Keep reward cards, `PurifyOnboardingSpotlight`, and the day-corridor interaction
 
 - [ ] **Step 5: Verify event ordering and failure paths**
 
-Tests must show an unrelated room clear, hidden reward button, early dialogue input, or attacking while a dialogue is open cannot skip phases. Run integration and quick gates.
+Tests must show an unrelated room clear, hidden reward button, early dialogue
+input, attacking while a dialogue is open, or a scene reload before captain
+reward claim cannot skip phases. Run integration and quick gates.
 
 - [ ] **Step 6: Web UAT and merge**
 
@@ -523,7 +547,7 @@ Run unit, integration, quick, and full gates. UAT a missed dash, wolf death, nex
 
 ### Task 5: Parry Text, Hit Stop, Flash, Shake, and Sound
 
-**Issue contract:** `[Combat] 패링 성공 피드백 완성` with `P0`, `area:combat`, `area:audio`, `area:ui`.
+**Issue contract:** `[Combat] 패링 성공 피드백 완성` with `P0`, `area:combat`, `area:ui`.
 
 **Files:**
 - Create: `scripts/autoload/hit_stop_manager.gd`
@@ -605,7 +629,7 @@ Commit: `[Combat] 패링 성공 피드백 완성`. Publish impact screenshots an
 
 ### Task 6: Portal Retry and Onboarding Exit Cleanup
 
-**Issue contract:** `[Session] 포탈 재시도와 온보딩 종료 정리` with `P0`, `area:session`.
+**Issue contract:** `[Session] 포탈 재시도와 온보딩 종료 정리` with `P0`, `area:run`.
 
 **Files:**
 - Modify: `scripts/systems/room_door.gd`
@@ -663,7 +687,7 @@ Run full gate and Web UAT the pause-over-portal and onboarding-death paths. Comm
 
 ### Task 7: Real Wave Spawning
 
-**Issue contract:** `[Room] 전투 웨이브 순차 스폰 활성화` with `P1`, `area:room`, `area:enemy`.
+**Issue contract:** `[Room] 전투 웨이브 순차 스폰 활성화` with `P1`, `area:rooms`, `area:enemy`.
 
 **Files:**
 - Modify: `scripts/interactables/combat_room.gd`
@@ -711,24 +735,37 @@ Commit: `[Room] 전투 웨이브 순차 스폰 활성화`. Do not modify enemy s
 
 **Files:**
 - Modify: `scripts/enemies/chaser.gd`
+- Modify: `scenes/enemies/akgwi.tscn`
 - Modify: `tests/unit/test_chaser.gd`
+- Modify: `tests/unit/test_akgwi_assets.gd`
+- Modify: `tests/unit/test_combat_room.gd`
 - Modify: `tests/performance/test_room_perf.gd`
 
 **Interfaces:**
 - Changes only: `Chaser.move_speed` default `90.0 -> 140.0`.
+- Removes the serialized `move_speed = 92.0` override from
+  `scenes/enemies/akgwi.tscn` so the scene preloaded by `CombatRoom` inherits
+  the calibrated default.
 - Preserves: contact range, damage, cooldown, spawn protection, movement bounds.
 
 - [ ] **Step 1: Write the RED default-pressure test**
 
-Instantiate a real chaser and assert `move_speed == 140.0`, then assert `chase_velocity` remains normalized and stops inside contact range.
+Instantiate both the base chaser and `scenes/enemies/akgwi.tscn`, assert each
+has `move_speed == 140.0`, then assert `chase_velocity` remains normalized and
+stops inside contact range. Add a combat-room test that inspects the actual
+default AkGwi spawned through `CombatRoom` rather than the separate chaser
+fixture.
 
 - [ ] **Step 2: Run unit tests and confirm RED**
 
-Expected: default is 90.0.
+Expected: the script default is 90.0 and the instantiated AkGwi remains 92.0.
 
 - [ ] **Step 3: Change only the default speed**
 
-Set `@export var move_speed: float = 140.0`. Do not alter count, HP, contact damage, or elite multiplier.
+Set `@export var move_speed: float = 140.0` and remove the AkGwi scene's
+serialized 92.0 override. Do not alter count, HP, contact damage, or elite
+multiplier. Keep any explicit teaching-safe room-config override local to that
+room rather than in the shared AkGwi scene.
 
 - [ ] **Step 4: Verify after-wave playability**
 
@@ -742,7 +779,7 @@ Commit: `[Enemy] 악귀 추적 압박 조정`. Update M6a coverage with before/a
 
 ### Task 9: Combat SFX Cooldown and Missing Reaction Sounds
 
-**Issue contract:** `[Audio] 전투 효과음 쿨다운 기반 추가` with `P1`, `area:audio`, `area:combat`.
+**Issue contract:** `[Audio] 전투 효과음 쿨다운 기반 추가` with `P1`, `area:combat`.
 
 **Files:**
 - Modify: `scripts/autoload/audio_manager.gd`
@@ -777,6 +814,9 @@ func test_same_sfx_is_throttled_without_blocking_other_ids() -> void:
 ```
 
 The test sets the real runtime dictionary directly; do not add a test-only production method.
+Add a reset lifecycle assertion: seed `_last_sfx_played_at`, call the real
+`AudioManager.reset()`, and prove an immediate same-ID play is accepted. This
+catches cooldown state leaking between tests or audio lifecycles.
 
 - [ ] **Step 2: Run unit tests and confirm RED**
 
@@ -804,6 +844,8 @@ func play_sfx(id: StringName, cooldown: float = 0.0) -> bool:
 ```
 
 Only append to `_played_sfx` after cooldown acceptance.
+`AudioManager.reset()` must also clear `_last_sfx_played_at` along with the
+existing playback state.
 
 - [ ] **Step 4: Add assets and exact event wiring**
 
@@ -985,7 +1027,8 @@ Commit: `[Combat] 일반 타격 히트스톱 연결`. Update F3/F8 coverage.
 - Produces: `Settings.KEY_DAMAGE_NUMBERS := "damage_numbers_enabled"`.
 - Produces: `SessionRoot.spawn_combat_text(position: Vector2, text: String, style: StringName) -> bool`.
 - Produces: `Player.combat_text_requested(position: Vector2, text: String, style: StringName)`.
-- Changes: enemy `take_damage(amount: int) -> int` returns applied damage, with `0` for rejected damage.
+- Changes: enemy `take_damage(amount: int) -> int` returns the clamped HP delta
+  actually applied, with `0` for rejected damage.
 - Consumes: Task 5's shared 20-node pool.
 
 - [ ] **Step 1: Write style and cap RED tests**
@@ -1023,14 +1066,18 @@ func spawn_combat_text(position: Vector2, text: String, style: StringName) -> bo
 	return true
 ```
 
-- [ ] **Step 4: Wire real damage payloads**
+- [ ] **Step 4: Wire real, clamped damage payloads**
 
-Change enemy `take_damage(amount: int)` methods to return the applied integer (`0` when dead/invulnerable, `amount` when accepted). In the player's melee loop, use the returned value once:
+Before subtraction, capture `previous_hp`; after clamping HP to zero, return
+`previous_hp - current_hp`. Return `0` when dead, invulnerable, or otherwise
+rejected. Add a RED overkill test where a 1-HP enemy receives 5 damage and must
+return `1`, plus a rejected-hit test returning `0`. In the player's melee loop,
+use the returned value once:
 
 ```gdscript
 var applied_damage := int(enemy.call("take_damage", dmg))
 if applied_damage > 0:
-	combat_text_requested.emit(e.global_position, str(applied_damage), &"power" if power_attack else &"ordinary")
+	combat_text_requested.emit(enemy.global_position, str(applied_damage), &"power" if power_attack else &"ordinary")
 ```
 
 Player health changes surface the accepted `previous-current` delta near the health HUD.
