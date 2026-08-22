@@ -211,6 +211,7 @@ func test_death_fade_keeps_effect_scale_stable_until_lifetime_expires() -> void:
 
 func _assert_enemy_death_spawns_fade(enemy: Node2D, label: String) -> void:
 	_clear_death_fades()
+	AudioManager.reset()
 	enemy.set("max_hp", 1)
 	add_child(enemy)
 	enemy.global_position = Vector2(123.0, 77.0)
@@ -220,6 +221,7 @@ func _assert_enemy_death_spawns_fade(enemy: Node2D, label: String) -> void:
 	enemy.call("take_damage", 1)
 
 	_runner.assert_eq(defeated["count"], 1, "%s death still emits defeated immediately" % label)
+	_runner.assert_eq(AudioManager.get_played_sfx(), [&"enemy_hit", &"enemy_death"], "%s lethal accepted hit plays hit then death exactly once" % label)
 	var fade := _find_death_fade()
 	_runner.assert_not_null(fade, "%s death leaves a detached fade sibling" % label)
 	if fade == null:
@@ -238,6 +240,7 @@ func _assert_enemy_death_spawns_fade(enemy: Node2D, label: String) -> void:
 	_runner.assert_true(fade.scale.is_equal_approx(before_scale), "%s death fade keeps scale stable" % label)
 	_runner.assert_true(is_equal_approx(fade.modulate.a, before_alpha), "%s death fade does not add a root opacity fade over the PNG" % label)
 	_clear_death_fades()
+	AudioManager.reset()
 
 
 func _find_death_fade() -> Node2D:

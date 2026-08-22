@@ -140,3 +140,18 @@ The required release-Web matrix is:
 
 Both evade runs must keep full health and report `input_active=true`; this proves
 the balance sample remains playable through the actual platform input path.
+
+## Combat reaction SFX fixture
+
+Temporarily export with `res://tests/uat/combat_sfx_web_fixture.tscn` as the
+main scene and restore `project.godot` after the release export. Open:
+
+- `?uat_combat_sfx_mode=multi_hit` — one real bare-hand swing defeats three
+  AkGwi in the same frame and accepts only bare-hand, enemy-hit, and enemy-death
+  once each.
+- `?uat_combat_sfx_mode=reaction_mix` — real AkGwi contact produces chaser
+  attack then player hit, followed by the awakened-bat reveal sound.
+
+Every valid state prints `UAT_COMBAT_SFX_READY`. Pass/fail uses the marker,
+active audio-player count, browser errors, and a no-clipping waveform mix check;
+screenshots are visual evidence only.

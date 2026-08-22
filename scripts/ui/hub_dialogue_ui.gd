@@ -723,7 +723,7 @@ func _play_reveal_feedback() -> void:
 
 
 func _play_reveal_sfx() -> void:
-	# 사용자 제공 예정 '따란!' 효과음. 파일이 추가되면 자동 재생, 없으면 조용히 스킵한다.
+	# 마지막 시즌의 배트 공개 전용 '따란!' 효과음. 리소스 누락 시 연출은 조용히 계속한다.
 	if not has_node("/root/AudioManager"):
 		return
 	var path := AudioManager.get_sfx_stream_path(AudioManager.AWAKENED_BAT_REVEAL)

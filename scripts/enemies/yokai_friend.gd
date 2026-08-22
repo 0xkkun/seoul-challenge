@@ -208,6 +208,7 @@ func _ensure_hit_reaction() -> Node:
 func take_damage(amount: int) -> void:
 	if not (_state == State.CHASING or _state == State.ATTACKING) or is_hit_invulnerable():
 		return
+	AudioManager.play_sfx(AudioManager.ENEMY_HIT)
 	HapticManager.on_enemy_hit()
 	_stun_accum = accumulate_stun(_stun_accum, amount)
 	if reached_stun_threshold(_stun_accum, max_stun):

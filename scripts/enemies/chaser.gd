@@ -242,6 +242,7 @@ func _ensure_spawn_fade() -> Node:
 func take_damage(amount: int) -> void:
 	if _dead or is_hit_invulnerable():
 		return
+	AudioManager.play_sfx(AudioManager.ENEMY_HIT)
 	HapticManager.on_enemy_hit()
 	_hp = maxi(0, _hp - amount)
 	_update_health_bar()
@@ -255,6 +256,7 @@ func _die() -> void:
 	if _dead:
 		return
 	_dead = true
+	AudioManager.play_sfx(AudioManager.ENEMY_DEATH)
 	_spawn_death_fade()
 	defeated.emit(self)
 	queue_free()
@@ -281,6 +283,7 @@ func _try_contact(target: Node2D) -> void:
 		return
 	if global_position.distance_to(target.global_position) > contact_range:
 		return
+	AudioManager.play_sfx(AudioManager.CHASER_ATTACK)
 	_play_attack_animation(target.global_position - global_position)
 	if target.has_method("take_damage"):
 		target.call("take_damage", contact_damage)

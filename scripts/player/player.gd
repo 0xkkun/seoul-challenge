@@ -464,6 +464,7 @@ func apply_room_clear_modifier_effects() -> bool:
 func take_damage(amount: int) -> void:
 	if _health <= 0 or _invuln_timer > 0.0:
 		return
+	AudioManager.play_sfx(AudioManager.PLAYER_HIT)
 	_health = damaged_health(_health, amount)
 	_invuln_timer = invuln_time
 	_trigger_hit_reaction(invuln_time)
@@ -1086,6 +1087,8 @@ func _attack_melee(dir: Vector2) -> void:
 	var knockback_distance := bat_knockback
 	if _has_bat:
 		_play_bat_swing_sfx()
+	else:
+		_play_bare_hand_swing_sfx()
 	if power_attack:
 		dmg += dash_power_attack_damage_bonus
 		rng *= dash_power_attack_range_multiplier
@@ -1190,6 +1193,11 @@ func _emit_combat_feedback(kind: StringName, dir: Vector2, hit_count: int, inten
 func _play_bat_swing_sfx() -> void:
 	if has_node("/root/AudioManager"):
 		AudioManager.play_sfx(AudioManager.BAT_SWING)
+
+
+func _play_bare_hand_swing_sfx() -> void:
+	if has_node("/root/AudioManager"):
+		AudioManager.play_sfx(AudioManager.BARE_HAND_SWING)
 
 
 func _play_bat_hit_sfx() -> void:
