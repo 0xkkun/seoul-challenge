@@ -3,6 +3,7 @@ extends Node
 ## (기본 공격을 원거리→근접으로 변경. 원거리는 ranged_enabled 로 보존.)
 
 const PlayerScript := preload("res://scripts/player/player.gd")
+const FriendScene := preload("res://scenes/enemies/yokai_friend.tscn")
 
 var _runner: Node
 
@@ -10,11 +11,13 @@ var _runner: Node
 class StubEnemy extends Node2D:
 	var taken: int = 0
 	var accepts_damage := true
+	var applied_damage_override := -1
 	func take_damage(amount: int) -> int:
 		if not accepts_damage:
 			return 0
-		taken += amount
-		return amount
+		var applied_damage := amount if applied_damage_override < 0 else mini(amount, applied_damage_override)
+		taken += applied_damage
+		return applied_damage
 
 
 class StubResistantEnemy extends StubEnemy:
@@ -76,6 +79,104 @@ func test_hit_stop_profile_matches_combat_result() -> void:
 	_runner.assert_eq(PlayerScript.hit_stop_profile(false, false), {"duration": 0.03, "scale": 0.15}, "normal melee uses the light hit-stop profile")
 	_runner.assert_eq(PlayerScript.hit_stop_profile(true, false), {"duration": 0.06, "scale": 0.08}, "dash power melee uses the stronger profile")
 	_runner.assert_eq(PlayerScript.hit_stop_profile(false, true), {"duration": 0.05, "scale": 0.10}, "accepted player damage uses the hurt profile")
+
+
+func test_melee_combat_text_uses_exact_applied_damage_and_rejects_zero() -> void:
+	var player := PlayerScript.new()
+	add_child(player)
+	_runner.assert_true(player.has_signal(&"combat_text_requested"), "player exposes combat text requests")
+	if not player.has_signal(&"combat_text_requested"):
+		player.free()
+		return
+	var requests: Array[Dictionary] = []
+	player.connect(&"combat_text_requested", func(position: Vector2, text: String, style: StringName) -> void:
+		requests.append({"position": position, "text": text, "style": style})
+	)
+	player.position = Vector2.ZERO
+	player.equip_bat()
+	var accepted := StubEnemy.new()
+	accepted.applied_damage_override = 1
+	accepted.position = Vector2(50.0, 0.0)
+	accepted.add_to_group(&"enemy")
+	add_child(accepted)
+
+	player._attack_melee(Vector2.RIGHT)
+
+	_runner.assert_eq(requests.size(), 1, "accepted enemy emits one damage number")
+	if requests.size() == 1:
+		_runner.assert_eq(requests[0]["text"], "1", "overkill text uses clamped applied damage")
+		_runner.assert_eq(requests[0]["style"], &"ordinary", "non-power bat hit uses ordinary style")
+		_runner.assert_eq(requests[0]["position"], Vector2(50.0, -48.0), "damage text starts above the impact before knockback")
+	accepted.free()
+	HitStopManager.restore()
+	var rejected := StubEnemy.new()
+	rejected.accepts_damage = false
+	rejected.position = Vector2(50.0, 0.0)
+	rejected.add_to_group(&"enemy")
+	add_child(rejected)
+	player._attack_melee(Vector2.RIGHT)
+	_runner.assert_eq(requests.size(), 1, "rejected enemy emits no damage number")
+	rejected.free()
+	player.free()
+
+
+func test_power_attack_combat_text_uses_power_style_and_exact_delta() -> void:
+	var player := PlayerScript.new()
+	add_child(player)
+	_runner.assert_true(player.has_signal(&"combat_text_requested"), "player exposes power combat text requests")
+	if not player.has_signal(&"combat_text_requested"):
+		player.free()
+		return
+	var requests: Array[Dictionary] = []
+	player.connect(&"combat_text_requested", func(position: Vector2, text: String, style: StringName) -> void:
+		requests.append({"position": position, "text": text, "style": style})
+	)
+	player.position = Vector2.ZERO
+	player.equip_bat()
+	var enemy := StubEnemy.new()
+	enemy.position = Vector2(50.0, 0.0)
+	enemy.add_to_group(&"enemy")
+	add_child(enemy)
+	player.try_start_special_skill(Vector2.RIGHT)
+	var expected_damage := player.bat_damage + player.dash_power_attack_damage_bonus
+
+	player._attack_melee(Vector2.RIGHT)
+
+	_runner.assert_eq(requests.size(), 1, "accepted power attack emits one damage number")
+	if requests.size() == 1:
+		_runner.assert_eq(requests[0]["text"], str(expected_damage), "power text uses the exact returned damage")
+		_runner.assert_eq(requests[0]["style"], &"power", "power attack uses power text style")
+		_runner.assert_eq(requests[0]["position"], Vector2(50.0, -80.0), "power text starts above the authored slash effect")
+	enemy.free()
+	player.free()
+
+
+func test_yokai_friend_combat_text_uses_accepted_stun_delta() -> void:
+	var player := PlayerScript.new()
+	add_child(player)
+	_runner.assert_true(player.has_signal(&"combat_text_requested"), "player exposes yokai friend combat text requests")
+	if not player.has_signal(&"combat_text_requested"):
+		player.free()
+		return
+	var requests: Array[Dictionary] = []
+	player.connect(&"combat_text_requested", func(_position: Vector2, text: String, style: StringName) -> void:
+		requests.append({"text": text, "style": style})
+	)
+	player.position = Vector2.ZERO
+	player.equip_bat()
+	var friend := FriendScene.instantiate()
+	friend.max_stun = 1
+	friend.position = Vector2(50.0, 0.0)
+	add_child(friend)
+
+	player._attack_melee(Vector2.RIGHT)
+
+	_runner.assert_eq(requests.size(), 1, "accepted yokai stun emits one damage number")
+	if requests.size() == 1:
+		_runner.assert_eq(requests[0]["text"], "1", "yokai text uses clamped stun delta")
+		_runner.assert_eq(requests[0]["style"], &"ordinary", "regular yokai hit uses ordinary style")
+	friend.free()
+	player.free()
 
 
 func test_general_hit_stop_requires_positive_applied_damage() -> void:

@@ -188,3 +188,16 @@ that rejected overlap produces no hit stop, preserves the longer parry profile,
 and checks real-time recovery plus lethal/scene-exit restoration. The active modes also
 record camera, combat SFX, and damage-vignette state so concurrent feedback stays
 coordinated.
+
+## Damage numbers release Web fixture
+
+Temporarily export with `res://tests/uat/damage_numbers_web_fixture.tscn` as the
+main scene and restore `project.godot` after the release export. Use
+`uat_damage_numbers_mode` with `ordinary`, `power`, `player_damage`, `cap`,
+`reuse`, `disabled`, `rejected`, or `settings`.
+
+Every valid state prints `UAT_DAMAGE_NUMBERS_READY`. The fixture uses the real
+SessionRoot, Player, Wolf, shared 20-slot pool, and SettingsUI. It proves exact
+applied integers and distinct styles, text-before-hit-stop ordering, player HUD
+placement, cap and expiry reuse, disabled/rejected no-acquire paths, and the
+six-row mobile-safe settings layout.

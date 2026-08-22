@@ -161,6 +161,30 @@ func test_player_hit_stop_starts_only_for_accepted_damage() -> void:
 	player.free()
 
 
+func test_player_damage_combat_text_emits_exact_accepted_delta() -> void:
+	var player := PlayerScript.new()
+	add_child(player)
+	_runner.assert_true(player.has_signal(&"combat_text_requested"), "player exposes hurt combat text requests")
+	if not player.has_signal(&"combat_text_requested"):
+		player.free()
+		return
+	player.global_position = Vector2(44.0, 72.0)
+	var requests: Array[Dictionary] = []
+	player.connect(&"combat_text_requested", func(position: Vector2, text: String, style: StringName) -> void:
+		requests.append({"position": position, "text": text, "style": style})
+	)
+
+	player.take_damage(2)
+	player.take_damage(2)
+
+	_runner.assert_eq(requests.size(), 1, "accepted hurt emits once and invulnerable rejection emits nothing")
+	if requests.size() == 1:
+		_runner.assert_eq(requests[0]["position"], Vector2(44.0, 72.0), "player reports its world position for session placement")
+		_runner.assert_eq(requests[0]["text"], "2", "player hurt text uses exact applied damage")
+		_runner.assert_eq(requests[0]["style"], &"player_damage", "player hurt uses player-damage style")
+	player.free()
+
+
 func test_invuln_blocks_immediate_second_hit() -> void:
 	var p = PlayerScript.new()
 	add_child(p)

@@ -128,6 +128,30 @@ func test_parry_style_is_readable_and_bounded() -> void:
 	_runner.assert_true((style.get("color", Color.TRANSPARENT) as Color).a > 0.99, "parry text stays fully readable")
 
 
+func test_damage_text_styles_are_distinct_and_bounded() -> void:
+	_runner.assert_true(ResourceLoader.exists(FLOATING_TEXT_SCENE_PATH), "floating combat text scene exists for damage styles")
+	if not ResourceLoader.exists(FLOATING_TEXT_SCENE_PATH):
+		return
+	var text_node := (load(FLOATING_TEXT_SCENE_PATH) as PackedScene).instantiate()
+	add_child(text_node)
+	var ordinary: Dictionary = text_node.call("style_for", &"ordinary")
+	var power: Dictionary = text_node.call("style_for", &"power")
+	var player_damage: Dictionary = text_node.call("style_for", &"player_damage")
+	_runner.assert_eq(ordinary.get("font_size"), 18, "ordinary damage uses compact 18pt type")
+	_runner.assert_eq(ordinary.get("color"), Color.WHITE, "ordinary damage is white")
+	_runner.assert_eq(ordinary.get("rise"), 40.0, "ordinary damage rises 40px")
+	_runner.assert_eq(ordinary.get("duration"), 0.8, "ordinary damage lasts 0.8s")
+	_runner.assert_eq(power.get("font_size"), 24, "power damage uses 24pt emphasis")
+	_runner.assert_eq(power.get("color"), Color(1.0, 0.78, 0.22, 1.0), "power damage is yellow")
+	_runner.assert_eq(power.get("rise"), 40.0, "power damage rises 40px")
+	_runner.assert_eq(power.get("duration"), 0.8, "power damage lasts 0.8s")
+	_runner.assert_eq(player_damage.get("font_size"), 20, "player damage uses readable 20pt type")
+	_runner.assert_eq(player_damage.get("color"), Color(1.0, 0.24, 0.3, 1.0), "player damage is red")
+	_runner.assert_eq(player_damage.get("rise"), 20.0, "player damage stays near the health HUD")
+	_runner.assert_eq(player_damage.get("duration"), 0.5, "player damage clears in 0.5s")
+	text_node.free()
+
+
 func test_default_style_and_lifetime_progress_cover_punch_rise_and_fade() -> void:
 	_runner.assert_true(ResourceLoader.exists(FLOATING_TEXT_SCENE_PATH), "floating combat text scene exists")
 	if not ResourceLoader.exists(FLOATING_TEXT_SCENE_PATH):
