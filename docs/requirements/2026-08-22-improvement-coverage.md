@@ -31,7 +31,7 @@
 
 | ID | 상태 | 현재 근거 | 다음 계약 |
 |---|---|---|---|
-| B1 포탈 edge 소비 결함 | 완료 | #516에서 request 성공 후에만 latch 소비; pause-overlap 실패→actor 이동 없는 재시도→성공 1회 unit test | Web pause-over-portal 회귀 유지 |
+| B1 포탈 edge 소비 결함 | 완료 | #516에서 request 성공 후에만 latch 소비; pause-overlap 실패→actor 이동 없는 재시도→성공 1회 unit·release Web test | 회귀 유지 |
 | B2 포탈 레벨 트리거 전환 | 미구현 | point sampling과 entered callback 혼재 | B1 검증 후 필요성 재판정 |
 | B3 온보딩 다시하기 원인 판정 | 완료 | #516 completion·death가 latch 기반 `onboarding_kind`를 보존하고 retry UI 판정에 사용 | 결과 copy 회귀 유지 |
 | B4 marker 일원화 + `finish()` 방어 | 완료 | #516 `_finish_all_onboarding_ui()`가 완료·사망·포기·retry·return·scene exit를 멱등 정리 | 새 종료 경로 추가 시 matrix 확장 |
@@ -144,7 +144,7 @@
 | Q2 첫 방·첫 런 여정 (완료) | P3, P6, 이동·공격·대시·강공격·지도·출구 #507; 보상·정화·말 걸기 #509 | Task 2 merge `5a4f667`; Task 3 merge `31f8ba1`; PC/mobile journey UAT |
 | Q2b 온보딩 시각 재설계 (완료) | #513에서 첫 조작·objective·reward·정화·패링·인트로를 diegetic coachmark로 통일 | #513/#514 merge `e424012`; unit 544/544, integration 116/116, release Web 12 mode, Design C→A |
 | Q3 패링 학습·성공 피드백 (완료) | #510에서 반복 가능한 첫 늑대 학습 완료; #512에서 F2, F4, S7, T1, T2, T6 완성 | #510/#511 merge `76301ed`; #512/#515 merge `ab2ec465`; coverage 100%, release Web 5상태 UAT |
-| Q4 안정성 (진행 중) | #516에서 B1, B3, B4 구현 | portal retry unit, 6-path cleanup matrix, next-session 20-slot pool integration; Web UAT·PR 예정 |
+| Q4 안정성 (진행 중) | #516에서 B1, B3, B4 구현 | unit 560/560, integration 123/123; release Web portal blocked/retry·death before/after·next-session 5상태, PR 예정 |
 | Q5 전투 흐름 | L1 | configured wave별 spawn 테스트와 Web play |
 | Q6 적 압박 | M6a | 악귀 단독 변경 전후 encounter UAT |
 | Q7 전투 반응 | S1, S3, S4, F7 | cooldown·asset·피격 시청각 테스트와 Web UAT |
