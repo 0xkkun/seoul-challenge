@@ -72,7 +72,7 @@ class UiCaptureHtmlParser(HTMLParser):
                 return
             if self._anchors:
                 self._anchors[-1]["image_urls"].append(image_url)
-            if "width" in attr_map or "height" in attr_map:
+            if "width" in attr_map or "height" in attr_map or "srcset" in attr_map:
                 self.rejected_images.append(image_url)
                 return
             if not self.in_section:
