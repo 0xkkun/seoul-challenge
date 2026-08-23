@@ -133,6 +133,7 @@ class VerifyPrUiCaptureTest(unittest.TestCase):
             "html_comment": f"## UI 캡처\n<!-- ![화면]({raw_url}) -->\n",
             "raw_html_block": f"## UI 캡처\n<pre>\n![화면]({raw_url})\n</pre>\n",
             "unclosed_raw_html_block": f"## UI 캡처\n<div>\n![화면]({raw_url})\n",
+            "generic_raw_html_block": f"## UI 캡처\n<picture>\n![화면]({raw_url})\n</picture>\n",
         }
 
         for case, body in literal_bodies.items():

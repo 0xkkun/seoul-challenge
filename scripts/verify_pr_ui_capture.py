@@ -37,7 +37,7 @@ RAW_HTML_BLOCK_RE = re.compile(
     re.IGNORECASE | re.DOTALL,
 )
 RAW_HTML_BLOCK_LINE_RE = re.compile(
-    rf"(?im)^[ \t]{{0,3}}</?(?:{RAW_HTML_BLOCK_TAGS})\b[^>]*>"
+    r"(?im)^[ \t]{0,3}</?[A-Za-z][A-Za-z0-9-]*\b[^>]*>"
 )
 FENCE_OPEN_RE = re.compile(r"^[ \t]{0,3}(`{3,}|~{3,})")
 
