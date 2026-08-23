@@ -69,7 +69,7 @@ class UiCaptureHtmlParser(HTMLParser):
             image_url = attr_map.get("data-canonical-src", "") or attr_map.get("src", "")
             if self._anchors:
                 self._anchors[-1]["image_urls"].append(image_url)
-            if _zero_dimension(attr_map.get("width", "")) or _zero_dimension(attr_map.get("height", "")):
+            if "width" in attr_map or "height" in attr_map:
                 return
             if not self.in_section:
                 self.outside_images.append((image_url, attr_map.get("alt", "")))
@@ -117,7 +117,9 @@ def _style_hides(style: str) -> bool:
             return True
         if property_name == "visibility" and property_value == "hidden":
             return True
-        if property_name in {"opacity", "width", "height", "max-width", "max-height"} and _zero_dimension(property_value):
+        if property_name in {"width", "height"}:
+            return True
+        if property_name in {"opacity", "max-width", "max-height"} and _zero_dimension(property_value):
             return True
     return False
 

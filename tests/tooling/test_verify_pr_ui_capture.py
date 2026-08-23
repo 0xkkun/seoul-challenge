@@ -249,6 +249,7 @@ class VerifyPrUiCaptureTest(unittest.TestCase):
         url = preview_url(203)
         hidden_html = {
             "zero_size": f'<h2>UI 캡처</h2><img src="{url}" alt="화면" width="0" height="0">',
+            "tiny_size": f'<h2>UI 캡처</h2><img src="{url}" alt="화면" width="1" height="1">',
             "hidden_parent": f'<h2>UI 캡처</h2><div hidden><img src="{url}" alt="화면"></div>',
             "display_none": f'<h2>UI 캡처</h2><div style="display: none"><img src="{url}" alt="화면"></div>',
         }
