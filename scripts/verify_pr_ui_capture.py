@@ -15,6 +15,8 @@ RAW_PREVIEW_TEMPLATE = (
     r"https://raw\.githubusercontent\.com/0xkkun/seoul-challenge/"
     r"ui-previews/pr-{number}/[^\s)]+?\.(?:png|jpg|jpeg|webp)"
 )
+INLINE_PREVIEW_TEMPLATE = r"!\[[^\]\r\n]+\]\(\s*{raw_url}\s*\)"
+EMPTY_ALT_PREVIEW_TEMPLATE = r"!\[\]\(\s*{raw_url}\s*\)"
 
 
 def validate_pr_capture(event: dict[str, Any]) -> list[str]:
@@ -38,6 +40,15 @@ def validate_pr_capture(event: dict[str, Any]) -> list[str]:
             f"`https://raw.githubusercontent.com/0xkkun/seoul-challenge/ui-previews/pr-{number}/...png` "
             "형식의 캡처 링크가 필요합니다."
         )
+    else:
+        raw_url = RAW_PREVIEW_TEMPLATE.format(number=number)
+        inline_preview_re = re.compile(INLINE_PREVIEW_TEMPLATE.format(raw_url=raw_url))
+        empty_alt_preview_re = re.compile(EMPTY_ALT_PREVIEW_TEMPLATE.format(raw_url=raw_url))
+        if inline_preview_re.search(body) is None:
+            if empty_alt_preview_re.search(body) is not None:
+                errors.append("UI 캡처 인라인 이미지에는 화면을 설명하는 대체 텍스트가 필요합니다.")
+            else:
+                errors.append("UI 캡처 URL은 PR에서 바로 보이는 Markdown 인라인 이미지 `![설명](URL)`로 작성해야 합니다.")
 
     return errors
 

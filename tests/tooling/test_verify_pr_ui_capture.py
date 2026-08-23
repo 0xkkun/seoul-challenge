@@ -8,6 +8,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 SCRIPT_PATH = ROOT / "scripts" / "verify_pr_ui_capture.py"
+PR_HYGIENE_PATH = ROOT / "docs" / "pr-hygiene.md"
 
 
 def load_module():
@@ -41,7 +42,7 @@ class VerifyPrUiCaptureTest(unittest.TestCase):
 
         self.assertTrue(any("## UI 캡처" in error for error in errors))
 
-    def test_ui_pr_accepts_matching_raw_preview_url(self) -> None:
+    def test_ui_pr_rejects_plain_raw_preview_url(self) -> None:
         body = (
             "## 요약\n- 변경\n\n"
             "## UI 캡처\n"
@@ -52,7 +53,32 @@ class VerifyPrUiCaptureTest(unittest.TestCase):
 
         errors = self.module.validate_pr_capture(event)
 
+        self.assertTrue(any("인라인 이미지" in error for error in errors))
+
+    def test_ui_pr_accepts_matching_inline_raw_preview(self) -> None:
+        body = (
+            "## 요약\n- 변경\n\n"
+            "## UI 캡처\n"
+            "- ![인게임 일시정지 모달](https://raw.githubusercontent.com/0xkkun/seoul-challenge/"
+            "ui-previews/pr-203/session-pause-modal-960x540.png)\n"
+        )
+        event = pr_event(203, "[UI] 인게임 일시정지 모달 표시 복구", body, ["area:ui"])
+
+        errors = self.module.validate_pr_capture(event)
+
         self.assertEqual(errors, [])
+
+    def test_ui_pr_rejects_inline_preview_without_alt_text(self) -> None:
+        body = (
+            "## UI 캡처\n"
+            "- ![](https://raw.githubusercontent.com/0xkkun/seoul-challenge/"
+            "ui-previews/pr-203/session-pause-modal-960x540.png)\n"
+        )
+        event = pr_event(203, "[UI] 인게임 일시정지 모달 표시 복구", body, ["area:ui"])
+
+        errors = self.module.validate_pr_capture(event)
+
+        self.assertTrue(any("대체 텍스트" in error for error in errors))
 
     def test_non_ui_pr_does_not_require_capture(self) -> None:
         event = pr_event(205, "[Docs] 문서 정리", "## 요약\n- 문서", ["area:run"])
@@ -64,14 +90,20 @@ class VerifyPrUiCaptureTest(unittest.TestCase):
     def test_ui_capture_url_must_match_current_pr_number(self) -> None:
         body = (
             "## UI 캡처\n"
-            "- 화면: https://raw.githubusercontent.com/0xkkun/seoul-challenge/"
-            "ui-previews/pr-999/session-pause-modal-960x540.png\n"
+            "- ![인게임 일시정지 모달](https://raw.githubusercontent.com/0xkkun/seoul-challenge/"
+            "ui-previews/pr-999/session-pause-modal-960x540.png)\n"
         )
         event = pr_event(203, "[Scene] UI 라벨 수정", body, ["area:ui"])
 
         errors = self.module.validate_pr_capture(event)
 
         self.assertTrue(any("pr-203" in error for error in errors))
+
+    def test_pr_hygiene_documents_inline_image_preview(self) -> None:
+        guide = PR_HYGIENE_PATH.read_text(encoding="utf-8")
+
+        self.assertIn("Markdown 인라인 이미지", guide)
+        self.assertIn("![인게임 맵 탭]", guide)
 
 
 if __name__ == "__main__":
