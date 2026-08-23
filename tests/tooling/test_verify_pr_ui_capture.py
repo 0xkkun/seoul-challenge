@@ -6,6 +6,7 @@ import io
 import json
 import os
 import unittest
+import zlib
 from pathlib import Path
 from unittest import mock
 
@@ -671,15 +672,21 @@ class VerifyPrUiCaptureTest(unittest.TestCase):
             def getheader(self, name: str, default: str = "") -> str:
                 return self.content_type if name.casefold() == "content-type" else default
 
+        def png_chunk(chunk_type: bytes, data: bytes) -> bytes:
+            checksum = zlib.crc32(chunk_type + data) & 0xFFFFFFFF
+            return len(data).to_bytes(4, "big") + chunk_type + data + checksum.to_bytes(4, "big")
+
+        ihdr_data = (1).to_bytes(4, "big") + (1).to_bytes(4, "big") + b"\x08\x06\x00\x00\x00"
         valid_png = (
             b"\x89PNG\r\n\x1a\n"
-            b"\x00\x00\x00\rIHDR"
-            + (960).to_bytes(4, "big")
-            + (540).to_bytes(4, "big")
-            + b"\x08\x06\x00\x00\x00"
+            + png_chunk(b"IHDR", ihdr_data)
+            + png_chunk(b"IDAT", zlib.compress(b"\x00\x00\x00\x00\xff"))
+            + png_chunk(b"IEND", b"")
         )
+        header_only_png = b"\x89PNG\r\n\x1a\n" + png_chunk(b"IHDR", ihdr_data)
         cases = {
             "image": (FakeResponse(200, "image/png", valid_png), True),
+            "header_only_image": (FakeResponse(200, "image/png", header_only_png), False),
             "truncated_image": (FakeResponse(200, "image/png", b"not-a-png"), False),
             "not_found": (FakeResponse(404, "text/plain"), False),
             "not_image": (FakeResponse(200, "text/html"), False),
@@ -694,7 +701,7 @@ class VerifyPrUiCaptureTest(unittest.TestCase):
                 if case == "image":
                     probe_request = urlopen.call_args.args[0]
                     self.assertEqual(probe_request.get_method(), "GET")
-                    self.assertEqual(probe_request.get_header("Range"), "bytes=0-63")
+                    self.assertIsNone(probe_request.get_header("Range"))
 
 
 if __name__ == "__main__":

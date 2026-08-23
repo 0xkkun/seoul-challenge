@@ -5,6 +5,7 @@ import json
 import os
 import re
 import sys
+import zlib
 from collections.abc import Callable
 from html.parser import HTMLParser
 from pathlib import Path
@@ -34,6 +35,7 @@ ALLOWED_PREVIEW_ATTRIBUTES = {
     ("img", "srcset"),
     ("source", "srcset"),
 }
+MAX_PREVIEW_BYTES = 10 * 1024 * 1024
 
 
 class UiCaptureHtmlParser(HTMLParser):
@@ -244,7 +246,6 @@ def _preview_url_loads(url: str) -> bool:
         url,
         headers={
             "Accept": "image/*",
-            "Range": "bytes=0-63",
             "User-Agent": "seoul-challenge-ui-capture-validator",
         },
         method="GET",
@@ -253,35 +254,72 @@ def _preview_url_loads(url: str) -> bool:
         with request.urlopen(probe_request, timeout=15) as response:
             status = int(getattr(response, "status", 0))
             content_type = str(response.getheader("Content-Type", "")).casefold()
-            signature = response.read(64)
+            payload = response.read(MAX_PREVIEW_BYTES + 1)
             return (
                 200 <= status < 300
                 and content_type.startswith("image/")
-                and _valid_image_signature(content_type, signature)
+                and len(payload) <= MAX_PREVIEW_BYTES
+                and _valid_image_payload(content_type, payload)
             )
     except Exception:
         return False
 
 
-def _valid_image_signature(content_type: str, data: bytes) -> bool:
+def _valid_image_payload(content_type: str, data: bytes) -> bool:
     media_type = content_type.split(";", 1)[0].strip()
     if media_type == "image/png":
-        return (
-            len(data) >= 24
-            and data.startswith(b"\x89PNG\r\n\x1a\n")
-            and data[12:16] == b"IHDR"
-            and int.from_bytes(data[16:20], "big") > 0
-            and int.from_bytes(data[20:24], "big") > 0
-        )
+        return _valid_png_payload(data)
     if media_type in {"image/jpeg", "image/jpg"}:
-        return len(data) >= 16 and data.startswith(b"\xff\xd8\xff")
+        sof_markers = {bytes((0xFF, marker)) for marker in range(0xC0, 0xD0) if marker not in {0xC4, 0xC8, 0xCC}}
+        return (
+            len(data) >= 64
+            and data.startswith(b"\xff\xd8\xff")
+            and data.endswith(b"\xff\xd9")
+            and b"\xff\xda" in data
+            and any(marker in data for marker in sof_markers)
+        )
     if media_type == "image/webp":
         return (
-            len(data) >= 12
+            len(data) >= 20
             and data.startswith(b"RIFF")
             and data[8:12] == b"WEBP"
-            and int.from_bytes(data[4:8], "little") > 0
+            and int.from_bytes(data[4:8], "little") + 8 == len(data)
+            and data[12:16] in {b"VP8 ", b"VP8L", b"VP8X"}
+            and 20 + int.from_bytes(data[16:20], "little") <= len(data)
         )
+    return False
+
+
+def _valid_png_payload(data: bytes) -> bool:
+    if not data.startswith(b"\x89PNG\r\n\x1a\n"):
+        return False
+    offset = 8
+    seen_ihdr = False
+    seen_idat = False
+    while offset + 12 <= len(data):
+        chunk_length = int.from_bytes(data[offset:offset + 4], "big")
+        chunk_type = data[offset + 4:offset + 8]
+        chunk_end = offset + 12 + chunk_length
+        if chunk_end > len(data):
+            return False
+        chunk_data = data[offset + 8:offset + 8 + chunk_length]
+        expected_crc = int.from_bytes(data[offset + 8 + chunk_length:chunk_end], "big")
+        actual_crc = zlib.crc32(chunk_type + chunk_data) & 0xFFFFFFFF
+        if actual_crc != expected_crc:
+            return False
+        if not seen_ihdr:
+            if chunk_type != b"IHDR" or chunk_length != 13:
+                return False
+            if int.from_bytes(chunk_data[0:4], "big") <= 0 or int.from_bytes(chunk_data[4:8], "big") <= 0:
+                return False
+            seen_ihdr = True
+        elif chunk_type == b"IHDR":
+            return False
+        if chunk_type == b"IDAT":
+            seen_idat = True
+        if chunk_type == b"IEND":
+            return chunk_length == 0 and seen_idat and chunk_end == len(data)
+        offset = chunk_end
     return False
 
 
