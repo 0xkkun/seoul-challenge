@@ -663,16 +663,24 @@ class VerifyPrUiCaptureTest(unittest.TestCase):
         self.assertTrue(hasattr(self.module, "_preview_url_loads"))
 
         class FakeResponse(io.BytesIO):
-            def __init__(self, status: int, content_type: str) -> None:
-                super().__init__(b"")
+            def __init__(self, status: int, content_type: str, data: bytes = b"") -> None:
+                super().__init__(data)
                 self.status = status
                 self.content_type = content_type
 
             def getheader(self, name: str, default: str = "") -> str:
                 return self.content_type if name.casefold() == "content-type" else default
 
+        valid_png = (
+            b"\x89PNG\r\n\x1a\n"
+            b"\x00\x00\x00\rIHDR"
+            + (960).to_bytes(4, "big")
+            + (540).to_bytes(4, "big")
+            + b"\x08\x06\x00\x00\x00"
+        )
         cases = {
-            "image": (FakeResponse(200, "image/png"), True),
+            "image": (FakeResponse(200, "image/png", valid_png), True),
+            "truncated_image": (FakeResponse(200, "image/png", b"not-a-png"), False),
             "not_found": (FakeResponse(404, "text/plain"), False),
             "not_image": (FakeResponse(200, "text/html"), False),
         }
@@ -681,8 +689,12 @@ class VerifyPrUiCaptureTest(unittest.TestCase):
                 self.module.request,
                 "urlopen",
                 return_value=response,
-            ):
+            ) as urlopen:
                 self.assertEqual(self.module._preview_url_loads(preview_url(203)), expected)
+                if case == "image":
+                    probe_request = urlopen.call_args.args[0]
+                    self.assertEqual(probe_request.get_method(), "GET")
+                    self.assertEqual(probe_request.get_header("Range"), "bytes=0-63")
 
 
 if __name__ == "__main__":

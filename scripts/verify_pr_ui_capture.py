@@ -244,17 +244,45 @@ def _preview_url_loads(url: str) -> bool:
         url,
         headers={
             "Accept": "image/*",
+            "Range": "bytes=0-63",
             "User-Agent": "seoul-challenge-ui-capture-validator",
         },
-        method="HEAD",
+        method="GET",
     )
     try:
         with request.urlopen(probe_request, timeout=15) as response:
             status = int(getattr(response, "status", 0))
             content_type = str(response.getheader("Content-Type", "")).casefold()
-            return 200 <= status < 300 and content_type.startswith("image/")
+            signature = response.read(64)
+            return (
+                200 <= status < 300
+                and content_type.startswith("image/")
+                and _valid_image_signature(content_type, signature)
+            )
     except Exception:
         return False
+
+
+def _valid_image_signature(content_type: str, data: bytes) -> bool:
+    media_type = content_type.split(";", 1)[0].strip()
+    if media_type == "image/png":
+        return (
+            len(data) >= 24
+            and data.startswith(b"\x89PNG\r\n\x1a\n")
+            and data[12:16] == b"IHDR"
+            and int.from_bytes(data[16:20], "big") > 0
+            and int.from_bytes(data[20:24], "big") > 0
+        )
+    if media_type in {"image/jpeg", "image/jpg"}:
+        return len(data) >= 16 and data.startswith(b"\xff\xd8\xff")
+    if media_type == "image/webp":
+        return (
+            len(data) >= 12
+            and data.startswith(b"RIFF")
+            and data[8:12] == b"WEBP"
+            and int.from_bytes(data[4:8], "little") > 0
+        )
+    return False
 
 
 def _fetch_pr_body_html(event: dict[str, Any]) -> str:
