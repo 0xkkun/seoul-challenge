@@ -20,11 +20,16 @@ jobs:
     name: UI capture contract
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'
+    permissions:
+      contents: read
+      pull-requests: read
     steps:
       - name: Check out
         uses: actions/checkout@v7.0.0
 
       - name: Require screenshots for UI PRs
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: python3 scripts/verify_pr_ui_capture.py
 
   quick:
