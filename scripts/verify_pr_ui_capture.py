@@ -40,13 +40,15 @@ class UiCaptureHtmlParser(HTMLParser):
         self._heading_tag = ""
         self._heading_parts: list[str] = []
         self._anchors: list[dict[str, Any]] = []
-        self._element_stack: list[tuple[str, bool, bool]] = []
+        self._element_stack: list[tuple[str, bool, bool, bool]] = []
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         tag_name = tag.casefold()
         attr_map = {name.casefold(): value or "" for name, value in attrs}
         if tag_name == "summary" and self._element_stack and self._element_stack[-1][0] == "details":
-            parent_hidden = self._element_stack[-1][2]
+            details_tag, details_hidden, summary_hidden, summary_seen = self._element_stack[-1]
+            parent_hidden = details_hidden if summary_seen else summary_hidden
+            self._element_stack[-1] = (details_tag, details_hidden, summary_hidden, True)
         else:
             parent_hidden = self._element_stack[-1][1] if self._element_stack else False
         attribute_hidden = "hidden" in attr_map or _style_hides(attr_map.get("style", ""))
@@ -59,7 +61,7 @@ class UiCaptureHtmlParser(HTMLParser):
         )
         if tag_name not in VOID_HTML_TAGS:
             details_summary_hidden = parent_hidden or attribute_hidden
-            self._element_stack.append((tag_name, element_hidden, details_summary_hidden))
+            self._element_stack.append((tag_name, element_hidden, details_summary_hidden, False))
         if tag_name in {"h1", "h2"}:
             if element_hidden:
                 return
