@@ -226,7 +226,7 @@ func test_ingame_control_onboarding_desktop_guidance_names_keyboard_inputs_witho
 	_runner.assert_eq(snapshot.get("input_mode"), &"desktop", "터치 UI가 없으면 데스크톱 안내 모드를 쓴다")
 	_runner.assert_eq(snapshot.get("key_label"), "WASD", "첫 안내는 실제 PC 이동 key chip을 쓴다")
 	_runner.assert_eq(snapshot.get("action"), "이동", "첫 안내는 행동어만 강하게 보여준다")
-	_runner.assert_eq(snapshot.get("detail"), "96px", "성공 거리는 짧은 detail로 분리한다")
+	_runner.assert_eq(snapshot.get("detail"), "방 안을 둘러봐", "내부 성공 거리는 사용자 문구로 노출하지 않는다")
 	_runner.assert_eq(snapshot.get("target_names", []), [], "데스크톱 안내는 존재하지 않는 터치 위젯을 가리키지 않는다")
 	_runner.assert_true(float(snapshot.get("screen_coverage", 1.0)) <= 0.25, "PC coachmark는 playfield 75% 이상을 남긴다")
 
@@ -313,7 +313,9 @@ func test_ingame_control_onboarding_touch_guidance_survives_temporary_modal_hidi
 
 	onboarding.call("configure", touch, null, null)
 	onboarding.call("start")
-	_runner.assert_eq(onboarding.call("get_current_step_snapshot").get("input_mode"), &"touch", "모바일 온보딩은 touch 모드로 시작한다")
+	var touch_snapshot: Dictionary = onboarding.call("get_current_step_snapshot")
+	_runner.assert_eq(touch_snapshot.get("input_mode"), &"touch", "모바일 온보딩은 touch 모드로 시작한다")
+	_runner.assert_eq(touch_snapshot.get("detail"), "방 안을 둘러봐", "모바일 안내도 내부 성공 거리를 노출하지 않는다")
 	touch.visible = false
 	var hidden_snapshot: Dictionary = onboarding.call("get_current_step_snapshot")
 
