@@ -262,6 +262,38 @@ class VerifyPrUiCaptureTest(unittest.TestCase):
 
                 self.assertNotEqual(errors, [])
 
+    def test_ui_pr_rejects_hidden_preview_mixed_with_valid_image(self) -> None:
+        visible_url = preview_url(203)
+        hidden_url = preview_url(203, "hidden-960x540.png")
+        event = pr_event(
+            203,
+            "[UI] 화면",
+            "## UI 캡처",
+            ["area:ui"],
+            (
+                f'<h2>UI 캡처</h2><img src="{visible_url}" alt="화면">'
+                f'<img src="{hidden_url}" alt="숨김" width="0">'
+            ),
+        )
+
+        errors = self.module.validate_pr_capture(event)
+
+        self.assertTrue(any("보이는 이미지" in error for error in errors))
+
+    def test_ui_capture_heading_ignores_hidden_text(self) -> None:
+        url = preview_url(203)
+        event = pr_event(
+            203,
+            "[UI] 화면",
+            "## UI 캡처",
+            ["area:ui"],
+            f'<h2><span hidden>UI </span>캡처</h2><img src="{url}" alt="화면">',
+        )
+
+        errors = self.module.validate_pr_capture(event)
+
+        self.assertTrue(any("## UI 캡처" in error for error in errors))
+
     def test_ui_pr_requires_github_rendered_html(self) -> None:
         event = pr_event(203, "[UI] 인게임 일시정지 모달 표시 복구", "## UI 캡처", ["area:ui"])
 

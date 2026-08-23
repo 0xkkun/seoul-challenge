@@ -34,6 +34,7 @@ class UiCaptureHtmlParser(HTMLParser):
         self.in_section = False
         self.images: list[tuple[str, str]] = []
         self.outside_images: list[tuple[str, str]] = []
+        self.rejected_images: list[str] = []
         self.plain_links: list[str] = []
         self._heading_tag = ""
         self._heading_parts: list[str] = []
@@ -64,12 +65,14 @@ class UiCaptureHtmlParser(HTMLParser):
                 self._anchors.append({"href": attr_map.get("href", ""), "image_urls": []})
             return
         elif tag_name == "img":
-            if element_hidden:
-                return
             image_url = attr_map.get("data-canonical-src", "") or attr_map.get("src", "")
+            if element_hidden:
+                self.rejected_images.append(image_url)
+                return
             if self._anchors:
                 self._anchors[-1]["image_urls"].append(image_url)
             if "width" in attr_map or "height" in attr_map:
+                self.rejected_images.append(image_url)
                 return
             if not self.in_section:
                 self.outside_images.append((image_url, attr_map.get("alt", "")))
@@ -77,7 +80,7 @@ class UiCaptureHtmlParser(HTMLParser):
             self.images.append((image_url, attr_map.get("alt", "")))
 
     def handle_data(self, data: str) -> None:
-        if self._heading_tag:
+        if self._heading_tag and not self._inside_hidden_element():
             self._heading_parts.append(data)
 
     def handle_endtag(self, tag: str) -> None:
@@ -100,6 +103,9 @@ class UiCaptureHtmlParser(HTMLParser):
             if self._element_stack[index][0] == tag_name:
                 del self._element_stack[index:]
                 return
+
+    def _inside_hidden_element(self) -> bool:
+        return bool(self._element_stack and self._element_stack[-1][1])
 
 
 def _zero_dimension(value: str) -> bool:
@@ -164,6 +170,8 @@ def validate_pr_capture(event: dict[str, Any]) -> list[str]:
         errors.append(f"모든 UI 캡처 이미지는 현재 PR 경로 `ui-previews/pr-{number}/`를 사용해야 합니다.")
     if any(ANY_RAW_PREVIEW_RE.fullmatch(url) is not None for url, _alt in parser.outside_images):
         errors.append("모든 UI 캡처 이미지는 `## UI 캡처` 섹션 안에 있어야 합니다.")
+    if any(ANY_RAW_PREVIEW_RE.fullmatch(url) is not None for url in parser.rejected_images):
+        errors.append("모든 UI 캡처 URL은 즉시 보이는 이미지로 렌더링되어야 합니다.")
     if any(not alt.strip() for _url, alt in all_preview_images):
         errors.append("UI 캡처 이미지에는 화면을 설명하는 대체 텍스트가 필요합니다.")
     if any(ANY_RAW_PREVIEW_RE.fullmatch(url) is not None for url in parser.plain_links):
