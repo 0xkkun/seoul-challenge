@@ -36,6 +36,7 @@ ALLOWED_PREVIEW_ATTRIBUTES = {
     ("source", "srcset"),
 }
 MAX_PREVIEW_BYTES = 10 * 1024 * 1024
+MAX_DECODED_PREVIEW_BYTES = 64 * 1024 * 1024
 
 
 class UiCaptureHtmlParser(HTMLParser):
@@ -295,7 +296,13 @@ def _valid_png_payload(data: bytes) -> bool:
         return False
     offset = 8
     seen_ihdr = False
-    seen_idat = False
+    seen_plte = False
+    width = 0
+    height = 0
+    bit_depth = 0
+    color_type = 0
+    interlace_method = 0
+    idat_parts: list[bytes] = []
     while offset + 12 <= len(data):
         chunk_length = int.from_bytes(data[offset:offset + 4], "big")
         chunk_type = data[offset + 4:offset + 8]
@@ -310,17 +317,110 @@ def _valid_png_payload(data: bytes) -> bool:
         if not seen_ihdr:
             if chunk_type != b"IHDR" or chunk_length != 13:
                 return False
-            if int.from_bytes(chunk_data[0:4], "big") <= 0 or int.from_bytes(chunk_data[4:8], "big") <= 0:
+            width = int.from_bytes(chunk_data[0:4], "big")
+            height = int.from_bytes(chunk_data[4:8], "big")
+            bit_depth = chunk_data[8]
+            color_type = chunk_data[9]
+            compression_method = chunk_data[10]
+            filter_method = chunk_data[11]
+            interlace_method = chunk_data[12]
+            valid_depths = {
+                0: {1, 2, 4, 8, 16},
+                2: {8, 16},
+                3: {1, 2, 4, 8},
+                4: {8, 16},
+                6: {8, 16},
+            }
+            if (
+                width <= 0
+                or height <= 0
+                or bit_depth not in valid_depths.get(color_type, set())
+                or compression_method != 0
+                or filter_method != 0
+                or interlace_method not in {0, 1}
+            ):
                 return False
             seen_ihdr = True
         elif chunk_type == b"IHDR":
             return False
+        if chunk_type == b"PLTE":
+            seen_plte = True
         if chunk_type == b"IDAT":
-            seen_idat = True
+            idat_parts.append(chunk_data)
         if chunk_type == b"IEND":
-            return chunk_length == 0 and seen_idat and chunk_end == len(data)
+            return (
+                chunk_length == 0
+                and bool(idat_parts)
+                and (color_type != 3 or seen_plte)
+                and chunk_end == len(data)
+                and _valid_png_scanlines(
+                    b"".join(idat_parts),
+                    width,
+                    height,
+                    bit_depth,
+                    color_type,
+                    interlace_method,
+                )
+            )
         offset = chunk_end
     return False
+
+
+def _valid_png_scanlines(
+    compressed_data: bytes,
+    width: int,
+    height: int,
+    bit_depth: int,
+    color_type: int,
+    interlace_method: int,
+) -> bool:
+    channels = {0: 1, 2: 3, 3: 1, 4: 2, 6: 4}[color_type]
+    bits_per_pixel = channels * bit_depth
+    passes = [(0, 0, 1, 1)]
+    if interlace_method == 1:
+        passes = [
+            (0, 0, 8, 8),
+            (4, 0, 8, 8),
+            (0, 4, 4, 8),
+            (2, 0, 4, 4),
+            (0, 2, 2, 4),
+            (1, 0, 2, 2),
+            (0, 1, 1, 2),
+        ]
+    pass_rows: list[tuple[int, int]] = []
+    expected_size = 0
+    for start_x, start_y, step_x, step_y in passes:
+        pass_width = 0 if width <= start_x else (width - start_x + step_x - 1) // step_x
+        pass_height = 0 if height <= start_y else (height - start_y + step_y - 1) // step_y
+        if pass_width == 0 or pass_height == 0:
+            continue
+        row_bytes = (pass_width * bits_per_pixel + 7) // 8
+        pass_rows.append((pass_height, row_bytes))
+        expected_size += pass_height * (row_bytes + 1)
+    if expected_size <= 0 or expected_size > MAX_DECODED_PREVIEW_BYTES:
+        return False
+    try:
+        decoder = zlib.decompressobj()
+        decoded = decoder.decompress(compressed_data, expected_size + 1)
+        if len(decoded) > expected_size or decoder.unconsumed_tail:
+            return False
+        decoded += decoder.flush(expected_size + 1 - len(decoded))
+    except zlib.error:
+        return False
+    if (
+        len(decoded) != expected_size
+        or not decoder.eof
+        or decoder.unused_data
+        or decoder.unconsumed_tail
+    ):
+        return False
+    cursor = 0
+    for pass_height, row_bytes in pass_rows:
+        for _row in range(pass_height):
+            if decoded[cursor] > 4:
+                return False
+            cursor += row_bytes + 1
+    return cursor == len(decoded)
 
 
 def _fetch_pr_body_html(event: dict[str, Any]) -> str:

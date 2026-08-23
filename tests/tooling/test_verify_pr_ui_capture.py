@@ -684,9 +684,16 @@ class VerifyPrUiCaptureTest(unittest.TestCase):
             + png_chunk(b"IEND", b"")
         )
         header_only_png = b"\x89PNG\r\n\x1a\n" + png_chunk(b"IHDR", ihdr_data)
+        empty_idat_png = (
+            b"\x89PNG\r\n\x1a\n"
+            + png_chunk(b"IHDR", ihdr_data)
+            + png_chunk(b"IDAT", b"")
+            + png_chunk(b"IEND", b"")
+        )
         cases = {
             "image": (FakeResponse(200, "image/png", valid_png), True),
             "header_only_image": (FakeResponse(200, "image/png", header_only_png), False),
+            "empty_idat_image": (FakeResponse(200, "image/png", empty_idat_png), False),
             "truncated_image": (FakeResponse(200, "image/png", b"not-a-png"), False),
             "not_found": (FakeResponse(404, "text/plain"), False),
             "not_image": (FakeResponse(200, "text/html"), False),
