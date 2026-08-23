@@ -25,6 +25,13 @@ VOID_HTML_TAGS = {
     "area", "base", "br", "col", "embed", "hr", "img", "input", "link",
     "meta", "param", "source", "track", "wbr",
 }
+ALLOWED_PREVIEW_ATTRIBUTES = {
+    ("a", "href"),
+    ("img", "data-canonical-src"),
+    ("img", "src"),
+    ("img", "srcset"),
+    ("source", "srcset"),
+}
 
 
 class UiCaptureHtmlParser(HTMLParser):
@@ -46,6 +53,11 @@ class UiCaptureHtmlParser(HTMLParser):
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         tag_name = tag.casefold()
         attr_map = {name.casefold(): value or "" for name, value in attrs}
+        for attribute_name, value in attr_map.items():
+            if (tag_name, attribute_name) not in ALLOWED_PREVIEW_ATTRIBUTES:
+                self.rejected_images.extend(
+                    match.group(0) for match in ANY_RAW_PREVIEW_RE.finditer(value)
+                )
         if tag_name == "summary" and self._element_stack and self._element_stack[-1][0] == "details":
             details_tag, details_hidden, summary_hidden, summary_seen = self._element_stack[-1]
             parent_hidden = details_hidden if summary_seen else summary_hidden
