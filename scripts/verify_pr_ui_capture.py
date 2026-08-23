@@ -33,6 +33,7 @@ class UiCaptureHtmlParser(HTMLParser):
         self.section_found = False
         self.in_section = False
         self.images: list[tuple[str, str]] = []
+        self.outside_images: list[tuple[str, str]] = []
         self.plain_links: list[str] = []
         self._heading_tag = ""
         self._heading_parts: list[str] = []
@@ -68,9 +69,10 @@ class UiCaptureHtmlParser(HTMLParser):
             image_url = attr_map.get("data-canonical-src", "") or attr_map.get("src", "")
             if self._anchors:
                 self._anchors[-1]["image_urls"].append(image_url)
-            if not self.in_section:
-                return
             if _zero_dimension(attr_map.get("width", "")) or _zero_dimension(attr_map.get("height", "")):
+                return
+            if not self.in_section:
+                self.outside_images.append((image_url, attr_map.get("alt", "")))
                 return
             self.images.append((image_url, attr_map.get("alt", "")))
 
@@ -158,6 +160,8 @@ def validate_pr_capture(event: dict[str, Any]) -> list[str]:
         )
     if any(preview_re.fullmatch(url) is None for url, _alt in all_preview_images):
         errors.append(f"모든 UI 캡처 이미지는 현재 PR 경로 `ui-previews/pr-{number}/`를 사용해야 합니다.")
+    if any(ANY_RAW_PREVIEW_RE.fullmatch(url) is not None for url, _alt in parser.outside_images):
+        errors.append("모든 UI 캡처 이미지는 `## UI 캡처` 섹션 안에 있어야 합니다.")
     if any(not alt.strip() for _url, alt in all_preview_images):
         errors.append("UI 캡처 이미지에는 화면을 설명하는 대체 텍스트가 필요합니다.")
     if any(ANY_RAW_PREVIEW_RE.fullmatch(url) is not None for url in parser.plain_links):
