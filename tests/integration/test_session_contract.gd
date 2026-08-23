@@ -261,7 +261,7 @@ func test_session_starts_control_onboarding_only_for_first_baseball_run() -> voi
 			_runner.assert_eq(snapshot.get("input_mode"), &"desktop", "headless desktop session uses keyboard onboarding guidance")
 			_runner.assert_eq(snapshot.get("key_label"), "WASD", "desktop session names the real movement key")
 			_runner.assert_eq(snapshot.get("action"), "이동", "desktop session uses a compact movement action")
-			_runner.assert_eq(snapshot.get("detail"), "96px", "movement success distance stays visible as detail")
+			_runner.assert_eq(snapshot.get("detail"), "방 안을 둘러봐", "movement guidance hides the internal success threshold")
 			_runner.assert_eq(snapshot.get("target_names", []), [], "desktop session does not highlight a hidden joystick")
 			_runner.assert_eq(float(snapshot.get("dim_alpha", -1.0)), 0.0, "movement coach leaves the playfield undimmed")
 			_runner.assert_true(float(snapshot.get("screen_coverage", 1.0)) <= 0.25, "movement coach protects the playfield")

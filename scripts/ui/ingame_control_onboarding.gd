@@ -31,7 +31,7 @@ const TOUCH_STEPS: Array[Dictionary] = [
 		"id": &"move",
 		"key_label": "스틱",
 		"action": "이동",
-		"detail": "96px",
+		"detail": "방 안을 둘러봐",
 		"targets": ["Joystick"],
 	},
 	{
@@ -76,7 +76,7 @@ const DESKTOP_STEPS: Array[Dictionary] = [
 		"id": &"move",
 		"key_label": "WASD",
 		"action": "이동",
-		"detail": "96px",
+		"detail": "방 안을 둘러봐",
 		"targets": [],
 	},
 	{
