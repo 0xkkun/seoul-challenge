@@ -121,6 +121,24 @@ class VerifyPrUiCaptureTest(unittest.TestCase):
 
         self.assertTrue(any("모든 캡처 URL" in error for error in errors))
 
+    def test_visible_plain_preview_text_is_rejected(self) -> None:
+        image_url = preview_url(203)
+        text_url = preview_url(203, "settings-960x540.png")
+        event = pr_event(
+            203,
+            "[UI] 화면",
+            "## UI 캡처",
+            ["area:ui"],
+            (
+                f'<h2>UI 캡처</h2><img src="{image_url}" alt="화면">'
+                f'<div>{text_url}</div>'
+            ),
+        )
+
+        errors = self.module.validate_pr_capture(event)
+
+        self.assertTrue(any("모든 캡처 URL" in error for error in errors))
+
     def test_preview_image_outside_capture_section_is_rejected(self) -> None:
         section_url = preview_url(203)
         outside_url = preview_url(203, "settings-960x540.png")

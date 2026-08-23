@@ -36,6 +36,7 @@ class UiCaptureHtmlParser(HTMLParser):
         self.outside_images: list[tuple[str, str]] = []
         self.rejected_images: list[str] = []
         self.plain_links: list[str] = []
+        self.visible_text_parts: list[str] = []
         self._heading_tag = ""
         self._heading_parts: list[str] = []
         self._anchors: list[dict[str, Any]] = []
@@ -81,8 +82,12 @@ class UiCaptureHtmlParser(HTMLParser):
             self.images.append((image_url, attr_map.get("alt", "")))
 
     def handle_data(self, data: str) -> None:
-        if self._heading_tag and not self._inside_hidden_element():
+        if self._inside_hidden_element():
+            return
+        if self._heading_tag:
             self._heading_parts.append(data)
+        else:
+            self.visible_text_parts.append(data)
 
     def handle_endtag(self, tag: str) -> None:
         tag_name = tag.casefold()
@@ -175,7 +180,10 @@ def validate_pr_capture(event: dict[str, Any]) -> list[str]:
         errors.append("모든 UI 캡처 URL은 즉시 보이는 이미지로 렌더링되어야 합니다.")
     if any(not alt.strip() for _url, alt in all_preview_images):
         errors.append("UI 캡처 이미지에는 화면을 설명하는 대체 텍스트가 필요합니다.")
-    if any(ANY_RAW_PREVIEW_RE.fullmatch(url) is not None for url in parser.plain_links):
+    if (
+        any(ANY_RAW_PREVIEW_RE.fullmatch(url) is not None for url in parser.plain_links)
+        or ANY_RAW_PREVIEW_RE.search("".join(parser.visible_text_parts)) is not None
+    ):
         errors.append("모든 캡처 URL은 PR에서 바로 보이는 Markdown 인라인 이미지 `![설명](URL)`로 작성해야 합니다.")
 
     return errors
