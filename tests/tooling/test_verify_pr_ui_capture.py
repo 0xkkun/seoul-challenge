@@ -181,6 +181,34 @@ class VerifyPrUiCaptureTest(unittest.TestCase):
 
         self.assertNotEqual(errors, [])
 
+    def test_ui_pr_rejects_preview_hidden_in_closed_details(self) -> None:
+        url = preview_url(203)
+        event = pr_event(
+            203,
+            "[UI] 화면",
+            f"## UI 캡처\n<details>\n![화면]({url})\n</details>",
+            ["area:ui"],
+            f'<h2>UI 캡처</h2><details><summary>캡처</summary><img src="{url}" alt="화면"></details>',
+        )
+
+        errors = self.module.validate_pr_capture(event)
+
+        self.assertNotEqual(errors, [])
+
+    def test_ui_pr_accepts_preview_in_open_details(self) -> None:
+        url = preview_url(203)
+        event = pr_event(
+            203,
+            "[UI] 화면",
+            f"## UI 캡처\n<details open>\n![화면]({url})\n</details>",
+            ["area:ui"],
+            f'<h2>UI 캡처</h2><details open><summary>캡처</summary><img src="{url}" alt="화면"></details>',
+        )
+
+        errors = self.module.validate_pr_capture(event)
+
+        self.assertEqual(errors, [])
+
     def test_ui_pr_requires_github_rendered_html(self) -> None:
         event = pr_event(203, "[UI] 인게임 일시정지 모달 표시 복구", "## UI 캡처", ["area:ui"])
 

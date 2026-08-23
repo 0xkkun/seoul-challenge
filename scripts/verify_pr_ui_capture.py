@@ -32,17 +32,24 @@ class UiCaptureHtmlParser(HTMLParser):
         self._heading_tag = ""
         self._heading_parts: list[str] = []
         self._anchors: list[dict[str, Any]] = []
+        self._hidden_details_stack: list[bool] = []
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         tag_name = tag.casefold()
+        attr_map = {name.casefold(): value or "" for name, value in attrs}
+        if tag_name == "details":
+            parent_hidden = self._hidden_details_stack[-1] if self._hidden_details_stack else False
+            self._hidden_details_stack.append(parent_hidden or "open" not in attr_map)
+            return
         if tag_name in {"h1", "h2"}:
+            if self._inside_closed_details():
+                return
             self.in_section = False
             self._heading_tag = tag_name
             self._heading_parts = []
             return
-        if not self.in_section:
+        if not self.in_section or self._inside_closed_details():
             return
-        attr_map = {name.casefold(): value or "" for name, value in attrs}
         if tag_name == "a":
             self._anchors.append({"href": attr_map.get("href", ""), "image_urls": []})
         elif tag_name == "img":
@@ -57,6 +64,10 @@ class UiCaptureHtmlParser(HTMLParser):
 
     def handle_endtag(self, tag: str) -> None:
         tag_name = tag.casefold()
+        if tag_name == "details":
+            if self._hidden_details_stack:
+                self._hidden_details_stack.pop()
+            return
         if tag_name == self._heading_tag:
             heading_text = re.sub(r"\s+", "", "".join(self._heading_parts)).casefold()
             if tag_name == "h2" and heading_text == "ui캡처".casefold():
@@ -69,6 +80,9 @@ class UiCaptureHtmlParser(HTMLParser):
             anchor = self._anchors.pop()
             if self.in_section and str(anchor["href"]) not in anchor["image_urls"]:
                 self.plain_links.append(str(anchor["href"]))
+
+    def _inside_closed_details(self) -> bool:
+        return bool(self._hidden_details_stack and self._hidden_details_stack[-1])
 
 
 def validate_pr_capture(event: dict[str, Any]) -> list[str]:
