@@ -87,6 +87,7 @@ For UI PRs:
 3. Push the capture commit to `origin/ui-previews`.
 4. Add a `## UI 캡처` section to the PR body. Embed every raw URL as a
    Markdown 인라인 이미지 `![화면 설명](raw URL)` with meaningful alt text.
+   Put each image on its own line, optionally as a bullet.
    A plain text link does not provide an in-PR preview and fails the UI capture
    contract.
 

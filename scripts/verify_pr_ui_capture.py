@@ -15,11 +15,16 @@ RAW_PREVIEW_TEMPLATE = (
     r"https://raw\.githubusercontent\.com/0xkkun/seoul-challenge/"
     r"ui-previews/pr-{number}/[^\s)]+?\.(?:png|jpg|jpeg|webp)"
 )
-INLINE_PREVIEW_TEMPLATE = r"(?<!\\)!\[[^\]\r\n]*[^\s\]\r\n][^\]\r\n]*\]\(\s*(?P<url>{raw_url})\s*\)"
-EMPTY_ALT_PREVIEW_TEMPLATE = r"(?<!\\)!\[\s*\]\(\s*(?P<url>{raw_url})\s*\)"
+INLINE_PREVIEW_TEMPLATE = (
+    r"(?m)^[ \t]{{0,3}}(?:[-*+][ \t]+)?"
+    r"!\[[^\]\r\n]*[^\s\]\r\n][^\]\r\n]*\]\(\s*(?P<url>{raw_url})\s*\)[ \t]*(?:\r?\n|$)"
+)
+EMPTY_ALT_PREVIEW_TEMPLATE = (
+    r"(?m)^[ \t]{{0,3}}(?:[-*+][ \t]+)?"
+    r"!\[\s*\]\(\s*(?P<url>{raw_url})\s*\)[ \t]*(?:\r?\n|$)"
+)
 HTML_COMMENT_RE = re.compile(r"<!--.*?-->", re.DOTALL)
 FENCE_OPEN_RE = re.compile(r"^[ \t]{0,3}(`{3,}|~{3,})")
-CODE_SPAN_DELIMITER_RE = re.compile(r"(?<!`)`+(?!`)")
 
 
 def validate_pr_capture(event: dict[str, Any]) -> list[str]:
@@ -75,27 +80,10 @@ def _rendered_markdown_source(body: str) -> str:
             marker = open_match.group(1)
             fence = (marker[0], len(marker))
             continue
+        if line.startswith("\t") or line.startswith("    "):
+            continue
         rendered_lines.append(line)
-    return _strip_inline_code_spans("".join(rendered_lines))
-
-
-def _strip_inline_code_spans(source: str) -> str:
-    rendered_parts: list[str] = []
-    cursor = 0
-    while True:
-        opening = CODE_SPAN_DELIMITER_RE.search(source, cursor)
-        if opening is None:
-            rendered_parts.append(source[cursor:])
-            break
-        rendered_parts.append(source[cursor:opening.start()])
-        delimiter = opening.group(0)
-        closing_re = re.compile(rf"(?<!`){re.escape(delimiter)}(?!`)")
-        closing = closing_re.search(source, opening.end())
-        if closing is None:
-            rendered_parts.append(source[opening.start():])
-            break
-        cursor = closing.end()
-    return "".join(rendered_parts)
+    return "".join(rendered_lines)
 
 
 def _is_ui_pull_request(pr: dict[str, Any]) -> bool:

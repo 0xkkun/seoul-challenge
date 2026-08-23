@@ -116,6 +116,7 @@ class VerifyPrUiCaptureTest(unittest.TestCase):
             "inline_code": f"## UI 캡처\n`![화면]({raw_url})`\n",
             "multi_backtick_inline_code": f"## UI 캡처\n``![화면]({raw_url})``\n",
             "fenced_code": f"## UI 캡처\n```markdown\n![화면]({raw_url})\n```\n",
+            "indented_code": f"## UI 캡처\n\n    ![화면]({raw_url})\n",
             "html_comment": f"## UI 캡처\n<!-- ![화면]({raw_url}) -->\n",
         }
 
