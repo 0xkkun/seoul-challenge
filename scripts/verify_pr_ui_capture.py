@@ -100,8 +100,7 @@ class UiCaptureHtmlParser(HTMLParser):
             return
         if self._heading_tag:
             self._heading_parts.append(data)
-        else:
-            self.visible_text_parts.append(data)
+        self.visible_text_parts.append(data)
 
     def handle_endtag(self, tag: str) -> None:
         tag_name = tag.casefold()
