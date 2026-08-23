@@ -58,17 +58,21 @@ class UiCaptureHtmlParser(HTMLParser):
             self._heading_tag = tag_name
             self._heading_parts = []
             return
-        if not self.in_section or element_hidden:
-            return
         if tag_name == "a":
-            self._anchors.append({"href": attr_map.get("href", ""), "image_urls": []})
+            if not element_hidden:
+                self._anchors.append({"href": attr_map.get("href", ""), "image_urls": []})
+            return
         elif tag_name == "img":
-            if _zero_dimension(attr_map.get("width", "")) or _zero_dimension(attr_map.get("height", "")):
+            if element_hidden:
                 return
             image_url = attr_map.get("data-canonical-src", "") or attr_map.get("src", "")
-            self.images.append((image_url, attr_map.get("alt", "")))
             if self._anchors:
                 self._anchors[-1]["image_urls"].append(image_url)
+            if not self.in_section:
+                return
+            if _zero_dimension(attr_map.get("width", "")) or _zero_dimension(attr_map.get("height", "")):
+                return
+            self.images.append((image_url, attr_map.get("alt", "")))
 
     def handle_data(self, data: str) -> None:
         if self._heading_tag:
@@ -85,7 +89,7 @@ class UiCaptureHtmlParser(HTMLParser):
             self._heading_parts = []
         elif tag_name == "a" and self._anchors:
             anchor = self._anchors.pop()
-            if self.in_section and str(anchor["href"]) not in anchor["image_urls"]:
+            if str(anchor["href"]) not in anchor["image_urls"]:
                 self.plain_links.append(str(anchor["href"]))
         self._pop_element(tag_name)
 

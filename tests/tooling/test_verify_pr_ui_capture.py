@@ -103,6 +103,24 @@ class VerifyPrUiCaptureTest(unittest.TestCase):
 
         self.assertTrue(any("pr-203" in error for error in errors))
 
+    def test_plain_preview_link_outside_capture_section_is_rejected(self) -> None:
+        image_url = preview_url(203)
+        plain_url = preview_url(203, "settings-960x540.png")
+        event = pr_event(
+            203,
+            "[UI] 화면",
+            f"## UI 캡처\n![화면]({image_url})\n\n## 기타\n[설정]({plain_url})",
+            ["area:ui"],
+            (
+                f'<h2>UI 캡처</h2><a href="{image_url}"><img src="{image_url}" alt="화면"></a>'
+                f'<h2>기타</h2><a href="{plain_url}">설정</a>'
+            ),
+        )
+
+        errors = self.module.validate_pr_capture(event)
+
+        self.assertTrue(any("모든 캡처 URL" in error for error in errors))
+
     def test_ui_pr_rejects_plain_url_even_when_another_preview_is_inline(self) -> None:
         image_url = preview_url(203)
         plain_url = preview_url(203, "settings-960x540.png")
