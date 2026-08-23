@@ -35,6 +35,7 @@ class UiCaptureHtmlParser(HTMLParser):
         self.images: list[tuple[str, str]] = []
         self.outside_images: list[tuple[str, str]] = []
         self.rejected_images: list[str] = []
+        self.rejected_responsive_markup = False
         self.plain_links: list[str] = []
         self.visible_text_parts: list[str] = []
         self._heading_tag = ""
@@ -63,7 +64,11 @@ class UiCaptureHtmlParser(HTMLParser):
             details_summary_hidden = parent_hidden or attribute_hidden
             self._element_stack.append((tag_name, element_hidden, details_summary_hidden, False))
         if tag_name in {"img", "source"} and "srcset" in attr_map:
-            self.rejected_images.extend(_srcset_urls(attr_map["srcset"]))
+            self.rejected_images.extend(
+                match.group(0) for match in ANY_RAW_PREVIEW_RE.finditer(attr_map["srcset"])
+            )
+            if self.in_section:
+                self.rejected_responsive_markup = True
         if tag_name in {"h1", "h2"}:
             if element_hidden:
                 return
@@ -127,15 +132,6 @@ def _zero_dimension(value: str) -> bool:
     return bool(value.strip() and ZERO_LENGTH_RE.fullmatch(value.strip()))
 
 
-def _srcset_urls(value: str) -> list[str]:
-    urls: list[str] = []
-    for candidate in value.split(","):
-        fields = candidate.strip().split()
-        if fields:
-            urls.append(fields[0])
-    return urls
-
-
 def _style_hides(style: str) -> bool:
     for declaration in style.casefold().split(";"):
         name, separator, value = declaration.partition(":")
@@ -196,6 +192,8 @@ def validate_pr_capture(event: dict[str, Any]) -> list[str]:
         errors.append("모든 UI 캡처 이미지는 `## UI 캡처` 섹션 안에 있어야 합니다.")
     if any(ANY_RAW_PREVIEW_RE.fullmatch(url) is not None for url in parser.rejected_images):
         errors.append("모든 UI 캡처 URL은 즉시 보이는 이미지로 렌더링되어야 합니다.")
+    if parser.rejected_responsive_markup:
+        errors.append("UI 캡처 섹션에서는 responsive image markup을 사용할 수 없습니다.")
     if any(not alt.strip() for _url, alt in all_preview_images):
         errors.append("UI 캡처 이미지에는 화면을 설명하는 대체 텍스트가 필요합니다.")
     if (
