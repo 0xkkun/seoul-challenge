@@ -209,6 +209,22 @@ class VerifyPrUiCaptureTest(unittest.TestCase):
 
         self.assertEqual(errors, [])
 
+    def test_ui_pr_rejects_preview_hidden_by_html_visibility(self) -> None:
+        url = preview_url(203)
+        hidden_html = {
+            "zero_size": f'<h2>UI 캡처</h2><img src="{url}" alt="화면" width="0" height="0">',
+            "hidden_parent": f'<h2>UI 캡처</h2><div hidden><img src="{url}" alt="화면"></div>',
+            "display_none": f'<h2>UI 캡처</h2><div style="display: none"><img src="{url}" alt="화면"></div>',
+        }
+
+        for case, body_html in hidden_html.items():
+            with self.subTest(case=case):
+                event = pr_event(203, "[UI] 화면", "## UI 캡처", ["area:ui"], body_html)
+
+                errors = self.module.validate_pr_capture(event)
+
+                self.assertNotEqual(errors, [])
+
     def test_ui_pr_requires_github_rendered_html(self) -> None:
         event = pr_event(203, "[UI] 인게임 일시정지 모달 표시 복구", "## UI 캡처", ["area:ui"])
 
@@ -266,6 +282,8 @@ class VerifyPrUiCaptureTest(unittest.TestCase):
         workflow = VERIFY_WORKFLOW_PATH.read_text(encoding="utf-8")
 
         self.assertIn("GITHUB_TOKEN: ${{ github.token }}", workflow)
+        self.assertIn("contents: read", workflow)
+        self.assertIn("pull-requests: read", workflow)
 
     def test_fetch_pr_body_html_uses_github_full_media_type(self) -> None:
         self.assertTrue(hasattr(self.module, "_fetch_pr_body_html"))

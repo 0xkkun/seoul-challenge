@@ -20,6 +20,11 @@ ANY_RAW_PREVIEW_RE = re.compile(
     r"https://raw\.githubusercontent\.com/0xkkun/seoul-challenge/"
     r"ui-previews/pr-\d+/[^\s)]+?\.(?:png|jpg|jpeg|webp)"
 )
+ZERO_LENGTH_RE = re.compile(r"^[+-]?0+(?:\.0+)?(?:px|%|em|rem|vw|vh)?$", re.IGNORECASE)
+VOID_HTML_TAGS = {
+    "area", "base", "br", "col", "embed", "hr", "img", "input", "link",
+    "meta", "param", "source", "track", "wbr",
+}
 
 
 class UiCaptureHtmlParser(HTMLParser):
@@ -32,27 +37,34 @@ class UiCaptureHtmlParser(HTMLParser):
         self._heading_tag = ""
         self._heading_parts: list[str] = []
         self._anchors: list[dict[str, Any]] = []
-        self._hidden_details_stack: list[bool] = []
+        self._element_stack: list[tuple[str, bool]] = []
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         tag_name = tag.casefold()
         attr_map = {name.casefold(): value or "" for name, value in attrs}
-        if tag_name == "details":
-            parent_hidden = self._hidden_details_stack[-1] if self._hidden_details_stack else False
-            self._hidden_details_stack.append(parent_hidden or "open" not in attr_map)
-            return
+        parent_hidden = self._element_stack[-1][1] if self._element_stack else False
+        element_hidden = (
+            parent_hidden
+            or "hidden" in attr_map
+            or _style_hides(attr_map.get("style", ""))
+            or (tag_name == "details" and "open" not in attr_map)
+        )
+        if tag_name not in VOID_HTML_TAGS:
+            self._element_stack.append((tag_name, element_hidden))
         if tag_name in {"h1", "h2"}:
-            if self._inside_closed_details():
+            if element_hidden:
                 return
             self.in_section = False
             self._heading_tag = tag_name
             self._heading_parts = []
             return
-        if not self.in_section or self._inside_closed_details():
+        if not self.in_section or element_hidden:
             return
         if tag_name == "a":
             self._anchors.append({"href": attr_map.get("href", ""), "image_urls": []})
         elif tag_name == "img":
+            if _zero_dimension(attr_map.get("width", "")) or _zero_dimension(attr_map.get("height", "")):
+                return
             image_url = attr_map.get("data-canonical-src", "") or attr_map.get("src", "")
             self.images.append((image_url, attr_map.get("alt", "")))
             if self._anchors:
@@ -64,10 +76,6 @@ class UiCaptureHtmlParser(HTMLParser):
 
     def handle_endtag(self, tag: str) -> None:
         tag_name = tag.casefold()
-        if tag_name == "details":
-            if self._hidden_details_stack:
-                self._hidden_details_stack.pop()
-            return
         if tag_name == self._heading_tag:
             heading_text = re.sub(r"\s+", "", "".join(self._heading_parts)).casefold()
             if tag_name == "h2" and heading_text == "ui캡처".casefold():
@@ -75,14 +83,37 @@ class UiCaptureHtmlParser(HTMLParser):
                 self.in_section = True
             self._heading_tag = ""
             self._heading_parts = []
-            return
-        if tag_name == "a" and self._anchors:
+        elif tag_name == "a" and self._anchors:
             anchor = self._anchors.pop()
             if self.in_section and str(anchor["href"]) not in anchor["image_urls"]:
                 self.plain_links.append(str(anchor["href"]))
+        self._pop_element(tag_name)
 
-    def _inside_closed_details(self) -> bool:
-        return bool(self._hidden_details_stack and self._hidden_details_stack[-1])
+    def _pop_element(self, tag_name: str) -> None:
+        for index in range(len(self._element_stack) - 1, -1, -1):
+            if self._element_stack[index][0] == tag_name:
+                del self._element_stack[index:]
+                return
+
+
+def _zero_dimension(value: str) -> bool:
+    return bool(value.strip() and ZERO_LENGTH_RE.fullmatch(value.strip()))
+
+
+def _style_hides(style: str) -> bool:
+    for declaration in style.casefold().split(";"):
+        name, separator, value = declaration.partition(":")
+        if separator == "":
+            continue
+        property_name = name.strip()
+        property_value = value.strip()
+        if property_name == "display" and property_value == "none":
+            return True
+        if property_name == "visibility" and property_value == "hidden":
+            return True
+        if property_name in {"opacity", "width", "height", "max-width", "max-height"} and _zero_dimension(property_value):
+            return True
+    return False
 
 
 def validate_pr_capture(event: dict[str, Any]) -> list[str]:
