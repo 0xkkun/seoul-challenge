@@ -161,6 +161,26 @@ func test_player_hit_stop_starts_only_for_accepted_damage() -> void:
 	player.free()
 
 
+func test_player_hit_shake_feedback_emits_only_for_accepted_damage() -> void:
+	var player := PlayerScript.new()
+	add_child(player)
+	var payloads: Array[Dictionary] = []
+	var callback := func(payload: Dictionary) -> void:
+		payloads.append(payload)
+	EventBus.combat_feedback.connect(callback)
+
+	player.take_damage(2)
+	player.take_damage(2)
+
+	_runner.assert_eq(payloads.size(), 1, "accepted hurt shakes once and invulnerable rejection stays silent")
+	if payloads.size() == 1:
+		_runner.assert_eq(StringName(payloads[0].get("kind", &"")), &"player_hit", "hurt shake uses the player-hit kind")
+		_runner.assert_true(is_equal_approx(float(payloads[0].get("intensity", 0.0)), 6.0), "hurt shake intensity sits above any melee swing")
+
+	EventBus.combat_feedback.disconnect(callback)
+	player.free()
+
+
 func test_player_damage_combat_text_emits_exact_accepted_delta() -> void:
 	var player := PlayerScript.new()
 	add_child(player)
