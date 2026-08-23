@@ -28,10 +28,12 @@ P0 판정은 반드시 merge 전에 내린다. main에 이미 합류된 뒤에�
 
 ### 2차: merge 후 main 스윕 (비차단 안전망)
 
-merge 직후 `git fetch origin main` 으로 원격 추적을 갱신하고, `gh pr merge`가
-반환한 merge SHA(또는 fetch 전 main HEAD)를 기준으로 `git log -p <이전>..origin/main`
-범위로 신규 유입 패치를 훑어 1차에서 놓친 위반을 수집한다. 발견분은 즉시
-후속 이슈로 전환하며, 이미 합류된 변경은 revert 여부만 별도 판단한다.
+merge 직후 `git fetch origin main` 으로 원격 추적을 갱신하고, **fetch 이전의 로컬
+main SHA**를 하한으로 `git log -p <fetch 이전 main>..origin/main` 범위로 신규 유입
+패치를 훑는다. merge SHA를 하한에 두면 두 점 범위가 비어 패치가 생략되므로
+merge 커밋 자체를 보려면 `git show <merge SHA>`를 사용한다. 1차에서 놓친 위반을
+수집하고, 발견분은 즉시 후속 이슈로 전환하며, 이미 합류된 변경은 revert 여부만
+별도 판단한다.
 
 ## A. 가독성 & 대비 — P0
 
