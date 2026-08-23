@@ -15,8 +15,11 @@ RAW_PREVIEW_TEMPLATE = (
     r"https://raw\.githubusercontent\.com/0xkkun/seoul-challenge/"
     r"ui-previews/pr-{number}/[^\s)]+?\.(?:png|jpg|jpeg|webp)"
 )
-INLINE_PREVIEW_TEMPLATE = r"!\[[^\]\r\n]*[^\s\]\r\n][^\]\r\n]*\]\(\s*(?P<url>{raw_url})\s*\)"
-EMPTY_ALT_PREVIEW_TEMPLATE = r"!\[\s*\]\(\s*(?P<url>{raw_url})\s*\)"
+INLINE_PREVIEW_TEMPLATE = r"(?<!\\)!\[[^\]\r\n]*[^\s\]\r\n][^\]\r\n]*\]\(\s*(?P<url>{raw_url})\s*\)"
+EMPTY_ALT_PREVIEW_TEMPLATE = r"(?<!\\)!\[\s*\]\(\s*(?P<url>{raw_url})\s*\)"
+HTML_COMMENT_RE = re.compile(r"<!--.*?-->", re.DOTALL)
+FENCE_OPEN_RE = re.compile(r"^[ \t]{0,3}(`{3,}|~{3,})")
+INLINE_CODE_RE = re.compile(r"(?<!`)`[^`\r\n]*`(?!`)")
 
 
 def validate_pr_capture(event: dict[str, Any]) -> list[str]:
@@ -28,14 +31,15 @@ def validate_pr_capture(event: dict[str, Any]) -> list[str]:
 
     number = int(pr.get("number", 0))
     body = str(pr.get("body") or "")
+    rendered_body = _rendered_markdown_source(body)
     errors: list[str] = []
 
-    if UI_CAPTURE_HEADING_RE.search(body) is None:
+    if UI_CAPTURE_HEADING_RE.search(rendered_body) is None:
         errors.append("UI PR 본문에는 `## UI 캡처` 섹션이 필요합니다.")
 
     raw_url = RAW_PREVIEW_TEMPLATE.format(number=number)
     preview_re = re.compile(raw_url)
-    raw_urls = preview_re.findall(body)
+    raw_urls = preview_re.findall(rendered_body)
     if not raw_urls:
         errors.append(
             "UI PR 본문에는 "
@@ -45,14 +49,34 @@ def validate_pr_capture(event: dict[str, Any]) -> list[str]:
     else:
         inline_preview_re = re.compile(INLINE_PREVIEW_TEMPLATE.format(raw_url=raw_url))
         empty_alt_preview_re = re.compile(EMPTY_ALT_PREVIEW_TEMPLATE.format(raw_url=raw_url))
-        inline_urls = [match.group("url") for match in inline_preview_re.finditer(body)]
-        empty_alt_urls = [match.group("url") for match in empty_alt_preview_re.finditer(body)]
+        inline_urls = [match.group("url") for match in inline_preview_re.finditer(rendered_body)]
+        empty_alt_urls = [match.group("url") for match in empty_alt_preview_re.finditer(rendered_body)]
         if empty_alt_urls:
             errors.append("UI 캡처 인라인 이미지에는 화면을 설명하는 대체 텍스트가 필요합니다.")
         if len(inline_urls) + len(empty_alt_urls) != len(raw_urls):
             errors.append("모든 캡처 URL은 PR에서 바로 보이는 Markdown 인라인 이미지 `![설명](URL)`로 작성해야 합니다.")
 
     return errors
+
+
+def _rendered_markdown_source(body: str) -> str:
+    without_comments = HTML_COMMENT_RE.sub("", body)
+    rendered_lines: list[str] = []
+    fence: tuple[str, int] | None = None
+    for line in without_comments.splitlines(keepends=True):
+        if fence is not None:
+            fence_char, fence_length = fence
+            close_re = re.compile(rf"^[ \t]{{0,3}}{re.escape(fence_char)}{{{fence_length},}}[ \t]*(?:\r?\n)?$")
+            if close_re.match(line):
+                fence = None
+            continue
+        open_match = FENCE_OPEN_RE.match(line)
+        if open_match is not None:
+            marker = open_match.group(1)
+            fence = (marker[0], len(marker))
+            continue
+        rendered_lines.append(line)
+    return INLINE_CODE_RE.sub("", "".join(rendered_lines))
 
 
 def _is_ui_pull_request(pr: dict[str, Any]) -> bool:

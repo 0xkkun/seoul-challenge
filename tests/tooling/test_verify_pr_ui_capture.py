@@ -106,6 +106,26 @@ class VerifyPrUiCaptureTest(unittest.TestCase):
 
         self.assertTrue(any("대체 텍스트" in error for error in errors))
 
+    def test_ui_pr_rejects_image_syntax_that_markdown_does_not_render(self) -> None:
+        raw_url = (
+            "https://raw.githubusercontent.com/0xkkun/seoul-challenge/"
+            "ui-previews/pr-203/session-pause-modal-960x540.png"
+        )
+        literal_bodies = {
+            "escaped": f"## UI 캡처\n\\![화면]({raw_url})\n",
+            "inline_code": f"## UI 캡처\n`![화면]({raw_url})`\n",
+            "fenced_code": f"## UI 캡처\n```markdown\n![화면]({raw_url})\n```\n",
+            "html_comment": f"## UI 캡처\n<!-- ![화면]({raw_url}) -->\n",
+        }
+
+        for case, body in literal_bodies.items():
+            with self.subTest(case=case):
+                event = pr_event(203, "[UI] 인게임 일시정지 모달 표시 복구", body, ["area:ui"])
+
+                errors = self.module.validate_pr_capture(event)
+
+                self.assertNotEqual(errors, [])
+
     def test_non_ui_pr_does_not_require_capture(self) -> None:
         event = pr_event(205, "[Docs] 문서 정리", "## 요약\n- 문서", ["area:run"])
 
