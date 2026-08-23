@@ -493,6 +493,29 @@ class VerifyPrUiCaptureTest(unittest.TestCase):
 
         self.assertTrue(any("pr-203" in error for error in errors))
 
+    def test_ui_capture_classifies_query_and_fragment_suffixes(self) -> None:
+        current_url = preview_url(203)
+        wrong_query_url = preview_url(999, "settings-960x540.png") + "?raw=1"
+        plain_fragment_url = preview_url(203, "plain-960x540.png") + "#preview"
+        cases = {
+            "wrong_pr_image_query": (
+                f'<h2>UI 캡처</h2><img src="{current_url}" alt="현재">'
+                f'<img src="{wrong_query_url}" alt="다른 PR">'
+            ),
+            "plain_link_fragment": (
+                f'<h2>UI 캡처</h2><img src="{current_url}" alt="현재">'
+                f'<a href="{plain_fragment_url}">plain</a>'
+            ),
+        }
+
+        for case, body_html in cases.items():
+            with self.subTest(case=case):
+                event = pr_event(203, "[UI] 화면", "## UI 캡처", ["area:ui"], body_html)
+
+                errors = self.module.validate_pr_capture(event)
+
+                self.assertNotEqual(errors, [])
+
     def test_pr_hygiene_documents_inline_image_preview(self) -> None:
         guide = PR_HYGIENE_PATH.read_text(encoding="utf-8")
 
