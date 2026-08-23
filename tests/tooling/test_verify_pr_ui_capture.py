@@ -516,6 +516,24 @@ class VerifyPrUiCaptureTest(unittest.TestCase):
 
                 self.assertNotEqual(errors, [])
 
+    def test_ui_capture_classifies_parenthesized_query_values(self) -> None:
+        current_url = preview_url(203)
+        wrong_url = preview_url(999, "settings-960x540.png") + "?size=(large)"
+        event = pr_event(
+            203,
+            "[UI] 화면",
+            "## UI 캡처",
+            ["area:ui"],
+            (
+                f'<h2>UI 캡처</h2><img src="{current_url}" alt="현재">'
+                f'<img src="{wrong_url}" alt="다른 PR">'
+            ),
+        )
+
+        errors = self.module.validate_pr_capture(event)
+
+        self.assertNotEqual(errors, [])
+
     def test_ui_capture_rejects_dot_segment_paths(self) -> None:
         current_url = preview_url(203)
         unsafe_urls = {

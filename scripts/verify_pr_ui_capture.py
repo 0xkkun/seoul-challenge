@@ -15,11 +15,11 @@ from urllib.parse import unquote, urlsplit
 UI_TITLE_RE = re.compile(r"^\s*\[UI\]")
 RAW_PREVIEW_TEMPLATE = (
     r"(?i:https://raw\.githubusercontent\.com/0xkkun/seoul-challenge)/"
-    r"ui-previews/pr-{number}/[^\s)]+?\.(?:png|jpg|jpeg|webp)(?:[?#][^\s)]*)?"
+    r"ui-previews/pr-{number}/[^\s]+?\.(?:png|jpg|jpeg|webp)(?:[?#][^\s]*)?"
 )
 ANY_RAW_PREVIEW_RE = re.compile(
     r"(?i:https://raw\.githubusercontent\.com/0xkkun/seoul-challenge)/"
-    r"ui-previews/pr-\d+/[^\s)]+?\.(?:png|jpg|jpeg|webp)(?:[?#][^\s)]*)?"
+    r"ui-previews/pr-\d+/[^\s]+?\.(?:png|jpg|jpeg|webp)(?:[?#][^\s]*)?"
 )
 ZERO_LENGTH_RE = re.compile(r"^[+-]?0+(?:\.0+)?(?:px|%|em|rem|vw|vh)?$", re.IGNORECASE)
 VOID_HTML_TAGS = {
