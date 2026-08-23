@@ -405,6 +405,8 @@ class VerifyPrUiCaptureTest(unittest.TestCase):
             "tiny_size": f'<h2>UI 캡처</h2><img src="{url}" alt="화면" width="1" height="1">',
             "hidden_parent": f'<h2>UI 캡처</h2><div hidden><img src="{url}" alt="화면"></div>',
             "display_none": f'<h2>UI 캡처</h2><div style="display: none"><img src="{url}" alt="화면"></div>',
+            "display_none_important": f'<h2>UI 캡처</h2><div style="display: none !important"><img src="{url}" alt="화면"></div>',
+            "visibility_hidden_important": f'<h2>UI 캡처</h2><div style="visibility: hidden !important"><img src="{url}" alt="화면"></div>',
         }
 
         for case, body_html in hidden_html.items():

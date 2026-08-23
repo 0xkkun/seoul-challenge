@@ -162,7 +162,7 @@ def _style_hides(style: str) -> bool:
         if separator == "":
             continue
         property_name = name.strip()
-        property_value = value.strip()
+        property_value = re.sub(r"\s*!important\s*$", "", value.strip()).strip()
         if property_name == "display" and property_value == "none":
             return True
         if property_name == "visibility" and property_value == "hidden":
