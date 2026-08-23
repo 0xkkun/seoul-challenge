@@ -118,6 +118,7 @@ class VerifyPrUiCaptureTest(unittest.TestCase):
             "fenced_code": f"## UI 캡처\n```markdown\n![화면]({raw_url})\n```\n",
             "indented_code": f"## UI 캡처\n\n    ![화면]({raw_url})\n",
             "html_comment": f"## UI 캡처\n<!-- ![화면]({raw_url}) -->\n",
+            "raw_html_block": f"## UI 캡처\n<pre>\n![화면]({raw_url})\n</pre>\n",
         }
 
         for case, body in literal_bodies.items():

@@ -24,6 +24,17 @@ EMPTY_ALT_PREVIEW_TEMPLATE = (
     r"!\[\s*\]\(\s*(?P<url>{raw_url})\s*\)[ \t]*(?:\r?\n|$)"
 )
 HTML_COMMENT_RE = re.compile(r"<!--.*?-->", re.DOTALL)
+RAW_HTML_BLOCK_TAGS = (
+    r"address|article|aside|base|basefont|blockquote|body|caption|center|code|col|colgroup|"
+    r"dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|footer|form|frame|frameset|"
+    r"h[1-6]|head|header|html|iframe|legend|li|link|main|menu|menuitem|nav|noframes|ol|"
+    r"optgroup|option|p|param|pre|script|search|section|style|summary|table|tbody|td|textarea|"
+    r"tfoot|th|thead|title|tr|track|ul"
+)
+RAW_HTML_BLOCK_RE = re.compile(
+    rf"<(?P<tag>{RAW_HTML_BLOCK_TAGS})\b[^>]*>.*?</(?P=tag)\s*>",
+    re.IGNORECASE | re.DOTALL,
+)
 FENCE_OPEN_RE = re.compile(r"^[ \t]{0,3}(`{3,}|~{3,})")
 
 
@@ -65,7 +76,8 @@ def validate_pr_capture(event: dict[str, Any]) -> list[str]:
 
 
 def _rendered_markdown_source(body: str) -> str:
-    without_comments = HTML_COMMENT_RE.sub("", body)
+    without_html_blocks = RAW_HTML_BLOCK_RE.sub("", body)
+    without_comments = HTML_COMMENT_RE.sub("", without_html_blocks)
     rendered_lines: list[str] = []
     fence: tuple[str, int] | None = None
     for line in without_comments.splitlines(keepends=True):
