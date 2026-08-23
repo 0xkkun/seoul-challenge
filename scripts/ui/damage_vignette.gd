@@ -3,8 +3,10 @@ extends CanvasLayer
 
 const RenderLayers = preload("res://scripts/constants/render_layers.gd")
 const PULSE_DURATION := 0.42
-const PULSE_COLOR := Color(0.95, 0.08, 0.12, 0.78)
-const LOW_HEALTH_COLOR := Color(0.68, 0.015, 0.045, 0.48)
+## 개선안 03번 A7 원칙 — 순수 빨강 금지, 어두운 진홍 + 유효 피크 알파 0.35 이하
+const PULSE_COLOR := Color(0.55, 0.06, 0.09, 0.35)
+## 저체력 상시층 — 피격 펄스와 성격이 갈리는 저강도 상시 표시 (권장 0.10~0.16)
+const LOW_HEALTH_COLOR := Color(0.55, 0.06, 0.09, 0.16)
 const LOW_HEALTH_RATIO := 0.25
 
 var _pulse_overlay: ColorRect = null
