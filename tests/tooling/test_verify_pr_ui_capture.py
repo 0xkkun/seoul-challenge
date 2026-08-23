@@ -298,6 +298,20 @@ class VerifyPrUiCaptureTest(unittest.TestCase):
 
         self.assertEqual(errors, [])
 
+    def test_ui_pr_accepts_preview_in_closed_details_summary(self) -> None:
+        url = preview_url(203)
+        event = pr_event(
+            203,
+            "[UI] 화면",
+            f"## UI 캡처\n<details>\n<summary>![화면]({url})</summary>\n</details>",
+            ["area:ui"],
+            f'<h2>UI 캡처</h2><details><summary><img src="{url}" alt="화면"></summary></details>',
+        )
+
+        errors = self.module.validate_pr_capture(event)
+
+        self.assertEqual(errors, [])
+
     def test_ui_pr_rejects_preview_hidden_by_html_visibility(self) -> None:
         url = preview_url(203)
         hidden_html = {
