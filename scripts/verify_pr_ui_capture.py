@@ -288,6 +288,15 @@ def _valid_png_payload(data: bytes) -> bool:
     while offset + 12 <= len(data):
         chunk_length = int.from_bytes(data[offset:offset + 4], "big")
         chunk_type = data[offset + 4:offset + 8]
+        if (
+            len(chunk_type) != 4
+            or any(byte not in range(ord("A"), ord("Z") + 1) and byte not in range(ord("a"), ord("z") + 1) for byte in chunk_type)
+            or chunk_type[2] & 0x20
+        ):
+            return False
+        known_critical_chunks = {b"IHDR", b"PLTE", b"IDAT", b"IEND"}
+        if not chunk_type[0] & 0x20 and chunk_type not in known_critical_chunks:
+            return False
         chunk_end = offset + 12 + chunk_length
         if chunk_end > len(data):
             return False
