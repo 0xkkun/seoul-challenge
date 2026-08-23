@@ -5,41 +5,70 @@ import json
 import os
 import re
 import sys
+from html.parser import HTMLParser
 from pathlib import Path
 from typing import Any
+from urllib import request
 
 
-UI_CAPTURE_HEADING_RE = re.compile(r"(?im)^##\s*UI\s*캡처\s*$")
-SECTION_BOUNDARY_RE = re.compile(r"(?m)^#{1,2}(?!#)[ \t]+")
 UI_TITLE_RE = re.compile(r"^\s*\[UI\]")
 RAW_PREVIEW_TEMPLATE = (
     r"https://raw\.githubusercontent\.com/0xkkun/seoul-challenge/"
     r"ui-previews/pr-{number}/[^\s)]+?\.(?:png|jpg|jpeg|webp)"
 )
-INLINE_PREVIEW_TEMPLATE = (
-    r"(?m)^[ \t]{{0,3}}(?:[-*+][ \t]+)?"
-    r"!\[[^\]\r\n]*[^\s\]\r\n][^\]\r\n]*\]\(\s*(?P<url>{raw_url})\s*\)[ \t]*(?:\r?\n|$)"
+ANY_RAW_PREVIEW_RE = re.compile(
+    r"https://raw\.githubusercontent\.com/0xkkun/seoul-challenge/"
+    r"ui-previews/pr-\d+/[^\s)]+?\.(?:png|jpg|jpeg|webp)"
 )
-EMPTY_ALT_PREVIEW_TEMPLATE = (
-    r"(?m)^[ \t]{{0,3}}(?:[-*+][ \t]+)?"
-    r"!\[\s*\]\(\s*(?P<url>{raw_url})\s*\)[ \t]*(?:\r?\n|$)"
-)
-HTML_COMMENT_RE = re.compile(r"<!--.*?-->", re.DOTALL)
-RAW_HTML_BLOCK_TAGS = (
-    r"address|article|aside|base|basefont|blockquote|body|caption|center|code|col|colgroup|"
-    r"dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|footer|form|frame|frameset|"
-    r"h[1-6]|head|header|html|iframe|legend|li|link|main|menu|menuitem|nav|noframes|ol|"
-    r"optgroup|option|p|param|pre|script|search|section|style|summary|table|tbody|td|textarea|"
-    r"tfoot|th|thead|title|tr|track|ul"
-)
-RAW_HTML_BLOCK_RE = re.compile(
-    rf"<(?P<tag>{RAW_HTML_BLOCK_TAGS})\b[^>]*>.*?</(?P=tag)\s*>",
-    re.IGNORECASE | re.DOTALL,
-)
-RAW_HTML_BLOCK_LINE_RE = re.compile(
-    r"(?im)^[ \t]{0,3}</?[A-Za-z][A-Za-z0-9-]*\b[^>]*>"
-)
-FENCE_OPEN_RE = re.compile(r"^[ \t]{0,3}(`{3,}|~{3,})")
+
+
+class UiCaptureHtmlParser(HTMLParser):
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=True)
+        self.section_found = False
+        self.in_section = False
+        self.images: list[tuple[str, str]] = []
+        self.plain_links: list[str] = []
+        self._heading_tag = ""
+        self._heading_parts: list[str] = []
+        self._anchors: list[dict[str, Any]] = []
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        tag_name = tag.casefold()
+        if tag_name in {"h1", "h2"}:
+            self.in_section = False
+            self._heading_tag = tag_name
+            self._heading_parts = []
+            return
+        if not self.in_section:
+            return
+        attr_map = {name.casefold(): value or "" for name, value in attrs}
+        if tag_name == "a":
+            self._anchors.append({"href": attr_map.get("href", ""), "image_urls": []})
+        elif tag_name == "img":
+            image_url = attr_map.get("data-canonical-src", "") or attr_map.get("src", "")
+            self.images.append((image_url, attr_map.get("alt", "")))
+            if self._anchors:
+                self._anchors[-1]["image_urls"].append(image_url)
+
+    def handle_data(self, data: str) -> None:
+        if self._heading_tag:
+            self._heading_parts.append(data)
+
+    def handle_endtag(self, tag: str) -> None:
+        tag_name = tag.casefold()
+        if tag_name == self._heading_tag:
+            heading_text = re.sub(r"\s+", "", "".join(self._heading_parts)).casefold()
+            if tag_name == "h2" and heading_text == "ui캡처".casefold():
+                self.section_found = True
+                self.in_section = True
+            self._heading_tag = ""
+            self._heading_parts = []
+            return
+        if tag_name == "a" and self._anchors:
+            anchor = self._anchors.pop()
+            if self.in_section and str(anchor["href"]) not in anchor["image_urls"]:
+                self.plain_links.append(str(anchor["href"]))
 
 
 def validate_pr_capture(event: dict[str, Any]) -> list[str]:
@@ -50,70 +79,70 @@ def validate_pr_capture(event: dict[str, Any]) -> list[str]:
         return []
 
     number = int(pr.get("number", 0))
-    body = str(pr.get("body") or "")
-    rendered_body = _rendered_markdown_source(body)
+    body_html = pr.get("body_html")
+    if not isinstance(body_html, str):
+        return ["UI PR의 GitHub 렌더링 `body_html`을 불러와야 합니다."]
     errors: list[str] = []
+    parser = UiCaptureHtmlParser()
+    parser.feed(body_html)
 
-    capture_section = _ui_capture_section(rendered_body)
-    if capture_section is None:
+    if not parser.section_found:
         errors.append("UI PR 본문에는 `## UI 캡처` 섹션이 필요합니다.")
-        capture_section = ""
-    elif RAW_HTML_BLOCK_LINE_RE.search(capture_section) is not None:
-        errors.append("UI 캡처 섹션에서는 raw HTML wrapper 대신 Markdown 인라인 이미지를 사용해야 합니다.")
 
     raw_url = RAW_PREVIEW_TEMPLATE.format(number=number)
     preview_re = re.compile(raw_url)
-    raw_urls = preview_re.findall(capture_section)
-    if not raw_urls:
+    all_preview_images = [
+        (url, alt)
+        for url, alt in parser.images
+        if ANY_RAW_PREVIEW_RE.fullmatch(url) is not None
+    ]
+    preview_images = [
+        (url, alt)
+        for url, alt in all_preview_images
+        if preview_re.fullmatch(url) is not None
+    ]
+    if not preview_images:
         errors.append(
             "UI PR 본문에는 "
             f"`https://raw.githubusercontent.com/0xkkun/seoul-challenge/ui-previews/pr-{number}/...png` "
-            "형식의 캡처 링크가 필요합니다."
+            "형식으로 GitHub에 렌더링된 캡처 이미지가 필요합니다."
         )
-    else:
-        inline_preview_re = re.compile(INLINE_PREVIEW_TEMPLATE.format(raw_url=raw_url))
-        empty_alt_preview_re = re.compile(EMPTY_ALT_PREVIEW_TEMPLATE.format(raw_url=raw_url))
-        inline_urls = [match.group("url") for match in inline_preview_re.finditer(capture_section)]
-        empty_alt_urls = [match.group("url") for match in empty_alt_preview_re.finditer(capture_section)]
-        if empty_alt_urls:
-            errors.append("UI 캡처 인라인 이미지에는 화면을 설명하는 대체 텍스트가 필요합니다.")
-        if len(inline_urls) + len(empty_alt_urls) != len(raw_urls):
-            errors.append("모든 캡처 URL은 PR에서 바로 보이는 Markdown 인라인 이미지 `![설명](URL)`로 작성해야 합니다.")
+    if any(preview_re.fullmatch(url) is None for url, _alt in all_preview_images):
+        errors.append(f"모든 UI 캡처 이미지는 현재 PR 경로 `ui-previews/pr-{number}/`를 사용해야 합니다.")
+    if any(not alt.strip() for _url, alt in all_preview_images):
+        errors.append("UI 캡처 이미지에는 화면을 설명하는 대체 텍스트가 필요합니다.")
+    if any(ANY_RAW_PREVIEW_RE.fullmatch(url) is not None for url in parser.plain_links):
+        errors.append("모든 캡처 URL은 PR에서 바로 보이는 Markdown 인라인 이미지 `![설명](URL)`로 작성해야 합니다.")
 
     return errors
 
 
-def _ui_capture_section(rendered_body: str) -> str | None:
-    heading = UI_CAPTURE_HEADING_RE.search(rendered_body)
-    if heading is None:
-        return None
-    section_start = heading.end()
-    next_heading = SECTION_BOUNDARY_RE.search(rendered_body, section_start)
-    section_end = next_heading.start() if next_heading is not None else len(rendered_body)
-    return rendered_body[section_start:section_end]
-
-
-def _rendered_markdown_source(body: str) -> str:
-    without_html_blocks = RAW_HTML_BLOCK_RE.sub("", body)
-    without_comments = HTML_COMMENT_RE.sub("", without_html_blocks)
-    rendered_lines: list[str] = []
-    fence: tuple[str, int] | None = None
-    for line in without_comments.splitlines(keepends=True):
-        if fence is not None:
-            fence_char, fence_length = fence
-            close_re = re.compile(rf"^[ \t]{{0,3}}{re.escape(fence_char)}{{{fence_length},}}[ \t]*(?:\r?\n)?$")
-            if close_re.match(line):
-                fence = None
-            continue
-        open_match = FENCE_OPEN_RE.match(line)
-        if open_match is not None:
-            marker = open_match.group(1)
-            fence = (marker[0], len(marker))
-            continue
-        if line.startswith("\t") or line.startswith("    "):
-            continue
-        rendered_lines.append(line)
-    return "".join(rendered_lines)
+def _fetch_pr_body_html(event: dict[str, Any]) -> str:
+    pr = event.get("pull_request")
+    if not isinstance(pr, dict):
+        raise ValueError("pull_request payload is missing")
+    number = int(pr.get("number", 0))
+    api_base = os.environ.get("GITHUB_API_URL", "")
+    repository = os.environ.get("GITHUB_REPOSITORY", "")
+    token = os.environ.get("GITHUB_TOKEN", "")
+    if api_base == "" or repository == "" or number <= 0 or token == "":
+        raise ValueError("GITHUB_API_URL, GITHUB_REPOSITORY, pull request number, and GITHUB_TOKEN are required")
+    api_url = f"{api_base.rstrip('/')}/repos/{repository}/pulls/{number}"
+    api_request = request.Request(
+        api_url,
+        headers={
+            "Accept": "application/vnd.github.full+json",
+            "Authorization": f"Bearer {token}",
+            "X-GitHub-Api-Version": "2022-11-28",
+            "User-Agent": "seoul-challenge-ui-capture-validator",
+        },
+    )
+    with request.urlopen(api_request, timeout=15) as response:
+        payload = json.load(response)
+    body_html = payload.get("body_html") if isinstance(payload, dict) else None
+    if not isinstance(body_html, str):
+        raise ValueError("GitHub pull request response did not include body_html")
+    return body_html
 
 
 def _is_ui_pull_request(pr: dict[str, Any]) -> bool:
@@ -146,7 +175,15 @@ def main() -> int:
         print("[verify_pr_ui_capture] FAIL: GITHUB_EVENT_PATH is not set", file=sys.stderr)
         return 1
 
-    errors = validate_pr_capture(_load_event(Path(event_path)))
+    event = _load_event(Path(event_path))
+    pr = event.get("pull_request")
+    if isinstance(pr, dict) and _is_ui_pull_request(pr) and not isinstance(pr.get("body_html"), str):
+        try:
+            pr["body_html"] = _fetch_pr_body_html(event)
+        except Exception as error:
+            print(f"[verify_pr_ui_capture] FAIL: GitHub 렌더링 본문 조회 실패: {error}", file=sys.stderr)
+            return 1
+    errors = validate_pr_capture(event)
     if errors:
         for error in errors:
             print(f"[verify_pr_ui_capture] FAIL: {error}", file=sys.stderr)

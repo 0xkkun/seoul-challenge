@@ -2,13 +2,18 @@
 from __future__ import annotations
 
 import importlib.util
+import io
+import json
+import os
 import unittest
 from pathlib import Path
+from unittest import mock
 
 
 ROOT = Path(__file__).resolve().parents[2]
 SCRIPT_PATH = ROOT / "scripts" / "verify_pr_ui_capture.py"
 PR_HYGIENE_PATH = ROOT / "docs" / "pr-hygiene.md"
+VERIFY_WORKFLOW_PATH = ROOT / ".github" / "workflows" / "verify.yml"
 
 
 def load_module():
@@ -20,15 +25,23 @@ def load_module():
     return module
 
 
-def pr_event(number: int, title: str, body: str, labels: list[str]) -> dict:
-    return {
-        "pull_request": {
-            "number": number,
-            "title": title,
-            "body": body,
-            "labels": [{"name": label} for label in labels],
-        }
+def preview_url(number: int, name: str = "session-pause-modal-960x540.png") -> str:
+    return (
+        "https://raw.githubusercontent.com/0xkkun/seoul-challenge/"
+        f"ui-previews/pr-{number}/{name}"
+    )
+
+
+def pr_event(number: int, title: str, body: str, labels: list[str], body_html: str | None = None) -> dict:
+    pull_request = {
+        "number": number,
+        "title": title,
+        "body": body,
+        "labels": [{"name": label} for label in labels],
     }
+    if body_html is not None:
+        pull_request["body_html"] = body_html
+    return {"pull_request": pull_request}
 
 
 class VerifyPrUiCaptureTest(unittest.TestCase):
@@ -36,113 +49,144 @@ class VerifyPrUiCaptureTest(unittest.TestCase):
         self.module = load_module()
 
     def test_ui_pr_requires_capture_section(self) -> None:
-        event = pr_event(203, "[UI] 인게임 일시정지 모달 표시 복구", "## 요약\n- 변경", ["area:ui"])
+        event = pr_event(
+            203,
+            "[UI] 인게임 일시정지 모달 표시 복구",
+            "## 요약\n- 변경",
+            ["area:ui"],
+            "<h2>요약</h2><p>변경</p>",
+        )
 
         errors = self.module.validate_pr_capture(event)
 
         self.assertTrue(any("## UI 캡처" in error for error in errors))
 
     def test_ui_pr_rejects_plain_raw_preview_url(self) -> None:
-        body = (
-            "## 요약\n- 변경\n\n"
-            "## UI 캡처\n"
-            "- 화면: https://raw.githubusercontent.com/0xkkun/seoul-challenge/"
-            "ui-previews/pr-203/session-pause-modal-960x540.png\n"
+        url = preview_url(203)
+        event = pr_event(
+            203,
+            "[UI] 인게임 일시정지 모달 표시 복구",
+            "## UI 캡처\n화면: " + url,
+            ["area:ui"],
+            f'<h2>UI 캡처</h2><p><a href="{url}">화면</a></p>',
         )
-        event = pr_event(203, "[UI] 인게임 일시정지 모달 표시 복구", body, ["area:ui"])
 
         errors = self.module.validate_pr_capture(event)
 
         self.assertTrue(any("인라인 이미지" in error for error in errors))
 
     def test_ui_pr_accepts_matching_inline_raw_preview(self) -> None:
-        body = (
-            "## 요약\n- 변경\n\n"
-            "## UI 캡처\n"
-            "- ![인게임 일시정지 모달](https://raw.githubusercontent.com/0xkkun/seoul-challenge/"
-            "ui-previews/pr-203/session-pause-modal-960x540.png)\n"
+        url = preview_url(203)
+        event = pr_event(
+            203,
+            "[UI] 인게임 일시정지 모달 표시 복구",
+            f"## UI 캡처\n![인게임 일시정지 모달]({url})",
+            ["area:ui"],
+            f'<h2>UI 캡처</h2><p><a href="{url}"><img src="{url}" alt="인게임 일시정지 모달"></a></p>',
         )
-        event = pr_event(203, "[UI] 인게임 일시정지 모달 표시 복구", body, ["area:ui"])
 
         errors = self.module.validate_pr_capture(event)
 
         self.assertEqual(errors, [])
 
     def test_ui_preview_outside_capture_section_does_not_satisfy_contract(self) -> None:
-        body = (
-            "## UI 캡처\n- 캡처 없음\n\n"
-            "## 기타\n"
-            "![인게임 일시정지 모달](https://raw.githubusercontent.com/0xkkun/seoul-challenge/"
-            "ui-previews/pr-203/session-pause-modal-960x540.png)\n"
+        url = preview_url(203)
+        event = pr_event(
+            203,
+            "[UI] 인게임 일시정지 모달 표시 복구",
+            f"## UI 캡처\n- 캡처 없음\n\n## 기타\n![화면]({url})",
+            ["area:ui"],
+            f'<h2>UI 캡처</h2><p>캡처 없음</p><h2>기타</h2><img src="{url}" alt="화면">',
         )
-        event = pr_event(203, "[UI] 인게임 일시정지 모달 표시 복구", body, ["area:ui"])
 
         errors = self.module.validate_pr_capture(event)
 
         self.assertTrue(any("pr-203" in error for error in errors))
 
     def test_ui_pr_rejects_plain_url_even_when_another_preview_is_inline(self) -> None:
-        body = (
-            "## UI 캡처\n"
-            "![일시정지 모달](https://raw.githubusercontent.com/0xkkun/seoul-challenge/"
-            "ui-previews/pr-203/session-pause-modal-960x540.png)\n"
-            "설정 화면: https://raw.githubusercontent.com/0xkkun/seoul-challenge/"
-            "ui-previews/pr-203/settings-960x540.png\n"
+        image_url = preview_url(203)
+        plain_url = preview_url(203, "settings-960x540.png")
+        event = pr_event(
+            203,
+            "[UI] 인게임 일시정지 모달 표시 복구",
+            f"## UI 캡처\n![모달]({image_url})\n설정: {plain_url}",
+            ["area:ui"],
+            (
+                f'<h2>UI 캡처</h2><p><a href="{image_url}"><img src="{image_url}" alt="모달"></a></p>'
+                f'<p>설정: <a href="{plain_url}">{plain_url}</a></p>'
+            ),
         )
-        event = pr_event(203, "[UI] 인게임 일시정지 모달 표시 복구", body, ["area:ui"])
+
+        errors = self.module.validate_pr_capture(event)
+
+        self.assertTrue(any("모든 캡처 URL" in error for error in errors))
+
+    def test_preview_link_requires_an_image_with_the_same_url(self) -> None:
+        image_url = preview_url(203)
+        disguised_link = preview_url(203, "settings-960x540.png")
+        event = pr_event(
+            203,
+            "[UI] 화면",
+            f"## UI 캡처\n![모달]({image_url})",
+            ["area:ui"],
+            (
+                f'<h2>UI 캡처</h2><img src="{image_url}" alt="모달">'
+                f'<a href="{disguised_link}"><img src="https://example.com/decoy.png" alt="대체 이미지"></a>'
+            ),
+        )
 
         errors = self.module.validate_pr_capture(event)
 
         self.assertTrue(any("모든 캡처 URL" in error for error in errors))
 
     def test_ui_pr_rejects_inline_preview_without_alt_text(self) -> None:
-        body = (
-            "## UI 캡처\n"
-            "- ![](https://raw.githubusercontent.com/0xkkun/seoul-challenge/"
-            "ui-previews/pr-203/session-pause-modal-960x540.png)\n"
+        url = preview_url(203)
+        event = pr_event(
+            203,
+            "[UI] 인게임 일시정지 모달 표시 복구",
+            f"## UI 캡처\n![]({url})",
+            ["area:ui"],
+            f'<h2>UI 캡처</h2><img src="{url}" alt="">',
         )
-        event = pr_event(203, "[UI] 인게임 일시정지 모달 표시 복구", body, ["area:ui"])
 
         errors = self.module.validate_pr_capture(event)
 
         self.assertTrue(any("대체 텍스트" in error for error in errors))
 
     def test_ui_pr_rejects_inline_preview_with_whitespace_only_alt_text(self) -> None:
-        body = (
-            "## UI 캡처\n"
-            "- ![   ](https://raw.githubusercontent.com/0xkkun/seoul-challenge/"
-            "ui-previews/pr-203/session-pause-modal-960x540.png)\n"
+        url = preview_url(203)
+        event = pr_event(
+            203,
+            "[UI] 인게임 일시정지 모달 표시 복구",
+            f"## UI 캡처\n![   ]({url})",
+            ["area:ui"],
+            f'<h2>UI 캡처</h2><img src="{url}" alt="   ">',
         )
-        event = pr_event(203, "[UI] 인게임 일시정지 모달 표시 복구", body, ["area:ui"])
 
         errors = self.module.validate_pr_capture(event)
 
         self.assertTrue(any("대체 텍스트" in error for error in errors))
 
-    def test_ui_pr_rejects_image_syntax_that_markdown_does_not_render(self) -> None:
-        raw_url = (
-            "https://raw.githubusercontent.com/0xkkun/seoul-challenge/"
-            "ui-previews/pr-203/session-pause-modal-960x540.png"
+    def test_github_rendered_html_is_authoritative_over_raw_markdown(self) -> None:
+        url = preview_url(203)
+        event = pr_event(
+            203,
+            "[UI] 인게임 일시정지 모달 표시 복구",
+            f"## UI 캡처\n![화면]({url})",
+            ["area:ui"],
+            f'<h2>UI 캡처</h2><pre>![화면]({url})</pre>',
         )
-        literal_bodies = {
-            "escaped": f"## UI 캡처\n\\![화면]({raw_url})\n",
-            "inline_code": f"## UI 캡처\n`![화면]({raw_url})`\n",
-            "multi_backtick_inline_code": f"## UI 캡처\n``![화면]({raw_url})``\n",
-            "fenced_code": f"## UI 캡처\n```markdown\n![화면]({raw_url})\n```\n",
-            "indented_code": f"## UI 캡처\n\n    ![화면]({raw_url})\n",
-            "html_comment": f"## UI 캡처\n<!-- ![화면]({raw_url}) -->\n",
-            "raw_html_block": f"## UI 캡처\n<pre>\n![화면]({raw_url})\n</pre>\n",
-            "unclosed_raw_html_block": f"## UI 캡처\n<div>\n![화면]({raw_url})\n",
-            "generic_raw_html_block": f"## UI 캡처\n<picture>\n![화면]({raw_url})\n</picture>\n",
-        }
 
-        for case, body in literal_bodies.items():
-            with self.subTest(case=case):
-                event = pr_event(203, "[UI] 인게임 일시정지 모달 표시 복구", body, ["area:ui"])
+        errors = self.module.validate_pr_capture(event)
 
-                errors = self.module.validate_pr_capture(event)
+        self.assertNotEqual(errors, [])
 
-                self.assertNotEqual(errors, [])
+    def test_ui_pr_requires_github_rendered_html(self) -> None:
+        event = pr_event(203, "[UI] 인게임 일시정지 모달 표시 복구", "## UI 캡처", ["area:ui"])
+
+        errors = self.module.validate_pr_capture(event)
+
+        self.assertTrue(any("body_html" in error for error in errors))
 
     def test_non_ui_pr_does_not_require_capture(self) -> None:
         event = pr_event(205, "[Docs] 문서 정리", "## 요약\n- 문서", ["area:run"])
@@ -152,12 +196,32 @@ class VerifyPrUiCaptureTest(unittest.TestCase):
         self.assertEqual(errors, [])
 
     def test_ui_capture_url_must_match_current_pr_number(self) -> None:
-        body = (
-            "## UI 캡처\n"
-            "- ![인게임 일시정지 모달](https://raw.githubusercontent.com/0xkkun/seoul-challenge/"
-            "ui-previews/pr-999/session-pause-modal-960x540.png)\n"
+        wrong_url = preview_url(999)
+        event = pr_event(
+            203,
+            "[Scene] UI 라벨 수정",
+            f"## UI 캡처\n![인게임 일시정지 모달]({wrong_url})",
+            ["area:ui"],
+            f'<h2>UI 캡처</h2><img src="{wrong_url}" alt="인게임 일시정지 모달">',
         )
-        event = pr_event(203, "[Scene] UI 라벨 수정", body, ["area:ui"])
+
+        errors = self.module.validate_pr_capture(event)
+
+        self.assertTrue(any("pr-203" in error for error in errors))
+
+    def test_ui_capture_rejects_other_pr_preview_mixed_with_valid_image(self) -> None:
+        current_url = preview_url(203)
+        wrong_url = preview_url(999, "settings-960x540.png")
+        event = pr_event(
+            203,
+            "[UI] 화면",
+            f"## UI 캡처\n![현재]({current_url})\n![다른 PR]({wrong_url})",
+            ["area:ui"],
+            (
+                f'<h2>UI 캡처</h2><img src="{current_url}" alt="현재">'
+                f'<img src="{wrong_url}" alt="다른 PR">'
+            ),
+        )
 
         errors = self.module.validate_pr_capture(event)
 
@@ -168,6 +232,36 @@ class VerifyPrUiCaptureTest(unittest.TestCase):
 
         self.assertIn("Markdown 인라인 이미지", guide)
         self.assertIn("![인게임 맵 탭]", guide)
+        self.assertIn("GitHub 렌더링 결과", guide)
+
+    def test_verify_workflow_exposes_github_token_for_body_html(self) -> None:
+        workflow = VERIFY_WORKFLOW_PATH.read_text(encoding="utf-8")
+
+        self.assertIn("GITHUB_TOKEN: ${{ github.token }}", workflow)
+
+    def test_fetch_pr_body_html_uses_github_full_media_type(self) -> None:
+        self.assertTrue(hasattr(self.module, "_fetch_pr_body_html"))
+        event = pr_event(203, "[UI] 화면", "## UI 캡처", ["area:ui"])
+        response = io.BytesIO(json.dumps({"body_html": "<h2>UI 캡처</h2>"}).encode("utf-8"))
+
+        with (
+            mock.patch.dict(os.environ, {
+                "GITHUB_TOKEN": "test-token",
+                "GITHUB_API_URL": "https://api.github.test",
+                "GITHUB_REPOSITORY": "owner/repo",
+            }),
+            mock.patch.object(self.module.request, "urlopen", return_value=response) as urlopen,
+        ):
+            try:
+                body_html = self.module._fetch_pr_body_html(event)
+            except Exception as error:
+                self.fail(f"GitHub Actions repository context should build the API URL: {error}")
+
+        self.assertEqual(body_html, "<h2>UI 캡처</h2>")
+        api_request = urlopen.call_args.args[0]
+        self.assertEqual(api_request.full_url, "https://api.github.test/repos/owner/repo/pulls/203")
+        self.assertEqual(api_request.get_header("Accept"), "application/vnd.github.full+json")
+        self.assertEqual(api_request.get_header("Authorization"), "Bearer test-token")
 
 
 if __name__ == "__main__":

@@ -90,6 +90,8 @@ For UI PRs:
    Put each image on its own line, optionally as a bullet.
    A plain text link does not provide an in-PR preview and fails the UI capture
    contract.
+   CI checks the GitHub 렌더링 결과 and accepts only real `<img>` nodes inside
+   this section; escaped text, code blocks, and comments do not count.
 
 Use stable file names so updates replace the same preview path:
 

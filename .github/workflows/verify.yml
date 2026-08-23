@@ -25,6 +25,8 @@ jobs:
         uses: actions/checkout@v7.0.0
 
       - name: Require screenshots for UI PRs
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: python3 scripts/verify_pr_ui_capture.py
 
   quick:
