@@ -14,13 +14,12 @@ from urllib.parse import unquote, urlsplit
 
 UI_TITLE_RE = re.compile(r"^\s*\[UI\]")
 RAW_PREVIEW_TEMPLATE = (
-    r"https://raw\.githubusercontent\.com/0xkkun/seoul-challenge/"
+    r"(?i:https://raw\.githubusercontent\.com/0xkkun/seoul-challenge)/"
     r"ui-previews/pr-{number}/[^\s)]+?\.(?:png|jpg|jpeg|webp)(?:[?#][^\s)]*)?"
 )
 ANY_RAW_PREVIEW_RE = re.compile(
-    r"https://raw\.githubusercontent\.com/0xkkun/seoul-challenge/"
-    r"ui-previews/pr-\d+/[^\s)]+?\.(?:png|jpg|jpeg|webp)(?:[?#][^\s)]*)?",
-    re.IGNORECASE,
+    r"(?i:https://raw\.githubusercontent\.com/0xkkun/seoul-challenge)/"
+    r"ui-previews/pr-\d+/[^\s)]+?\.(?:png|jpg|jpeg|webp)(?:[?#][^\s)]*)?"
 )
 ZERO_LENGTH_RE = re.compile(r"^[+-]?0+(?:\.0+)?(?:px|%|em|rem|vw|vh)?$", re.IGNORECASE)
 VOID_HTML_TAGS = {
@@ -194,7 +193,7 @@ def validate_pr_capture(event: dict[str, Any]) -> list[str]:
         errors.append("UI PR 본문에는 `## UI 캡처` 섹션이 필요합니다.")
 
     raw_url = RAW_PREVIEW_TEMPLATE.format(number=number)
-    preview_re = re.compile(raw_url, re.IGNORECASE)
+    preview_re = re.compile(raw_url)
     all_preview_images = [
         (url, alt)
         for url, alt in parser.images

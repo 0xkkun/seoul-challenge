@@ -567,6 +567,23 @@ class VerifyPrUiCaptureTest(unittest.TestCase):
 
         self.assertNotEqual(errors, [])
 
+    def test_ui_capture_keeps_preview_branch_path_case_sensitive(self) -> None:
+        wrong_case_url = preview_url(203).replace(
+            "ui-previews/pr-203",
+            "UI-PREVIEWS/PR-203",
+        )
+        event = pr_event(
+            203,
+            "[UI] 화면",
+            "## UI 캡처",
+            ["area:ui"],
+            f'<h2>UI 캡처</h2><img src="{wrong_case_url}" alt="화면">',
+        )
+
+        errors = self.module.validate_pr_capture(event)
+
+        self.assertNotEqual(errors, [])
+
     def test_pr_hygiene_documents_inline_image_preview(self) -> None:
         guide = PR_HYGIENE_PATH.read_text(encoding="utf-8")
 
