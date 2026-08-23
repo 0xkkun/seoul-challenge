@@ -114,6 +114,7 @@ class VerifyPrUiCaptureTest(unittest.TestCase):
         literal_bodies = {
             "escaped": f"## UI 캡처\n\\![화면]({raw_url})\n",
             "inline_code": f"## UI 캡처\n`![화면]({raw_url})`\n",
+            "multi_backtick_inline_code": f"## UI 캡처\n``![화면]({raw_url})``\n",
             "fenced_code": f"## UI 캡처\n```markdown\n![화면]({raw_url})\n```\n",
             "html_comment": f"## UI 캡처\n<!-- ![화면]({raw_url}) -->\n",
         }
