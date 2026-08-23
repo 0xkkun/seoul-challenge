@@ -50,6 +50,7 @@ class UiCaptureHtmlParser(HTMLParser):
             or "hidden" in attr_map
             or _style_hides(attr_map.get("style", ""))
             or (tag_name == "details" and "open" not in attr_map)
+            or tag_name == "picture"
         )
         if tag_name not in VOID_HTML_TAGS:
             self._element_stack.append((tag_name, element_hidden))

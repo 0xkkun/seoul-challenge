@@ -175,6 +175,26 @@ class VerifyPrUiCaptureTest(unittest.TestCase):
 
         self.assertTrue(any("모든 캡처 URL" in error for error in errors))
 
+    def test_ui_pr_rejects_responsive_picture_wrapper(self) -> None:
+        fallback_url = preview_url(203)
+        source_url = preview_url(999, "responsive-960x540.png")
+        event = pr_event(
+            203,
+            "[UI] 화면",
+            "## UI 캡처",
+            ["area:ui"],
+            (
+                '<h2>UI 캡처</h2><picture>'
+                f'<source srcset="{source_url}">'
+                f'<img src="{fallback_url}" alt="화면">'
+                '</picture>'
+            ),
+        )
+
+        errors = self.module.validate_pr_capture(event)
+
+        self.assertNotEqual(errors, [])
+
     def test_ui_pr_rejects_inline_preview_without_alt_text(self) -> None:
         url = preview_url(203)
         event = pr_event(
