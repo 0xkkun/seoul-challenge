@@ -68,10 +68,36 @@ class VerifyPrUiCaptureTest(unittest.TestCase):
 
         self.assertEqual(errors, [])
 
+    def test_ui_pr_rejects_plain_url_even_when_another_preview_is_inline(self) -> None:
+        body = (
+            "## UI 캡처\n"
+            "![일시정지 모달](https://raw.githubusercontent.com/0xkkun/seoul-challenge/"
+            "ui-previews/pr-203/session-pause-modal-960x540.png)\n"
+            "설정 화면: https://raw.githubusercontent.com/0xkkun/seoul-challenge/"
+            "ui-previews/pr-203/settings-960x540.png\n"
+        )
+        event = pr_event(203, "[UI] 인게임 일시정지 모달 표시 복구", body, ["area:ui"])
+
+        errors = self.module.validate_pr_capture(event)
+
+        self.assertTrue(any("모든 캡처 URL" in error for error in errors))
+
     def test_ui_pr_rejects_inline_preview_without_alt_text(self) -> None:
         body = (
             "## UI 캡처\n"
             "- ![](https://raw.githubusercontent.com/0xkkun/seoul-challenge/"
+            "ui-previews/pr-203/session-pause-modal-960x540.png)\n"
+        )
+        event = pr_event(203, "[UI] 인게임 일시정지 모달 표시 복구", body, ["area:ui"])
+
+        errors = self.module.validate_pr_capture(event)
+
+        self.assertTrue(any("대체 텍스트" in error for error in errors))
+
+    def test_ui_pr_rejects_inline_preview_with_whitespace_only_alt_text(self) -> None:
+        body = (
+            "## UI 캡처\n"
+            "- ![   ](https://raw.githubusercontent.com/0xkkun/seoul-challenge/"
             "ui-previews/pr-203/session-pause-modal-960x540.png)\n"
         )
         event = pr_event(203, "[UI] 인게임 일시정지 모달 표시 복구", body, ["area:ui"])

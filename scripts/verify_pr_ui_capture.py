@@ -15,8 +15,8 @@ RAW_PREVIEW_TEMPLATE = (
     r"https://raw\.githubusercontent\.com/0xkkun/seoul-challenge/"
     r"ui-previews/pr-{number}/[^\s)]+?\.(?:png|jpg|jpeg|webp)"
 )
-INLINE_PREVIEW_TEMPLATE = r"!\[[^\]\r\n]+\]\(\s*{raw_url}\s*\)"
-EMPTY_ALT_PREVIEW_TEMPLATE = r"!\[\]\(\s*{raw_url}\s*\)"
+INLINE_PREVIEW_TEMPLATE = r"!\[[^\]\r\n]*[^\s\]\r\n][^\]\r\n]*\]\(\s*(?P<url>{raw_url})\s*\)"
+EMPTY_ALT_PREVIEW_TEMPLATE = r"!\[\s*\]\(\s*(?P<url>{raw_url})\s*\)"
 
 
 def validate_pr_capture(event: dict[str, Any]) -> list[str]:
@@ -33,22 +33,24 @@ def validate_pr_capture(event: dict[str, Any]) -> list[str]:
     if UI_CAPTURE_HEADING_RE.search(body) is None:
         errors.append("UI PR 본문에는 `## UI 캡처` 섹션이 필요합니다.")
 
-    preview_re = re.compile(RAW_PREVIEW_TEMPLATE.format(number=number))
-    if preview_re.search(body) is None:
+    raw_url = RAW_PREVIEW_TEMPLATE.format(number=number)
+    preview_re = re.compile(raw_url)
+    raw_urls = preview_re.findall(body)
+    if not raw_urls:
         errors.append(
             "UI PR 본문에는 "
             f"`https://raw.githubusercontent.com/0xkkun/seoul-challenge/ui-previews/pr-{number}/...png` "
             "형식의 캡처 링크가 필요합니다."
         )
     else:
-        raw_url = RAW_PREVIEW_TEMPLATE.format(number=number)
         inline_preview_re = re.compile(INLINE_PREVIEW_TEMPLATE.format(raw_url=raw_url))
         empty_alt_preview_re = re.compile(EMPTY_ALT_PREVIEW_TEMPLATE.format(raw_url=raw_url))
-        if inline_preview_re.search(body) is None:
-            if empty_alt_preview_re.search(body) is not None:
-                errors.append("UI 캡처 인라인 이미지에는 화면을 설명하는 대체 텍스트가 필요합니다.")
-            else:
-                errors.append("UI 캡처 URL은 PR에서 바로 보이는 Markdown 인라인 이미지 `![설명](URL)`로 작성해야 합니다.")
+        inline_urls = [match.group("url") for match in inline_preview_re.finditer(body)]
+        empty_alt_urls = [match.group("url") for match in empty_alt_preview_re.finditer(body)]
+        if empty_alt_urls:
+            errors.append("UI 캡처 인라인 이미지에는 화면을 설명하는 대체 텍스트가 필요합니다.")
+        if len(inline_urls) + len(empty_alt_urls) != len(raw_urls):
+            errors.append("모든 캡처 URL은 PR에서 바로 보이는 Markdown 인라인 이미지 `![설명](URL)`로 작성해야 합니다.")
 
     return errors
 
