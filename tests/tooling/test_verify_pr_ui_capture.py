@@ -516,6 +516,36 @@ class VerifyPrUiCaptureTest(unittest.TestCase):
 
                 self.assertNotEqual(errors, [])
 
+    def test_ui_capture_rejects_dot_segment_paths(self) -> None:
+        current_url = preview_url(203)
+        unsafe_urls = {
+            "raw": (
+                "https://raw.githubusercontent.com/0xkkun/seoul-challenge/"
+                "ui-previews/pr-203/../pr-999/old.png"
+            ),
+            "encoded": (
+                "https://raw.githubusercontent.com/0xkkun/seoul-challenge/"
+                "ui-previews/pr-203/%2e%2e/pr-999/old.png"
+            ),
+        }
+
+        for case, unsafe_url in unsafe_urls.items():
+            with self.subTest(case=case):
+                event = pr_event(
+                    203,
+                    "[UI] 화면",
+                    "## UI 캡처",
+                    ["area:ui"],
+                    (
+                        f'<h2>UI 캡처</h2><img src="{current_url}" alt="현재">'
+                        f'<img src="{unsafe_url}" alt="우회">'
+                    ),
+                )
+
+                errors = self.module.validate_pr_capture(event)
+
+                self.assertNotEqual(errors, [])
+
     def test_pr_hygiene_documents_inline_image_preview(self) -> None:
         guide = PR_HYGIENE_PATH.read_text(encoding="utf-8")
 

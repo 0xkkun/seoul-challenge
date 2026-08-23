@@ -9,6 +9,7 @@ from html.parser import HTMLParser
 from pathlib import Path
 from typing import Any
 from urllib import request
+from urllib.parse import unquote, urlsplit
 
 
 UI_TITLE_RE = re.compile(r"^\s*\[UI\]")
@@ -143,6 +144,18 @@ def _zero_dimension(value: str) -> bool:
     return bool(value.strip() and ZERO_LENGTH_RE.fullmatch(value.strip()))
 
 
+def _has_unsafe_preview_path(url: str) -> bool:
+    decoded_path = urlsplit(url).path
+    for _pass in range(4):
+        next_path = unquote(decoded_path)
+        if next_path == decoded_path:
+            break
+        decoded_path = next_path
+    if "\\" in decoded_path:
+        return True
+    return any(segment in {".", ".."} for segment in decoded_path.split("/"))
+
+
 def _style_hides(style: str) -> bool:
     for declaration in style.casefold().split(";"):
         name, separator, value = declaration.partition(":")
@@ -189,7 +202,7 @@ def validate_pr_capture(event: dict[str, Any]) -> list[str]:
     preview_images = [
         (url, alt)
         for url, alt in all_preview_images
-        if preview_re.fullmatch(url) is not None
+        if preview_re.fullmatch(url) is not None and not _has_unsafe_preview_path(url)
     ]
     if not preview_images:
         errors.append(
@@ -199,6 +212,8 @@ def validate_pr_capture(event: dict[str, Any]) -> list[str]:
         )
     if any(preview_re.fullmatch(url) is None for url, _alt in all_preview_images):
         errors.append(f"모든 UI 캡처 이미지는 현재 PR 경로 `ui-previews/pr-{number}/`를 사용해야 합니다.")
+    if any(_has_unsafe_preview_path(url) for url, _alt in all_preview_images):
+        errors.append("UI 캡처 이미지 URL에는 정규화 결과를 바꾸는 dot segment를 사용할 수 없습니다.")
     if any(ANY_RAW_PREVIEW_RE.fullmatch(url) is not None for url, _alt in parser.outside_images):
         errors.append("모든 UI 캡처 이미지는 `## UI 캡처` 섹션 안에 있어야 합니다.")
     if any(ANY_RAW_PREVIEW_RE.fullmatch(url) is not None for url in parser.rejected_images):
