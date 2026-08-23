@@ -62,6 +62,8 @@ class UiCaptureHtmlParser(HTMLParser):
         if tag_name not in VOID_HTML_TAGS:
             details_summary_hidden = parent_hidden or attribute_hidden
             self._element_stack.append((tag_name, element_hidden, details_summary_hidden, False))
+        if tag_name in {"img", "source"} and "srcset" in attr_map:
+            self.rejected_images.extend(_srcset_urls(attr_map["srcset"]))
         if tag_name in {"h1", "h2"}:
             if element_hidden:
                 return
@@ -123,6 +125,15 @@ class UiCaptureHtmlParser(HTMLParser):
 
 def _zero_dimension(value: str) -> bool:
     return bool(value.strip() and ZERO_LENGTH_RE.fullmatch(value.strip()))
+
+
+def _srcset_urls(value: str) -> list[str]:
+    urls: list[str] = []
+    for candidate in value.split(","):
+        fields = candidate.strip().split()
+        if fields:
+            urls.append(fields[0])
+    return urls
 
 
 def _style_hides(style: str) -> bool:
