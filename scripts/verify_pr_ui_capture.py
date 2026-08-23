@@ -10,6 +10,7 @@ from typing import Any
 
 
 UI_CAPTURE_HEADING_RE = re.compile(r"(?im)^##\s*UI\s*캡처\s*$")
+SECTION_BOUNDARY_RE = re.compile(r"(?m)^#{1,2}(?!#)[ \t]+")
 UI_TITLE_RE = re.compile(r"^\s*\[UI\]")
 RAW_PREVIEW_TEMPLATE = (
     r"https://raw\.githubusercontent\.com/0xkkun/seoul-challenge/"
@@ -35,6 +36,9 @@ RAW_HTML_BLOCK_RE = re.compile(
     rf"<(?P<tag>{RAW_HTML_BLOCK_TAGS})\b[^>]*>.*?</(?P=tag)\s*>",
     re.IGNORECASE | re.DOTALL,
 )
+RAW_HTML_BLOCK_LINE_RE = re.compile(
+    rf"(?im)^[ \t]{{0,3}}</?(?:{RAW_HTML_BLOCK_TAGS})\b[^>]*>"
+)
 FENCE_OPEN_RE = re.compile(r"^[ \t]{0,3}(`{3,}|~{3,})")
 
 
@@ -50,12 +54,16 @@ def validate_pr_capture(event: dict[str, Any]) -> list[str]:
     rendered_body = _rendered_markdown_source(body)
     errors: list[str] = []
 
-    if UI_CAPTURE_HEADING_RE.search(rendered_body) is None:
+    capture_section = _ui_capture_section(rendered_body)
+    if capture_section is None:
         errors.append("UI PR 본문에는 `## UI 캡처` 섹션이 필요합니다.")
+        capture_section = ""
+    elif RAW_HTML_BLOCK_LINE_RE.search(capture_section) is not None:
+        errors.append("UI 캡처 섹션에서는 raw HTML wrapper 대신 Markdown 인라인 이미지를 사용해야 합니다.")
 
     raw_url = RAW_PREVIEW_TEMPLATE.format(number=number)
     preview_re = re.compile(raw_url)
-    raw_urls = preview_re.findall(rendered_body)
+    raw_urls = preview_re.findall(capture_section)
     if not raw_urls:
         errors.append(
             "UI PR 본문에는 "
@@ -65,14 +73,24 @@ def validate_pr_capture(event: dict[str, Any]) -> list[str]:
     else:
         inline_preview_re = re.compile(INLINE_PREVIEW_TEMPLATE.format(raw_url=raw_url))
         empty_alt_preview_re = re.compile(EMPTY_ALT_PREVIEW_TEMPLATE.format(raw_url=raw_url))
-        inline_urls = [match.group("url") for match in inline_preview_re.finditer(rendered_body)]
-        empty_alt_urls = [match.group("url") for match in empty_alt_preview_re.finditer(rendered_body)]
+        inline_urls = [match.group("url") for match in inline_preview_re.finditer(capture_section)]
+        empty_alt_urls = [match.group("url") for match in empty_alt_preview_re.finditer(capture_section)]
         if empty_alt_urls:
             errors.append("UI 캡처 인라인 이미지에는 화면을 설명하는 대체 텍스트가 필요합니다.")
         if len(inline_urls) + len(empty_alt_urls) != len(raw_urls):
             errors.append("모든 캡처 URL은 PR에서 바로 보이는 Markdown 인라인 이미지 `![설명](URL)`로 작성해야 합니다.")
 
     return errors
+
+
+def _ui_capture_section(rendered_body: str) -> str | None:
+    heading = UI_CAPTURE_HEADING_RE.search(rendered_body)
+    if heading is None:
+        return None
+    section_start = heading.end()
+    next_heading = SECTION_BOUNDARY_RE.search(rendered_body, section_start)
+    section_end = next_heading.start() if next_heading is not None else len(rendered_body)
+    return rendered_body[section_start:section_end]
 
 
 def _rendered_markdown_source(body: str) -> str:

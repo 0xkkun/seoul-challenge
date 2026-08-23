@@ -68,6 +68,19 @@ class VerifyPrUiCaptureTest(unittest.TestCase):
 
         self.assertEqual(errors, [])
 
+    def test_ui_preview_outside_capture_section_does_not_satisfy_contract(self) -> None:
+        body = (
+            "## UI 캡처\n- 캡처 없음\n\n"
+            "## 기타\n"
+            "![인게임 일시정지 모달](https://raw.githubusercontent.com/0xkkun/seoul-challenge/"
+            "ui-previews/pr-203/session-pause-modal-960x540.png)\n"
+        )
+        event = pr_event(203, "[UI] 인게임 일시정지 모달 표시 복구", body, ["area:ui"])
+
+        errors = self.module.validate_pr_capture(event)
+
+        self.assertTrue(any("pr-203" in error for error in errors))
+
     def test_ui_pr_rejects_plain_url_even_when_another_preview_is_inline(self) -> None:
         body = (
             "## UI 캡처\n"
@@ -119,6 +132,7 @@ class VerifyPrUiCaptureTest(unittest.TestCase):
             "indented_code": f"## UI 캡처\n\n    ![화면]({raw_url})\n",
             "html_comment": f"## UI 캡처\n<!-- ![화면]({raw_url}) -->\n",
             "raw_html_block": f"## UI 캡처\n<pre>\n![화면]({raw_url})\n</pre>\n",
+            "unclosed_raw_html_block": f"## UI 캡처\n<div>\n![화면]({raw_url})\n",
         }
 
         for case, body in literal_bodies.items():
