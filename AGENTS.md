@@ -35,8 +35,10 @@ them.
 9. For UI-visible changes, follow `docs/pr-hygiene.md` `## UI Capture Flow`:
    capture the changed screen, push the image to the orphan `ui-previews` branch,
    and add the raw URL under `## UI 캡처` in the PR body.
-10. When addressing GitHub review comments, reply with the change or rationale and
-   resolve the review thread after the reply.
+10. Apply the screen-quality criteria in `docs/ui-review-checklist.md` when
+    reviewing UI-visible PRs; P0 findings block merge until resolved.
+11. When addressing GitHub review comments, reply with the change or rationale and
+    resolve the review thread after the reply.
 
 ## Review & merge loop
 

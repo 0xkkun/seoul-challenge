@@ -2,6 +2,9 @@
 
 Use this checklist before opening a PR and again before marking it ready.
 
+Screen-quality review criteria for UI-visible changes live in
+[ui-review-checklist.md](ui-review-checklist.md); P0 findings there block merge.
+
 ## Language (언어)
 
 PR 제목·본문과 커밋 메시지는 **한글로 작성**한다.
