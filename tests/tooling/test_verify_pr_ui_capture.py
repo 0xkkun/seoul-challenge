@@ -89,6 +89,23 @@ class VerifyPrUiCaptureTest(unittest.TestCase):
 
         self.assertEqual(errors, [])
 
+    def test_ui_pr_rejects_preview_that_probe_cannot_load(self) -> None:
+        url = preview_url(203)
+        event = pr_event(
+            203,
+            "[UI] 화면",
+            f"## UI 캡처\n![화면]({url})",
+            ["area:ui"],
+            f'<h2>UI 캡처</h2><img src="{url}" alt="화면">',
+        )
+
+        try:
+            errors = self.module.validate_pr_capture(event, url_probe=lambda _url: False)
+        except TypeError as error:
+            self.fail(f"validator should accept a URL probe: {error}")
+
+        self.assertTrue(any("불러올 수" in error for error in errors))
+
     def test_ui_preview_outside_capture_section_does_not_satisfy_contract(self) -> None:
         url = preview_url(203)
         event = pr_event(
@@ -641,6 +658,31 @@ class VerifyPrUiCaptureTest(unittest.TestCase):
         self.assertEqual(api_request.full_url, "https://api.github.test/repos/owner/repo/pulls/203")
         self.assertEqual(api_request.get_header("Accept"), "application/vnd.github.full+json")
         self.assertEqual(api_request.get_header("Authorization"), "Bearer test-token")
+
+    def test_preview_url_probe_requires_successful_image_response(self) -> None:
+        self.assertTrue(hasattr(self.module, "_preview_url_loads"))
+
+        class FakeResponse(io.BytesIO):
+            def __init__(self, status: int, content_type: str) -> None:
+                super().__init__(b"")
+                self.status = status
+                self.content_type = content_type
+
+            def getheader(self, name: str, default: str = "") -> str:
+                return self.content_type if name.casefold() == "content-type" else default
+
+        cases = {
+            "image": (FakeResponse(200, "image/png"), True),
+            "not_found": (FakeResponse(404, "text/plain"), False),
+            "not_image": (FakeResponse(200, "text/html"), False),
+        }
+        for case, (response, expected) in cases.items():
+            with self.subTest(case=case), mock.patch.object(
+                self.module.request,
+                "urlopen",
+                return_value=response,
+            ):
+                self.assertEqual(self.module._preview_url_loads(preview_url(203)), expected)
 
 
 if __name__ == "__main__":

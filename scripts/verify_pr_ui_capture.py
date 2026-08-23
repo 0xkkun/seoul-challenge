@@ -5,6 +5,7 @@ import json
 import os
 import re
 import sys
+from collections.abc import Callable
 from html.parser import HTMLParser
 from pathlib import Path
 from typing import Any
@@ -174,7 +175,10 @@ def _style_hides(style: str) -> bool:
     return False
 
 
-def validate_pr_capture(event: dict[str, Any]) -> list[str]:
+def validate_pr_capture(
+    event: dict[str, Any],
+    url_probe: Callable[[str], bool] | None = None,
+) -> list[str]:
     pr = event.get("pull_request")
     if not isinstance(pr, dict):
         return []
@@ -222,6 +226,10 @@ def validate_pr_capture(event: dict[str, Any]) -> list[str]:
         errors.append("UI 캡처 섹션에서는 responsive image markup을 사용할 수 없습니다.")
     if any(not alt.strip() for _url, alt in all_preview_images):
         errors.append("UI 캡처 이미지에는 화면을 설명하는 대체 텍스트가 필요합니다.")
+    if url_probe is not None:
+        for preview_url in dict.fromkeys(url for url, _alt in preview_images):
+            if not url_probe(preview_url):
+                errors.append(f"UI 캡처 이미지를 불러올 수 없습니다: {preview_url}")
     if (
         any(ANY_RAW_PREVIEW_RE.fullmatch(url) is not None for url in parser.plain_links)
         or ANY_RAW_PREVIEW_RE.search("".join(parser.visible_text_parts)) is not None
@@ -229,6 +237,24 @@ def validate_pr_capture(event: dict[str, Any]) -> list[str]:
         errors.append("모든 캡처 URL은 PR에서 바로 보이는 Markdown 인라인 이미지 `![설명](URL)`로 작성해야 합니다.")
 
     return errors
+
+
+def _preview_url_loads(url: str) -> bool:
+    probe_request = request.Request(
+        url,
+        headers={
+            "Accept": "image/*",
+            "User-Agent": "seoul-challenge-ui-capture-validator",
+        },
+        method="HEAD",
+    )
+    try:
+        with request.urlopen(probe_request, timeout=15) as response:
+            status = int(getattr(response, "status", 0))
+            content_type = str(response.getheader("Content-Type", "")).casefold()
+            return 200 <= status < 300 and content_type.startswith("image/")
+    except Exception:
+        return False
 
 
 def _fetch_pr_body_html(event: dict[str, Any]) -> str:
@@ -297,7 +323,7 @@ def main() -> int:
         except Exception as error:
             print(f"[verify_pr_ui_capture] FAIL: GitHub 렌더링 본문 조회 실패: {error}", file=sys.stderr)
             return 1
-    errors = validate_pr_capture(event)
+    errors = validate_pr_capture(event, url_probe=_preview_url_loads)
     if errors:
         for error in errors:
             print(f"[verify_pr_ui_capture] FAIL: {error}", file=sys.stderr)
