@@ -17,7 +17,7 @@ from urllib.parse import unquote, urlsplit
 UI_TITLE_RE = re.compile(r"^\s*\[UI\]")
 RAW_PREVIEW_TEMPLATE = (
     r"(?i:https://raw\.githubusercontent\.com/0xkkun/seoul-challenge)/"
-    r"ui-previews/pr-{number}/[^\s]+?\.(?:png|jpg|jpeg|webp)(?:[?#][^\s]*)?"
+    r"ui-previews/pr-{number}/[^\s]+?\.png(?:[?#][^\s]*)?"
 )
 ANY_RAW_PREVIEW_RE = re.compile(
     r"(?i:https://raw\.githubusercontent\.com/0xkkun/seoul-challenge)/"
@@ -270,24 +270,6 @@ def _valid_image_payload(content_type: str, data: bytes) -> bool:
     media_type = content_type.split(";", 1)[0].strip()
     if media_type == "image/png":
         return _valid_png_payload(data)
-    if media_type in {"image/jpeg", "image/jpg"}:
-        sof_markers = {bytes((0xFF, marker)) for marker in range(0xC0, 0xD0) if marker not in {0xC4, 0xC8, 0xCC}}
-        return (
-            len(data) >= 64
-            and data.startswith(b"\xff\xd8\xff")
-            and data.endswith(b"\xff\xd9")
-            and b"\xff\xda" in data
-            and any(marker in data for marker in sof_markers)
-        )
-    if media_type == "image/webp":
-        return (
-            len(data) >= 20
-            and data.startswith(b"RIFF")
-            and data[8:12] == b"WEBP"
-            and int.from_bytes(data[4:8], "little") + 8 == len(data)
-            and data[12:16] in {b"VP8 ", b"VP8L", b"VP8X"}
-            and 20 + int.from_bytes(data[16:20], "little") <= len(data)
-        )
     return False
 
 

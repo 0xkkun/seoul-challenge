@@ -90,6 +90,20 @@ class VerifyPrUiCaptureTest(unittest.TestCase):
 
         self.assertEqual(errors, [])
 
+    def test_ui_pr_rejects_non_png_preview(self) -> None:
+        jpg_url = preview_url(203).removesuffix(".png") + ".jpg"
+        event = pr_event(
+            203,
+            "[UI] 화면",
+            f"## UI 캡처\n![화면]({jpg_url})",
+            ["area:ui"],
+            f'<h2>UI 캡처</h2><img src="{jpg_url}" alt="화면">',
+        )
+
+        errors = self.module.validate_pr_capture(event)
+
+        self.assertNotEqual(errors, [])
+
     def test_ui_pr_rejects_preview_that_probe_cannot_load(self) -> None:
         url = preview_url(203)
         event = pr_event(

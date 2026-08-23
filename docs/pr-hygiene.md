@@ -92,6 +92,7 @@ For UI PRs:
    contract.
    CI checks the GitHub 렌더링 결과 and accepts only real `<img>` nodes inside
    this section; escaped text, code blocks, and comments do not count.
+   Use PNG captures only; CI downloads and validates the complete PNG payload.
 
 Use stable file names so updates replace the same preview path:
 
