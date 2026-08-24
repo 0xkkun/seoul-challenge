@@ -4,7 +4,7 @@
 
 **Goal:** PC 키보드 대시를 Shift 하나로 제한하고 첫 조작 안내·강공격 순서를 실제 입력과 일치시킨다.
 
-**Architecture:** `Player.resolve_special_input()`에서 플랫폼 독립 touch/gamepad와 PC Shift를 명시적으로 합성하고 Space 경로를 제거한다. `IngameControlOnboarding`은 #546의 `InputPromptStrip` action ids를 그대로 사용하므로 copy와 판정이 분리되지 않는다.
+**Architecture:** `Player.resolve_special_input()`이 touch, Space, Shift, gamepad trigger를 입력 경계에서 받아 Space를 명시적으로 거절하고 나머지 지원 입력만 합성한다. `IngameControlOnboarding`은 #546의 `InputPromptStrip` action ids를 그대로 사용하므로 copy와 판정이 분리되지 않는다.
 
 **Tech Stack:** Godot 4.6.3, GDScript, custom unit/integration runner, headed Chromium WebGL2
 
@@ -29,25 +29,21 @@
 
 **Interfaces:**
 - Consumes: touch pressed, Shift pressed, gamepad left trigger
-- Produces: `resolve_special_input(touch_skill_pressed: bool, shift_pressed: bool, left_trigger_value: float) -> bool`
+- Produces: `resolve_special_input(touch_skill_pressed: bool, space_pressed: bool, shift_pressed: bool, left_trigger_value: float) -> bool`
 
 - [ ] **Step 1: Shift-only truth table 실패 테스트 작성**
 
 ```gdscript
 func test_shift_is_the_only_pc_keyboard_dash_input() -> void:
-	_runner.assert_true(PlayerScript.resolve_special_input(false, true, 0.0), "Shift starts PC dash")
-	_runner.assert_false(PlayerScript.resolve_special_input(false, false, 0.0), "no input stays idle")
-	var source := FileAccess.get_file_as_string("res://scripts/player/player.gd")
-	var start := source.find("func is_special_pressed")
-	var finish := source.find("func resolve_special_input", start)
-	var runtime_block := source.substr(start, finish - start)
-	_runner.assert_false(runtime_block.contains("KEY_SPACE"), "Space is absent from runtime dash input")
+	_runner.assert_true(PlayerScript.resolve_special_input(false, false, true, 0.0), "Shift starts PC dash")
+	_runner.assert_false(PlayerScript.resolve_special_input(false, true, false, 0.0), "Space alone never starts dash")
+	_runner.assert_false(PlayerScript.resolve_special_input(false, false, false, 0.0), "no input stays idle")
 
 
 func test_touch_and_gamepad_dash_inputs_remain_supported() -> void:
-	_runner.assert_true(PlayerScript.resolve_special_input(true, false, 0.0), "touch skill starts dash")
-	_runner.assert_true(PlayerScript.resolve_special_input(false, false, 0.31), "left trigger starts dash")
-	_runner.assert_false(PlayerScript.resolve_special_input(false, false, 0.30), "trigger threshold stays strict")
+	_runner.assert_true(PlayerScript.resolve_special_input(true, false, false, 0.0), "touch skill starts dash")
+	_runner.assert_true(PlayerScript.resolve_special_input(false, false, false, 0.31), "left trigger starts dash")
+	_runner.assert_false(PlayerScript.resolve_special_input(false, false, false, 0.30), "trigger threshold stays strict")
 ```
 
 - [ ] **Step 2: unit runner에서 기존 5-argument signature/Space path가 FAIL인지 확인**
@@ -70,12 +66,13 @@ func is_special_pressed() -> bool:
 	)
 	return resolve_special_input(
 		touch_skill_pressed,
+		Input.is_key_pressed(KEY_SPACE),
 		Input.is_physical_key_pressed(KEY_SHIFT),
 		Input.get_joy_axis(0, JOY_AXIS_TRIGGER_LEFT)
 	)
 
 
-static func resolve_special_input(touch_skill_pressed: bool, shift_pressed: bool, left_trigger_value: float) -> bool:
+static func resolve_special_input(touch_skill_pressed: bool, _space_pressed: bool, shift_pressed: bool, left_trigger_value: float) -> bool:
 	return touch_skill_pressed or shift_pressed or left_trigger_value > 0.3
 ```
 
