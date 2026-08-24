@@ -156,6 +156,8 @@ target = player_world + direction * min(distance_to_cursor, reach)
 
 투사체가 빗나가거나 사라지면 안내를 닫고 다음 eligible 투사체에서 다시 띄운다. 실제 반사 성공 전까지 세션과 이후 런에서 반복한다.
 
+패링 coachmark는 한 번에 하나만 활성화한다. 늑대와 투사체 안내가 겹치면 먼저 열린 안내를 유지하고 다른 종류가 현재 화면을 교체하지 않는다. 거절된 종류는 다음 eligible 늑대 prepare 또는 투사체 spawn에서 다시 시도하므로 학습 기회는 사라지지 않는다.
+
 성공 시 다음을 한 번 수행한다.
 
 - 공통 `parry_succeeded` 이벤트에 `kind=enemy_projectile` 기록
@@ -214,11 +216,13 @@ func current_melee_reach() -> float
 signal parry_succeeded(payload: Dictionary)
 
 # wolf
-{kind=&"wolf_dash", direction, player_position, enemy_position}
+{kind=&"wolf_dash", direction, player_position, target_position, enemy_position}
 
 # projectile
-{kind=&"enemy_projectile", direction, player_position, projectile_position, count}
+{kind=&"enemy_projectile", direction, player_position, target_position, projectile_position, count}
 ```
+
+`ParryFeedbackController`는 공통 `target_position`을 텍스트 위치 계산에 사용한다. 기존 wolf 소비자를 위해 `enemy_position`은 유지하고, 누락 payload에는 `enemy_position → projectile_position → player_position` 순서로 fallback한다.
 
 투사체 반사 함수는 성공 개수와 대표 위치를 반환한다. 실제 `EnemyBullet.deflect()` 호출이 수락된 뒤에만 `enemy_projectile` 성공을 방출한다.
 
@@ -244,11 +248,11 @@ signal projectile_spawned(projectile: Node2D)
 
 `SessionRoot`가 다음을 조정한다.
 
-- wolf `dash_state_changed` → `ParryOnboarding.show_for_wolf()`
-- ranged `projectile_spawned` → 일반화된 `ParryOnboarding.show_for_target(..., kind=&"enemy_projectile")`
+- wolf `dash_state_changed` → `ParryOnboarding.show_for_wolf(...) -> bool`
+- ranged `projectile_spawned` → 일반화된 `ParryOnboarding.show_for_target(..., kind=&"enemy_projectile") -> bool`
 - player `parry_succeeded.kind` → 해당 완료 플래그 저장 + 공통 피드백
 
-`show_for_wolf()` 공개 계약은 기존 테스트와 호출자를 위해 유지하고 내부에서 일반 API를 호출한다.
+`show_for_wolf()` 공개 계약은 기존 테스트와 호출자를 위해 유지하고 내부에서 일반 API를 호출한다. 이미 다른 패링 prompt가 활성화돼 요청을 받지 못하면 두 함수 모두 `false`를 반환한다.
 
 ## 상태 전이
 
