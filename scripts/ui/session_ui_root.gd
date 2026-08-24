@@ -318,6 +318,11 @@ func is_summary_visible() -> bool:
 	return summary_overlay.visible
 
 
+func show_retry_error(text: String) -> void:
+	if summary_overlay.visible:
+		narrative_label.text = text
+
+
 func result_action_model(result: Dictionary) -> Dictionary:
 	var is_death := _is_death_result(result)
 	var is_onboarding := _is_onboarding_result(result)

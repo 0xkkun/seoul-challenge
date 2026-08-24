@@ -2174,6 +2174,12 @@ func test_failed_onboarding_retry_keeps_summary_retryable() -> void:
 	_runner.assert_true(bool(ui.call("is_summary_visible")), "실패한 재도전은 사망 결과 화면을 유지한다")
 	_runner.assert_true((ui.get_node("%RetryButton") as Button).visible, "실패한 재도전은 다시 누를 수 있다")
 	_runner.assert_true(get_tree().paused, "실패한 재도전은 결과 화면 아래 gameplay를 정지한다")
+	var failure_snapshot: Dictionary = ui.call("get_summary_snapshot")
+	_runner.assert_eq(
+		failure_snapshot.get("narrative", ""),
+		"다시 시작하지 못했습니다. 다시 시도해 주세요.",
+		"실패 복구 문구가 결과 화면 본문에 보인다"
+	)
 	_runner.assert_eq(
 		(ui.get_node("%StatusLabel") as Label).text,
 		"다시 시작하지 못했습니다. 다시 시도해 주세요.",

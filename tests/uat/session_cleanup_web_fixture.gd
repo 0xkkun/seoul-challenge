@@ -125,6 +125,7 @@ func _setup_onboarding_retry_mode() -> void:
 	(session_ui.get_node("%RetryButton") as Button).pressed.emit()
 	var failed := _mode == "onboarding_retry_failure"
 	var status := (session_ui.get_node("%StatusLabel") as Label).text
+	var after: Dictionary = session_ui.call("get_summary_snapshot")
 	var valid: bool = (
 		not bool(before.get("return_visible", true))
 		and bool(before.get("retry_visible", false))
@@ -136,6 +137,7 @@ func _setup_onboarding_retry_mode() -> void:
 				and bool(session_ui.call("is_summary_visible"))
 				and get_tree().paused
 				and status == "다시 시작하지 못했습니다. 다시 시도해 주세요."
+				and String(after.get("narrative", "")) == "다시 시작하지 못했습니다. 다시 시도해 주세요."
 			)
 			or (
 				not failed
@@ -147,7 +149,7 @@ func _setup_onboarding_retry_mode() -> void:
 	if not valid:
 		push_error("Onboarding retry state mismatch")
 	print(
-		"UAT_SESSION_CLEANUP_READY mode=%s return_visible=%s retry_visible=%s retry_text=%s replacement_kind=%s summary=%s paused=%s status=%s valid=%s"
+		"UAT_SESSION_CLEANUP_READY mode=%s return_visible=%s retry_visible=%s retry_text=%s replacement_kind=%s summary=%s paused=%s narrative=%s status=%s valid=%s"
 		% [
 			_mode,
 			str(before.get("return_visible", true)).to_lower(),
@@ -156,6 +158,7 @@ func _setup_onboarding_retry_mode() -> void:
 			String(replacement["kind"]),
 			str(session_ui.call("is_summary_visible")).to_lower(),
 			str(get_tree().paused).to_lower(),
+			String(after.get("narrative", "")),
 			status,
 			str(valid).to_lower(),
 		]
