@@ -110,9 +110,10 @@ Example PR body section:
 - 인게임 맵 탭: https://raw.githubusercontent.com/0xkkun/seoul-challenge/ui-previews/pr-177/session-map-tab-960x540.png
 ```
 
-Keep screenshots out of the PR branch. If a UI change cannot be captured in the
-current environment, say why in `## UI 캡처` and list the closest verification
-that was performed.
+Keep screenshots out of the PR branch. A UI-visible change must include a raw
+capture URL; a written reason or non-visual verification does not replace it. If
+the current environment cannot render the changed screen, capture it from a
+faithful alternative such as the Web Preview artifact or a Godot MCP viewport.
 
 ## Web Preview Flow
 
