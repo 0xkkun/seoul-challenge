@@ -17,6 +17,8 @@ func _setup_mode() -> void:
 	match _mode:
 		"controls_pc":
 			_setup_controls(false, false)
+		"controls_pc_legend":
+			_setup_controls_legend()
 		"controls_touch":
 			_setup_controls(true, false)
 		"objective":
@@ -64,6 +66,19 @@ func _setup_controls(touch_mode: bool, reduced_motion: bool) -> void:
 	await _settle()
 	var snapshot: Dictionary = onboarding.get_current_step_snapshot()
 	_emit_ready(snapshot, "이동")
+
+
+func _setup_controls_legend() -> void:
+	var session := _new_onboarding_session()
+	var onboarding := session.get_node("%IngameControlOnboarding") as IngameControlOnboarding
+	onboarding.skip_guidance()
+	await _settle()
+	var snapshot: Dictionary = onboarding.get_compact_legend_snapshot()
+	var actions_match := snapshot.get("input_actions", []) == [&"move", &"attack", &"dash"]
+	if not bool(snapshot.get("visible", false)) or not actions_match:
+		push_error("UAT compact legend state mismatch: %s" % snapshot)
+		return
+	print("UAT_COACHMARK_READY mode=%s surface=compact_legend reduced_motion=false" % _mode)
 
 
 func _setup_objective() -> void:

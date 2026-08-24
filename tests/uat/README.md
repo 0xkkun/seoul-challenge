@@ -59,6 +59,7 @@ temporarily export with `res://tests/uat/onboarding_coachmark_web_fixture.tscn`
 as the main scene. Restore `project.godot` before committing, then open:
 
 - `?uat_coachmark_mode=controls_pc`
+- `?uat_coachmark_mode=controls_pc_legend`
 - `?uat_coachmark_mode=controls_touch`
 - `?uat_coachmark_mode=objective`
 - `?uat_coachmark_mode=reward`
