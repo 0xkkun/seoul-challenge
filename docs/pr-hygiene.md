@@ -64,7 +64,7 @@ The PR body should include (한글로):
 - 검증 명령과 결과
 - `Web Preview` workflow가 있는 PR이면 preview URL 또는 artifact 이름
 - `[UI]` PR이거나 화면/레이아웃/컨트롤이 보이는 방식으로 바뀌는 PR이면
-  `## UI 캡처` 섹션과 캡처 URL
+  `## UI 캡처` 섹션과 바로 보이는 Markdown 인라인 이미지
 - 알려진 한계 또는 후속 이슈
 
 Also confirm:
@@ -88,7 +88,14 @@ For UI PRs:
 2. Store capture files outside the feature branch. Use the orphan branch
    `ui-previews`, under `pr-<PR number>/`.
 3. Push the capture commit to `origin/ui-previews`.
-4. Add a `## UI 캡처` section to the PR body with the raw image URLs.
+4. Add a `## UI 캡처` section to the PR body. Embed every raw URL as a
+   Markdown 인라인 이미지 `![화면 설명](raw URL)` with meaningful alt text.
+   Put each image on its own line, optionally as a bullet.
+   A plain text link does not provide an in-PR preview and fails the UI capture
+   contract.
+   CI checks the GitHub 렌더링 결과 and accepts only real `<img>` nodes inside
+   this section; escaped text, code blocks, and comments do not count.
+   Use PNG captures only; CI downloads and validates the complete PNG payload.
 
 Use stable file names so updates replace the same preview path:
 
@@ -107,7 +114,7 @@ Example PR body section:
 
 ```markdown
 ## UI 캡처
-- 인게임 맵 탭: https://raw.githubusercontent.com/0xkkun/seoul-challenge/ui-previews/pr-177/session-map-tab-960x540.png
+![인게임 맵 탭](https://raw.githubusercontent.com/0xkkun/seoul-challenge/ui-previews/pr-177/session-map-tab-960x540.png)
 ```
 
 Keep screenshots out of the PR branch. A UI-visible change must include a raw

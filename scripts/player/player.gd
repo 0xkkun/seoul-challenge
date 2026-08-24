@@ -18,6 +18,8 @@ const BAT_SLASH_VISUAL_SCALE := 1.18
 const POWER_SLASH_VISUAL_SCALE := 1.35
 const ENEMY_COMBAT_TEXT_OFFSET := Vector2(0.0, -48.0)
 const POWER_COMBAT_TEXT_OFFSET := Vector2(0.0, -80.0)
+## 피격 셰이크 강도 — 개선안 03번 A4: 맞는 게 때리는 것보다 임팩트가 커야 한다 (6.0~8.0 권장)
+const PLAYER_HIT_FEEDBACK_INTENSITY := 6.0
 const WEAPON_NAME_BARE_HANDS := "맨손"
 const WEAPON_NAME_CRACKED_BAT := "금 간 나무 배트"
 const WEAPON_NAME_AWAKENED_BAT := "마지막 시즌의 배트"
@@ -486,6 +488,7 @@ func take_damage(amount: int) -> int:
 	_trigger_hit_reaction(invuln_time)
 	combat_text_requested.emit(global_position, str(applied_damage), &"player_damage")
 	_request_hit_stop(hit_stop_profile(false, true))
+	_emit_combat_feedback(&"player_hit", -_facing, 1, PLAYER_HIT_FEEDBACK_INTENSITY)
 	_broadcast_health()
 	return applied_damage
 
