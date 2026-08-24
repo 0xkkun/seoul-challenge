@@ -74,7 +74,7 @@ func _setup_controls_legend() -> void:
 	onboarding.skip_guidance()
 	await _settle()
 	var snapshot: Dictionary = onboarding.get_compact_legend_snapshot()
-	var actions_match := snapshot.get("input_actions", []) == [&"move", &"attack", &"dash"]
+	var actions_match: bool = snapshot.get("input_actions", []) == [&"move", &"attack", &"dash"]
 	if not bool(snapshot.get("visible", false)) or not actions_match:
 		push_error("UAT compact legend state mismatch: %s" % snapshot)
 		return

@@ -280,17 +280,18 @@ func get_skip_button_reference_rect() -> Rect2:
 
 func get_compact_legend_snapshot() -> Dictionary:
 	var input_actions: Array[StringName] = []
-	var visible_copy_parts: Array[String] = []
-	for strip: HBoxContainer in _legend_input_strips:
-		var strip_snapshot: Dictionary = strip.call("get_snapshot")
-		input_actions.append_array(strip_snapshot.get("actions", []) as Array)
-		visible_copy_parts.append(String(strip_snapshot.get("visible_copy", "")))
+	var visible_copy_parts: Array[String] = ["조작표"]
 	var labels: Array[String] = []
-	for label: Label in _legend_action_labels:
-		labels.append(label.text)
-	if _legend_label != null and _legend_label.visible:
+	if _legend_desktop_row != null and _legend_desktop_row.visible:
+		for strip: HBoxContainer in _legend_input_strips:
+			var strip_snapshot: Dictionary = strip.call("get_snapshot")
+			input_actions.append_array(strip_snapshot.get("actions", []) as Array)
+			visible_copy_parts.append(String(strip_snapshot.get("visible_copy", "")))
+		for label: Label in _legend_action_labels:
+			labels.append(label.text)
+		visible_copy_parts.append_array(labels)
+	elif _legend_label != null and _legend_label.visible:
 		visible_copy_parts.append(_legend_label.text)
-	visible_copy_parts.append_array(labels)
 	return {
 		"visible": _compact_legend != null and _compact_legend.visible,
 		"input_mode": _input_mode(),
@@ -630,7 +631,7 @@ func _hide_step_ui() -> void:
 
 func _compact_legend_text() -> String:
 	if _uses_touch_guidance():
-		return "조작표\n스틱  이동\n공격 버튼  공격\n대시 버튼  회피\n미니맵 탭  지도"
+		return "스틱  이동\n공격 버튼  공격\n대시 버튼  회피\n미니맵 탭  지도"
 	return ""
 
 

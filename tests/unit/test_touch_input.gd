@@ -218,6 +218,27 @@ func test_ingame_control_onboarding_reveals_real_skip_escape_and_keeps_compact_l
 	onboarding.queue_free()
 
 
+func test_ingame_control_onboarding_touch_compact_legend_keeps_one_title_without_hidden_pc_copy() -> void:
+	var script := load(INGAME_CONTROL_ONBOARDING_SCRIPT_PATH) as Script
+	var touch := _create_visible_touch_controls()
+	var onboarding := script.new() as CanvasLayer
+	add_child(onboarding)
+
+	onboarding.call("configure", touch, null, null)
+	onboarding.call("start")
+	onboarding.call("skip_guidance")
+	var snapshot: Dictionary = onboarding.call("get_compact_legend_snapshot")
+	var visible_copy := String(snapshot.get("visible_copy", ""))
+
+	_runner.assert_eq(snapshot.get("input_mode"), &"touch", "touch compact 조작표는 touch 입력 언어를 쓴다")
+	_runner.assert_eq(snapshot.get("input_actions", []), [], "숨긴 PC 글리프는 touch 조작표 계약에 섞이지 않는다")
+	_runner.assert_eq(snapshot.get("labels", []), [], "숨긴 PC 행동어는 touch 조작표 계약에 섞이지 않는다")
+	_runner.assert_eq(visible_copy.count("조작표"), 1, "touch 조작표 제목은 한 번만 보인다")
+	_runner.assert_true("스틱  이동" in visible_copy and "대시 버튼  회피" in visible_copy, "touch 조작 설명을 유지한다")
+
+	onboarding.queue_free()
+
+
 func test_ingame_control_onboarding_desktop_guidance_names_keyboard_inputs_without_touch_targets() -> void:
 	var script := load(INGAME_CONTROL_ONBOARDING_SCRIPT_PATH) as Script
 	var player := StubIntegratedInputPlayer.new()
