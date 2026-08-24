@@ -144,6 +144,7 @@ world_target = player + (combat_target.x, combat_target.y * swing_vertical_facto
 - 사거리 끝 또는 커서까지의 금색 타격 기준점 링
 - 실제 `range`, `arc`, `swing_vertical_factor`를 거짓 없이 보여 주는 낮은 알파의 세로 압축 부채꼴
 - 충돌·입력 캡처 없음
+- scene 속성과 `_ready()`에서 모두 초기 hidden
 - pause, modal, 사망 결과, 세션 종료, scene exit에서 즉시 숨김
 - 조준 중 UI 버튼 위에 포인터가 있으면 활성화하지 않음
 
@@ -161,6 +162,8 @@ world_target = player + (combat_target.x, combat_target.y * swing_vertical_facto
 투사체가 빗나가거나 사라지면 안내를 닫고 다음 eligible 투사체에서 다시 띄운다. 실제 반사 성공 전까지 세션과 이후 런에서 반복한다.
 
 패링 coachmark는 한 번에 하나만 활성화한다. 늑대와 투사체 안내가 겹치면 먼저 열린 안내를 유지하고 다른 종류가 현재 화면을 교체하지 않는다. 거절된 종류는 다음 eligible 늑대 prepare 또는 투사체 spawn에서 다시 시도하므로 학습 기회는 사라지지 않는다.
+
+threat를 이미 안내했다는 ID는 `show_for_target()` 또는 `show_for_wolf()`가 `true`를 반환한 뒤에만 기록한다. 다른 prompt 때문에 거절된 wolf prepare·projectile spawn은 소비하지 않는다.
 
 성공 시 다음을 한 번 수행한다.
 

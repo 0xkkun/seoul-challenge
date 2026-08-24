@@ -147,6 +147,7 @@ const IndicatorScript := preload("res://scripts/ui/melee_aim_indicator.gd")
 func test_indicator_snapshot_matches_real_attack_geometry() -> void:
 	var indicator := IndicatorScript.new()
 	add_child(indicator)
+	_runner.assert_false(indicator.visible, "fresh indicator never draws a ring at player origin")
 	indicator.show_aim(Vector2(100.0, 100.0), Vector2(160.0, 100.0), 90.0, 1.6, 0.75)
 	var snapshot: Dictionary = indicator.get_snapshot()
 	_runner.assert_true(snapshot["visible"])
@@ -188,6 +189,10 @@ var _arc := 0.0
 var _vertical_factor := 1.0
 
 
+func _ready() -> void:
+	visible = false
+
+
 func show_aim(origin: Vector2, target: Vector2, reach: float, arc: float, vertical_factor: float) -> void:
 	global_position = origin
 	_target_local = target - origin
@@ -224,7 +229,7 @@ func _draw() -> void:
 	draw_arc(_target_local, 8.0, 0.0, TAU, 16, TARGET_COLOR, 2.0)
 ```
 
-scene의 Player 자식 `%MeleeAimIndicator`로 추가하고 collision node를 만들지 않는다. `z_index`는 actor 위, HUD 아래인 local combat layer로 둔다.
+scene의 Player 자식 `%MeleeAimIndicator`로 추가하고 `visible=false`로 저장하며 collision node를 만들지 않는다. `_ready()`도 hidden을 강제해 code-created instance까지 보호한다. `z_index`는 actor 위, HUD 아래인 local combat layer로 둔다.
 
 - [ ] **Step 4: unit runner와 required scene instantiate PASS 확인**
 

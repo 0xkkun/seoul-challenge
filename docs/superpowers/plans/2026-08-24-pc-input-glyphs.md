@@ -279,6 +279,8 @@ git commit -m "[UI] 공통 PC 입력 글리프 렌더러 추가"
 - Modify: `tests/unit/test_onboarding_coach_mark.gd`
 - Modify: `tests/unit/test_touch_input.gd:210-270`
 - Modify: `tests/unit/test_night_intro_cutscene.gd:195-215`
+- Modify: `tests/unit/test_ui_font_roles.gd:130-145`
+- Modify: `tests/uat/onboarding_coachmark_web_fixture.gd:140-160`
 
 **Interfaces:**
 - Consumes: prompt model `input_actions: Array[StringName]`, `input_mode`
@@ -355,13 +357,36 @@ Expected: input strip snapshot key가 없어 FAIL.
 "input_actions": step.get("input_actions", []),
 ```
 
-`NightIntroCutscene`은 기존 `_hint: Label`을 `_hint: PanelContainer`로 바꾸고 내부에 `InputPromptStrip`과 `Label`을 둔다. desktop model은 `input_actions=[&"primary_click"]`, label `계속`; touch model은 strip을 숨기고 label `탭하여 계속`을 사용한다. 기존 `AdvanceHint` node name, safe-area offsets, modulate tween, `get_advance_hint_reference_rect()` 계약은 유지한다.
+`NightIntroCutscene`은 기존 `_hint: Label`을 `_hint: PanelContainer`로 바꾸고 내부에 `HintRow/HBoxContainer`, `HintStrip/InputPromptStrip`, `HintLabel/Label`을 둔다. desktop model은 `input_actions=[&"primary_click"]`, label `계속`; touch model은 strip을 숨기고 label `탭하여 계속`을 사용한다. 기존 `AdvanceHint` node name, safe-area offsets, modulate tween, `get_advance_hint_reference_rect()` 계약은 유지한다.
 
 ```gdscript
 static func advance_hint_model_for_mode(input_mode: StringName) -> Dictionary:
 	if input_mode == InputPromptPolicy.MODE_TOUCH:
 		return {"input_actions": [], "label": "탭하여 계속"}
 	return {"input_actions": [&"primary_click"], "label": "계속"}
+
+
+func render_advance_hint(input_mode: StringName) -> void:
+	var model := advance_hint_model_for_mode(input_mode)
+	_hint_strip.configure(model["input_actions"], input_mode)
+	_hint_label.text = model["label"]
+```
+
+기존 type-specific consumer도 같은 commit에서 migration한다.
+
+```gdscript
+# onboarding_coachmark_web_fixture.gd
+intro.render_advance_hint(&"touch" if touch_mode else &"desktop")
+var hint := intro.get_node("AdvanceHint") as PanelContainer
+hint.modulate.a = 1.0
+
+# test_ui_font_roles.gd
+_assert_font(
+	intro.get_node("AdvanceHint/HintRow/HintLabel") as Control,
+	&"font",
+	UiFontRolesScript.PIXEL_FONT_PATH,
+	"intro advance hint label uses pixel font",
+)
 ```
 
 Desktop steps:
@@ -391,7 +416,7 @@ Expected: unit/integration 0 failed, UI automation and texture filter gates PASS
 - [ ] **Step 5: coachmark 연결 커밋**
 
 ```bash
-git add scripts/ui/onboarding_coach_mark.gd scripts/ui/ingame_control_onboarding.gd scripts/cutscene/night_intro_cutscene.gd tests/unit/test_onboarding_coach_mark.gd tests/unit/test_touch_input.gd tests/unit/test_night_intro_cutscene.gd
+git add scripts/ui/onboarding_coach_mark.gd scripts/ui/ingame_control_onboarding.gd scripts/cutscene/night_intro_cutscene.gd tests/unit/test_onboarding_coach_mark.gd tests/unit/test_touch_input.gd tests/unit/test_night_intro_cutscene.gd tests/unit/test_ui_font_roles.gd tests/uat/onboarding_coachmark_web_fixture.gd
 git commit -m "[UI] 첫 PC 조작 안내를 입력 글리프로 교체"
 ```
 

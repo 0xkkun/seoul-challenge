@@ -402,6 +402,8 @@ func _spawn_enemy_bullet(ranged: Node, origin: Vector2) -> Node2D:
 
 별도 테스트는 unawakened bat에서 prompt 0, prompt 미완료 room clear 가능, death/retry/exit 후 ranged/projectile signal 0을 단정한다. mixed room 테스트는 active wolf prompt 상태에서 `kind=enemy_projectile` 성공 payload를 처리해도 snapshot kind가 `wolf_dash`, active=true로 남는지 검증한다.
 
+역순 mixed room 테스트는 active projectile prompt 중 같은 wolf의 첫 `prepare`가 거절된 뒤 prompt를 닫고 두 번째 `prepare`를 보내 wolf prompt가 실제로 표시되는지 검증한다. 이 테스트는 rejected prompt가 `_prompted_parry_wolf_ids`에 기록되는 회귀를 잡는다.
+
 - [ ] **Step 2: integration runner에서 ranged lifecycle FAIL 확인**
 
 ```bash
@@ -428,6 +430,19 @@ func _is_ranged_parry_tutorial_eligible() -> bool:
 ```
 
 `_on_parry_enemy_spawned()`는 wolf와 ranged를 분기한다. ranged enemy는 `projectile_spawned`와 tree exit를 연결한다. `_on_ranged_projectile_spawned(projectile)`는 eligibility와 active prompt를 확인한 뒤 `show_for_target()`을 호출하고 projectile tree exit에서 target prompt만 dismiss한다.
+
+wolf ID는 prompt가 수락된 뒤에만 소비한다.
+
+```gdscript
+func _on_wolf_dash_state_changed(state: StringName, wolf: Node2D) -> void:
+	if state != &"prepare" or not _is_wolf_parry_tutorial_eligible():
+		return
+	var wolf_id := wolf.get_instance_id()
+	if _prompted_parry_wolf_ids.has(wolf_id):
+		return
+	if parry_onboarding.show_for_wolf(wolf, _onboarding_journey_input_mode()):
+		_prompted_parry_wolf_ids[wolf_id] = true
+```
 
 - [ ] **Step 4: typed success handler와 cleanup 구현**
 
