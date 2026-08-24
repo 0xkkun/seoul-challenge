@@ -2,6 +2,9 @@
 
 Use this checklist before opening a PR and again before marking it ready.
 
+Screen-quality review criteria for UI-visible changes live in
+[ui-review-checklist.md](ui-review-checklist.md); P0 findings there block merge.
+
 ## Language (언어)
 
 PR 제목·본문과 커밋 메시지는 **한글로 작성**한다.
@@ -114,9 +117,11 @@ Example PR body section:
 ![인게임 맵 탭](https://raw.githubusercontent.com/0xkkun/seoul-challenge/ui-previews/pr-177/session-map-tab-960x540.png)
 ```
 
-Keep screenshots out of the PR branch. If a UI change cannot be captured in the
-current environment, say why in `## UI 캡처` and list the closest verification
-that was performed.
+Keep screenshots out of the PR branch. A UI-visible change must render its raw
+capture URL as a Markdown image in the PR body; a written reason, plain link, or
+non-visual verification does not replace it. If the current environment cannot
+render the changed screen, capture it from a faithful alternative such as the
+Web Preview artifact or a Godot MCP viewport.
 
 ## Web Preview Flow
 
