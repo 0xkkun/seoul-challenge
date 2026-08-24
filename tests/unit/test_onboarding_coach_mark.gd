@@ -65,6 +65,39 @@ func test_tokens_drive_compact_timing_surface_and_reduced_motion() -> void:
 	_runner.assert_eq(snapshot.get("enter_duration"), 0.0, "reduced motion applies the final state immediately")
 
 
+func test_desktop_coach_uses_glyph_strip_without_key_abbreviations() -> void:
+	var coach := _new_coach()
+	if coach == null:
+		return
+	coach.call("show_prompt", {
+		"id": &"aim_attack",
+		"input_mode": &"desktop",
+		"input_actions": [&"aim_hold", &"attack"],
+		"action": "조준하고 타격",
+		"target_kind": &"none",
+	})
+	var snapshot: Dictionary = coach.call("get_snapshot")
+	_runner.assert_true(bool(snapshot.get("input_strip_visible", false)), "desktop coach는 입력 글리프 strip을 보인다")
+	_runner.assert_eq(snapshot.get("input_actions", []), [&"aim_hold", &"attack"], "입력 순서를 보존한다")
+	_runner.assert_eq(snapshot.get("key_label", ""), "", "desktop glyph coach는 text key chip을 숨긴다")
+
+
+func test_mobile_coach_keeps_existing_key_label_fallback() -> void:
+	var coach := _new_coach()
+	if coach == null:
+		return
+	coach.call("show_prompt", {
+		"id": &"touch_attack",
+		"input_mode": &"touch",
+		"key_label": "공격 버튼",
+		"action": "공격",
+		"target_kind": &"none",
+	})
+	var snapshot: Dictionary = coach.call("get_snapshot")
+	_runner.assert_false(bool(snapshot.get("input_strip_visible", true)), "touch coach는 PC strip을 숨긴다")
+	_runner.assert_eq(snapshot.get("key_label", ""), "공격 버튼", "touch key label fallback을 유지한다")
+
+
 func test_world_target_prompt_is_safe_compact_and_non_blocking() -> void:
 	var coach := _new_coach()
 	if coach == null:

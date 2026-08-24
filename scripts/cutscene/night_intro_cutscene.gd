@@ -25,11 +25,12 @@ const VOICELESS_READING_SECONDS := 2.2
 const HARD_MAX_LINE_SECONDS := 4.0
 const PLATE_START_ALPHA := 0.04
 const SKIP_BUTTON_SIZE := Vector2(168.0, 48.0)
-const ADVANCE_HINT_SIZE := Vector2(180.0, 34.0)
+const ADVANCE_HINT_SIZE := Vector2(220.0, 60.0)
 const FontRoles := preload("res://scripts/ui/ui_font_roles.gd")
 const InputPromptPolicy := preload("res://scripts/ui/input_prompt_policy.gd")
 const MobileSafeArea := preload("res://scripts/ui/mobile_safe_area.gd")
 const OnboardingVisualTokens := preload("res://scripts/ui/onboarding_visual_tokens.gd")
+const InputPromptStripScript := preload("res://scripts/ui/input_prompt_strip.gd")
 const FINALE_SFX := &"night_intro_transition_cd"
 
 ## 플레이트 순서는 확정 스토리보드 기준: B → A → C → D.
@@ -64,7 +65,9 @@ const BEATS: Array[Dictionary] = [
 
 var _plate: TextureRect
 var _subtitle: Label
-var _hint: Label
+var _hint: PanelContainer
+var _hint_strip: InputPromptStrip
+var _hint_label: Label
 var _skip_button: Button
 var _narration: AudioStreamPlayer
 var _advance_ready := false
@@ -117,11 +120,23 @@ func _continue_hint() -> String:
 	if has_node("/root/PlatformManager"):
 		features = PlatformManager.get_feature_flags()
 	var input_mode := InputPromptPolicy.input_mode_from_features(features)
-	return continue_chip_text_for_mode(input_mode)
+	return String(advance_hint_model_for_mode(input_mode)["label"])
 
 
 func continue_chip_text_for_mode(input_mode: StringName) -> String:
-	return "탭  계속" if input_mode == InputPromptPolicy.MODE_TOUCH else "LMB  계속"
+	return String(advance_hint_model_for_mode(input_mode)["label"])
+
+
+static func advance_hint_model_for_mode(input_mode: StringName) -> Dictionary:
+	if input_mode == InputPromptPolicy.MODE_TOUCH:
+		return {"input_actions": [], "label": "탭하여 계속"}
+	return {"input_actions": [&"primary_click"], "label": "계속"}
+
+
+func render_advance_hint(input_mode: StringName) -> void:
+	var model := advance_hint_model_for_mode(input_mode)
+	_hint_strip.configure(model["input_actions"], input_mode)
+	_hint_label.text = String(model["label"])
 
 
 ## 콜드오픈을 재생한다. 한 번만 시작되며, 끝나면 finished 를 방출한다.
@@ -237,7 +252,7 @@ func _build_ui() -> void:
 	add_child(_subtitle)
 
 	# 진행 힌트: 작게, 우하단 구석. 자막 흐름을 방해하지 않는다.
-	_hint = Label.new()
+	_hint = PanelContainer.new()
 	_hint.name = "AdvanceHint"
 	_hint.anchor_left = 1.0
 	_hint.anchor_right = 1.0
@@ -247,15 +262,31 @@ func _build_ui() -> void:
 	_hint.offset_right = -MobileSafeArea.MIN_RIGHT
 	_hint.offset_top = -MobileSafeArea.MIN_BOTTOM - ADVANCE_HINT_SIZE.y
 	_hint.offset_bottom = -MobileSafeArea.MIN_BOTTOM
-	_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_hint.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_hint.text = _continue_hint()
-	_hint.add_theme_font_size_override("font_size", 15)
-	FontRoles.apply_pixel(_hint)
-	_hint.add_theme_color_override("font_color", Color(OnboardingVisualTokens.PAPER_TEXT, 0.78))
-	_hint.add_theme_color_override("font_outline_color", OnboardingVisualTokens.SOFT_SHADOW)
-	_hint.add_theme_constant_override("outline_size", 2)
-	_hint.add_theme_stylebox_override("normal", OnboardingVisualTokens.key_chip_style(&"info"))
+	_hint.add_theme_stylebox_override("panel", OnboardingVisualTokens.key_chip_style(&"info"))
+	var hint_row := HBoxContainer.new()
+	hint_row.name = "HintRow"
+	hint_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	hint_row.add_theme_constant_override("separation", 4)
+	hint_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_hint.add_child(hint_row)
+	_hint_strip = InputPromptStripScript.new() as InputPromptStrip
+	_hint_strip.name = "HintStrip"
+	hint_row.add_child(_hint_strip)
+	_hint_label = Label.new()
+	_hint_label.name = "HintLabel"
+	_hint_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_hint_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_hint_label.add_theme_font_size_override("font_size", 15)
+	FontRoles.apply_pixel(_hint_label)
+	_hint_label.add_theme_color_override("font_color", Color(OnboardingVisualTokens.PAPER_TEXT, 0.78))
+	_hint_label.add_theme_color_override("font_outline_color", OnboardingVisualTokens.SOFT_SHADOW)
+	_hint_label.add_theme_constant_override("outline_size", 2)
+	_hint_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hint_row.add_child(_hint_label)
+	var features := {}
+	if has_node("/root/PlatformManager"):
+		features = PlatformManager.get_feature_flags()
+	render_advance_hint(InputPromptPolicy.input_mode_from_features(features))
 	_hint.modulate = Color(1.0, 1.0, 1.0, 0.0)
 	_hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_hint)

@@ -135,7 +135,7 @@ func test_modal_settings_and_intro_roles() -> void:
 
 	var intro = _add_node(NightIntroCutsceneScript.new())
 	_assert_font(intro.get_node("Subtitle") as Control, &"font", UiFontRolesScript.TITLE_FONT_PATH, "intro subtitle uses title font")
-	_assert_font(intro.get_node("AdvanceHint") as Control, &"font", UiFontRolesScript.PIXEL_FONT_PATH, "intro advance hint uses pixel font")
+	_assert_font(intro.get_node("AdvanceHint/HintRow/HintLabel") as Control, &"font", UiFontRolesScript.PIXEL_FONT_PATH, "intro advance hint label uses pixel font")
 	_assert_font(intro.get_node("SkipButton") as Control, &"font", UiFontRolesScript.PIXEL_FONT_PATH, "intro skip button uses pixel font")
 
 

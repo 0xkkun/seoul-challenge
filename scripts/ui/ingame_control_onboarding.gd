@@ -7,6 +7,7 @@ const MobileSafeArea = preload("res://scripts/ui/mobile_safe_area.gd")
 const PixelButtonStyle = preload("res://scripts/ui/pixel_button_style.gd")
 const OnboardingCoachMarkScript = preload("res://scripts/ui/onboarding_coach_mark.gd")
 const OnboardingVisualTokens = preload("res://scripts/ui/onboarding_visual_tokens.gd")
+const InputPromptStripScript = preload("res://scripts/ui/input_prompt_strip.gd")
 
 signal completed
 signal skipped
@@ -74,29 +75,33 @@ const TOUCH_STEPS: Array[Dictionary] = [
 const DESKTOP_STEPS: Array[Dictionary] = [
 	{
 		"id": &"move",
-		"key_label": "WASD",
+		"key_label": "",
+		"input_actions": [&"move"],
 		"action": "이동",
 		"detail": "방 안을 둘러봐",
 		"targets": [],
 	},
 	{
 		"id": &"attack",
-		"key_label": "LMB",
-		"action": "공격",
+		"key_label": "",
+		"input_actions": [&"attack"],
+		"action": "타격",
 		"detail": "가까운 적",
 		"targets": [],
 	},
 	{
 		"id": &"dash",
-		"key_label": "SPACE",
+		"key_label": "",
+		"input_actions": [&"dash"],
 		"action": "회피",
 		"detail": "짧게",
 		"targets": [],
 	},
 	{
 		"id": &"power_attack",
-		"key_label": "SPACE → LMB",
-		"action": "강공격",
+		"key_label": "",
+		"input_actions": [&"dash", &"attack"],
+		"action": "강하게 타격",
 		"detail": "연속 입력",
 		"targets": [],
 	},
@@ -139,6 +144,9 @@ var _pending_visual_refresh := false
 var _skip_button: Button = null
 var _compact_legend: PanelContainer = null
 var _legend_label: Label = null
+var _legend_desktop_row: HBoxContainer = null
+var _legend_input_strips: Array[HBoxContainer] = []
+var _legend_action_labels: Array[Label] = []
 
 
 func _ready() -> void:
@@ -159,8 +167,7 @@ func configure(touch_controls: Node, camera: Camera2D = null, player: Node = nul
 	_connect_player_events()
 	if _coach_mark != null:
 		_coach_mark.configure(_camera, _is_reduced_motion())
-	if _legend_label != null:
-		_legend_label.text = _compact_legend_text()
+	_refresh_compact_legend()
 	if _camera != null:
 		_original_camera_zoom = _camera.zoom
 
@@ -237,6 +244,9 @@ func get_current_step_snapshot() -> Dictionary:
 		"title": String(step.get("action", "")),
 		"body": String(step.get("detail", "")),
 		"key_label": String(step.get("key_label", "")),
+		"input_actions": step.get("input_actions", []),
+		"input_texture_paths": coach_snapshot.get("input_texture_paths", []),
+		"input_keycaps": coach_snapshot.get("input_keycaps", []),
 		"action": String(step.get("action", "")),
 		"detail": String(step.get("detail", "")),
 		"target_names": target_names,
@@ -266,6 +276,28 @@ func get_skip_button_reference_rect() -> Rect2:
 			VIEWPORT_FALLBACK.y * (_skip_button.anchor_bottom - _skip_button.anchor_top) + _skip_button.offset_bottom - _skip_button.offset_top
 		)
 	)
+
+
+func get_compact_legend_snapshot() -> Dictionary:
+	var input_actions: Array[StringName] = []
+	var visible_copy_parts: Array[String] = []
+	for strip: HBoxContainer in _legend_input_strips:
+		var strip_snapshot: Dictionary = strip.call("get_snapshot")
+		input_actions.append_array(strip_snapshot.get("actions", []) as Array)
+		visible_copy_parts.append(String(strip_snapshot.get("visible_copy", "")))
+	var labels: Array[String] = []
+	for label: Label in _legend_action_labels:
+		labels.append(label.text)
+	if _legend_label != null and _legend_label.visible:
+		visible_copy_parts.append(_legend_label.text)
+	visible_copy_parts.append_array(labels)
+	return {
+		"visible": _compact_legend != null and _compact_legend.visible,
+		"input_mode": _input_mode(),
+		"input_actions": input_actions,
+		"labels": labels,
+		"visible_copy": " ".join(visible_copy_parts),
+	}
 
 
 func advance_from_input(input_state: Dictionary) -> bool:
@@ -390,6 +422,51 @@ func _build_ui() -> void:
 	_compact_legend.offset_right = COMPACT_LEGEND_LEFT + COMPACT_LEGEND_SIZE.x
 	_compact_legend.offset_bottom = COMPACT_LEGEND_TOP + COMPACT_LEGEND_SIZE.y
 	_compact_legend.add_theme_stylebox_override("panel", OnboardingVisualTokens.coach_style(&"info"))
+	var legend_stack := VBoxContainer.new()
+	legend_stack.name = "LegendStack"
+	legend_stack.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	legend_stack.alignment = BoxContainer.ALIGNMENT_CENTER
+	legend_stack.add_theme_constant_override("separation", 3)
+	_compact_legend.add_child(legend_stack)
+	var legend_title := Label.new()
+	legend_title.name = "LegendTitle"
+	legend_title.text = "조작표"
+	legend_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	legend_title.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	legend_title.add_theme_font_size_override("font_size", 14)
+	legend_title.add_theme_color_override("font_color", OnboardingVisualTokens.GOLD_INFO)
+	UiFontRoles.apply_pixel(legend_title)
+	legend_stack.add_child(legend_title)
+	_legend_desktop_row = HBoxContainer.new()
+	_legend_desktop_row.name = "DesktopLegendRow"
+	_legend_desktop_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_legend_desktop_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	_legend_desktop_row.add_theme_constant_override("separation", 8)
+	legend_stack.add_child(_legend_desktop_row)
+	for legend_entry: Dictionary in [
+		{"action": &"move", "label": "이동"},
+		{"action": &"attack", "label": "타격"},
+		{"action": &"dash", "label": "회피"},
+	]:
+		var column := VBoxContainer.new()
+		column.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		column.alignment = BoxContainer.ALIGNMENT_CENTER
+		column.add_theme_constant_override("separation", 1)
+		_legend_desktop_row.add_child(column)
+		var input_strip := InputPromptStripScript.new() as HBoxContainer
+		input_strip.name = "%sInput" % String(legend_entry.get("action", &""))
+		column.add_child(input_strip)
+		input_strip.call("configure", [legend_entry.get("action", &"")], &"desktop")
+		_legend_input_strips.append(input_strip)
+		var action_label := Label.new()
+		action_label.text = String(legend_entry.get("label", ""))
+		action_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		action_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		action_label.add_theme_font_size_override("font_size", 12)
+		action_label.add_theme_color_override("font_color", OnboardingVisualTokens.PAPER_TEXT)
+		UiFontRoles.apply_pixel(action_label)
+		column.add_child(action_label)
+		_legend_action_labels.append(action_label)
 	_legend_label = Label.new()
 	_legend_label.name = "LegendLabel"
 	_legend_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -398,7 +475,8 @@ func _build_ui() -> void:
 	_legend_label.add_theme_color_override("font_color", OnboardingVisualTokens.PAPER_TEXT)
 	UiFontRoles.apply_pixel(_legend_label)
 	_legend_label.text = _compact_legend_text()
-	_compact_legend.add_child(_legend_label)
+	legend_stack.add_child(_legend_label)
+	_refresh_compact_legend()
 	_compact_legend.visible = false
 	_root.add_child(_compact_legend)
 
@@ -429,6 +507,8 @@ func _refresh_step() -> void:
 	_coach_mark.show_prompt({
 		"id": step.get("id", &""),
 		"tone": &"info",
+		"input_mode": _input_mode(),
+		"input_actions": step.get("input_actions", []),
 		"key_label": String(step.get("key_label", "")),
 		"action": String(step.get("action", "")),
 		"detail": String(step.get("detail", "")),
@@ -551,7 +631,16 @@ func _hide_step_ui() -> void:
 func _compact_legend_text() -> String:
 	if _uses_touch_guidance():
 		return "조작표\n스틱  이동\n공격 버튼  공격\n대시 버튼  회피\n미니맵 탭  지도"
-	return "조작표\nWASD  이동\nLMB  공격\nSPACE  회피\n미니맵 클릭  지도"
+	return ""
+
+
+func _refresh_compact_legend() -> void:
+	var touch_mode := _uses_touch_guidance()
+	if _legend_desktop_row != null:
+		_legend_desktop_row.visible = not touch_mode
+	if _legend_label != null:
+		_legend_label.text = _compact_legend_text()
+		_legend_label.visible = touch_mode
 
 
 func _apply_camera_zoom() -> void:

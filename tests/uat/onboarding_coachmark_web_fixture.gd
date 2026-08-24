@@ -146,8 +146,8 @@ func _setup_intro(touch_mode: bool) -> void:
 	var subtitle := intro.get_node("Subtitle") as Label
 	subtitle.text = "도시가 잠들면,"
 	subtitle.modulate.a = 1.0
-	var hint := intro.get_node("AdvanceHint") as Label
-	hint.text = intro.continue_chip_text_for_mode(&"touch" if touch_mode else &"desktop")
+	intro.render_advance_hint(&"touch" if touch_mode else &"desktop")
+	var hint := intro.get_node("AdvanceHint") as PanelContainer
 	hint.modulate.a = 1.0
 	await _settle()
 	print("UAT_COACHMARK_READY mode=%s surface=intro reduced_motion=false" % _mode)

@@ -6,6 +6,7 @@ signal exit_finished(prompt_id: StringName, kind: StringName)
 const UiFontRoles = preload("res://scripts/ui/ui_font_roles.gd")
 const MobileSafeArea = preload("res://scripts/ui/mobile_safe_area.gd")
 const Tokens = preload("res://scripts/ui/onboarding_visual_tokens.gd")
+const InputPromptStripScript = preload("res://scripts/ui/input_prompt_strip.gd")
 
 const DEFAULT_TARGET_SIZE := Vector2(96.0, 112.0)
 const DEFAULT_TARGET_OFFSET := Vector2(0.0, -34.0)
@@ -26,6 +27,7 @@ var _root: Control = null
 var _panel: PanelContainer = null
 var _key_panel: PanelContainer = null
 var _key_label: Label = null
+var _input_strip: InputPromptStrip = null
 var _action_label: Label = null
 var _detail_label: Label = null
 var _bracket_parts: Array[ColorRect] = []
@@ -94,6 +96,10 @@ func get_snapshot() -> Dictionary:
 		"tone_color": Tokens.tone_color(StringName(_model.get("tone", &"info"))),
 		"action": String(_model.get("action", "")),
 		"key_label": String(_model.get("key_label", "")),
+		"input_actions": _input_strip.get_snapshot().get("actions", []) if _input_strip != null else [],
+		"input_strip_visible": _input_strip.visible if _input_strip != null else false,
+		"input_texture_paths": _input_strip.get_snapshot().get("texture_paths", []) if _input_strip != null else [],
+		"input_keycaps": _input_strip.get_snapshot().get("keycaps", []) if _input_strip != null else [],
 		"detail": String(_model.get("detail", "")),
 		"target_name": target.name if target != null and is_instance_valid(target) else "",
 		"target_rect": _target_rect(),
@@ -171,6 +177,10 @@ func _build_ui() -> void:
 	action_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	action_row.add_theme_constant_override("separation", 8)
 	stack.add_child(action_row)
+	_input_strip = InputPromptStripScript.new() as InputPromptStrip
+	_input_strip.name = "InputPromptStrip"
+	_input_strip.visible = false
+	action_row.add_child(_input_strip)
 	_key_panel = PanelContainer.new()
 	_key_panel.name = "KeyChip"
 	_key_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -203,8 +213,11 @@ func _build_ui() -> void:
 
 func _refresh_content() -> void:
 	var tone := StringName(_model.get("tone", &"info"))
+	var input_mode := StringName(_model.get("input_mode", &"desktop"))
+	var input_actions: Array = _model.get("input_actions", []) as Array
+	_input_strip.configure(input_actions, input_mode)
 	_key_label.text = String(_model.get("key_label", ""))
-	_key_panel.visible = not _key_label.text.is_empty()
+	_key_panel.visible = not _input_strip.visible and not _key_label.text.is_empty()
 	_action_label.text = String(_model.get("action", ""))
 	_detail_label.text = String(_model.get("detail", ""))
 	_detail_label.visible = not _detail_label.text.is_empty()
