@@ -24,6 +24,8 @@ func _setup() -> void:
 			_setup_portal_mode()
 		"death_before", "death_after", "next_session":
 			_setup_death_mode()
+		"onboarding_death_retry", "onboarding_retry_failure":
+			_setup_onboarding_retry_mode()
 		_:
 			push_error("Unknown session cleanup UAT mode: %s" % _mode)
 
@@ -99,6 +101,65 @@ func _setup_death_mode() -> void:
 	)
 
 
+func _setup_onboarding_retry_mode() -> void:
+	GameManager.start_session({
+		"source": "onboarding_retry_web_fixture",
+		SceneTransition.RUN_CONFIG_LAYOUT_SEED: 545,
+		SceneTransition.RUN_CONFIG_SELECTED_WEAPON_ID: &"bat",
+		SceneTransition.RUN_CONFIG_ONBOARDING_KIND: SceneTransition.ONBOARDING_KIND_BASEBALL_CAPTAIN,
+	})
+	var session := SESSION_SCENE.instantiate()
+	add_child(session)
+	var replacement := {"kind": &""}
+	if _mode == "onboarding_death_retry":
+		session.retry_session_callable = func(config: Dictionary) -> Error:
+			replacement["kind"] = StringName(config.get(SceneTransition.RUN_CONFIG_ONBOARDING_KIND, &""))
+			GameManager.start_session(config)
+			return OK
+	else:
+		session.retry_session_callable = func(_config: Dictionary) -> Error:
+			return ERR_CANT_CREATE
+	(session.get_node("%DeathReturnController") as DeathReturnController).trigger_death_return()
+	var session_ui := session.get_node("%SessionUIRoot")
+	var before: Dictionary = session_ui.call("get_summary_snapshot")
+	(session_ui.get_node("%RetryButton") as Button).pressed.emit()
+	var failed := _mode == "onboarding_retry_failure"
+	var status := (session_ui.get_node("%StatusLabel") as Label).text
+	var valid: bool = (
+		not bool(before.get("return_visible", true))
+		and bool(before.get("retry_visible", false))
+		and String(before.get("retry_text", "")) == "다시 도전"
+		and (
+			(
+				failed
+				and replacement["kind"] == &""
+				and bool(session_ui.call("is_summary_visible"))
+				and get_tree().paused
+				and status == "다시 시작하지 못했습니다. 다시 시도해 주세요."
+			)
+			or (
+				not failed
+				and replacement["kind"] == SceneTransition.ONBOARDING_KIND_BASEBALL_CAPTAIN
+				and not get_tree().paused
+			)
+		)
+	)
+	if not valid:
+		push_error("Onboarding retry state mismatch")
+	print(
+		"UAT_SESSION_CLEANUP_READY mode=%s return_visible=%s retry_visible=%s retry_text=%s replacement_kind=%s summary=%s paused=%s status=%s valid=%s"
+		% [
+			_mode,
+			str(before.get("return_visible", true)).to_lower(),
+			str(before.get("retry_visible", false)).to_lower(),
+			String(before.get("retry_text", "")),
+			String(replacement["kind"]),
+			str(session_ui.call("is_summary_visible")).to_lower(),
+			str(get_tree().paused).to_lower(),
+			status,
+			str(valid).to_lower(),
+		]
+	)
 func _arm_cleanup_surfaces(session: Node) -> void:
 	var camera := session.get_node("%PlayerCamera") as Camera2D
 	var touch_controls := session.get_node("%TouchControls") as CanvasLayer

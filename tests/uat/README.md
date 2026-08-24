@@ -100,6 +100,8 @@ main scene, restore `project.godot`, then open:
 - `?uat_session_cleanup_mode=death_before` — control, purification, parry, flash, text, zoom, and camera feedback are all active.
 - `?uat_session_cleanup_mode=death_after` — death summary keeps its intended pause while all transient onboarding state is clean.
 - `?uat_session_cleanup_mode=next_session` — a replacement session owns a fresh 20-slot combat text pool.
+- `?uat_session_cleanup_mode=onboarding_death_retry` — onboarding death hides school return, exposes one retry action, and preserves the onboarding kind in the replacement config.
+- `?uat_session_cleanup_mode=onboarding_retry_failure` — a failed replacement keeps the paused summary and retry action with recoverable error copy.
 
 Every valid state prints `UAT_SESSION_CLEANUP_READY`. Pass/fail uses the marker
 and browser errors; screenshots are visual evidence only.
