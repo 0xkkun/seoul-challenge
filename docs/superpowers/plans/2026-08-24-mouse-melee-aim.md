@@ -32,30 +32,35 @@
 
 **Interfaces:**
 - Consumes: origin, cursor world position, current weapon/power window, fallback facing
-- Produces: `clamped_aim_target()`, `resolve_aim_direction()`, `current_melee_reach()`, `current_melee_arc()`
+- Produces: `clamped_aim_target()`, `resolve_aim_direction()`, `current_melee_reach()`, `current_melee_arc()` using `swing_vertical_factor`
 
 - [ ] **Step 1: clamp·fallback·power reach 실패 테스트 작성**
 
 ```gdscript
 func test_clamped_aim_target_keeps_inside_cursor_and_clamps_far_cursor() -> void:
 	_runner.assert_eq(
-		PlayerScript.clamped_aim_target(Vector2.ZERO, Vector2(30.0, 40.0), 100.0, Vector2.RIGHT),
-		Vector2(30.0, 40.0),
+		PlayerScript.clamped_aim_target(Vector2.ZERO, Vector2(30.0, 30.0), 100.0, Vector2.RIGHT, 0.75),
+		Vector2(30.0, 30.0),
 	)
-	_runner.assert_true(
-		PlayerScript.clamped_aim_target(Vector2.ZERO, Vector2(300.0, 400.0), 100.0, Vector2.RIGHT).is_equal_approx(Vector2(60.0, 80.0)),
-		"far cursor clamps to exact reach",
+	_runner.assert_eq(
+		PlayerScript.clamped_aim_target(Vector2.ZERO, Vector2(300.0, 0.0), 100.0, Vector2.RIGHT, 0.75),
+		Vector2(100.0, 0.0),
+	)
+	_runner.assert_eq(
+		PlayerScript.clamped_aim_target(Vector2.ZERO, Vector2(0.0, 400.0), 100.0, Vector2.DOWN, 0.75),
+		Vector2(0.0, 75.0),
+		"vertical reach uses the same 0.75 world compression as melee collision",
 	)
 
 
 func test_clamped_aim_target_uses_fallback_for_zero_or_invalid_input() -> void:
 	_runner.assert_eq(
-		PlayerScript.clamped_aim_target(Vector2.ZERO, Vector2.ZERO, 80.0, Vector2.LEFT),
+		PlayerScript.clamped_aim_target(Vector2.ZERO, Vector2.ZERO, 80.0, Vector2.LEFT, 0.75),
 		Vector2.LEFT * 80.0,
 	)
 	_runner.assert_eq(
-		PlayerScript.clamped_aim_target(Vector2.ZERO, Vector2(INF, 0.0), 80.0, Vector2.DOWN),
-		Vector2.DOWN * 80.0,
+		PlayerScript.clamped_aim_target(Vector2.ZERO, Vector2(INF, 0.0), 80.0, Vector2.DOWN, 0.75),
+		Vector2.DOWN * 60.0,
 	)
 
 
@@ -81,17 +86,20 @@ GODOT_BIN=/opt/homebrew/bin/godot PYTHON_BIN=/opt/homebrew/bin/python3.12 \
 - [ ] **Step 3: 순수 helper와 current profile 구현**
 
 ```gdscript
-static func clamped_aim_target(origin: Vector2, cursor: Vector2, reach: float, fallback: Vector2) -> Vector2:
+static func clamped_aim_target(origin: Vector2, cursor: Vector2, reach: float, fallback: Vector2, vertical_factor: float) -> Vector2:
 	var safe_reach := reach if is_finite(reach) and reach > 0.0 else 0.0
-	var delta := cursor - origin
-	var has_cursor_direction := delta.is_finite() and delta.length() > 0.001
-	var direction := delta.normalized() if has_cursor_direction else fallback.normalized()
+	var safe_vertical := vertical_factor if is_finite(vertical_factor) and vertical_factor > 0.001 else 1.0
+	var world_delta := cursor - origin
+	var combat_delta := Vector2(world_delta.x, world_delta.y / safe_vertical)
+	var has_cursor_direction := combat_delta.is_finite() and combat_delta.length() > 0.001
+	var direction := combat_delta.normalized() if has_cursor_direction else fallback.normalized()
 	if direction == Vector2.ZERO or not direction.is_finite():
 		direction = Vector2.RIGHT
 	if safe_reach <= 0.0:
 		return origin
-	var target_distance := minf(delta.length(), safe_reach) if has_cursor_direction else safe_reach
-	return origin + direction * target_distance
+	var target_distance := minf(combat_delta.length(), safe_reach) if has_cursor_direction else safe_reach
+	var combat_target := direction * target_distance
+	return origin + Vector2(combat_target.x, combat_target.y * safe_vertical)
 
 
 func current_melee_reach() -> float:
@@ -127,7 +135,7 @@ git commit -m "[Player] 근접 조준점과 실제 사거리 계산 추가"
 - Modify: `scenes/player/player.tscn`
 
 **Interfaces:**
-- Consumes: `show_aim(origin: Vector2, target: Vector2, reach: float, arc: float)`
+- Consumes: `show_aim(origin: Vector2, target: Vector2, reach: float, arc: float, vertical_factor: float)`
 - Produces: `hide_aim()`, `get_snapshot()`, non-interactive world drawing
 
 - [ ] **Step 1: indicator geometry/cleanup 실패 테스트 작성**
@@ -139,20 +147,21 @@ const IndicatorScript := preload("res://scripts/ui/melee_aim_indicator.gd")
 func test_indicator_snapshot_matches_real_attack_geometry() -> void:
 	var indicator := IndicatorScript.new()
 	add_child(indicator)
-	indicator.show_aim(Vector2(100.0, 100.0), Vector2(160.0, 100.0), 90.0, 1.6)
+	indicator.show_aim(Vector2(100.0, 100.0), Vector2(160.0, 100.0), 90.0, 1.6, 0.75)
 	var snapshot: Dictionary = indicator.get_snapshot()
 	_runner.assert_true(snapshot["visible"])
 	_runner.assert_eq(snapshot["origin"], Vector2(100.0, 100.0))
 	_runner.assert_eq(snapshot["target"], Vector2(160.0, 100.0))
 	_runner.assert_eq(snapshot["reach"], 90.0)
 	_runner.assert_eq(snapshot["arc"], 1.6)
+	_runner.assert_eq(snapshot["vertical_factor"], 0.75)
 	_runner.assert_eq(snapshot["collision_enabled"], false)
 
 
 func test_hide_clears_indicator_state() -> void:
 	var indicator := IndicatorScript.new()
 	add_child(indicator)
-	indicator.show_aim(Vector2.ZERO, Vector2.RIGHT * 40.0, 40.0, 1.0)
+	indicator.show_aim(Vector2.ZERO, Vector2.RIGHT * 40.0, 40.0, 1.0, 0.75)
 	indicator.hide_aim()
 	_runner.assert_false(indicator.get_snapshot()["visible"])
 ```
@@ -167,20 +176,24 @@ Run: Task 1 Step 2.
 class_name MeleeAimIndicator
 extends Node2D
 
-const LINE_COLOR := Color(0.94, 0.90, 0.76, 0.72)
-const ARC_COLOR := Color(0.95, 0.78, 0.30, 0.16)
-const TARGET_COLOR := Color(0.95, 0.78, 0.30, 0.92)
+const OnboardingVisualTokens := preload("res://scripts/ui/onboarding_visual_tokens.gd")
+const LINE_COLOR := Color(OnboardingVisualTokens.PAPER_TEXT, 0.72)
+const ARC_COLOR := Color(OnboardingVisualTokens.GOLD_INFO, 0.16)
+const ARC_EDGE_COLOR := Color(OnboardingVisualTokens.GOLD_INFO, 0.52)
+const TARGET_COLOR := Color(OnboardingVisualTokens.GOLD_INFO, 0.92)
 
 var _target_local := Vector2.ZERO
 var _reach := 0.0
 var _arc := 0.0
+var _vertical_factor := 1.0
 
 
-func show_aim(origin: Vector2, target: Vector2, reach: float, arc: float) -> void:
+func show_aim(origin: Vector2, target: Vector2, reach: float, arc: float, vertical_factor: float) -> void:
 	global_position = origin
 	_target_local = target - origin
 	_reach = maxf(0.0, reach)
 	_arc = maxf(0.0, arc)
+	_vertical_factor = maxf(0.001, vertical_factor)
 	visible = _reach > 0.0 and _target_local.length() > 0.001
 	queue_redraw()
 
@@ -194,14 +207,19 @@ func hide_aim() -> void:
 func _draw() -> void:
 	if not visible:
 		return
-	var direction := _target_local.normalized()
+	var combat_target := Vector2(_target_local.x, _target_local.y / _vertical_factor)
+	var direction := combat_target.normalized()
 	var angle := direction.angle()
 	var sector := PackedVector2Array([Vector2.ZERO])
+	var curve := PackedVector2Array()
 	for index: int in range(25):
 		var sample := lerpf(angle - _arc * 0.5, angle + _arc * 0.5, float(index) / 24.0)
-		sector.append(Vector2.from_angle(sample) * _reach)
+		var combat_point := Vector2.from_angle(sample) * _reach
+		var world_point := Vector2(combat_point.x, combat_point.y * _vertical_factor)
+		sector.append(world_point)
+		curve.append(world_point)
 	draw_colored_polygon(sector, ARC_COLOR)
-	draw_arc(Vector2.ZERO, _reach, angle - _arc * 0.5, angle + _arc * 0.5, 24, ARC_COLOR, 2.0)
+	draw_polyline(curve, ARC_EDGE_COLOR, 2.0)
 	draw_line(Vector2.ZERO, _target_local, LINE_COLOR, 2.0)
 	draw_arc(_target_local, 8.0, 0.0, TAU, 16, TARGET_COLOR, 2.0)
 ```
@@ -239,23 +257,34 @@ git commit -m "[UI] 실제 근접 판정을 보여주는 조준 표시 추가"
 ```gdscript
 func test_mouse_aim_direction_overrides_facing_only_while_active() -> void:
 	_runner.assert_eq(
-		PlayerScript.resolve_aim_direction(Vector2.ZERO, true, Vector2(10.0, 0.0), Vector2.LEFT),
+		PlayerScript.resolve_aim_direction(Vector2.ZERO, true, Vector2(10.0, 0.0), Vector2.LEFT, 0.75),
 		Vector2.RIGHT,
 	)
 	_runner.assert_eq(
-		PlayerScript.resolve_aim_direction(Vector2.ZERO, false, Vector2(10.0, 0.0), Vector2.LEFT),
+		PlayerScript.resolve_aim_direction(Vector2.ZERO, false, Vector2(10.0, 0.0), Vector2.LEFT, 0.75),
 		Vector2.LEFT,
+	)
+	_runner.assert_true(
+		PlayerScript.resolve_aim_direction(Vector2.ZERO, true, Vector2(30.0, 30.0), Vector2.LEFT, 0.75).is_equal_approx(Vector2(0.6, 0.8)),
+		"mouse aim direction uses the same vertically scaled combat space as hit detection",
 	)
 
 
 func test_touch_aim_keeps_priority_over_mouse_aim() -> void:
 	_runner.assert_eq(
-		PlayerScript.resolve_aim_direction(Vector2.UP, true, Vector2.RIGHT, Vector2.LEFT),
+		PlayerScript.resolve_aim_direction(Vector2.UP, true, Vector2.RIGHT, Vector2.LEFT, 0.75),
 		Vector2.UP,
 	)
+
+
+func test_desktop_mouse_aim_is_not_blocked_by_mounted_touch_controls() -> void:
+	_runner.assert_true(PlayerScript.mouse_aim_allowed(false, false, false), "desktop platform permits mouse aim")
+	_runner.assert_false(PlayerScript.mouse_aim_allowed(true, false, false), "mobile platform keeps touch aim")
+	_runner.assert_false(PlayerScript.mouse_aim_allowed(false, true, false), "interactive UI hover blocks aim")
+	_runner.assert_false(PlayerScript.mouse_aim_allowed(false, false, true), "paused gameplay blocks aim")
 ```
 
-Integration test는 real session actor에서 aim active 중 `read_input_vector()`가 변하지 않고, `_show_death_summary()`와 `_exit_tree()` 뒤 indicator snapshot이 hidden인지 단정한다.
+Integration test는 real desktop session에 hidden `%TouchControls`가 실제로 존재하는 상태에서도 mouse aim policy가 허용되고, aim active 중 `read_input_vector()`가 변하지 않으며, `_show_death_summary()`와 `_exit_tree()` 뒤 indicator snapshot이 hidden인지 단정한다.
 
 - [ ] **Step 2: unit/integration runner에서 mouse aim method missing FAIL 확인**
 
@@ -265,23 +294,37 @@ Run: Task 2 Step 4.
 
 ```gdscript
 func _update_mouse_aim() -> void:
-	if _touch != null or OS.has_feature("mobile") or OS.has_feature("web_android") or OS.has_feature("web_ios"):
+	var mobile_runtime := OS.has_feature("mobile") or OS.has_feature("web_android") or OS.has_feature("web_ios")
+	if not mouse_aim_allowed(mobile_runtime, _is_pointer_over_interactive_ui(), get_tree().paused):
 		_clear_mouse_aim()
 		return
 	var active := Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT)
-	if not active or _is_pointer_over_interactive_ui() or get_tree().paused:
+	if not active:
 		_clear_mouse_aim()
 		return
 	_mouse_aim_active = true
-	_mouse_aim_target = clamped_aim_target(global_position, get_global_mouse_position(), current_melee_reach(), _facing)
-	_melee_aim_indicator.show_aim(global_position, _mouse_aim_target, current_melee_reach(), current_melee_arc())
+	_mouse_aim_target = clamped_aim_target(global_position, get_global_mouse_position(), current_melee_reach(), _facing, swing_vertical_factor)
+	_melee_aim_indicator.show_aim(global_position, _mouse_aim_target, current_melee_reach(), current_melee_arc(), swing_vertical_factor)
 
 
 func aim_direction() -> Vector2:
 	var touch_aim := Vector2.ZERO
 	if _touch != null and _touch.has_method("get_aim"):
 		touch_aim = _touch.get_aim()
-	return resolve_aim_direction(touch_aim, _mouse_aim_active, _mouse_aim_target - global_position, _facing)
+	return resolve_aim_direction(touch_aim, _mouse_aim_active, _mouse_aim_target - global_position, _facing, swing_vertical_factor)
+
+
+static func mouse_aim_allowed(mobile_runtime: bool, pointer_over_ui: bool, paused: bool) -> bool:
+	return not mobile_runtime and not pointer_over_ui and not paused
+
+
+static func resolve_aim_direction(touch_aim: Vector2, mouse_active: bool, mouse_world_delta: Vector2, facing: Vector2, vertical_factor: float) -> Vector2:
+	if touch_aim.length() > 0.01:
+		return touch_aim.normalized()
+	if mouse_active:
+		var safe_vertical := maxf(0.001, vertical_factor)
+		return Vector2(mouse_world_delta.x, mouse_world_delta.y / safe_vertical).normalized()
+	return facing
 ```
 
 `_physics_process()`는 movement read 후 attack 전에 `_update_mouse_aim()`을 호출한다. `reset_transient_state()`, session finish handler, tree exit에서도 `_clear_mouse_aim()`을 호출한다.

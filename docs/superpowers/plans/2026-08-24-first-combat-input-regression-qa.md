@@ -98,11 +98,11 @@ GODOT_BIN=/opt/homebrew/bin/godot bash scripts/export_web_preview.sh
 6. Shift 직후 좌클릭 강공격.
 7. 지도 확대 → 열린 문 → 첫 전투방.
 
-각 단계에서 visual prompt가 `LMB`, `RMB`, `SPACE`를 포함하지 않고 action glyph가 보이는지 기록한다.
+인트로 `계속` hint와 각 조작 단계에서 visual prompt가 `LMB`, `RMB`, `SPACE`를 포함하지 않고 action glyph가 보이는지 기록한다.
 
 - [ ] **Step 4: production RMB aim 실행**
 
-RMB hold + W를 동시에 유지해 이동이 계속되는지, cursor inside/outside reach에서 ring/arc가 clamp되는지, LMB가 cursor direction으로 `attack_executed`를 발생시키는지 확인한다. RMB release는 attack count를 늘리지 않아야 한다.
+RMB hold + W를 동시에 유지해 이동이 계속되는지, cursor inside/outside reach에서 ring/arc가 clamp되는지, 대각선·수직 조준 부채꼴이 실제 `swing_vertical_factor`만큼 압축되는지, LMB가 scaled cursor direction으로 `attack_executed`를 발생시키는지 확인한다. RMB release는 attack count를 늘리지 않아야 한다.
 
 - [ ] **Step 5: production console/network/performance 기록**
 
@@ -170,7 +170,7 @@ ranged_parry: completed_hidden
 ranged_parry: teardown
 ```
 
-Expected: miss/retry ranged flag false; success ranged true/wolf false; completed hidden; teardown connections 0.
+Expected: miss/retry ranged flag false; success ranged true/wolf false; active wolf prompt 중 projectile success가 wolf prompt를 유지; completed hidden; teardown connections 0.
 
 - [ ] **Step 5: fixture 전체 오류 집계와 최악 상태 캡처**
 

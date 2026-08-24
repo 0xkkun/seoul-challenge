@@ -258,7 +258,7 @@ git commit -m "[Combat] 패링 성공 payload에 늑대와 투사체 종류 추�
 
 **Interfaces:**
 - Consumes: #546 `InputPromptStrip`, target Node2D, input mode, parry kind
-- Produces: `show_for_target(target, input_mode, kind) -> bool`, `dismiss_for_target(target)`, preserved `show_for_wolf()`
+- Produces: `show_for_target(target, input_mode, kind) -> bool`, `dismiss_for_target(target)`, `dismiss_for_kind(kind)`, preserved `show_for_wolf()`
 
 - [ ] **Step 1: projectile prompt와 single-active 실패 테스트 작성**
 
@@ -284,6 +284,9 @@ func test_active_parry_prompt_is_not_replaced_by_other_kind() -> void:
 	_runner.assert_true(tutorial.show_for_wolf(wolf, &"desktop"))
 	_runner.assert_false(tutorial.show_for_target(projectile, &"desktop", &"enemy_projectile"))
 	_runner.assert_eq(tutorial.get_snapshot()["kind"], &"wolf_dash")
+	_runner.assert_false(tutorial.dismiss_for_kind(&"enemy_projectile"), "projectile success cannot dismiss active wolf lesson")
+	_runner.assert_true(tutorial.get_snapshot()["active"], "mismatched dismiss keeps current prompt")
+	_runner.assert_true(tutorial.dismiss_for_kind(&"wolf_dash"), "matching kind dismisses its own prompt")
 
 
 func _new_parry_onboarding() -> ParryOnboarding:
@@ -314,6 +317,12 @@ func show_for_target(target: Node2D, input_mode: StringName, kind: StringName) -
 	_active = true
 	_coach.show_prompt(_prompt_model_for(kind, _input_mode, target))
 	return true
+
+
+func dismiss_for_kind(kind: StringName) -> bool:
+	if not _active or _kind != kind:
+		return false
+	return dismiss()
 ```
 
 `_prompt_model_for()`는 wolf desktop `[&"attack"]`, projectile desktop `[&"aim_hold", &"attack"]`, touch key label을 반환한다. 기존 `dismiss_for_wolf()`는 `dismiss_for_target()` adapter로 유지한다. snapshot은 kind/input_actions를 포함한다.
@@ -391,7 +400,7 @@ func _spawn_enemy_bullet(ranged: Node, origin: Vector2) -> Node2D:
 	return spawned[0]
 ```
 
-별도 테스트는 unawakened bat에서 prompt 0, prompt 미완료 room clear 가능, death/retry/exit 후 ranged/projectile signal 0을 단정한다.
+별도 테스트는 unawakened bat에서 prompt 0, prompt 미완료 room clear 가능, death/retry/exit 후 ranged/projectile signal 0을 단정한다. mixed room 테스트는 active wolf prompt 상태에서 `kind=enemy_projectile` 성공 payload를 처리해도 snapshot kind가 `wolf_dash`, active=true로 남는지 검증한다.
 
 - [ ] **Step 2: integration runner에서 ranged lifecycle FAIL 확인**
 
@@ -431,7 +440,7 @@ func _on_player_parry_succeeded(payload: Dictionary) -> void:
 		&"enemy_projectile":
 			if _is_ranged_parry_tutorial_eligible():
 				SaveManager.set_flag(SceneTransition.FLAG_RANGED_PARRY_TUTORIAL_COMPLETE, true)
-				parry_onboarding.dismiss()
+				parry_onboarding.dismiss_for_kind(&"enemy_projectile")
 	_refresh_parry_room_connections()
 ```
 

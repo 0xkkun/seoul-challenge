@@ -92,12 +92,13 @@ PC 안내는 영문 약어 대신 Kenney `Input Prompts Pixel 1-Bit` CC0 PNG를 
 | 의미 | 시각 |
 |---|---|
 | 이동 | W/A/S/D 키캡 묶음 |
+| 기본 클릭/계속 | 왼쪽 버튼이 강조된 마우스 |
 | 조준 유지 | 오른쪽 버튼이 강조된 마우스 |
 | 타격 | 왼쪽 버튼이 강조된 마우스 |
 | 대시 | `SHIFT`가 적힌 키캡 |
 | 순서 | 금색 화살표 |
 
-`LMB`, `RMB`, `SPACE` 문자열은 플레이어 노출 문구와 snapshot에서 허용하지 않는다. `SHIFT`는 실제 키캡 표기이므로 유지한다. 한국어 행동어 `이동`, `조준`, `타격`, `회피`, `받아치기`는 아이콘의 의미를 보조한다.
+`LMB`, `RMB`, `SPACE` 문자열은 인트로를 포함한 첫 PC 플레이어 노출 문구와 snapshot에서 허용하지 않는다. 인트로의 `계속` chip도 왼쪽 마우스 글리프를 사용한다. `SHIFT`는 실제 키캡 표기이므로 유지한다. 한국어 행동어 `이동`, `조준`, `타격`, `회피`, `받아치기`, `계속`은 아이콘의 의미를 보조한다.
 
 모바일은 기존 터치 버튼·조이스틱 대상을 그대로 사용하고 PC 글리프를 렌더링하지 않는다.
 
@@ -126,10 +127,13 @@ PC에서 우클릭을 누르고 있는 동안 마우스 조준 상태가 활성�
 
 조준점은 커서를 따라가지만 표시되는 실제 타격점은 다음 공격의 유효 사거리로 제한한다.
 
+실제 근접 판정은 Y축을 `swing_vertical_factor`로 보정한 전투 공간에서 수행하므로 조준도 같은 공간을 사용한다.
+
 ```text
-direction = normalize(cursor_world - player_world)
-reach = current_melee_reach()
-target = player_world + direction * min(distance_to_cursor, reach)
+combat_delta = (cursor.x - player.x, (cursor.y - player.y) / swing_vertical_factor)
+combat_direction = normalize(combat_delta)
+combat_target = combat_direction * min(length(combat_delta), current_melee_reach())
+world_target = player + (combat_target.x, combat_target.y * swing_vertical_factor)
 ```
 
 커서가 플레이어 위치와 거의 같으면 마지막 유효 facing을 사용한다. 대시 강공격 창이 활성화돼 다음 타격 사거리가 늘어나는 경우 indicator도 같은 `current_melee_reach()` 값을 사용해 실제 판정과 일치한다.
@@ -138,7 +142,7 @@ target = player_world + direction * min(distance_to_cursor, reach)
 
 - 얇은 상아색 방향선
 - 사거리 끝 또는 커서까지의 금색 타격 기준점 링
-- 실제 `range`와 `arc`를 거짓 없이 보여 주는 낮은 알파의 부채꼴
+- 실제 `range`, `arc`, `swing_vertical_factor`를 거짓 없이 보여 주는 낮은 알파의 세로 압축 부채꼴
 - 충돌·입력 캡처 없음
 - pause, modal, 사망 결과, 세션 종료, scene exit에서 즉시 숨김
 - 조준 중 UI 버튼 위에 포인터가 있으면 활성화하지 않음
@@ -187,19 +191,19 @@ func get_snapshot() -> Dictionary
 위치: `scripts/ui/melee_aim_indicator.gd`
 
 ```gdscript
-func show_aim(origin: Vector2, target: Vector2, reach: float, arc: float) -> void
+func show_aim(origin: Vector2, target: Vector2, reach: float, arc: float, vertical_factor: float) -> void
 func hide_aim() -> void
 func get_snapshot() -> Dictionary
 ```
 
-Indicator는 입력을 읽거나 공격을 결정하지 않는다. `Player`가 계산한 origin·target·reach·arc만 그린다. 링만으로 점 타격처럼 오해하지 않도록 실제 근접 판정의 부채꼴도 함께 표시한다. 이 경계로 조준 수학은 순수 함수 테스트가 가능하고 시각 노드는 전투 판정을 바꾸지 않는다.
+Indicator는 입력을 읽거나 공격을 결정하지 않는다. `Player`가 계산한 origin·target·reach·arc·vertical factor만 그린다. 링만으로 점 타격처럼 오해하지 않도록 실제 근접 판정의 세로 압축 부채꼴도 함께 표시한다. 색은 `OnboardingVisualTokens.PAPER_TEXT`와 `GOLD_INFO`에서 알파만 파생한다. 이 경계로 조준 수학은 순수 함수 테스트가 가능하고 시각 노드는 전투 판정을 바꾸지 않는다.
 
 ### `Player` 조준·패링 계약
 
 추가 순수 함수:
 
 ```gdscript
-static func clamped_aim_target(origin: Vector2, cursor: Vector2, reach: float, fallback: Vector2) -> Vector2
+static func clamped_aim_target(origin: Vector2, cursor: Vector2, reach: float, fallback: Vector2, vertical_factor: float) -> Vector2
 ```
 
 추가 상태 조회:
@@ -254,6 +258,8 @@ signal projectile_spawned(projectile: Node2D)
 
 `show_for_wolf()` 공개 계약은 기존 테스트와 호출자를 위해 유지하고 내부에서 일반 API를 호출한다. 이미 다른 패링 prompt가 활성화돼 요청을 받지 못하면 두 함수 모두 `false`를 반환한다.
 
+종류별 성공은 자신과 같은 active prompt만 닫는다. 투사체를 반사했을 때 wolf prompt가 활성 상태라면 wolf 안내를 유지하고, 반대로 wolf 성공은 projectile prompt를 닫지 않는다.
+
 ## 상태 전이
 
 ### 온보딩 사망
@@ -303,7 +309,7 @@ eligible=true + projectile_spawned            │
 - projectile이 prompt 표시 중 삭제되면 weak reference를 확인하고 즉시 dismiss한다.
 - room change, death, retry, finish, scene exit에서 ranged enemy·projectile·player signal을 모두 해제한다.
 - 중복 projectile signal이나 한 swing의 다중 탄환 반사는 성공 피드백과 완료 저장을 한 번만 만든다.
-- 모바일 feature에서는 mouse aim을 만들지 않고 기존 touch aim이 우선한다.
+- 모바일 feature에서는 mouse aim을 만들지 않고 기존 touch aim이 우선한다. desktop session에도 hidden `TouchControls` node가 항상 존재하므로 node 존재 여부로 PC mouse aim을 차단하지 않는다. 실제 platform feature와 non-zero touch aim만 판단에 사용한다.
 
 ## 구현 슬라이스
 

@@ -184,6 +184,8 @@ func _add_action(action: StringName) -> void:
 	match action:
 		&"move":
 			_add_wasd_cluster()
+		&"primary_click":
+			_add_texture(MOUSE_LEFT, MOUSE_LEFT.resource_path)
 		&"aim_hold":
 			_add_texture(MOUSE_RIGHT, MOUSE_RIGHT.resource_path)
 		&"attack":
@@ -272,8 +274,11 @@ git commit -m "[UI] 공통 PC 입력 글리프 렌더러 추가"
 **Files:**
 - Modify: `scripts/ui/onboarding_coach_mark.gd:20-225`
 - Modify: `scripts/ui/ingame_control_onboarding.gd:25-115`
+- Modify: `scripts/cutscene/night_intro_cutscene.gd:60-125`
+- Modify: `scripts/cutscene/night_intro_cutscene.gd:230-265`
 - Modify: `tests/unit/test_onboarding_coach_mark.gd`
 - Modify: `tests/unit/test_touch_input.gd:210-270`
+- Modify: `tests/unit/test_night_intro_cutscene.gd:195-215`
 
 **Interfaces:**
 - Consumes: prompt model `input_actions: Array[StringName]`, `input_mode`
@@ -318,6 +323,21 @@ _runner.assert_eq(dash_snapshot["input_actions"], [&"dash"])
 _runner.assert_eq(power_snapshot["input_actions"], [&"dash", &"attack"])
 ```
 
+`test_night_intro_cutscene.gd`는 인트로 desktop hint까지 같은 계약으로 묶는다.
+
+```gdscript
+func test_intro_advance_hint_uses_mouse_glyph_without_lmb_copy() -> void:
+	var intro := NightIntroCutscene.new()
+	add_child(intro)
+	var desktop: Dictionary = intro.call("advance_hint_model_for_mode", &"desktop")
+	var touch: Dictionary = intro.call("advance_hint_model_for_mode", &"touch")
+	_runner.assert_eq(desktop["input_actions"], [&"primary_click"])
+	_runner.assert_eq(desktop["label"], "계속")
+	_runner.assert_false(String(desktop).contains("LMB"))
+	_runner.assert_eq(touch["input_actions"], [])
+	_runner.assert_eq(touch["label"], "탭하여 계속")
+```
+
 - [ ] **Step 2: unit runner에서 기존 text-only 구현이 FAIL인지 확인**
 
 Run: Task 1 Step 2.
@@ -333,6 +353,15 @@ Expected: input strip snapshot key가 없어 FAIL.
 ```gdscript
 "input_mode": _input_mode,
 "input_actions": step.get("input_actions", []),
+```
+
+`NightIntroCutscene`은 기존 `_hint: Label`을 `_hint: PanelContainer`로 바꾸고 내부에 `InputPromptStrip`과 `Label`을 둔다. desktop model은 `input_actions=[&"primary_click"]`, label `계속`; touch model은 strip을 숨기고 label `탭하여 계속`을 사용한다. 기존 `AdvanceHint` node name, safe-area offsets, modulate tween, `get_advance_hint_reference_rect()` 계약은 유지한다.
+
+```gdscript
+static func advance_hint_model_for_mode(input_mode: StringName) -> Dictionary:
+	if input_mode == InputPromptPolicy.MODE_TOUCH:
+		return {"input_actions": [], "label": "탭하여 계속"}
+	return {"input_actions": [&"primary_click"], "label": "계속"}
 ```
 
 Desktop steps:
@@ -362,7 +391,7 @@ Expected: unit/integration 0 failed, UI automation and texture filter gates PASS
 - [ ] **Step 5: coachmark 연결 커밋**
 
 ```bash
-git add scripts/ui/onboarding_coach_mark.gd scripts/ui/ingame_control_onboarding.gd tests/unit/test_onboarding_coach_mark.gd tests/unit/test_touch_input.gd
+git add scripts/ui/onboarding_coach_mark.gd scripts/ui/ingame_control_onboarding.gd scripts/cutscene/night_intro_cutscene.gd tests/unit/test_onboarding_coach_mark.gd tests/unit/test_touch_input.gd tests/unit/test_night_intro_cutscene.gd
 git commit -m "[UI] 첫 PC 조작 안내를 입력 글리프로 교체"
 ```
 
