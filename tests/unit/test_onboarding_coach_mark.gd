@@ -3,6 +3,7 @@ extends Node
 const TOKENS_PATH := "res://scripts/ui/onboarding_visual_tokens.gd"
 const COACH_PATH := "res://scripts/ui/onboarding_coach_mark.gd"
 const PARRY_ONBOARDING_PATH := "res://scripts/ui/parry_onboarding.gd"
+const INPUT_PROMPT_ROOT := "res://assets/ui/input_prompts/kenney_pixel_1bit"
 const MobileSafeArea := preload("res://scripts/ui/mobile_safe_area.gd")
 
 var _runner: Node
@@ -20,6 +21,15 @@ func after_each() -> void:
 	Settings.reset_defaults()
 	for child: Node in get_children():
 		child.queue_free()
+
+
+func test_pc_input_prompt_assets_are_importable_and_licensed() -> void:
+	for file_name: String in ["mouse_left.png", "mouse_right.png"]:
+		var path := "%s/%s" % [INPUT_PROMPT_ROOT, file_name]
+		_runner.assert_true(ResourceLoader.exists(path), "%s 입력 글리프를 import할 수 있다" % file_name)
+		_runner.assert_not_null(load(path) as Texture2D, "%s 입력 글리프가 Texture2D로 열린다" % file_name)
+	_runner.assert_true(FileAccess.file_exists("%s/LICENSE.txt" % INPUT_PROMPT_ROOT), "CC0 라이선스를 에셋과 함께 배포한다")
+	_runner.assert_true(FileAccess.file_exists("%s/README.md" % INPUT_PROMPT_ROOT), "에셋 출처와 원본 매핑을 기록한다")
 
 
 func test_tokens_drive_compact_timing_surface_and_reduced_motion() -> void:
@@ -53,6 +63,39 @@ func test_tokens_drive_compact_timing_surface_and_reduced_motion() -> void:
 	snapshot = coach.call("get_snapshot")
 	_runner.assert_true(bool(snapshot.get("reduced_motion")), "coach records reduced-motion mode")
 	_runner.assert_eq(snapshot.get("enter_duration"), 0.0, "reduced motion applies the final state immediately")
+
+
+func test_desktop_coach_uses_glyph_strip_without_key_abbreviations() -> void:
+	var coach := _new_coach()
+	if coach == null:
+		return
+	coach.call("show_prompt", {
+		"id": &"aim_attack",
+		"input_mode": &"desktop",
+		"input_actions": [&"aim_hold", &"attack"],
+		"action": "조준하고 타격",
+		"target_kind": &"none",
+	})
+	var snapshot: Dictionary = coach.call("get_snapshot")
+	_runner.assert_true(bool(snapshot.get("input_strip_visible", false)), "desktop coach는 입력 글리프 strip을 보인다")
+	_runner.assert_eq(snapshot.get("input_actions", []), [&"aim_hold", &"attack"], "입력 순서를 보존한다")
+	_runner.assert_eq(snapshot.get("key_label", ""), "", "desktop glyph coach는 text key chip을 숨긴다")
+
+
+func test_mobile_coach_keeps_existing_key_label_fallback() -> void:
+	var coach := _new_coach()
+	if coach == null:
+		return
+	coach.call("show_prompt", {
+		"id": &"touch_attack",
+		"input_mode": &"touch",
+		"key_label": "공격 버튼",
+		"action": "공격",
+		"target_kind": &"none",
+	})
+	var snapshot: Dictionary = coach.call("get_snapshot")
+	_runner.assert_false(bool(snapshot.get("input_strip_visible", true)), "touch coach는 PC strip을 숨긴다")
+	_runner.assert_eq(snapshot.get("key_label", ""), "공격 버튼", "touch key label fallback을 유지한다")
 
 
 func test_world_target_prompt_is_safe_compact_and_non_blocking() -> void:
