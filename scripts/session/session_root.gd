@@ -1157,6 +1157,8 @@ func _on_retry_requested() -> void:
 		result = SceneTransition.start_session(config)
 	if result is int and result != OK:
 		_handoff_session_on_exit = false
+		get_tree().paused = true
+		session_ui_root.set_status("다시 시작하지 못했습니다. 다시 시도해 주세요.")
 
 
 func _configure_player_camera() -> void:

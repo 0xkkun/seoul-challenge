@@ -2130,6 +2130,61 @@ func test_session_result_actions_unpause_and_preserve_retry_config() -> void:
 	session.queue_free()
 
 
+func test_onboarding_death_retry_restarts_same_onboarding_without_school() -> void:
+	var session := _instantiate_baseball_onboarding_session()
+	var calls := {"school": 0}
+	var retry_configs: Array[Dictionary] = []
+	session.return_to_school_callable = func() -> void:
+		calls["school"] += 1
+	session.retry_session_callable = func(config: Dictionary) -> Error:
+		retry_configs.append(config.duplicate(true))
+		GameManager.start_session(config)
+		return OK
+
+	(session.get_node("%DeathReturnController") as DeathReturnController).trigger_death_return()
+	var ui := session.get_node("%SessionUIRoot")
+	var death_snapshot: Dictionary = ui.call("get_summary_snapshot")
+	_runner.assert_false(bool(death_snapshot.get("return_visible", true)), "온보딩 사망은 학교 복귀를 노출하지 않는다")
+	_runner.assert_true(bool(death_snapshot.get("retry_visible", false)), "온보딩 사망은 재도전을 노출한다")
+	(ui.get_node("%RetryButton") as Button).pressed.emit()
+
+	_runner.assert_eq(calls["school"], 0, "사망 재도전은 학교 callback을 호출하지 않는다")
+	_runner.assert_eq(retry_configs.size(), 1, "재도전은 replacement session을 한 번 시작한다")
+	if retry_configs.size() == 1:
+		_runner.assert_eq(
+			retry_configs[0].get(SceneTransition.RUN_CONFIG_ONBOARDING_KIND, &""),
+			SceneTransition.ONBOARDING_KIND_BASEBALL_CAPTAIN,
+			"재도전 config가 같은 온보딩 종류를 보존한다"
+		)
+		_runner.assert_eq(retry_configs[0].get("source", ""), "session_result_retry", "재도전 source가 결과 재시작을 기록한다")
+	_runner.assert_false(get_tree().paused, "성공한 replacement handoff는 pause를 해제한다")
+
+	session.queue_free()
+
+
+func test_failed_onboarding_retry_keeps_summary_retryable() -> void:
+	var session := _instantiate_baseball_onboarding_session()
+	session.retry_session_callable = func(_config: Dictionary) -> Error:
+		return ERR_CANT_CREATE
+
+	(session.get_node("%DeathReturnController") as DeathReturnController).trigger_death_return()
+	var ui := session.get_node("%SessionUIRoot")
+	(ui.get_node("%RetryButton") as Button).pressed.emit()
+
+	_runner.assert_true(bool(ui.call("is_summary_visible")), "실패한 재도전은 사망 결과 화면을 유지한다")
+	_runner.assert_true((ui.get_node("%RetryButton") as Button).visible, "실패한 재도전은 다시 누를 수 있다")
+	_runner.assert_true(get_tree().paused, "실패한 재도전은 결과 화면 아래 gameplay를 정지한다")
+	_runner.assert_eq(
+		(ui.get_node("%StatusLabel") as Label).text,
+		"다시 시작하지 못했습니다. 다시 시도해 주세요.",
+		"실패 이유와 복구 행동을 보여 준다"
+	)
+	_runner.assert_false(bool(session.get("_handoff_session_on_exit")), "실패한 재도전은 handoff 소유권을 취소한다")
+
+	get_tree().paused = false
+	session.queue_free()
+
+
 func test_player_death_shows_game_over_summary_without_immediate_transition() -> void:
 	SaveManager.set_flag(SceneTransition.FLAG_BASEBALL_CAPTAIN_REWARD_CLAIMED, true)
 	GameManager.start_session({
