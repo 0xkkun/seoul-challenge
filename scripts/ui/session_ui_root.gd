@@ -81,6 +81,7 @@ var _reward_choice_onboarding_hint_enabled := false
 var _onboarding_journey_hint_panel: PanelContainer = null
 var _onboarding_journey_hint_detail: Label = null
 var _onboarding_journey_hint_action: Label = null
+var _retry_variant := PixelButtonStyle.VARIANT_SECONDARY
 
 
 func _ready() -> void:
@@ -290,10 +291,7 @@ func show_summary(result: Dictionary) -> void:
 	var unlock_labels: Array[String] = summary["unlocks"]
 	unlocks_record_label.text = "해금 %s" % " / ".join(unlock_labels) if not unlock_labels.is_empty() else ""
 	summary_overlay.visible = true
-	# Onboarding completion has no meaningful retry — relaunching it would start a normal
-	# night run from the onboarding result screen. Only returning to school moves the story
-	# forward, so hide retry for onboarding results and keep it for every other outcome.
-	retry_button.visible = not _is_onboarding_result(result)
+	_apply_summary_actions(result_action_model(result))
 	hide_reward_choices()
 
 
@@ -308,11 +306,54 @@ func get_summary_snapshot() -> Dictionary:
 		"friends": friends_record_label.text,
 		"rooms": rooms_record_label.text,
 		"unlocks": unlocks_record_label.text if unlocks_record_panel.visible else "",
+		"return_visible": return_button.visible,
+		"retry_visible": retry_button.visible,
+		"return_text": return_button.text,
+		"retry_text": retry_button.text,
+		"retry_variant": _retry_variant,
 	}
 
 
 func is_summary_visible() -> bool:
 	return summary_overlay.visible
+
+
+func show_retry_error(text: String) -> void:
+	if summary_overlay.visible:
+		narrative_label.text = text
+
+
+func result_action_model(result: Dictionary) -> Dictionary:
+	var is_death := _is_death_result(result)
+	var is_onboarding := _is_onboarding_result(result)
+	if is_death and is_onboarding:
+		return {
+			"return_visible": false,
+			"retry_visible": true,
+			"retry_text": "다시 도전",
+			"retry_variant": PixelButtonStyle.VARIANT_PRIMARY,
+		}
+	if is_onboarding:
+		return {
+			"return_visible": true,
+			"retry_visible": false,
+			"retry_text": "다시 밤으로",
+			"retry_variant": PixelButtonStyle.VARIANT_SECONDARY,
+		}
+	return {
+		"return_visible": true,
+		"retry_visible": true,
+		"retry_text": "다시 밤으로",
+		"retry_variant": PixelButtonStyle.VARIANT_SECONDARY,
+	}
+
+
+func _apply_summary_actions(model: Dictionary) -> void:
+	return_button.visible = bool(model.get("return_visible", true))
+	retry_button.visible = bool(model.get("retry_visible", true))
+	retry_button.text = String(model.get("retry_text", "다시 밤으로"))
+	_retry_variant = StringName(model.get("retry_variant", PixelButtonStyle.VARIANT_SECONDARY))
+	PixelButtonStyle.apply(retry_button, _retry_variant, Vector2(0.0, 52.0))
 
 
 func show_reward_choices(room_id: StringName, choices: Array) -> void:
@@ -903,6 +944,8 @@ func _result_title(result: Dictionary) -> String:
 func _result_narrative(result: Dictionary) -> String:
 	var outcome := String(result.get("outcome", "")).to_lower()
 	var reason := String(result.get("reason", ""))
+	if _is_death_result(result) and _is_onboarding_result(result):
+		return "다시 일어나 첫 탐험을 이어가자."
 	if outcome in ["death", "dead", "failed"] or bool(result.get("died", false)):
 		return "새벽 종소리와 함께 교실에서 눈을 떴다.\n혼 조각은 손에 남아 있다."
 	if reason == "onboarding_friend_purified":

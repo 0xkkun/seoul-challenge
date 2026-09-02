@@ -68,6 +68,41 @@ func test_death_result_keeps_same_layout_without_loss_copy() -> void:
 	_assert_no_explainer_copy(snapshot)
 
 
+func test_onboarding_death_offers_retry_only() -> void:
+	_ui.show_summary({
+		"outcome": "death",
+		"died": true,
+		"onboarding_kind": SceneTransition.ONBOARDING_KIND_BASEBALL_CAPTAIN,
+	})
+
+	var snapshot: Dictionary = _ui.get_summary_snapshot()
+	_runner.assert_false(bool(snapshot.get("return_visible", true)), "온보딩 사망은 학교 복귀를 숨긴다")
+	_runner.assert_true(bool(snapshot.get("retry_visible", false)), "온보딩 사망은 재도전을 남긴다")
+	_runner.assert_eq(snapshot.get("retry_text", ""), "다시 도전", "재도전 문구가 행동을 직접 말한다")
+	_runner.assert_eq(snapshot.get("retry_variant", &""), PixelButtonStyle.VARIANT_PRIMARY, "재도전이 주 행동이다")
+	_runner.assert_eq(snapshot.get("narrative", ""), "다시 일어나 첫 탐험을 이어가자.", "사망 설명이 학교 복귀를 말하지 않는다")
+
+
+func test_regular_death_keeps_both_result_actions() -> void:
+	_ui.show_summary({"outcome": "death", "died": true})
+
+	var snapshot: Dictionary = _ui.get_summary_snapshot()
+	_runner.assert_true(bool(snapshot.get("return_visible", false)), "일반 사망은 학교 복귀 선택을 유지한다")
+	_runner.assert_true(bool(snapshot.get("retry_visible", false)), "일반 사망은 재도전 선택을 유지한다")
+
+
+func test_onboarding_success_keeps_school_return_only() -> void:
+	_ui.show_summary({
+		"completed": true,
+		"reason": "onboarding_friend_purified",
+		"onboarding_kind": SceneTransition.ONBOARDING_KIND_BASEBALL_CAPTAIN,
+	})
+
+	var snapshot: Dictionary = _ui.get_summary_snapshot()
+	_runner.assert_true(bool(snapshot.get("return_visible", false)), "온보딩 성공은 학교 복귀를 유지한다")
+	_runner.assert_false(bool(snapshot.get("retry_visible", true)), "온보딩 성공은 재도전을 숨긴다")
+
+
 func test_death_summary_modal_and_key_record_areas_are_transparent() -> void:
 	_ui.show_summary({
 		"outcome": "death",
